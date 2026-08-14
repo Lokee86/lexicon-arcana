@@ -118,12 +118,20 @@ pub(crate) fn resolve_qns(
         }
     }
     if !path.contains("::") {
-        return existing(
-            context,
-            all_qns(context)
-                .into_iter()
-                .filter(|qn| qn.ends_with(&format!("::{path}"))),
-        );
+        let suffix = format!("::{path}");
+        return context
+            .modules
+            .keys()
+            .chain(context.symbols.keys())
+            .chain(context.types.keys())
+            .chain(context.traits.keys())
+            .chain(context.macros.keys())
+            .chain(context.constructors.keys())
+            .chain(context.type_aliases.keys())
+            .chain(context.value_types.keys())
+            .filter(|qn| qn.ends_with(&suffix))
+            .cloned()
+            .collect();
     }
     BTreeSet::new()
 }
@@ -140,37 +148,34 @@ fn existing(context: &Context, candidates: impl IntoIterator<Item = String>) -> 
 }
 
 fn expand_module_reexport(context: &Context, candidate: &str) -> BTreeSet<String> {
-    let mut modules: Vec<_> = context
-        .modules
-        .keys()
-        .filter(|module| candidate.starts_with(&format!("{module}::")))
-        .collect();
-    modules.sort_by_key(|module| std::cmp::Reverse(module.len()));
-    for module in modules {
-        let rest = &candidate[module.len() + 2..];
-        let (first, suffix) = rest
-            .split_once("::")
-            .map(|(a, b)| (a, Some(b)))
-            .unwrap_or((rest, None));
-        let Some(targets) = context
-            .imports
-            .get(module)
-            .and_then(|scope| scope.bindings.get(first))
-        else {
-            continue;
-        };
-        let expanded: BTreeSet<_> = targets
-            .iter()
-            .filter_map(|target| {
-                let qn = suffix
-                    .map(|tail| format!("{target}::{tail}"))
-                    .unwrap_or_else(|| target.clone());
-                has_qn(context, &qn).then_some(qn)
-            })
-            .collect();
-        if !expanded.is_empty() {
-            return expanded;
+    let mut module = candidate.rsplit_once("::").map(|(module, _)| module);
+    while let Some(current) = module {
+        if context.modules.contains_key(current) {
+            let rest = &candidate[current.len() + 2..];
+            let (first, suffix) = rest
+                .split_once("::")
+                .map(|(a, b)| (a, Some(b)))
+                .unwrap_or((rest, None));
+            if let Some(targets) = context
+                .imports
+                .get(current)
+                .and_then(|scope| scope.bindings.get(first))
+            {
+                let expanded: BTreeSet<_> = targets
+                    .iter()
+                    .filter_map(|target| {
+                        let qn = suffix
+                            .map(|tail| format!("{target}::{tail}"))
+                            .unwrap_or_else(|| target.clone());
+                        has_qn(context, &qn).then_some(qn)
+                    })
+                    .collect();
+                if !expanded.is_empty() {
+                    return expanded;
+                }
+            }
         }
+        module = current.rsplit_once("::").map(|(parent, _)| parent);
     }
     BTreeSet::new()
 }
@@ -220,19 +225,4 @@ fn has_qn(context: &Context, qn: &str) -> bool {
         || context.constructors.contains_key(qn)
         || context.type_aliases.contains_key(qn)
         || context.value_types.contains_key(qn)
-}
-
-fn all_qns(context: &Context) -> BTreeSet<String> {
-    context
-        .modules
-        .keys()
-        .chain(context.symbols.keys())
-        .chain(context.types.keys())
-        .chain(context.traits.keys())
-        .chain(context.macros.keys())
-        .chain(context.constructors.keys())
-        .chain(context.type_aliases.keys())
-        .chain(context.value_types.keys())
-        .cloned()
-        .collect()
 }

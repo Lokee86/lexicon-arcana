@@ -13,8 +13,6 @@ import (
 	"strings"
 )
 
-const maxFingerprintFileBytes int64 = 2 << 20
-
 // RepositoryFingerprint returns the source identity used by repository state
 // and knowledge-link freshness checks.
 func RepositoryFingerprint(root string) (string, error) {
@@ -52,10 +50,6 @@ func gitFingerprint(root string) (string, bool, error) {
 		}
 		fields := strings.Fields(metadata)
 		if len(fields) != 3 || fields[2] != "0" || strings.HasPrefix(fields[0], "120") {
-			continue
-		}
-		path := filepath.Join(root, filepath.FromSlash(relative))
-		if info, statErr := os.Lstat(path); statErr == nil && info.Size() > maxFingerprintFileBytes {
 			continue
 		}
 		_, _ = io.WriteString(hash, "index\x00"+filepath.ToSlash(relative)+"\x00"+fields[1]+"\x00")
@@ -113,7 +107,7 @@ func hashWorkingFile(hash io.Writer, root, relative, kind string) error {
 	if err != nil {
 		return err
 	}
-	if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || info.Size() > maxFingerprintFileBytes {
+	if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
 		return nil
 	}
 	file, err := os.Open(path)
@@ -180,17 +174,23 @@ func fingerprintPath(relative string) bool {
 			return false
 		}
 	}
-	name := filepath.Base(relative)
+	name := strings.ToLower(filepath.Base(relative))
 	extension := strings.ToLower(filepath.Ext(name))
+	// This is intentionally a conservative superset of Grimoire-indexed files
+	// and every source/config input currently consumed by Lexicon. False positives
+	// may cause an extra refresh; false negatives can leave Arcana on a stale graph.
 	switch extension {
-	case ".go", ".rs", ".py", ".rb", ".js", ".jsx", ".ts", ".tsx",
-		".java", ".c", ".h", ".cc", ".cpp", ".hpp", ".cs", ".gd",
-		".md", ".txt", ".toml", ".yaml", ".yml", ".json", ".xml",
-		".html", ".css", ".scss", ".sql", ".sh", ".ps1":
+	case ".go", ".rs", ".py", ".rb", ".gemspec", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts", ".svelte",
+		".java", ".kt", ".kts", ".c", ".cc", ".cp", ".cpp", ".cxx", ".c++", ".h", ".hh", ".hpp", ".hxx", ".h++", ".inc", ".inl", ".ipp", ".tpp", ".cs", ".gd",
+		".ls", ".lsa", ".lsdb", ".lss",
+		".md", ".txt", ".toml", ".yaml", ".yml", ".json", ".xml", ".html", ".css", ".scss",
+		".mod", ".sum", ".sln", ".csproj", ".props", ".targets", ".gradle", ".cfg", ".godot",
+		".asm", ".bash", ".bat", ".clj", ".cljs", ".cmd", ".cr", ".dart", ".elm", ".erl", ".ex", ".exs", ".f03", ".f90", ".f95", ".fish", ".fs", ".fsx", ".groovy", ".hs", ".jl", ".lhs", ".lua", ".m", ".ml", ".mli", ".mm", ".nim", ".nims", ".pas", ".php", ".pl", ".pm", ".proto", ".ps1", ".r", ".scala", ".sc", ".s", ".sh", ".sol", ".sql", ".swift", ".sv", ".v", ".vb", ".vbs", ".vim", ".zig":
 		return true
 	}
-	switch strings.ToLower(name) {
-	case "readme", "license", "makefile", "dockerfile", "gemfile", "rakefile":
+	switch name {
+	case ".gitignore", ".lexiconignore", "readme", "license", "makefile", "dockerfile", "gemfile", "gemfile.lock", "rakefile",
+		"gradlew", "mvnw", "cargo.lock", "directory.build.props", "directory.build.targets":
 		return true
 	default:
 		return false

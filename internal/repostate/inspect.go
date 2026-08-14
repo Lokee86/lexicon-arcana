@@ -86,7 +86,7 @@ func inspectWithFingerprint(ctx context.Context, location paths, fingerprint str
 	repository.SourceFingerprint = fingerprint
 	status := Status{Version: 2, Repository: repository}
 	status.Lexicon = inspectLexicon(location, fingerprint, repository.GitDirty)
-	status.Arcana = inspectArcana(location, status.Lexicon.Snapshot)
+	status.Arcana = inspectArcana(location, currentLexiconSnapshot(status))
 	for _, warning := range status.Arcana.Warnings {
 		status.Warnings = append(status.Warnings, "Arcana compatibility warning: "+warning)
 	}

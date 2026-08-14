@@ -84,6 +84,8 @@ Grimoire owns two additional deterministic states:
 
 Vector state is inspected separately and is not silently built as part of ordinary repository preparation.
 
+Repository freshness is deliberately broader than Grimoire's 2 MiB source-index eligibility cap. The preparation fingerprint covers Grimoire retrieval inputs plus the source extensions, build/dependency manifests, generic-language inputs, and ignore-control files that can change Lexicon output. A file may therefore be too large for Grimoire text indexing while still invalidating Lexicon and Arcana state.
+
 ## Discovery stage
 
 A Grimoire search combines independent lanes:
@@ -111,7 +113,7 @@ Grimoire treats provider identities as explicit correctness boundaries:
 - Arcana state records the Lexicon snapshot it consumed;
 - investigation sessions preserve returned snapshot-qualified handles.
 
-A stale handle or mismatched provider state must produce an explicit failure or warning rather than silently resolving against unrelated state.
+A stale handle or mismatched provider state must produce an explicit failure or warning rather than silently resolving against unrelated state. Runtime discovery exposes a provider snapshot only when that provider is current; a stale Arcana snapshot is omitted rather than queried as a degraded fallback.
 
 ## Degradation behavior
 
@@ -119,7 +121,7 @@ The stack is intentionally lane-tolerant:
 
 - Grimoire source and document discovery can operate without Lexicon or Arcana.
 - Lexicon symbol evidence can operate without Arcana.
-- Arcana failure removes or limits graph-backed evidence but does not invalidate exact source evidence.
+- Arcana failure or staleness removes graph-backed evidence from the active prepared snapshot rather than exposing the previous graph, but does not invalidate exact source evidence.
 - Missing document vectors preserve deterministic document BM25.
 - Missing graph vectors do not affect ordinary Arcana traversal.
 

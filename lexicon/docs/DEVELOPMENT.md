@@ -127,6 +127,8 @@ cargo test --manifest-path adapters/rust/Cargo.toml
 cargo clippy --manifest-path adapters/rust/Cargo.toml --all-targets -- -D warnings
 ```
 
+For Rust semantic-performance changes, also run a full rebuild on a representative real repository rather than relying only on fixtures. Dated evidence from 2026-08-07: rebuilding Arcana's 121 Rust source files (about 929 functions) completed in about 52 seconds after removing whole-AST/per-merge cloning from the fixed-point hot path; the prior path exceeded 180 seconds in the same local audit.
+
 ### JavaScript, TypeScript, and Svelte adapter
 
 ```text

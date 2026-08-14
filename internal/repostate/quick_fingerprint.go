@@ -71,9 +71,6 @@ func quickSourceFingerprint(root string) (string, error) {
 		if err != nil {
 			return err
 		}
-		if info.Size() > maxFingerprintFileBytes {
-			return nil
-		}
 		_, _ = fmt.Fprintf(hash, "file\x00%s\x00%d\x00%d\x00%d\x00", relative, info.Size(), info.ModTime().UnixNano(), info.Mode())
 		return nil
 	})

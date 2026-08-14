@@ -4,11 +4,10 @@ use std::collections::BTreeMap;
 
 pub(crate) fn analyze(context: &mut Context) {
     for _ in 0..16 {
-        let functions: Vec<_> = context.functions.values().cloned().collect();
         let mut returns = BTreeMap::<String, ValueSet>::new();
         let mut parameters = context.propagated_parameters.clone();
         let mut captures = context.propagated_captures.clone();
-        for function in &functions {
+        for function in context.functions.values() {
             let result = Analyzer::new(context, function).run();
             returns
                 .entry(function.id.clone())
@@ -31,11 +30,17 @@ pub(crate) fn analyze(context: &mut Context) {
         context.propagated_parameters = parameters;
         context.propagated_captures = captures;
     }
-    let functions: Vec<_> = context.functions.values().cloned().collect();
-    for function in &functions {
-        let result = Analyzer::new(context, function).run();
-        for event in result.calls {
-            emit_call(context, &function.id, event);
+    let calls: Vec<_> = context
+        .functions
+        .values()
+        .map(|function| {
+            let result = Analyzer::new(context, function).run();
+            (function.id.clone(), result.calls)
+        })
+        .collect();
+    for (owner, events) in calls {
+        for event in events {
+            emit_call(context, &owner, event);
         }
     }
 }

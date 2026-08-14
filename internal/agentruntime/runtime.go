@@ -66,12 +66,16 @@ func Execute(ctx context.Context, request Request, options Options) (Response, e
 	}
 	documentHandles, codeHandles := splitHandles(request.Handles)
 	queryRequest := request.Request
+	providers := make(map[string]string, 2)
+	if preparation.Lexicon.Status == "current" && preparation.Lexicon.Snapshot != "" {
+		providers["lexicon"] = preparation.Lexicon.Snapshot
+	}
+	if preparation.Lexicon.Status == "current" && preparation.Arcana.Status == "current" && preparation.Arcana.Snapshot != "" {
+		providers["arcana"] = preparation.Arcana.Snapshot
+	}
 	queryRequest.PreparedSnapshot = agentquery.Snapshot{
-		Source: preparation.Grimoire.Snapshot,
-		Providers: map[string]string{
-			"lexicon": preparation.Lexicon.Snapshot,
-			"arcana":  preparation.Arcana.Snapshot,
-		},
+		Source:    preparation.Grimoire.Snapshot,
+		Providers: providers,
 	}
 	queryRequest.Handles = codeHandles
 	queryOnlyForSnapshot := request.Mode == "inspect" && len(codeHandles) == 0 && len(documentHandles) > 0

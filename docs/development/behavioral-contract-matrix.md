@@ -18,6 +18,8 @@ The matrix covers contracts that cross retrieval lanes, snapshots, process bound
 | Narrow discovery returns bounded handle-first evidence and defers exact expansion to inspection | Agent-query and MCP contract tests; agent-discovery benchmark harness |
 | Stable handles are snapshot-qualified and resolve exact evidence | Agent-query/session tests and end-to-end discovery fixtures |
 | Repository preparation aligns Grimoire, Lexicon, Arcana, and document state before current-only follow-ups | Repository-state and application orchestration tests |
+| Repository freshness covers every file class that can affect Grimoire retrieval or Lexicon output, including Lexicon-only language/config inputs, ignore controls, and analysis-relevant files above the source-index size cap | `internal/repostate/fingerprint_*_test.go` |
+| Stale Lexicon or Arcana snapshots are never exposed as active discovery providers; healthy source/document lanes may still degrade independently | Agent-runtime provider-freshness tests, agent-query prepared-snapshot tests, and repository-state tests |
 | Exact source search remains available independently of embeddings | Source retrieval tests and no-vector integration tests |
 | Lexicon owns parsing and normalized language facts; Grimoire and Arcana do not duplicate adapters | Lexicon adapter tests, component-boundary docs, release workflow checks |
 | Arcana consumes Lexicon facts and owns graph storage and traversal rather than language parsing | Arcana ingestion, protocol, snapshot, storage, and traversal tests |

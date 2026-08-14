@@ -33,6 +33,8 @@ Canonical identities are based on Cargo package/target/module-qualified names an
 
 Trait declarations are contracts and are never emitted as runtime call targets. A single proven concrete implementation emits `calls`; multiple concrete implementations or unconstrained generic/trait-object candidates emit `possible-calls`. Inherited/default trait methods resolve only through indexed repository-local implementations.
 
+Semantic propagation uses a bounded fixed-point pass over the parsed function set. Passes reuse parsed function bodies rather than cloning complete ASTs, and `ValueSet` propagation detects in-place growth without cloning the prior value. Name and re-export resolution likewise walks only relevant qualified-name prefixes. These are scalability invariants: changing them can multiply whole-repository Rust analysis cost without changing emitted semantics.
+
 ## Conservative boundaries
 
 The adapter performs static analysis only. It does not expand procedural macros, execute build scripts, infer runtime plugin registration, or guess targets created through unsafe pointer manipulation, reflection-like registries, or unconstrained dynamic dispatch.

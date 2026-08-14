@@ -20,7 +20,7 @@ Coverage includes commands, packages, component boundaries, stateful flows, mach
 | Documentation indexing and retrieval | `internal/knowledge/`, `internal/knowledgevector/` | [Knowledge](../reference/knowledge.md), [Embedding model](../reference/embedding-model.md) |
 | Lexicon fact integration | `internal/lexiconfacts/`, `internal/structure/` | [Lexicon reference](../reference/lexicon.md), [Component architecture](../architecture/components.md) |
 | Arcana graph integration | `internal/arcanagraph/`, `internal/structure/` | [Arcana reference](../reference/arcana.md), [Component architecture](../architecture/components.md), [Operations and trust](../architecture/operations-and-trust.md) |
-| Repository identity and aligned state | `internal/repostate/` | [Analysis stack](../architecture/analysis-stack.md), [System overview](../architecture/system-overview.md) |
+| Repository identity, conservative freshness, and aligned provider state | `internal/repostate/` | [Analysis stack](../architecture/analysis-stack.md), [System overview](../architecture/system-overview.md) |
 | Persistent investigation evidence | `internal/investigation/` | [Agent MCP](../reference/agent-mcp.md), package README |
 | Embedding runtime and vector boundary | `internal/embedding/`, `internal/vectorstore/` | [Embedding model](../reference/embedding-model.md), [Vector store](../reference/vector-store.md), [Operations and trust](../architecture/operations-and-trust.md) |
 | Retrieval and agent outcome evaluation | `internal/knowledgeevaluation/`, `evaluation/agent_discovery/` | [Testing and benchmarks](testing-and-benchmarks.md), [Agent benchmark findings](agent-benchmark-findings.md) |
@@ -48,8 +48,8 @@ Coverage includes commands, packages, component boundaries, stateful flows, mach
 
 | Flow | Canonical current owner |
 | --- | --- |
-| Repository preparation and snapshot alignment across Grimoire, Lexicon, Arcana, and documentation | [Analysis stack](../architecture/analysis-stack.md) |
-| Exact, BM25, document, symbol, and relationship lane assembly | [Unified discovery contract](../reference/agent-query.md) |
+| Repository preparation, conservative source/provider freshness, and snapshot alignment across Grimoire, Lexicon, Arcana, and documentation | [Analysis stack](../architecture/analysis-stack.md) |
+| Exact, BM25, document, and symbol lane assembly with deferred structural expansion | [Unified discovery contract](../reference/agent-query.md) |
 | Stable snapshot-qualified handles and inspection | [Agent MCP](../reference/agent-mcp.md) |
 | MCP negotiation, bounded admission, cancellation, and audit privacy | [Agent MCP](../reference/agent-mcp.md), [Operations and trust](../architecture/operations-and-trust.md) |
 | Investigation session reuse and prior-evidence compaction | [Agent MCP](../reference/agent-mcp.md) |

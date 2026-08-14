@@ -63,7 +63,7 @@ def build_java_adapter(repo: Path, output: Path) -> None:
             adapter,
         )
         compiler_dir = output / "compiler"
-        compiler_dir.mkdir()
+        compiler_dir.mkdir(exist_ok=True)
         run(
             [
                 str(jdk / "bin" / executable("jar")),

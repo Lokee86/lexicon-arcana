@@ -88,31 +88,58 @@ func openEngine(ctx context.Context, request Request) (*Engine, error) {
 	if err != nil {
 		return nil, fmt.Errorf("load prepared index: %w", err)
 	}
-	engine := &Engine{root: root, source: source, arcana: arcanagraph.Client{Command: request.ArcanaCmd}}
-	export, lexiconSnapshot, err := lexiconfacts.ResolveExport(ctx, lexiconfacts.ExportOptions{
-		Root: root, GrimoireState: state, ExplicitDirectory: request.LexiconFacts,
-		LexiconState: request.LexiconState, Command: request.LexiconCmd,
-	})
-	if err != nil {
-		engine.warnings = append(engine.warnings, "Lexicon unavailable: "+err.Error())
-	} else if export != "" {
-		engine.lexicon, err = lexiconfacts.Load(export)
-		if err != nil {
-			engine.warnings = append(engine.warnings, "Lexicon unavailable: "+err.Error())
-			engine.lexicon = nil
-		}
-		engine.lexiconSnapshot = lexiconSnapshot
+	if expected := strings.TrimSpace(request.PreparedSnapshot.Source); expected != "" && source.Identity() != expected {
+		return nil, fmt.Errorf("prepared source snapshot %s is not active source snapshot %s", expected, source.Identity())
 	}
-	arcanaSnapshot, arcanaID, err := arcanagraph.ResolveSnapshot(ctx, arcanagraph.StateOptions{
-		Root: root, State: request.ArcanaState, LexiconState: request.LexiconState,
-		ExpectedLexiconSnapshot: lexiconSnapshot, Command: request.ArcanaCmd,
-	})
-	if err != nil {
-		engine.warnings = append(engine.warnings, "Arcana unavailable: "+err.Error())
-	} else {
-		engine.arcanaSnapshot, engine.arcanaSnapshotID = arcanaSnapshot, arcanaID
+	engine := &Engine{root: root, source: source, arcana: arcanagraph.Client{Command: request.ArcanaCmd}}
+
+	lexiconExpected, lexiconConstrained := preparedProviderExpectation(request, "lexicon")
+	if !lexiconConstrained || lexiconExpected != "" {
+		export, lexiconSnapshot, resolveErr := lexiconfacts.ResolveExport(ctx, lexiconfacts.ExportOptions{
+			Root: root, GrimoireState: state, ExplicitDirectory: request.LexiconFacts,
+			LexiconState: request.LexiconState, Command: request.LexiconCmd,
+		})
+		if resolveErr != nil {
+			engine.warnings = append(engine.warnings, "Lexicon unavailable: "+resolveErr.Error())
+		} else if lexiconConstrained && lexiconSnapshot != lexiconExpected {
+			engine.warnings = append(engine.warnings, fmt.Sprintf("Lexicon snapshot %s does not match prepared snapshot %s", lexiconSnapshot, lexiconExpected))
+		} else if export != "" {
+			engine.lexicon, err = lexiconfacts.Load(export)
+			if err != nil {
+				engine.warnings = append(engine.warnings, "Lexicon unavailable: "+err.Error())
+				engine.lexicon = nil
+			} else {
+				engine.lexiconSnapshot = lexiconSnapshot
+			}
+		}
+	}
+
+	arcanaExpected, arcanaConstrained := preparedProviderExpectation(request, "arcana")
+	if !arcanaConstrained || arcanaExpected != "" {
+		expectedLexicon := engine.lexiconSnapshot
+		if lexiconConstrained {
+			expectedLexicon = lexiconExpected
+		}
+		arcanaSnapshot, arcanaID, resolveErr := arcanagraph.ResolveSnapshot(ctx, arcanagraph.StateOptions{
+			Root: root, State: request.ArcanaState, LexiconState: request.LexiconState,
+			ExpectedLexiconSnapshot: expectedLexicon, Command: request.ArcanaCmd,
+		})
+		if resolveErr != nil {
+			engine.warnings = append(engine.warnings, "Arcana unavailable: "+resolveErr.Error())
+		} else if arcanaConstrained && arcanaID != arcanaExpected {
+			engine.warnings = append(engine.warnings, fmt.Sprintf("Arcana snapshot %s does not match prepared snapshot %s", arcanaID, arcanaExpected))
+		} else {
+			engine.arcanaSnapshot, engine.arcanaSnapshotID = arcanaSnapshot, arcanaID
+		}
 	}
 	return engine, nil
+}
+
+func preparedProviderExpectation(request Request, provider string) (string, bool) {
+	if strings.TrimSpace(request.PreparedSnapshot.Source) == "" {
+		return "", false
+	}
+	return strings.TrimSpace(request.PreparedSnapshot.Providers[provider]), true
 }
 
 func defaultTraceRelations() []string {

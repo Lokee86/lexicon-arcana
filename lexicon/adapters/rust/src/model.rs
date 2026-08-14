@@ -36,19 +36,31 @@ pub(crate) struct ValueSet {
 
 impl ValueSet {
     pub(crate) fn merge(&mut self, other: &Self) -> bool {
-        let before = self.clone();
+        let mut changed = false;
+        let before = self.types.len();
         self.types.extend(other.types.iter().cloned());
+        changed |= self.types.len() != before;
+        let before = self.contained_types.len();
         self.contained_types
             .extend(other.contained_types.iter().cloned());
+        changed |= self.contained_types.len() != before;
+        let before = self.traits.len();
         self.traits.extend(other.traits.iter().cloned());
+        changed |= self.traits.len() != before;
+        let before = self.callables.len();
         self.callables.extend(other.callables.iter().cloned());
-        merge_value_lists(&mut self.tuple_elements, &other.tuple_elements);
-        merge_value_lists(&mut self.contained_values, &other.contained_values);
+        changed |= self.callables.len() != before;
+        changed |= merge_value_lists(&mut self.tuple_elements, &other.tuple_elements);
+        changed |= merge_value_lists(&mut self.contained_values, &other.contained_values);
+        changed |= !self.builtin && other.builtin;
+        changed |= !self.external && other.external;
+        changed |= !self.unknown && other.unknown;
+        changed |= !self.dynamic_callable && other.dynamic_callable;
         self.builtin |= other.builtin;
         self.external |= other.external;
         self.unknown |= other.unknown;
         self.dynamic_callable |= other.dynamic_callable;
-        *self != before
+        changed
     }
 
     pub(crate) fn callable(id: String, dynamic: bool) -> Self {
@@ -60,13 +72,16 @@ impl ValueSet {
     }
 }
 
-fn merge_value_lists(target: &mut Vec<ValueSet>, source: &[ValueSet]) {
+fn merge_value_lists(target: &mut Vec<ValueSet>, source: &[ValueSet]) -> bool {
+    let mut changed = false;
     if target.len() < source.len() {
         target.resize_with(source.len(), ValueSet::default);
+        changed = true;
     }
     for (index, value) in source.iter().enumerate() {
-        target[index].merge(value);
+        changed |= target[index].merge(value);
     }
+    changed
 }
 
 #[derive(Clone)]

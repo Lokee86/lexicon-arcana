@@ -48,11 +48,10 @@ User or agent query
   -> source BM25 discovery              -> source_matches
   -> document BM25 / optional vectors   -> document_matches
   -> Lexicon symbol resolution          -> symbol_matches
-  -> Arcana direct relationships        -> relationship_matches
-       fallback: Lexicon relationships
+  -> structural expansion deferred to trace/impact
 ```
 
-Each lane has its own limit. Results are not merged into a shared ranking and are not token-fitted into a package. This preserves heterogeneous evidence and allows the agent to decide which thread to expand.
+Balanced search preserves independent lane limits; narrow search applies one combined code-evidence budget. Search does not traverse graph neighbors automatically. This preserves heterogeneous ranked evidence and lets the agent choose a stable handle before structural expansion.
 
 Follow-up operations use stable handles:
 
@@ -107,7 +106,7 @@ impact(handle)  -> bounded incoming or outgoing dependents
 ## Failure and fallback behavior
 
 - Missing documentation vectors leave the document lane on BM25.
-- Missing Arcana state falls back to direct Lexicon relationships.
+- Missing or stale Arcana state omits Arcana from the prepared query snapshot; structural graph traversal is unavailable until Arcana is current.
 - Missing Lexicon and Arcana state leaves exact and source discovery available.
 - Provider failures are reported in `warnings` and do not discard unrelated evidence lanes.
 - Stale handles are rejected rather than silently rediscovered.
