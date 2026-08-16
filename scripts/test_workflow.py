@@ -145,6 +145,43 @@ class WorkflowSmokeTests(unittest.TestCase):
             self.assertEqual(environment["CARGO_BUILD_JOBS"], "1")
             self.assertEqual(environment["RUST_TEST_THREADS"], "1")
 
+    def test_arcana_protocol_verification_rejects_incomplete_capabilities(self) -> None:
+        responses = [
+            mock.Mock(returncode=0, stdout="", stderr=""),
+            mock.Mock(
+                returncode=0,
+                stdout='{"ok":true,"result":{"protocol":"arcana.query.v1","version":1,"operations":["stats"]}}\n',
+                stderr="",
+            ),
+        ]
+        with tempfile.TemporaryDirectory(prefix="grimoire-protocol-smoke-") as temporary:
+            build = Path(temporary)
+            (build / "bin").mkdir(parents=True)
+            (build / "bin" / workflow.executable_name("arcana")).write_bytes(b"arcana")
+            with mock.patch.object(workflow.subprocess, "run", side_effect=responses):
+                with self.assertRaisesRegex(RuntimeError, "missing required operations"):
+                    workflow.verify_arcana_protocol(build)
+
+    def test_arcana_protocol_verification_accepts_required_capabilities(self) -> None:
+        response = {
+            "ok": True,
+            "result": {
+                "protocol": workflow.ARCANA_PROTOCOL,
+                "version": workflow.ARCANA_PROTOCOL_VERSION,
+                "operations": sorted(workflow.ARCANA_REQUIRED_OPERATIONS | {"capabilities"}),
+            },
+        }
+        responses = [
+            mock.Mock(returncode=0, stdout="", stderr=""),
+            mock.Mock(returncode=0, stdout=workflow.json.dumps(response) + "\n", stderr=""),
+        ]
+        with tempfile.TemporaryDirectory(prefix="grimoire-protocol-smoke-") as temporary:
+            build = Path(temporary)
+            (build / "bin").mkdir(parents=True)
+            (build / "bin" / workflow.executable_name("arcana")).write_bytes(b"arcana")
+            with mock.patch.object(workflow.subprocess, "run", side_effect=responses):
+                workflow.verify_arcana_protocol(build)
+
     def test_release_jobs_default_and_override(self) -> None:
         default = workflow.parse_args(["release", "--version", "1.2.3"])
         self.assertEqual(default.jobs, 1)

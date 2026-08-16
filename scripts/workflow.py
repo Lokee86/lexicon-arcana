@@ -27,6 +27,11 @@ DEFAULT_DIST = ROOT / "dist"
 LEGAL_FILES = ("LICENSE.md", "LICENSING.md", "THIRD_PARTY_NOTICES.md")
 LODESTONE_LICENSE = Path("licenses") / "lodestone-Apache-2.0.txt"
 VERSION_PATTERN = re.compile(r"^[0-9A-Za-z][0-9A-Za-z.+_-]*$")
+ARCANA_PROTOCOL = "arcana.query.v1"
+ARCANA_PROTOCOL_VERSION = 1
+ARCANA_REQUIRED_OPERATIONS = {
+    "stats", "export_graph", "search_nodes", "neighbors", "impact", "paths", "operational_role"
+}
 LEXICON_TOOLS = ROOT / "lexicon" / "tools"
 if str(LEXICON_TOOLS) not in sys.path:
     sys.path.insert(0, str(LEXICON_TOOLS))
@@ -217,6 +222,7 @@ def build(version: str, output: Path, jobs: int = 1) -> Path:
     package_lexicon_adapters(output, cargo, jobs, build_env)
     copy_file(ROOT / "skills" / "grimoire" / "SKILL.md", output / "skills" / "grimoire" / "SKILL.md")
     verify_versions(output, version)
+    verify_arcana_protocol(output)
     return output
 
 
@@ -284,6 +290,54 @@ def verify_versions(build_root: Path, version: str) -> None:
         actual = completed.stdout.strip()
         if actual != expected:
             raise RuntimeError(f"{command[0]} reported {actual!r}; expected {expected!r}")
+
+
+def verify_arcana_protocol(build_root: Path) -> None:
+    """Require the built Arcana binary to satisfy the integration protocol contract."""
+    arcana = build_root / "bin" / executable_name("arcana")
+    with tempfile.TemporaryDirectory(prefix="grimoire-arcana-protocol-") as temporary:
+        root = Path(temporary)
+        facts = root / "facts.tsv"
+        snapshot = root / "snapshot"
+        write_utf8(facts, "version\t4\n")
+        subprocess.run(
+            [arcana, "import-facts", "--facts", str(facts), "--output", str(snapshot)],
+            cwd=build_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        request = json.dumps({"id": "build-capabilities", "op": "capabilities"}) + "\n"
+        completed = subprocess.run(
+            [arcana, "protocol", "--snapshot", str(snapshot)],
+            cwd=build_root,
+            input=request,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    try:
+        response = json.loads(completed.stdout.strip())
+    except json.JSONDecodeError as error:
+        raise RuntimeError("Arcana capabilities response is malformed") from error
+    if response.get("ok") is not True:
+        message = response.get("error", {}).get("message", "unknown protocol error")
+        raise RuntimeError(f"Arcana capabilities request failed: {message}")
+    try:
+        result = response["result"]
+        protocol = result["protocol"]
+        version = result["version"]
+        operations = set(result["operations"])
+    except (KeyError, TypeError) as error:
+        raise RuntimeError("Arcana capabilities response is malformed") from error
+    if protocol != ARCANA_PROTOCOL or version != ARCANA_PROTOCOL_VERSION:
+        raise RuntimeError(
+            f"Arcana protocol {protocol!r} version {version!r} is incompatible with "
+            f"{ARCANA_PROTOCOL!r} version {ARCANA_PROTOCOL_VERSION}"
+        )
+    missing = sorted(ARCANA_REQUIRED_OPERATIONS - operations)
+    if missing:
+        raise RuntimeError("Arcana protocol is missing required operations: " + ", ".join(missing))
 
 
 def test(jobs: int = 1) -> None:

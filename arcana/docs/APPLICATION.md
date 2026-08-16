@@ -200,10 +200,12 @@ After startup, the command reads JSON Lines from stdin until EOF and writes and 
 Implemented operations are:
 
 ```text
-search_nodes, resolve_symbol, resolve_file, list_nodes, export_graph,
-neighbors, paths, reachability, impact, shortest_call_chain, dead_symbols,
-operational_role, architecture_summary, unresolved, stats, diff
+capabilities, search_nodes, resolve_symbol, resolve_file, list_nodes,
+export_graph, neighbors, paths, reachability, impact, shortest_call_chain,
+dead_symbols, operational_role, architecture_summary, unresolved, stats, diff
 ```
+
+`capabilities` reports protocol identity, protocol version, implementation version, and the supported operation set. Integration consumers use it to reject incompatible Arcana binaries before treating a graph snapshot as queryable.
 
 The request shapes, owning query modules, limits, and graph-export behavior are mapped in this document's code map and the protocol implementation. The protocol is overlay-aware and deterministic; it is the machine boundary for repeated exact graph work, not an HTTP service or semantic-vector endpoint.
 

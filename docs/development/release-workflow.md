@@ -86,7 +86,7 @@ build/
       SKILL.md
 ```
 
-The Go CLIs receive the version through linker flags. Arcana receives the same value through `GRIMOIRE_RELEASE_VERSION`; a standalone Cargo build still reports its manifest version.
+The Go CLIs receive the version through linker flags. Arcana receives the same value through `GRIMOIRE_RELEASE_VERSION`; a standalone Cargo build still reports its manifest version. After building, the workflow creates a minimal temporary Arcana snapshot and requires `arcana.query.v1` capability negotiation with the operations consumed by integration clients. A stale or protocol-incompatible Arcana executable therefore fails the build instead of producing a nominally version-valid bundle.
 
 ## Local installation
 

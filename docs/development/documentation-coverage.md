@@ -65,7 +65,7 @@ Coverage includes commands, packages, component boundaries, stateful flows, mach
 | Repository documentation configuration | `docs-standard.json`, `docs-standard.lexicon.json`, `docs-standard.arcana.json` | zero-debt shared checks and component-specific change-impact gates |
 | Grimoire-specific required documents and links | `scripts/check_docs.py` | `python scripts/check_docs.py` through the root workflow |
 | Architectural invariants and dependency direction | `tools/pitlord/policy.json`, `tools/pitlord/repository.json` | Pitlord validation and repository checks through the root workflow and CI |
-| Workflow integration and pinned Lodestone identity | `scripts/workflow.py` | `scripts/test_workflow.py`, exact source verification |
+| Workflow integration, pinned Lodestone identity, and Arcana protocol compatibility | `scripts/workflow.py` | `scripts/test_workflow.py`, exact source verification, built Arcana capability negotiation |
 | CI enforcement | `.github/workflows/documentation-standard.yml` | push and pull-request architecture/documentation gates |
 
 Coverage tables identify canonical owners. They do not substitute for prose, state/lifecycle explanation, focused code maps, or tests in those owners.
