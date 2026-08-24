@@ -10,6 +10,7 @@ import (
 	"sort"
 
 	languageRegistry "github.com/Lokee86/lexicon/internal/languages"
+	"github.com/Lokee86/lexicon/internal/repostatefs"
 )
 
 const Version = 1
@@ -115,7 +116,7 @@ func save(repository string, value Config) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(StateRoot(repository), 0o755); err != nil {
+	if err := repostatefs.Prepare(repository, StateRoot(repository)); err != nil {
 		return err
 	}
 	return os.WriteFile(Path(repository), append(data, '\n'), 0o644)

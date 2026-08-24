@@ -6,6 +6,7 @@ mod cli_sync;
 mod cli_sync_state;
 mod cli_update;
 mod cli_vectors;
+mod repository_state;
 
 #[cfg(test)]
 mod cli_sync_tests;

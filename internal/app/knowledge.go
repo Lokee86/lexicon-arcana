@@ -14,6 +14,7 @@ import (
 	"github.com/Lokee86/grimoire/internal/knowledge"
 	"github.com/Lokee86/grimoire/internal/knowledgevector"
 	"github.com/Lokee86/grimoire/internal/repostate"
+	"github.com/Lokee86/grimoire/internal/repostatefs"
 )
 
 func runKnowledge(args []string, stdout, stderr io.Writer) error {
@@ -56,6 +57,9 @@ func runKnowledgeIndex(args []string, stdout, stderr io.Writer) error {
 	}
 	statePath, err := resolveKnowledgeState(*root, *state)
 	if err != nil {
+		return err
+	}
+	if err := repostatefs.Prepare(*root, statePath); err != nil {
 		return err
 	}
 	var previous *knowledge.Index

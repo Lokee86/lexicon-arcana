@@ -44,6 +44,9 @@ func TestEnsureCurrentOnlyReportsPreparedStateWithoutMutation(t *testing.T) {
 func TestEnsureRefreshIfNeededReturnsImmediatelyForCurrentState(t *testing.T) {
 	root := t.TempDir()
 	writeSource(t, root, "package main\n")
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte("/.lexicon/\n/.arcana/\n/.grimoire/\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	id := testID('a')
 	writeLexicon(t, root, id)
 	writeArcana(t, root, id)

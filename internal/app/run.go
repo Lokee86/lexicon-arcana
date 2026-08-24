@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Lokee86/grimoire/internal/index"
+	"github.com/Lokee86/grimoire/internal/repostatefs"
 )
 
 // Version is overridden for release builds with Go's -ldflags -X option.
@@ -146,6 +147,9 @@ func runIndex(args []string, stdout, stderr io.Writer) error {
 
 	statePath, err := resolveState(*root, *state)
 	if err != nil {
+		return err
+	}
+	if err := repostatefs.Prepare(*root, statePath); err != nil {
 		return err
 	}
 	previous, err := loadOptional(statePath)

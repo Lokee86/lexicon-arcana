@@ -11,10 +11,11 @@ use crate::cli::SyncCommand;
 use crate::cli_commands::{CliCommandError, write_compiled};
 use crate::cli_sync_state::{SyncLock, replace_file};
 use crate::cli_update::write_update;
+use crate::repository_state;
 
 pub fn run_sync(command: &SyncCommand) -> Result<String, SyncError> {
     let lexicon_root = storage_root(&command.lexicon, ".lexicon");
-    fs::create_dir_all(&command.state)?;
+    repository_state::prepare(&command.state, &lexicon_root)?;
     let _lock = SyncLock::acquire(&command.state)?;
     let current = LexiconSnapshot::current(&lexicon_root)?;
     for warning in current.compatibility_warnings() {

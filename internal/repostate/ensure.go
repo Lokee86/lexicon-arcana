@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Lokee86/grimoire/internal/repostatefs"
 )
 
 var repositoryLocks sync.Map
@@ -29,6 +31,13 @@ func Ensure(ctx context.Context, options Options) (Status, error) {
 	}
 	if mode != CurrentOnly && mode != RefreshIfNeeded && mode != ForceRefresh {
 		return Status{}, fmt.Errorf("unsupported repository state mode %q", mode)
+	}
+	if mode != CurrentOnly {
+		for _, state := range []string{location.lexicon, location.arcana, location.grimoire} {
+			if err := repostatefs.Prepare(location.root, state); err != nil {
+				return Status{}, fmt.Errorf("prepare repository state directory: %w", err)
+			}
+		}
 	}
 	inspectionStarted := now()
 	status, err := inspect(ctx, location)
