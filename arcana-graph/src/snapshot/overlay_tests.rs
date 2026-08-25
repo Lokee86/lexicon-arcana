@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::storage::{Direction, PackedGraph, write_packed};
-use crate::synthetic::{Edge, EdgeKind, GraphDataset, NodeId};
+use crate::{Edge, EdgeKind, GraphDataset, NodeId};
 
 use super::{GraphOverlay, OverlayChanges, OverlayError, write_overlay};
 

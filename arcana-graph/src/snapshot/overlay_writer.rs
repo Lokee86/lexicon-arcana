@@ -4,8 +4,8 @@ use std::io::{self, BufWriter, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use crate::Edge;
 use crate::storage::{PackedGraph, StableHasher};
-use crate::synthetic::Edge;
 
 use super::overlay_format::{HEADER_LEN, OverlayHeader, OverlayLayout, operation_checksum};
 use super::overlay_validation::validate_changes;

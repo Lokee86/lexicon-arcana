@@ -176,7 +176,7 @@ The optional index must be built explicitly and must match the current graph and
 | Arcana command surface | `arcana/src/cli.rs`, `arcana/src/cli_*.rs`, `arcana/src/main.rs` | Arcana CLI tests |
 | Lexicon snapshot ingestion | `arcana/src/lexicon/` | Arcana Lexicon and sync tests |
 | Repository compilation and catalogue | `arcana/src/repository/` | repository module tests |
-| Packed graph and snapshots | `arcana/src/storage/`, `arcana/src/snapshot/` | storage and snapshot tests |
+| Packed graph and topology snapshots | `arcana-graph/src/storage/`, `arcana-graph/src/snapshot/` (re-exported by Arcana) | shared storage and snapshot tests |
 | Query protocol | `arcana/src/protocol/` | protocol tests |
 | Optional vectors | `arcana/src/vector/` | vector tests |
 

@@ -64,12 +64,12 @@ This rule preserves fast packed traversal and prevents an incremental update fro
 | Snapshot concern | Primary implementation | Related tests |
 | --- | --- | --- |
 | Repository manifest and publication | `src/repository/repository_snapshot.rs`, `repository_snapshot_format.rs`, `repository_snapshot_validation.rs` | `repository_snapshot_tests.rs` |
-| Packed graph manifest | `src/snapshot/graph.rs`, `manifest.rs`, `manifest_io.rs` | graph and manifest tests |
-| Overlay format and visible reads | `src/snapshot/overlay_*.rs`, `overlay.rs` | overlay and graph tests |
+| Packed graph manifest | sibling `arcana-graph/src/snapshot/graph.rs`, `manifest.rs`, `manifest_io.rs` | shared graph and manifest tests |
+| Overlay format and visible reads | sibling `arcana-graph/src/snapshot/overlay_*.rs`, `overlay.rs` | shared overlay and graph tests |
 | Initial import | `src/cli_commands.rs`, repository compiler, storage writer | CLI, repository, and storage tests |
 | Changed-file update | `src/cli_update.rs`, `src/repository/ownership.rs`, `incremental.rs` | update, ownership, and incremental tests |
 | Managed Lexicon synchronization | `src/cli_sync.rs`, `src/cli_sync_state.rs` | sync tests |
-| Compaction | `src/snapshot/compaction.rs` | compaction tests |
+| Compaction | sibling `arcana-graph/src/snapshot/compaction.rs` | shared compaction tests |
 
 Overlays may change edges only. Node-set changes require a packed rebuild.
 

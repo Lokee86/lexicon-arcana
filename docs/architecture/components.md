@@ -113,7 +113,8 @@ The active investigation path is Grimoire's progressive discovery interface. Dir
 | Lexicon executable and application boundary | `lexicon/cmd/lexicon/main.go`, `lexicon/internal/cli/` | `lexicon/internal/cli/*_test.go` |
 | Lexicon publication boundary | `lexicon/internal/scan/`, `lexicon/internal/objectstore/` | package-local `*_test.go` files |
 | Arcana executable and command boundary | `arcana/src/main.rs`, `arcana/src/cli.rs`, `arcana/src/cli_*.rs` | `arcana/src/cli*_tests.rs` |
-| Arcana graph and protocol boundary | `arcana/src/repository/`, `arcana/src/storage/`, `arcana/src/snapshot/`, `arcana/src/protocol/` | module-local Rust test files |
+| Arcana repository graph and protocol boundary | `arcana/src/repository/`, `arcana/src/protocol/`, `arcana/src/storage.rs`, `arcana/src/snapshot.rs` | Arcana module-local Rust tests |
+| Shared graph kernel used by Arcana and other consumers | `arcana-graph/src/primitives.rs`, `arcana-graph/src/storage/`, `arcana-graph/src/snapshot/`, `arcana-graph/src/traversal.rs` | `cargo test --manifest-path arcana-graph/Cargo.toml --all-targets` |
 | Release composition | `scripts/workflow.py`, `scripts/install.py`, `.github/workflows/release.yml` | `scripts/test_workflow.py`, installation smoke tests |
 
 Grimoire must not absorb Lexicon's parsers or Arcana's storage internals. Cross-component changes should update the owning component document and the integration document together.

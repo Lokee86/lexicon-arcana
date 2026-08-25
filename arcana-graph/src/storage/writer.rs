@@ -5,7 +5,7 @@ use std::io::{self, BufWriter, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::synthetic::{Edge, GraphDataset};
+use crate::{Edge, GraphDataset};
 
 use super::dataset::{canonical_edges, dataset_checksum};
 use super::format::{HEADER_LEN, Header, Layout, StableHasher};
@@ -245,7 +245,7 @@ fn temporary_path(path: &Path) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::synthetic::{EdgeKind, NodeId};
+    use crate::{EdgeKind, NodeId};
 
     #[test]
     fn canonical_compiler_output_uses_borrowed_forward_edges() {

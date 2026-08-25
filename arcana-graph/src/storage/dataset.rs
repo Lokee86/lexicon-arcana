@@ -1,4 +1,4 @@
-use crate::synthetic::{Edge, GraphDataset};
+use crate::{Edge, GraphDataset};
 
 use super::DatasetError;
 use super::format::StableHasher;
@@ -23,7 +23,7 @@ pub(crate) fn canonical_edges(dataset: &GraphDataset) -> Result<Vec<Edge>, Datas
     Ok(edges)
 }
 
-pub(crate) fn dataset_checksum(node_count: u32, edges: &[Edge]) -> u64 {
+pub fn dataset_checksum(node_count: u32, edges: &[Edge]) -> u64 {
     let mut hasher = StableHasher::new();
     hasher.update(&node_count.to_le_bytes());
     hasher.update(&(edges.len() as u64).to_le_bytes());

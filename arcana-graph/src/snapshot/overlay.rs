@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::storage::{Direction, Neighbor, PackedGraph, checksum};
-use crate::synthetic::{Edge, EdgeKind, NodeId};
+use crate::{Edge, EdgeKind, NodeId};
 
 use super::OverlayError;
 use super::overlay_format::{

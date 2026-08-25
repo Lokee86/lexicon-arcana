@@ -1,8 +1,8 @@
 use std::fmt;
 use std::io;
 
+use crate::Edge;
 use crate::storage::{DatasetError, PackedError};
-use crate::synthetic::Edge;
 
 #[derive(Debug)]
 pub enum OverlayError {

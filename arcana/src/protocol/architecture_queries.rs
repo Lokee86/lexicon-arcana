@@ -1,4 +1,7 @@
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet};
+use std::convert::Infallible;
+
+use arcana_graph::traversal::connected_components as shared_connected_components;
 
 use serde_json::{Value, json};
 
@@ -63,9 +66,14 @@ impl ProtocolSnapshot {
             }
         }
 
-        let (components, component_of) = connected_components(&selected, &adjacency, graph_size);
-        let component_count = components.len();
-        let mut communities = components
+        let connected = shared_connected_components(self.graph.node_count(), &selected, |node| {
+            Ok::<_, Infallible>(adjacency[node.0 as usize].iter().copied().collect())
+        })
+        .expect("selected adjacency contains only validated graph nodes");
+        let component_count = connected.components.len();
+        let component_of = connected.component_of;
+        let mut communities = connected
+            .components
             .into_iter()
             .map(|nodes| CommunityData {
                 nodes,
@@ -169,36 +177,6 @@ fn normalize_prefix(path_prefix: Option<&str>) -> Result<Option<String>, Request
                 .map_err(|error| RequestFailure::new("invalid_path", error.to_string()))
         })
         .transpose()
-}
-
-fn connected_components(
-    selected: &[NodeId],
-    adjacency: &[BTreeSet<NodeId>],
-    graph_size: usize,
-) -> (Vec<Vec<NodeId>>, Vec<Option<usize>>) {
-    let mut component_of = vec![None; graph_size];
-    let mut components = Vec::new();
-    for start in selected {
-        if component_of[start.0 as usize].is_some() {
-            continue;
-        }
-        let index = components.len();
-        let mut nodes = Vec::new();
-        let mut queue = VecDeque::from([*start]);
-        component_of[start.0 as usize] = Some(index);
-        while let Some(node) = queue.pop_front() {
-            nodes.push(node);
-            for neighbor in &adjacency[node.0 as usize] {
-                if component_of[neighbor.0 as usize].is_none() {
-                    component_of[neighbor.0 as usize] = Some(index);
-                    queue.push_back(*neighbor);
-                }
-            }
-        }
-        nodes.sort_unstable();
-        components.push(nodes);
-    }
-    (components, component_of)
 }
 
 fn community_value(snapshot: &ProtocolSnapshot, community: CommunityData) -> Value {

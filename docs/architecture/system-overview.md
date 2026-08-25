@@ -14,7 +14,7 @@ Grimoire contains three independently owned engines presented through one reposi
 
 - Grimoire owns source and documentation discovery, stable handles, progressive investigation, and state orchestration.
 - Lexicon owns language analysis and normalized symbols and relationships.
-- Arcana owns packed repository graphs and graph queries.
+- Arcana owns repository graph semantics and graph queries; the reusable `arcana-graph` crate owns the repository-agnostic topology, packed storage, snapshots, and traversal kernel.
 
 Source co-location does not merge runtime state or domain ownership. See [Component architecture](components.md).
 

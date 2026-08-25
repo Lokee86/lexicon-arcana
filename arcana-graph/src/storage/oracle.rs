@@ -1,4 +1,4 @@
-use crate::synthetic::{GraphDataset, NodeId};
+use crate::{GraphDataset, NodeId};
 
 use super::dataset::canonical_edges;
 use super::{DatasetError, Neighbor, QueryError};

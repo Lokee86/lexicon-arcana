@@ -17,9 +17,10 @@ Use this page to select the owning Arcana document. Continue in that document's 
 | Commands, flags, diagnostics, and exit behavior | [Application](APPLICATION.md) | `src/cli.rs`, `src/cli_*.rs`, `src/main.rs` |
 | Lexicon snapshot ingestion and compatibility | [Lexicon contract](LEXICON_CONTRACT.md) | `src/lexicon/`, `src/cli_sync.rs` |
 | Repository facts, identities, and dense compilation | [Architecture](ARCHITECTURE.md) | `src/repository/` |
-| Packed graph format and validation | [Architecture](ARCHITECTURE.md) | `src/storage/` |
-| Graph and repository snapshots, overlays, and compaction | [Repository snapshots](repository-snapshots.md) | `src/snapshot/`, repository snapshot modules |
-| Deterministic graph protocol and traversal | [Application](APPLICATION.md), [Architecture](ARCHITECTURE.md) | `src/protocol/` |
+| Packed graph format and validation | [Architecture](ARCHITECTURE.md) | sibling `arcana-graph/src/storage/`; `src/storage.rs` compatibility export |
+| Graph topology snapshots, overlays, and compaction | [Repository snapshots](repository-snapshots.md) | sibling `arcana-graph/src/snapshot/`; `src/snapshot.rs` compatibility export |
+| Repository snapshot binding | [Repository snapshots](repository-snapshots.md) | repository snapshot modules under `src/repository/` |
+| Deterministic graph protocol and traversal | [Application](APPLICATION.md), [Architecture](ARCHITECTURE.md) | `src/protocol/` adapters over `arcana-graph/src/traversal.rs` |
 | Optional semantic graph vectors | [Vector index](vector-index.md) | `src/vector/`, `src/cli_vectors.rs` |
 | Synthetic graphs and performance evidence | [Development](DEVELOPMENT.md) | `src/synthetic/`, `src/benchmark/` |
 | Build and verification | [Development](DEVELOPMENT.md) | `Cargo.toml`, module tests, integration fixtures |

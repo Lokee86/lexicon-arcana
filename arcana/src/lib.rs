@@ -28,6 +28,9 @@ pub const fn about() -> &'static str {
 }
 
 #[cfg(test)]
+mod graph_kernel_tests;
+
+#[cfg(test)]
 mod tests {
     use super::{PROJECT_NAME, PROJECT_VERSION, about};
 

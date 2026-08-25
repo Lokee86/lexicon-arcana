@@ -38,7 +38,7 @@ The packed graph format is implemented as immutable, versioned little-endian byt
 
 The packed file stores dense topology only. Durable external identities, paths, names, kinds, content identities, source spans, facts, and unresolved records are repository metadata bound separately by `repository.manifest`.
 
-Evidence: [`storage/format.rs`](../src/storage/format.rs), [`storage/writer.rs`](../src/storage/writer.rs), [`storage/reader.rs`](../src/storage/reader.rs), the oracle comparisons in [`storage/tests.rs`](../src/storage/tests.rs), and corruption rejection in [`storage/corruption_tests.rs`](../src/storage/corruption_tests.rs).
+Evidence: sibling `arcana-graph/src/storage/` owns the format, reader/writer, oracle, round-trip tests, and corruption rejection; Arcana re-exports that API through [`storage.rs`](../src/storage.rs).
 
 ### Graph and repository snapshots
 
@@ -48,7 +48,7 @@ Published generations are not edited in place. Managed `sync` builds under a tem
 
 Library-level compaction is implemented: it materializes the visible graph into a new packed base, verifies edge-count and dataset-checksum equivalence, and publishes a new base-only graph manifest without modifying the source snapshot.
 
-Evidence: [`snapshot/graph.rs`](../src/snapshot/graph.rs), [`repository/repository_snapshot.rs`](../src/repository/repository_snapshot.rs), [`cli_sync.rs`](../src/cli_sync.rs), [`snapshot/compaction.rs`](../src/snapshot/compaction.rs), and focused graph, repository-snapshot, sync, and compaction tests.
+Evidence: sibling `arcana-graph/src/snapshot/`, [`repository/repository_snapshot.rs`](../src/repository/repository_snapshot.rs), [`cli_sync.rs`](../src/cli_sync.rs), and focused shared-graph, repository-snapshot, sync, and compaction tests.
 
 ### Overlays and incremental updates
 
@@ -56,7 +56,7 @@ Overlays store canonical edge additions and removed-edge tombstones bound to an 
 
 `update-facts` performs declared file-owner replacement against a complete replacement fact file and returns a rebuild-required error when the stable node-key-to-dense-ID map changes. Managed `sync` derives changed paths from verified Lexicon object identities; it uses an overlay when planning succeeds and otherwise rebuilds the packed base. Language-level shared-object changes force rebuilds.
 
-Evidence: [`snapshot/overlay_writer.rs`](../src/snapshot/overlay_writer.rs), [`snapshot/overlay.rs`](../src/snapshot/overlay.rs), [`repository/incremental.rs`](../src/repository/incremental.rs), [`cli_update.rs`](../src/cli_update.rs), [`cli_sync.rs`](../src/cli_sync.rs), and their focused overlay, incremental, update, and sync tests.
+Evidence: sibling `arcana-graph/src/snapshot/overlay_writer.rs` and `overlay.rs`, [`repository/incremental.rs`](../src/repository/incremental.rs), [`cli_update.rs`](../src/cli_update.rs), [`cli_sync.rs`](../src/cli_sync.rs), and their focused overlay, incremental, update, and sync tests.
 
 ### Ingestion and repository compilation
 

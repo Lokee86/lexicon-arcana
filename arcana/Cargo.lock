@@ -6,12 +6,17 @@ version = 4
 name = "arcana"
 version = "0.1.0"
 dependencies = [
+ "arcana-graph",
  "atomicwrites",
  "fs2",
  "serde",
  "serde_json",
  "sha2",
 ]
+
+[[package]]
+name = "arcana-graph"
+version = "0.1.0"
 
 [[package]]
 name = "atomicwrites"

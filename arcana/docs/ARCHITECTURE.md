@@ -42,17 +42,17 @@ The binary command modules orchestrate these library owners; library modules do 
 | Owner | Owns | Depends on |
 | --- | --- | --- |
 | `lexicon` | Lexicon snapshot/object verification, decoding, identity conversion, compatibility warnings | `repository` fact models and path normalization |
-| `repository` facts/compiler | Stable fact models, dense compilation, catalogue, ownership partitioning, incremental planning | Dense graph primitives; incremental planning emits `snapshot::OverlayChanges` |
-| `storage` | Immutable packed bytes and forward/reverse adjacency readers | Dense graph primitives only |
-| `snapshot` | Graph manifests, packed-base composition, overlays, visible reads, compaction | `storage` and dense graph primitives |
-| `repository` snapshot | Complete graph-plus-metadata generation publication and validation | `snapshot`, catalogue, facts, and unresolved records |
-| `protocol` | Validated, repeated exact graph queries and JSON response shapes | One opened repository snapshot |
+| `repository` facts/compiler | Stable fact models, dense compilation, catalogue, ownership partitioning, incremental planning | `arcana-graph` primitives; incremental planning emits graph overlay changes |
+| `arcana-graph` | Dense graph primitives, immutable packed bytes, forward/reverse adjacency, graph manifests, overlays, compaction, and generic traversal algorithms | Rust standard library only |
+| Arcana `storage` / `snapshot` compatibility modules | Stable Arcana import paths | Re-export the corresponding `arcana-graph` APIs |
+| `repository` snapshot | Complete graph-plus-metadata generation publication and validation | shared graph snapshots, catalogue, facts, and unresolved records |
+| `protocol` | Validated, repeated repository queries and JSON response shapes | One opened repository snapshot plus shared traversal algorithms |
 | `vector` | Optional graph documents, embedding cache, vector index, and semantic search | One opened repository snapshot and an external embedder |
 | CLI orchestration | Import, update, sync, protocol, and vector command lifecycles | The library owners above |
 
-`NodeId`, `EdgeKind`, `Edge`, and `GraphDataset` are currently defined in `synthetic` and reused as graph primitives by compilation, storage, and snapshots. Synthetic generation and benchmarking are not part of the Lexicon-to-query runtime path.
+`NodeId`, `EdgeKind`, `Edge`, and `GraphDataset` now belong to the sibling `arcana-graph` crate. Arcana's `synthetic` module re-exports those primitives for compatibility while retaining only workload generation and mutation logic. `arcana-graph` also owns packed storage, graph snapshots/overlays/compaction, and repository-agnostic BFS, shortest-path, bounded-path, and connected-component algorithms. Arcana keeps the repository relation vocabulary, catalogue, protocol shapes, and persistence orchestration above that kernel.
 
-Evidence: [`lib.rs`](../src/lib.rs), [`repository/mod.rs`](../src/repository/mod.rs), [`storage/mod.rs`](../src/storage/mod.rs), [`snapshot/mod.rs`](../src/snapshot/mod.rs), [`protocol/mod.rs`](../src/protocol/mod.rs), [`vector/mod.rs`](../src/vector/mod.rs), and [`synthetic/mod.rs`](../src/synthetic/mod.rs).
+Evidence: [`lib.rs`](../src/lib.rs), [`repository/mod.rs`](../src/repository/mod.rs), [`storage.rs`](../src/storage.rs), [`snapshot.rs`](../src/snapshot.rs), [`protocol/mod.rs`](../src/protocol/mod.rs), [`vector/mod.rs`](../src/vector/mod.rs), [`synthetic/mod.rs`](../src/synthetic/mod.rs), and the sibling `arcana-graph/src/` crate.
 
 ## Implemented ownership boundaries
 
@@ -74,19 +74,19 @@ Evidence: [`repository/model.rs`](../src/repository/model.rs), [`repository/comp
 
 ### Packed storage
 
-`storage` owns the immutable packed graph format. The writer canonicalizes the dataset, emits forward and reverse adjacency sections with counts and checksums, synchronizes a temporary file, and refuses to replace an existing packed path. The reader loads one immutable shared byte buffer, validates the header, layout, file and payload lengths, checksums, offset tables, endpoint bounds, and adjacency ordering, then exposes forward and reverse iterators.
+The shared `arcana-graph::storage` owner implements the immutable packed graph format. Arcana's `storage` module is a compatibility re-export. The writer canonicalizes the dataset, emits forward and reverse adjacency sections with counts and checksums, synchronizes a temporary file, and refuses to replace an existing packed path. The reader loads one immutable shared byte buffer, validates the header, layout, file and payload lengths, checksums, offset tables, endpoint bounds, and adjacency ordering, then exposes forward and reverse iterators.
 
 Packed storage contains dense graph topology, not durable external identities or source metadata. Those remain in repository artifacts bound by `repository.manifest`.
 
-Evidence: [`storage/writer.rs`](../src/storage/writer.rs), [`storage/reader.rs`](../src/storage/reader.rs), [`storage/tests.rs`](../src/storage/tests.rs), and [`storage/corruption_tests.rs`](../src/storage/corruption_tests.rs).
+Evidence: sibling `arcana-graph/src/storage/` plus Arcana's compatibility export [`storage.rs`](../src/storage.rs). Storage round-trip and corruption tests move with the shared owner.
 
 ### Immutable graph snapshots and overlays
 
-`snapshot` composes a packed base with zero or one overlay under `graph.manifest`. An overlay contains canonical added-edge and removed-edge operations and is bound to the base node count, edge count, and dataset checksum. Opening a graph snapshot validates the base, overlay, visible edge count, visible dataset checksum, and derived snapshot identity before serving reads.
+The shared `arcana-graph::snapshot` owner composes a packed base with zero or one overlay under `graph.manifest`; Arcana's `snapshot` module re-exports that API. An overlay contains canonical added-edge and removed-edge operations and is bound to the base node count, edge count, and dataset checksum. Opening a graph snapshot validates the base, overlay, visible edge count, visible dataset checksum, and derived snapshot identity before serving reads.
 
 Without an overlay, visible-neighbor iterators borrow packed adjacency directly. With an overlay, reads merge base neighbors, removals, and additions in either direction. Overlays change edges only; they cannot change the dense node set. Incremental generations therefore keep the original packed base and write one cumulative overlay relative to it.
 
-Evidence: [`snapshot/graph.rs`](../src/snapshot/graph.rs), [`snapshot/overlay.rs`](../src/snapshot/overlay.rs), [`snapshot/overlay_validation.rs`](../src/snapshot/overlay_validation.rs), [`snapshot/graph_tests.rs`](../src/snapshot/graph_tests.rs), [`snapshot/overlay_tests.rs`](../src/snapshot/overlay_tests.rs), and [`cli_update_tests.rs`](../src/cli_update_tests.rs).
+Evidence: sibling `arcana-graph/src/snapshot/`, Arcana's compatibility export [`snapshot.rs`](../src/snapshot.rs), and [`cli_update_tests.rs`](../src/cli_update_tests.rs).
 
 ### Repository snapshots
 
@@ -100,13 +100,13 @@ Evidence: [`repository/repository_snapshot.rs`](../src/repository/repository_sna
 
 Compaction is a library operation owned by `snapshot::compaction`. It opens a source graph snapshot, materializes its visible forward edges, writes a new immutable packed base, verifies visible edge-count and dataset-checksum equivalence, and publishes a new base-only manifest. It removes incomplete output on verification/publication failure and never modifies the source snapshot. There is no compaction CLI command in the current command surface.
 
-Evidence: [`snapshot/compaction.rs`](../src/snapshot/compaction.rs) and [`snapshot/compaction_tests.rs`](../src/snapshot/compaction_tests.rs).
+Evidence: sibling `arcana-graph/src/snapshot/compaction.rs` and `arcana-graph/src/snapshot/compaction_tests.rs`.
 
 ### Query protocol
 
 `protocol` opens and validates one complete repository snapshot at startup, transfers its graph/catalogue/unresolved components into a `ProtocolSnapshot`, and serves repeated JSON Lines requests against that fixed snapshot. Every response uses `arcana.query.v1`, echoes the parseable request ID, and is either a result or a structured error. A request error does not terminate the stdin/stdout loop.
 
-Operations are routed to narrow owners for node lookup, neighbors, unresolved records, bounded traversal/path/analysis, architecture summaries, statistics, snapshot diff, and graph export. They query `GraphSnapshot`, so they see visible overlay state rather than only the packed base.
+Operations are routed to narrow owners for node lookup, neighbors, unresolved records, bounded traversal/path/analysis, architecture summaries, statistics, snapshot diff, and graph export. Repository-specific relation filtering and JSON shaping remain in `protocol`; BFS/reachability, shortest paths, bounded simple paths, and connected-component traversal delegate to `arcana-graph::traversal`. Queries still see visible overlay state through `GraphSnapshot`.
 
 Evidence: [`protocol/session.rs`](../src/protocol/session.rs), [`protocol/server.rs`](../src/protocol/server.rs), [`protocol/response.rs`](../src/protocol/response.rs), the narrow query modules under [`protocol/`](../src/protocol/), and [`protocol/tests.rs`](../src/protocol/tests.rs).
 
@@ -206,8 +206,8 @@ Evidence: [`lexicon/records.rs`](../src/lexicon/records.rs), [`repository/increm
 | Library and executable boundaries | `src/lib.rs`, `src/main.rs`, `src/cli.rs` | CLI tests |
 | Lexicon ingestion | `src/lexicon/` | Lexicon module tests and sync tests |
 | Repository facts and dense compilation | `src/repository/` | repository module tests |
-| Packed graph format and reader/writer | `src/storage/` | storage round-trip and corruption tests |
-| Graph manifests, overlays, and compaction | `src/snapshot/` | graph, overlay, manifest, and compaction tests |
+| Shared graph primitives, packed reader/writer, and traversal | sibling `arcana-graph/src/primitives.rs`, `storage/`, `traversal.rs` | shared-crate storage/corruption/traversal tests |
+| Graph manifests, overlays, and compaction | sibling `arcana-graph/src/snapshot/`; Arcana `src/snapshot.rs` re-export | shared graph, overlay, manifest, and compaction tests |
 | Repository snapshot publication | repository snapshot modules under `src/repository/` | repository snapshot tests |
 | Deterministic query protocol | `src/protocol/` | `src/protocol/tests.rs` |
 | Optional vectors | `src/vector/` | vector index and document tests |

@@ -1,6 +1,6 @@
 # Arcana
 
-> **Canonical source:** Arcana now lives inside the [Grimoire repository](https://github.com/Lokee86/grimoire) under `arcana/`. It remains an independently buildable Rust application, CLI, protocol, and reusable graph engine.
+> **Canonical source:** Arcana lives inside the [Grimoire repository](https://github.com/Lokee86/grimoire) under `arcana/`. It remains an independently buildable Rust application, CLI, and protocol; its repository-agnostic graph kernel is the sibling `arcana-graph` crate.
 
 Arcana is the repository-graph component of Grimoire and the [**Warlock Toolchain**](https://github.com/Lokee86/warlock-toolchain).
 It models repositories as queryable graphs and provides the storage, snapshot,
@@ -10,8 +10,8 @@ Grimoire, and Pitlord.
 ## Ownership boundaries
 
 - **Lexicon** owns language parsing and the normalized symbol/relationship fact contract.
-- **Arcana** owns graph ingestion, packed storage, snapshots, deterministic traversal,
-  optional semantic graph indexes, and measurements of storage representations.
+- **Arcana** owns repository graph ingestion and semantics, relation vocabulary, repository snapshots and protocol behavior, optional semantic graph indexes, and graph measurements.
+- **arcana-graph** owns the reusable dense topology primitives, packed storage, topology snapshots/overlays/compaction, and repository-agnostic traversal algorithms.
 - **Demon Docs** owns documentation semantics, policy, review history, and
   Codemap decisions. It consumes Arcana facts without owning the graph
   engine.
@@ -68,7 +68,7 @@ windows and is reused by both benchmark paths.
 
 ## Packed adjacency format
 
-The immutable packed format uses a fixed, versioned, little-endian header
+The shared `arcana-graph` crate implements the immutable packed format using a fixed, versioned, little-endian header
 followed by aligned forward offsets, forward targets, forward edge kinds,
 reverse offsets, reverse sources, and reverse edge kinds. The writer
 canonicalizes logical edges, streams deterministic bytes through a temporary
@@ -82,8 +82,7 @@ correctness oracle used by round-trip tests.
 
 ## Snapshots and overlays
 
-Arcana snapshots are immutable compositions rather than mutable graph
-files. A snapshot manifest identifies one validated packed base plus an optional
+The topology snapshots implemented by `arcana-graph` are immutable compositions rather than mutable graph files. Arcana binds those topology snapshots to repository metadata in its own repository snapshot layer. A snapshot manifest identifies one validated packed base plus an optional
 immutable overlay. The manifest is published last, so readers never observe a
 partially assembled snapshot.
 

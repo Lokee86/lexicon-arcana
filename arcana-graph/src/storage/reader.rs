@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::synthetic::{EdgeKind, NodeId};
+use crate::{EdgeKind, NodeId};
 
 use super::format::{
     HEADER_LEN, Header, Layout, StableHasher, checksum, get_u16, get_u32, get_u64,

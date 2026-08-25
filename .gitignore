@@ -18,6 +18,7 @@ coverage.out
 /bin/
 /build/
 /build-*/
+/arcana-graph/target/
 /dist/
 __pycache__/
 *.pyc

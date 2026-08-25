@@ -41,7 +41,7 @@ Coverage includes commands, packages, component boundaries, stateful flows, mach
 | Grimoire MCP JSON-RPC, stdio framing, admission, cancellation, and audit records | `internal/app/mcp.go`, `internal/app/mcp_audit.go`, `internal/mcpserver/` | [Agent MCP](../reference/agent-mcp.md), [Operations and trust](../architecture/operations-and-trust.md) |
 | Lexicon `facts-v1`, immutable objects, snapshot manifests, and consumer definitions | `lexicon/spec/`, `lexicon/internal/objectstore/`, `lexicon/internal/consumer/` | [Lexicon architecture](../../lexicon/docs/ARCHITECTURE.md), [Lexicon application](../../lexicon/docs/APPLICATION.md) |
 | `arcana.query.v1` request and response protocol | `arcana/src/protocol/` | [Arcana application](../../arcana/docs/APPLICATION.md), [Arcana architecture](../../arcana/docs/ARCHITECTURE.md) |
-| Arcana packed graph, graph manifest, repository manifest, and overlay formats | `arcana/src/storage/`, `arcana/src/snapshot/`, `arcana/src/repository/` | [Repository snapshots](../../arcana/docs/repository-snapshots.md), [Arcana architecture](../../arcana/docs/ARCHITECTURE.md) |
+| Shared packed graph, graph manifest, and overlay formats; Arcana repository manifest binding | `arcana-graph/src/storage/`, `arcana-graph/src/snapshot/`, `arcana/src/repository/` | [Repository snapshots](../../arcana/docs/repository-snapshots.md), [Arcana architecture](../../arcana/docs/ARCHITECTURE.md) |
 | Grimoire document-vector and Arcana graph-vector manifests | `internal/knowledgevector/`, `arcana/src/vector/` | [Vector store](../reference/vector-store.md), [Arcana vector index](../../arcana/docs/vector-index.md) |
 
 ## Stateful flows

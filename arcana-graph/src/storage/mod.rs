@@ -17,10 +17,12 @@ pub use oracle::InMemoryGraph;
 pub use reader::{PackedGraph, PackedNeighborIter};
 pub use writer::{WriteSummary, write_packed};
 
-pub(crate) use dataset::{canonical_edges, dataset_checksum};
-pub(crate) use format::{StableHasher, checksum};
+pub(crate) use dataset::canonical_edges;
+pub use dataset::dataset_checksum;
+pub use format::StableHasher;
+pub(crate) use format::checksum;
 
-use crate::synthetic::{EdgeKind, NodeId};
+use crate::{EdgeKind, NodeId};
 
 /// One adjacent node and the relationship kind connecting it.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]

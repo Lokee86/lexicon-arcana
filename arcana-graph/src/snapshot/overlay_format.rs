@@ -1,5 +1,5 @@
+use crate::Edge;
 use crate::storage::StableHasher;
-use crate::synthetic::Edge;
 
 use super::OverlayError;
 

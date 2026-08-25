@@ -1,7 +1,7 @@
 use std::fmt;
 use std::io;
 
-use crate::synthetic::{Edge, NodeId};
+use crate::{Edge, NodeId};
 
 /// Direction of an adjacency section or query.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

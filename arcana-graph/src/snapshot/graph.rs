@@ -3,7 +3,7 @@ use std::path::{Component, Path, PathBuf};
 use crate::storage::{
     Direction, Neighbor, PackedGraph, PackedNeighborIter, QueryError, StableHasher,
 };
-use crate::synthetic::{Edge, GraphDataset, NodeId};
+use crate::{Edge, GraphDataset, NodeId};
 
 use super::{GraphOverlay, SnapshotError, SnapshotManifest, read_manifest, write_manifest};
 

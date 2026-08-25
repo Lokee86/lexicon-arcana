@@ -61,8 +61,8 @@ Cargo's test-name filter follows the module paths shown by `cargo test --all-tar
 | --- | --- | --- |
 | Library metadata and exports | `src/lib.rs` | `cargo test --locked --lib tests::exposes_stable_project_metadata` |
 | Synthetic specifications, topologies, sampling, and mutation invariants | `src/synthetic/` and its inline, `spec_tests.rs`, and `mutation/tests.rs` tests | `cargo test --locked --lib synthetic::` |
-| Packed graph format, validation, writing, reading, and oracle equivalence | `src/storage/`, including `tests.rs` and `corruption_tests.rs` | `cargo test --locked --lib storage::` |
-| Graph manifests, overlays, visible reads, and compaction | `src/snapshot/`, including graph, overlay, manifest, and compaction tests | `cargo test --locked --lib snapshot::` |
+| Shared graph primitives, packed format, validation, writing, reading, oracle equivalence, and traversal | sibling `arcana-graph/src/` | `cargo test --manifest-path ../arcana-graph/Cargo.toml --all-targets` |
+| Arcana integration with graph snapshots, overlays, and traversal | `src/storage.rs`, `src/snapshot.rs`, `src/protocol/` | `cargo test --locked --all-targets` |
 | Fact models, compilation, catalogue, ownership, incremental planning, and repository publication | `src/repository/` and its responsibility-named test files | `cargo test --locked --lib repository::` |
 | Lexicon snapshot/object verification and conversion | `src/lexicon/`, including format, binary, record, and snapshot tests | `cargo test --locked --lib lexicon::` |
 | JSONL requests, routing, traversal, analysis, export, and response behavior | `src/protocol/` and `src/protocol/tests.rs` | `cargo test --locked --lib protocol::` |
@@ -232,8 +232,8 @@ If documentation changes because Rust behavior changed, also run the owning focu
 | --- | --- | --- |
 | Crate configuration and build identity | `Cargo.toml`, `Cargo.lock`, `build.rs` | Cargo check and locked builds |
 | Library and CLI tests | `src/**` | module-local Rust tests |
-| Packed-storage correctness | `src/storage/` | round-trip and corruption tests |
-| Snapshot/update correctness | `src/snapshot/`, repository snapshot modules, `src/cli_*` | snapshot and CLI update/sync tests |
+| Packed-storage and topology correctness | sibling `arcana-graph/src/` | shared round-trip, corruption, snapshot, and traversal tests |
+| Arcana snapshot/update integration | `src/storage.rs`, `src/snapshot.rs`, repository snapshot modules, `src/cli_*` | repository snapshot and CLI update/sync tests |
 | Protocol correctness | `src/protocol/` | protocol tests |
 | Semantic-vector correctness | `src/vector/` | vector index/document tests |
 | Synthetic generation | `src/synthetic/` | synthetic spec and mutation tests |

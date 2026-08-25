@@ -1,5 +1,5 @@
 use crate::storage::{Neighbor, PackedGraph, StableHasher, canonical_edges};
-use crate::synthetic::{Edge, GraphDataset, NodeId};
+use crate::{Edge, GraphDataset, NodeId};
 
 use super::{Direction, OverlayChanges, OverlayError};
 

@@ -3,7 +3,7 @@ use std::io;
 use std::path::Path;
 
 use crate::storage::write_packed;
-use crate::synthetic::{Edge, GraphDataset, NodeId};
+use crate::{Edge, GraphDataset, NodeId};
 
 use super::graph::{manifest_parent, validate_component_path};
 use super::{GraphSnapshot, SnapshotError, SnapshotManifest, publish_snapshot};

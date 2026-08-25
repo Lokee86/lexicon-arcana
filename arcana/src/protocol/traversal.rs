@@ -1,8 +1,12 @@
-use std::collections::VecDeque;
-
 use serde_json::{Value, json};
 
-use crate::repository::{RelationKind, edge_kind_to_relation};
+use arcana_graph::traversal::{
+    TraversalError, bfs_distances as shared_bfs_distances,
+    bounded_simple_paths as shared_bounded_simple_paths, shortest_path as shared_shortest_path,
+};
+
+use crate::repository::{RelationKind, edge_kind_to_relation, relation_to_edge_kind};
+use crate::storage::Neighbor;
 use crate::synthetic::NodeId;
 
 use super::request::QueryDirection;
@@ -235,26 +239,10 @@ pub(crate) fn bfs_distances(
     allowed: Option<RelationMask>,
     max_depth: usize,
 ) -> Result<Vec<Option<usize>>, RequestFailure> {
-    let mut distances = vec![None; snapshot.graph.node_count() as usize];
-    let mut queue = VecDeque::new();
-    for start in starts {
-        distances[start.0 as usize] = Some(0);
-        queue.push_back(*start);
-    }
-    while let Some(node) = queue.pop_front() {
-        let depth = distances[node.0 as usize].expect("queued nodes always have a distance");
-        if depth >= max_depth {
-            continue;
-        }
-        for (neighbor, _) in graph_neighbors(snapshot, node, direction, allowed)? {
-            let index = neighbor.0 as usize;
-            if distances[index].is_none() {
-                distances[index] = Some(depth + 1);
-                queue.push_back(neighbor);
-            }
-        }
-    }
-    Ok(distances)
+    shared_bfs_distances(snapshot.graph.node_count(), starts, max_depth, |node| {
+        topology_neighbors(snapshot, node, direction, allowed)
+    })
+    .map_err(map_traversal_error)
 }
 
 pub(crate) fn shortest_path(
@@ -264,55 +252,80 @@ pub(crate) fn shortest_path(
     allowed: Option<RelationMask>,
     max_depth: usize,
 ) -> Result<Option<GraphPath>, RequestFailure> {
-    if start == target {
-        return Ok(Some((vec![start], Vec::new())));
-    }
-    let mut depth = vec![None; snapshot.graph.node_count() as usize];
-    let mut parent = vec![None; snapshot.graph.node_count() as usize];
-    depth[start.0 as usize] = Some(0);
-    let mut queue = VecDeque::from([start]);
-    while let Some(node) = queue.pop_front() {
-        let current_depth = depth[node.0 as usize].expect("queued nodes always have a distance");
-        if current_depth >= max_depth {
-            continue;
-        }
-        for (neighbor, relation) in
-            graph_neighbors(snapshot, node, QueryDirection::Outgoing, allowed)?
-        {
-            let index = neighbor.0 as usize;
-            if depth[index].is_some() {
-                continue;
-            }
-            depth[index] = Some(current_depth + 1);
-            parent[index] = Some((node, relation));
-            if neighbor == target {
-                return Ok(Some(reconstruct_path(start, target, &parent)));
-            }
-            queue.push_back(neighbor);
-        }
-    }
-    Ok(None)
+    let path = shared_shortest_path(
+        snapshot.graph.node_count(),
+        start,
+        target,
+        max_depth,
+        |node| topology_neighbors(snapshot, node, QueryDirection::Outgoing, allowed),
+    )
+    .map_err(map_traversal_error)?;
+    path.map(relation_path).transpose()
 }
 
-fn reconstruct_path(
+pub(crate) fn bounded_paths(
+    snapshot: &ProtocolSnapshot,
     start: NodeId,
     target: NodeId,
-    parent: &[Option<(NodeId, RelationKind)>],
-) -> (Vec<NodeId>, Vec<RelationKind>) {
-    let mut nodes = vec![target];
-    let mut relations = Vec::new();
-    let mut current = target;
-    while current != start {
-        let (previous, relation) = parent[current.0 as usize]
-            .clone()
-            .expect("target must have a reconstructed parent chain");
-        nodes.push(previous);
-        relations.push(relation);
-        current = previous;
+    allowed: Option<RelationMask>,
+    max_depth: usize,
+    limit: usize,
+) -> Result<(Vec<GraphPath>, bool), RequestFailure> {
+    let result = shared_bounded_simple_paths(
+        snapshot.graph.node_count(),
+        start,
+        target,
+        max_depth,
+        limit,
+        |node| topology_neighbors(snapshot, node, QueryDirection::Outgoing, allowed),
+    )
+    .map_err(map_traversal_error)?;
+    let paths = result
+        .paths
+        .into_iter()
+        .map(relation_path)
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok((paths, result.truncated))
+}
+
+fn relation_path(path: arcana_graph::traversal::GraphPath) -> Result<GraphPath, RequestFailure> {
+    let relations = path
+        .kinds
+        .into_iter()
+        .map(|kind| {
+            edge_kind_to_relation(kind).ok_or_else(|| {
+                RequestFailure::new("corrupt_graph", format!("unknown edge kind {}", kind.0))
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok((path.nodes, relations))
+}
+
+fn topology_neighbors(
+    snapshot: &ProtocolSnapshot,
+    node: NodeId,
+    direction: QueryDirection,
+    allowed: Option<RelationMask>,
+) -> Result<Vec<Neighbor>, RequestFailure> {
+    graph_neighbors(snapshot, node, direction, allowed).map(|neighbors| {
+        neighbors
+            .into_iter()
+            .map(|(node, relation)| Neighbor {
+                node,
+                kind: relation_to_edge_kind(&relation),
+            })
+            .collect()
+    })
+}
+
+fn map_traversal_error(error: TraversalError<RequestFailure>) -> RequestFailure {
+    match error {
+        TraversalError::Source(error) => error,
+        TraversalError::InvalidNode { node, node_count } => RequestFailure::new(
+            "unknown_node",
+            format!("node {} is outside {} nodes", node.0, node_count),
+        ),
     }
-    nodes.reverse();
-    relations.reverse();
-    (nodes, relations)
 }
 
 pub(crate) fn path_value(

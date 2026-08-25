@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::storage::{PackedError, PackedGraph, QueryError, write_packed};
-use crate::synthetic::{GraphDataset, GraphSpec, NodeId, Topology, generate};
+use crate::{Edge, EdgeKind, GraphDataset, NodeId};
 
 static PATH_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
@@ -13,7 +13,7 @@ impl TempPath {
     fn new(label: &str) -> Self {
         let sequence = PATH_SEQUENCE.fetch_add(1, Ordering::Relaxed);
         Self(std::env::temp_dir().join(format!(
-            "arcana-corrupt-{label}-{}-{sequence}.pack",
+            "arcana-graph-corrupt-{label}-{}-{sequence}.pack",
             std::process::id()
         )))
     }
@@ -29,20 +29,33 @@ impl Drop for TempPath {
     }
 }
 
+fn dataset() -> GraphDataset {
+    GraphDataset {
+        node_count: 8,
+        edges: vec![
+            edge(0, 1, 1),
+            edge(0, 2, 2),
+            edge(1, 3, 3),
+            edge(2, 3, 4),
+            edge(3, 4, 5),
+            edge(4, 6, 6),
+            edge(6, 7, 7),
+        ],
+    }
+}
+
+fn edge(source: u32, target: u32, kind: u16) -> Edge {
+    Edge {
+        source: NodeId(source),
+        target: NodeId(target),
+        kind: EdgeKind(kind),
+    }
+}
+
 #[test]
 fn reader_rejects_corrupt_headers_and_payloads() {
-    let dataset = generate(&GraphSpec {
-        topology: Topology::Entangled {
-            cluster_count: 8,
-            hub_count: 4,
-        },
-        node_count: 64,
-        edge_count: 300,
-        seed: 42,
-    })
-    .expect("valid synthetic graph");
     let valid = TempPath::new("source");
-    write_packed(valid.as_path(), &dataset).unwrap();
+    write_packed(valid.as_path(), &dataset()).unwrap();
     let original = fs::read(valid.as_path()).unwrap();
 
     type MutateBytes = fn(&mut Vec<u8>);

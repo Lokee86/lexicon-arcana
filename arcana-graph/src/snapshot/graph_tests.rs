@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::storage::{InMemoryGraph, write_packed};
-use crate::synthetic::{Edge, EdgeKind, GraphDataset, NodeId};
+use crate::{Edge, EdgeKind, GraphDataset, NodeId};
 
 use super::{GraphSnapshot, OverlayChanges, SnapshotError, publish_snapshot, write_overlay};
 

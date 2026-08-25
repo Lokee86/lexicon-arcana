@@ -130,25 +130,25 @@ impl Header {
     }
 }
 
-pub(crate) struct StableHasher {
+pub struct StableHasher {
     state: u64,
 }
 
 impl StableHasher {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             state: 0xcbf2_9ce4_8422_2325,
         }
     }
 
-    pub(crate) fn update(&mut self, bytes: &[u8]) {
+    pub fn update(&mut self, bytes: &[u8]) {
         for byte in bytes {
             self.state ^= u64::from(*byte);
             self.state = self.state.wrapping_mul(0x0000_0100_0000_01b3);
         }
     }
 
-    pub(crate) fn finish(&self) -> u64 {
+    pub fn finish(&self) -> u64 {
         self.state
     }
 }
