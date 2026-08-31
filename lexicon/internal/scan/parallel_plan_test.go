@@ -56,20 +56,15 @@ func TestLogicalShardCountScalesToEnterpriseRepositories(t *testing.T) {
 }
 
 func TestExecutionPlanKeepsUnsupportedAdaptersSingleWorker(t *testing.T) {
-	stateRoot := t.TempDir()
-	sourceRoot := filepath.Join(stateRoot, "source")
-	if err := os.MkdirAll(sourceRoot, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(sourceRoot, "main.py"), []byte("value = 1\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	scanner := &Scanner{StateRoot: stateRoot}
+	scanner := &Scanner{StateRoot: filepath.Join(t.TempDir(), "missing-state")}
 	plan, err := scanner.executionPlan(analysisPlan{Language: "python", Full: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if plan.LogicalShards != 1 || plan.ActiveWorkers != 1 || plan.ReservedWeight != 1 {
 		t.Fatalf("python execution plan = %#v", plan)
+	}
+	if plan.SourceFiles != 0 || plan.SourceBytes != 0 {
+		t.Fatalf("python execution plan performed unnecessary inventory: %#v", plan)
 	}
 }

@@ -24,11 +24,10 @@ The remaining work improves measured agent outcomes, preparation efficiency, evi
 
 ## Implementation sequence
 
-1. Finish and interpret the current agent-quality suite.
-2. Close protocol, warning-propagation, and diagnostic contract gaps.
-3. Reduce preparation and response overhead without weakening determinism.
-4. Expand judged corpora and release gates.
-5. Improve portability, storage lifecycle, and product integration only after the preceding evidence is stable.
+1. Close protocol, warning-propagation, and diagnostic contract gaps.
+2. Reduce preparation and response overhead without weakening determinism.
+3. Expand judged corpora and release gates.
+4. Improve portability, storage lifecycle, and product integration only after the preceding evidence is stable.
 
 ## Completed foundation
 
@@ -45,17 +44,17 @@ The remaining work improves measured agent outcomes, preparation efficiency, evi
 - Root build, test, subset installation, deterministic packaging, release checksums, and GitHub release workflow.
 - Combined release bundles containing provider binaries, runtime adapters, native library, and canonical Grimoire agent skill.
 - Repository-owned retrieval, graph, documentation, and end-to-end agent evaluation.
+- Hidden-rubric version 2 agent-quality suite completed across all five planned task classes, with the 15-run Sol/High/Fast comparison and follow-up narrow-task mitigation retained as benchmark evidence.
+- Installed release-path warning contract verifies known C-family macro reasons remain typed and future unresolved-reason labels survive Lexicon and Arcana while surfacing as Grimoire compatibility warnings.
+- First-use preparation profiling and optimization cut cold Space Rocks Lexicon initialization from 90.64 seconds to 45.00 seconds without changing semantic output; the dominant GDScript path fell from 42.01 seconds to 6.27 seconds in a byte-identical controlled comparison. Discovery now allows two minutes by default so legitimate cold preparation is not discarded as provider failure.
 - Retired context-package compiler, query-shape, assembly, curation, and package-fitting paths removed from the active CLI and MCP product.
 
 ## Near-term priorities
 
-1. Run the remaining source-plus-rationale task in the hidden-rubric version 2 agent suite and consolidate the five-task conclusion.
-2. Add release-path contract fixtures that carry C-family macro reasons and deliberately unknown labels through Lexicon, Arcana, and Grimoire warning propagation.
-3. Use the provider and state-overhead timing buckets to target remaining first-use preparation cost without weakening alignment or determinism.
-4. Calibrate compact search defaults, excerpt caps, duplicate-payload references, and degraded-provider response bounds against end-to-end agent outcomes.
-5. Expand judged corpora across repositories, languages, sizes, and task categories.
-6. Add stable machine-readable diagnostic codes and documented exit classes.
-7. Improve installation verification and host-specific MCP setup guidance as supported hosts stabilize.
+1. Calibrate compact search defaults, excerpt caps, duplicate-payload references, and degraded-provider response bounds against end-to-end agent outcomes.
+2. Expand judged corpora across repositories, languages, sizes, and task categories.
+3. Add stable machine-readable diagnostic codes and documented exit classes.
+4. Improve installation verification and host-specific MCP setup guidance as supported hosts stabilize.
 
 ## Agent discovery quality
 
@@ -75,7 +74,6 @@ The remaining work improves measured agent outcomes, preparation efficiency, evi
 - Add lazy or bounded prepared-state reads for very large repositories.
 - Make file eligibility and generated-content policy configurable without weakening permanent state exclusions.
 - Calibrate semantic declaration chunking against judged retrieval and downstream-agent token use.
-- Improve preparation diagnostics so source, Lexicon, Arcana, and documentation costs are separately visible.
 
 ## Retrieval and evidence lanes
 

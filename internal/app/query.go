@@ -62,7 +62,7 @@ func runQuery(args []string, stdout, stderr io.Writer) error {
 	lexiconCommand := flags.String("lexicon-command", "", "Lexicon executable override; discovered when omitted")
 	arcanaState := flags.String("arcana-state", "", "Arcana state directory; defaults to <root>/.arcana")
 	arcanaCommand := flags.String("arcana-command", "", "Arcana executable override; discovered when omitted")
-	timeout := flags.Duration("timeout", 30*time.Second, "complete discovery timeout")
+	timeout := flags.Duration("timeout", 2*time.Minute, "complete discovery timeout")
 	var handles queryListFlag
 	var relations queryListFlag
 	flags.Var(&handles, "handle", "stable handle to inspect; may be repeated")

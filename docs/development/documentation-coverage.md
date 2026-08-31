@@ -20,7 +20,7 @@ Coverage includes commands, packages, component boundaries, stateful flows, mach
 | Documentation indexing and retrieval | `internal/knowledge/`, `internal/knowledgevector/` | [Knowledge](../reference/knowledge.md), [Embedding model](../reference/embedding-model.md) |
 | Lexicon fact integration | `internal/lexiconfacts/`, `internal/structure/` | [Lexicon reference](../reference/lexicon.md), [Component architecture](../architecture/components.md) |
 | Arcana graph integration | `internal/arcanagraph/`, `internal/structure/` | [Arcana reference](../reference/arcana.md), [Component architecture](../architecture/components.md), [Operations and trust](../architecture/operations-and-trust.md) |
-| Repository identity, conservative freshness, and aligned provider state | `internal/repostate/` | [Analysis stack](../architecture/analysis-stack.md), [System overview](../architecture/system-overview.md) |
+| Repository identity, conservative freshness, aligned provider state, and compatibility-warning promotion | `internal/repostate/` | [Analysis stack](../architecture/analysis-stack.md), [System overview](../architecture/system-overview.md), [Arcana Lexicon ingestion boundary](../../arcana/docs/LEXICON_CONTRACT.md) |
 | Persistent investigation evidence | `internal/investigation/` | [Agent MCP](../reference/agent-mcp.md), package README |
 | Embedding runtime and vector boundary | `internal/embedding/`, `internal/vectorstore/` | [Embedding model](../reference/embedding-model.md), [Vector store](../reference/vector-store.md), [Operations and trust](../architecture/operations-and-trust.md) |
 | Retrieval and agent outcome evaluation | `internal/knowledgeevaluation/`, `evaluation/agent_discovery/` | [Testing and benchmarks](testing-and-benchmarks.md), [Agent benchmark findings](agent-benchmark-findings.md) |
@@ -65,7 +65,7 @@ Coverage includes commands, packages, component boundaries, stateful flows, mach
 | Repository documentation configuration | `docs-standard.json`, `docs-standard.lexicon.json`, `docs-standard.arcana.json` | zero-debt shared checks and component-specific change-impact gates |
 | Grimoire-specific required documents and links | `scripts/check_docs.py` | `python scripts/check_docs.py` through the root workflow |
 | Architectural invariants and dependency direction | `tools/pitlord/policy.json`, `tools/pitlord/repository.json` | Pitlord validation and repository checks through the root workflow and CI |
-| Workflow integration, pinned Lodestone identity, and Arcana protocol compatibility | `scripts/workflow.py` | `scripts/test_workflow.py`, exact source verification, built Arcana capability negotiation |
+| Workflow integration, Grimoire provider dependency-closure installation, pinned Lodestone identity, and Arcana protocol compatibility | `scripts/workflow.py`, `scripts/install.py` | `scripts/test_workflow.py`, exact source verification, built Arcana capability negotiation |
 | CI enforcement | `.github/workflows/documentation-standard.yml` | push and pull-request architecture/documentation gates |
 
 Coverage tables identify canonical owners. They do not substitute for prose, state/lifecycle explanation, focused code maps, or tests in those owners.

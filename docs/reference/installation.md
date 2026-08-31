@@ -51,14 +51,20 @@ The installer does not modify `PATH`. Add the selected binary directory through 
 
 ### Component selection
 
-Omitting `--component` installs all three applications. Repeat the option to install a subset:
+Omitting `--component` installs the complete Grimoire runtime. Selecting Grimoire explicitly installs the same required provider closure:
 
 ```bash
 python install.py --bin-dir /path/on/your/PATH --component grimoire
-python install.py --bin-dir /path/on/your/PATH --component lexicon --component arcana
 ```
 
-Selecting Grimoire also installs its required Lodestone native library and agent skill. Selecting Lexicon also installs its runtime adapters.
+That installs Grimoire together with Lexicon, Arcana, Lexicon runtime adapters, the required Lodestone native library, and the Grimoire agent skill. Lexicon and Arcana remain independently installable when only a component engine is wanted:
+
+```bash
+python install.py --bin-dir /path/on/your/PATH --component lexicon
+python install.py --bin-dir /path/on/your/PATH --component arcana
+```
+
+Keeping the three Grimoire-runtime executables in one installation directory gives internal and downstream consumers one coherent provider family. Repository preparation also records Lexicon's adapter root, which provides a stable installation anchor for consumers that need to locate the matching Arcana executable without depending solely on `PATH`.
 
 ### Skill installation
 

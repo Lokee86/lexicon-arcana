@@ -32,6 +32,8 @@ The matrix covers contracts that cross retrieval lanes, snapshots, process bound
 | Session deltas apply one global lane-preserving hit budget before canonical evidence pruning | Agent-runtime investigation-budget tests |
 | Impact merges duplicate Lexicon and Arcana dependents and ranks production-relevant, definite, shallow evidence for the current query | Agent-query impact-shaping tests |
 | Release bundles preserve independently runnable `grimoire`, `lexicon`, and `arcana` components | Packaging and installation smoke tests |
+| Installed release preparation preserves known C-family unresolved reasons and promotes unknown future reason labels through Arcana into Grimoire compatibility warnings | `internal/repostate/warnings_test.go`, `scripts/test_installed_mcp.py`, `scripts/installed_warning_contract.py` |
+| Selecting Grimoire for installation also installs its required Lexicon/Arcana providers and Lexicon adapters | `scripts/test_workflow.py` installation smoke tests |
 | Combined builds publish an Arcana binary that negotiates the required `arcana.query.v1` capability set before the bundle is accepted | Root workflow Arcana protocol verification and workflow smoke tests |
 | Root, Lexicon, and Arcana documentation trees pass without baselines, and focused code maps remain with their canonical owners | Shared checker, `scripts/check_docs.py`, and documentation-standard CI |
 

@@ -13,6 +13,7 @@ import (
 type analysisPlan struct {
 	Language     string
 	Full         bool
+	KnownPresent bool
 	ChangedFiles []string
 	RemovedFiles []string
 	ContextFiles []string

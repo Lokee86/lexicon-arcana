@@ -3,13 +3,27 @@ package app
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"flag"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Lokee86/grimoire/internal/agentquery"
 	"github.com/Lokee86/grimoire/internal/agentruntime"
 )
+
+func TestDiscoveryDefaultTimeoutAllowsColdPreparation(t *testing.T) {
+	var stderr bytes.Buffer
+	err := runQuery([]string{"--help"}, &bytes.Buffer{}, &stderr)
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("runQuery --help error = %v, want flag.ErrHelp", err)
+	}
+	if !strings.Contains(stderr.String(), "default 2m0s") {
+		t.Fatalf("discovery timeout help does not expose the cold-preparation-safe default: %s", stderr.String())
+	}
+}
 
 func TestSearchUsesDefaultLimitPerLane(t *testing.T) {
 	root := t.TempDir()

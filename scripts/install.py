@@ -36,6 +36,17 @@ def copy_file(source: Path, destination: Path) -> None:
     shutil.copy2(source, destination)
 
 
+def resolve_components(components: list[str]) -> list[str]:
+    selected = list(dict.fromkeys(components))
+    if not selected:
+        return ["grimoire", "lexicon", "arcana"]
+    if "grimoire" in selected:
+        for dependency in ("lexicon", "arcana"):
+            if dependency not in selected:
+                selected.append(dependency)
+    return selected
+
+
 def install(
     source: Path,
     bin_dir: Path,
@@ -46,9 +57,7 @@ def install(
     bin_dir = bin_dir.resolve()
     source_bin = source / "bin"
     source_native = source / "native"
-    selected = list(dict.fromkeys(components))
-    if not selected:
-        selected = ["grimoire", "lexicon", "arcana"]
+    selected = resolve_components(components)
     names = [executable_name(name) for name in selected]
     for name in names:
         if not (source_bin / name).is_file():

@@ -60,7 +60,7 @@ Scoped Lexicon `mode=incremental` JSONL streams remain invalid as complete impor
 | --- | --- | --- |
 | Snapshot and object loading | `src/lexicon/snapshot.rs`, `format.rs`, `binary.rs`, `object.rs` | Lexicon module tests and binary/format tests |
 | Record and identity conversion | `src/lexicon/records.rs`, `src/repository/model.rs` | record conversion and compiler tests |
-| Compatibility warnings | `src/lexicon/mod.rs`, `records.rs`, `src/cli_sync.rs` | Lexicon and sync tests |
+| Compatibility warnings | `src/lexicon/mod.rs`, `records.rs`, `src/cli_sync.rs` | Lexicon and sync tests; installed release-consumer warning smoke |
 | Snapshot comparison and update choice | `src/lexicon/mod.rs`, `src/cli_sync.rs`, `src/repository/incremental.rs` | sync and incremental tests |
 | Normative producer contract | `lexicon/spec/` | owned and verified by Lexicon; consumed here |
 

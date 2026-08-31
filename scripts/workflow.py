@@ -368,6 +368,18 @@ def test(jobs: int = 1) -> None:
     ], ROOT, environment)
 
 
+def resolve_install_components(components: Sequence[str]) -> list[str]:
+    selected = list(dict.fromkeys(components))
+    allowed = {"grimoire", "lexicon", "arcana"}
+    if not selected or any(component not in allowed for component in selected):
+        raise ValueError("components must contain one or more of: grimoire, lexicon, arcana")
+    if "grimoire" in selected:
+        for dependency in ("lexicon", "arcana"):
+            if dependency not in selected:
+                selected.append(dependency)
+    return selected
+
+
 def install(
     source: Path,
     bin_dir: Path,
@@ -379,10 +391,7 @@ def install(
     bin_dir = bin_dir.resolve()
     source_bin = source / "bin"
     source_native = source / "native"
-    selected = list(dict.fromkeys(components))
-    allowed = {"grimoire", "lexicon", "arcana"}
-    if not selected or any(component not in allowed for component in selected):
-        raise ValueError("components must contain one or more of: grimoire, lexicon, arcana")
+    selected = resolve_install_components(components)
     required = [executable_name(name) for name in selected]
     for name in required:
         if not (source_bin / name).is_file():

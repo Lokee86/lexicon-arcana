@@ -21,7 +21,7 @@ func (s *Scanner) analyzeFull(
 ) (objectstore.Manifest, error) {
 	plans := make([]analysisPlan, 0, len(languages))
 	for _, language := range languages {
-		plans = append(plans, analysisPlan{Language: language, Full: true})
+		plans = append(plans, analysisPlan{Language: language, Full: true, KnownPresent: true})
 	}
 	return s.analyzePlans(ctx, manifest, plans)
 }
@@ -86,13 +86,15 @@ func (s *Scanner) analyzePlan(
 	temporary string,
 ) (objectstore.Manifest, error) {
 	sourceRoot := filepath.Join(s.StateRoot, "source")
-	present, err := hasLanguage(sourceRoot, plan.Language)
-	if err != nil {
-		return objectstore.Manifest{}, err
-	}
-	if !present {
-		s.writeOutput("removing %s analysis\n", plan.Language)
-		return manifest.WithoutLanguage(plan.Language), nil
+	if !plan.KnownPresent {
+		present, err := hasLanguage(sourceRoot, plan.Language)
+		if err != nil {
+			return objectstore.Manifest{}, err
+		}
+		if !present {
+			s.writeOutput("removing %s analysis\n", plan.Language)
+			return manifest.WithoutLanguage(plan.Language), nil
+		}
 	}
 
 	adapterOutput := filepath.Join(temporary, plan.Language+".jsonl")

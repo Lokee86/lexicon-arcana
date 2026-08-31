@@ -28,7 +28,7 @@ The retained corpus includes Space Rocks architecture tasks, Grimoire ownership 
 
 ## Results
 
-The current evidence shows one strong Grimoire win on a broad architecture task, clear losses on smaller or strongly named tasks, and a mixed LevelDB result invalidated by canonical-handle mismatch. Direct inspection or a smaller retrieval aid remains stronger when the prompt has already narrowed the working set.
+The completed five-task Sol/High/Fast version 2 suite produced five grounded Grimoire runs and a 39/40 manual-rubric score, versus Plain at 40/40 and CBM at 32/32 across four valid runs. Across the four directly comparable Codex tasks, Grimoire used 32.4% less processed input than Plain and 21.2% less than CBM. The narrow LevelDB task remained the main boundary case: Grimoire found the right evidence but over-investigated until the later narrow-response and stopping mitigation.
 
 This page summarizes the current end-to-end agent benchmarks and the operational conclusions they support. Raw reports remain the source of truth for exact prompts, revisions, tool restrictions, state, and telemetry.
 
@@ -43,9 +43,9 @@ The results also suggest a task-size inversion rather than a simple overhead rul
 
 This lost-in-the-middle explanation is a working hypothesis consistent with the observed answers, not a controlled causal result. The suite has one trial per condition and was not designed to isolate context-position effects.
 
-The strongest valid assisted result remains the Space Rocks network-interest benchmark, where Grimoire reduced the amount of context and repeated searching required for a broad cross-language architecture task. HikariCP favored plain inspection because the requested lifecycle was compact and concretely named. The replacement Detekt ownership task favored plain inspection and CBM. The cross-language locator task favored plain and CBM on both architecture and efficiency. The healthy LevelDB rerun produced a materially better graph-assisted answer than the original degraded run, but CBM remained strongest and Grimoire was still invalidated by one canonical handle/range mismatch.
+The completed Sol/High/Fast rerun supersedes the earlier incomplete four-task framing. Grimoire used the least processed input on every directly comparable Codex task, including the source-plus-rationale state-maintenance investigation, where it completed in 266.3 seconds versus 286.0 seconds for Plain and 400.2 seconds for CBM. Earlier negative results still matter: HikariCP favored plain inspection, Detekt and the cross-language locator showed that extra discovery can add cost or steer design poorly once the working set is already narrow, and LevelDB exposed repeated over-investigation despite correct early retrieval.
 
-The practical conclusion is narrower than the original product hypothesis: use Grimoire only when it demonstrably reduces a genuinely broad and ambiguous working set, and stop using it when direct inspection has already narrowed the task. Across the first four version 2 tasks, Grimoire has one strong win, two clear losses, and one mixed but grounding-invalid result. Provider health, architectural quality, efficiency, and canonical-handle compliance must be scored separately.
+The practical conclusion is task-sensitive: use Grimoire when it reduces a genuinely broad, ambiguous, cross-layer working set, and stop using it when direct inspection has already narrowed the task. Provider health, architectural quality, efficiency, grounding, and canonical-handle compliance remain separate dimensions. The post-benchmark narrow-task mitigation is evidence that response shaping and stopping guidance can correct the LevelDB-style failure mode, but repeated seeds are still required before treating that result as general.
 
 ## Version 2 benchmark infrastructure
 
@@ -54,6 +54,16 @@ The practical conclusion is narrower than the original product hypothesis: use G
 The canonical runner automatically invalidates completed answers when citations or structured evidence reference missing files, invalid paths, or out-of-range lines. Any Grimoire evidence that includes an inspected source-range handle must match its audited canonical path and lines; handle coverage is reported without forcing agents to replace cheaper direct source reads. The runner also reports non-gating coverage of the hidden rubric's expected path families. Preparation timing and discovery-output volume are recorded separately so conclusions can distinguish provider startup cost, response size, process completion, and grounded answer quality.
 
 Saved answers can be revalidated through `evaluation/revalidate_agent_benchmark.py` without rerunning agents. The validator accepts and individually checks noncontiguous structured ranges while rejecting a single canonical handle attached to multiple ranges.
+
+## Completed version 2 Sol/High/Fast suite
+
+Report: [`evaluation/results/agent-benchmark-v2-codex-sol-high-fast-2026-07-29/report.md`](../../evaluation/results/agent-benchmark-v2-codex-sol-high-fast-2026-07-29/report.md)
+
+All five primary tasks are complete: 15 of 15 planned Plain, CBM, and Grimoire runs. Grimoire grounded all five primary answers and scored 39/40 manually; Plain grounded all five and scored 40/40; CBM had four valid runs scoring 32/32 and one disqualified room-scale run. Across the four tasks run under directly comparable Codex accounting, Grimoire reduced processed input by 32.4% versus Plain and 21.2% versus CBM while keeping aggregate output and reasoning close to Plain.
+
+The fifth task, `grimoire-state-maintenance-ownership`, is the suite's source-plus-rationale investigation. It is therefore complete and no longer roadmap work. Its result supports the intended lane separation: executable source establishes current behavior while architecture, roadmap, and limitation documents provide rationale and ownership guidance.
+
+LevelDB remained the narrow-task boundary case. The primary Grimoire run scored 8/8 but used 18 model calls and 1.20M total tokens because investigation continued after the relevant owner and control flow had already been found. The subsequent narrow-response/stopping mitigation produced a 13-call, 767,025-token rerun with valid grounding and a 7/8 manual score; repeatability remains unmeasured.
 
 ## Version 2 room-scale architecture result
 

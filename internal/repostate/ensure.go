@@ -300,7 +300,7 @@ func reinspect(ctx context.Context, location paths, previous Status, mode Mode) 
 	status.Actions = previous.Actions
 	status.Timings = previous.Timings
 	status.Timings.ReinspectionMS += elapsedMS(started)
-	status.Warnings = previous.Warnings
+	status.Warnings = mergeWarnings(previous.Warnings, status.Warnings)
 	return status, nil
 }
 

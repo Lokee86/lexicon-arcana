@@ -120,8 +120,9 @@ func gdscriptLocalTarget(facts *factSet, functionID, name string, reference toke
 	bestID := ""
 	bestLine, bestColumn := -1, -1
 	ambiguous := false
-	for id, decl := range facts.declarationByID {
-		if decl.ownerFunction != functionID || decl.name != name || (decl.kind != "variable" && decl.kind != "constant") {
+	for _, id := range facts.localValueIDs(functionID, name) {
+		decl := facts.declarationByID[id]
+		if decl == nil {
 			continue
 		}
 		line := spanInt(decl.span, "start_line")
@@ -177,10 +178,8 @@ func gdscriptMemberTargetID(model *semanticModel, context analysisContext, recei
 	}
 	candidates := make(map[string]struct{})
 	for owner := range owners {
-		for id, decl := range model.facts.declarationByID {
-			if decl.ownerID == owner && decl.name == name && (decl.kind == "variable" || decl.kind == "constant") {
-				candidates[id] = struct{}{}
-			}
+		for _, id := range model.facts.memberValueIDs(owner, name) {
+			candidates[id] = struct{}{}
 		}
 	}
 	if len(candidates) != 1 {

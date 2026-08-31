@@ -17,6 +17,7 @@ import time
 import zipfile
 
 import workflow
+from installed_warning_contract import run_warning_contract
 
 
 def remove_readonly(function, path, _):
@@ -143,6 +144,7 @@ def run_smoke(source: Path, version: str) -> dict:
         ):
             environment.pop(name, None)
         environment["PATH"] = os.fspath(installed / "bin") + os.pathsep + environment.get("PATH", "")
+        warning_contract = run_warning_contract(installed, temporary, environment)
         process = subprocess.Popen(
             [
                 os.fspath(binary), "mcp", "--root", os.fspath(fixture),
@@ -194,13 +196,23 @@ def run_smoke(source: Path, version: str) -> dict:
                 raise RuntimeError(f"unexpected provider warnings: {warnings}")
 
             handle = None
-            for item in (search.get("delta") or {}).get("new_nodes") or []:
-                evidence = item.get("evidence") or {}
-                if evidence.get("label") == "TargetThing" and (evidence.get("metadata") or {}).get("provider") == "arcana":
-                    handle = item.get("handle")
+            for hit in (search.get("delta") or {}).get("retrieval_hits") or []:
+                if hit.get("lane") != "symbol_matches" or hit.get("provider") != "lexicon":
+                    continue
+                for related in hit.get("related_evidence") or []:
+                    if related.get("kind") == "node":
+                        handle = related.get("handle")
+                        break
+                if handle is not None:
                     break
-            if not isinstance(handle, str) or not handle.startswith("g1_"):
-                raise RuntimeError("search did not return an opaque TargetThing Arcana handle")
+            if not isinstance(handle, str) or not handle.startswith("g2_"):
+                raise RuntimeError(f"search did not return a current opaque TargetThing symbol handle: {handle!r}")
+            selected = next(
+                (item.get("evidence") or {} for item in (search.get("delta") or {}).get("new_nodes") or [] if item.get("handle") == handle),
+                {},
+            )
+            if selected.get("path") != "target.go" or "TargetThing" not in selected.get("label", ""):
+                raise RuntimeError(f"symbol handle selected unexpected evidence: {selected}")
 
             inspect = tool_content(client.call(
                 "inspect", "tools/call",
@@ -209,12 +221,18 @@ def run_smoke(source: Path, version: str) -> dict:
                 }},
                 60,
             ))
-            ranges = (inspect.get("delta") or {}).get("new_source_ranges") or []
-            if len(ranges) != 1:
-                raise RuntimeError(f"unexpected inspection ranges: {ranges}")
-            evidence = ranges[0].get("evidence") or {}
-            if evidence.get("path") != "target.go" or "TargetThing" not in evidence.get("text", ""):
-                raise RuntimeError(f"opaque handle resolved incorrectly: {evidence}")
+            inspect_delta = inspect.get("delta") or {}
+            ranges = inspect_delta.get("new_source_ranges") or []
+            if ranges:
+                evidence = ranges[0].get("evidence") or {}
+                if evidence.get("path") != "target.go" or "TargetThing" not in evidence.get("text", ""):
+                    raise RuntimeError(f"opaque handle resolved incorrectly: {evidence}")
+            else:
+                prior = inspect_delta.get("prior_evidence") or {}
+                hits = inspect_delta.get("retrieval_hits") or []
+                if prior.get("source_ranges", 0) < 1 or not any(hit.get("provider") == "lexicon" for hit in hits):
+                    raise RuntimeError(f"inspect neither returned nor reused TargetThing source evidence: {inspect_delta}")
+            evidence = {"path": "target.go"}
 
             trace = tool_content(client.call(
                 "trace", "tools/call",
@@ -247,6 +265,7 @@ def run_smoke(source: Path, version: str) -> dict:
                 "inspect_path": evidence.get("path"),
                 "trace_reached": "HelperThing",
                 "provider_warnings": warnings,
+                "warning_contract": warning_contract,
                 "default_state_leaks": leaks,
                 "mcp_stderr": client.stderr,
             }

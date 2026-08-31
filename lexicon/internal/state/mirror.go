@@ -48,10 +48,8 @@ func (m Mirror) SyncAll(source string) error {
 	if err != nil {
 		return err
 	}
-	for relative, path := range desired {
-		if err := m.copy(relative, path); err != nil {
-			return err
-		}
+	if err := m.copyAll(desired); err != nil {
+		return err
 	}
 	return m.removeMissing(desired)
 }

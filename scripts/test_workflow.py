@@ -83,6 +83,13 @@ class WorkflowSmokeTests(unittest.TestCase):
             self.assertTrue((bundled_bin / "adapters" / "go" / "lexicon-go.exe").is_file())
             self.assertTrue((bundled_skills / "grimoire" / "SKILL.md").is_file())
 
+            grimoire_only = root / "grimoire-component"
+            bundle_installer.install(extracted, grimoire_only, ["grimoire"], [])
+            self.assertTrue((grimoire_only / "grimoire.exe").is_file())
+            self.assertTrue((grimoire_only / "lexicon.exe").is_file())
+            self.assertTrue((grimoire_only / "arcana.exe").is_file())
+            self.assertTrue((grimoire_only / "adapters" / "python" / "adapter.py").is_file())
+
             installed = root / "selected-bin"
             shared_skills = root / ".agents" / "skills"
             hermes_skills = root / ".hermes" / "skills"
@@ -92,6 +99,13 @@ class WorkflowSmokeTests(unittest.TestCase):
             self.assertTrue((installed / "adapters" / "python" / "adapter.py").is_file())
             self.assertTrue((shared_skills / "grimoire" / "SKILL.md").is_file())
             self.assertTrue((hermes_skills / "grimoire" / "SKILL.md").is_file())
+
+            source_grimoire_only = root / "source-grimoire-component"
+            workflow.install(build, source_grimoire_only, ("grimoire",), skill_roots=())
+            self.assertTrue((source_grimoire_only / "grimoire.exe").is_file())
+            self.assertTrue((source_grimoire_only / "lexicon.exe").is_file())
+            self.assertTrue((source_grimoire_only / "arcana.exe").is_file())
+            self.assertTrue((source_grimoire_only / "adapters" / "python" / "adapter.py").is_file())
 
             subset = root / "lexicon-only"
             workflow.install(build, subset, ("lexicon",), skill_roots=())

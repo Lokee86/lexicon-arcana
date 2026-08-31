@@ -97,6 +97,16 @@ Cases should be concrete and implementation-checkable. Each case needs:
 
 Include exact literals, local symbol ownership, cross-file call paths, configuration readers, documentation rationale, mixed source/document questions, cross-language generated contracts, architecture plans, and impact analysis. Report results by task class rather than averaging lookup and architecture work into one undifferentiated score.
 
+## First-use preparation calibration
+
+Preparation latency is measured independently from agent execution because discovery is allowed to refresh aligned Lexicon, Arcana, source, and documentation state before returning evidence. The timing buckets are diagnostic: optimization is accepted only when deterministic output and provider alignment are preserved.
+
+On the Space Rocks calibration repository, the August 2026 first-use pass reduced cold Lexicon initialization from 90.64 seconds to 45.00 seconds. The changes removed redundant repository walks, parallelized independent cold mirror copies, and replaced repeated repository-wide GDScript declaration scans with deterministic indexes. A controlled old/new GDScript comparison fell from 42.01 seconds to 6.27 seconds while producing byte-identical 49,301,400-byte JSONL output with the same SHA-256 digest.
+
+A healthy complete cold preparation after those changes measured 87.25 seconds internally: 47.43 seconds Lexicon, 2.38 seconds Arcana, 28.62 seconds source preparation, 3.51 seconds documentation preparation, and the remainder in inspection, marker, and verification work. Follow-up decomposition showed that the remaining source cost includes the serialized Lexicon export and semantic-span handoff rather than another demonstrated source-index algorithm defect. The normal discovery timeout is therefore two minutes, preserving a cancellation bound while allowing the measured cold path to complete instead of silently degrading to source-only discovery.
+
+These measurements are calibration evidence for this repository and machine, not universal latency guarantees. Future work should target the serialized provider boundary only when profiling shows it remains material on judged workloads.
+
 ## Historical package evaluation
 
 The repository contains older retrieval and package-fitting corpora and reports. They remain historical calibration artifacts for the retired context pipeline. They must not be presented as current unified-discovery benchmarks.

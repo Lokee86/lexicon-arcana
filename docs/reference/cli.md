@@ -52,7 +52,7 @@ Useful flags:
 --include-documents=<bool>    Include separately ranked documentation
 --document-vectors            Use current documentation vectors when available
 --session <name>              Reuse one investigation ledger
---timeout <duration>          Complete operation timeout
+--timeout <duration>          Complete operation timeout; defaults to 2 minutes
 ```
 
 Provider-state and executable overrides exist for controlled environments, but normal callers should allow Grimoire to discover and route Lexicon and Arcana internally. Search responses include an `assessment` with observed and missing evidence dimensions plus the smallest justified next action.

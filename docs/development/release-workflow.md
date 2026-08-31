@@ -59,7 +59,7 @@ python scripts/workflow.py smoke
 python scripts/test_workflow.py
 ```
 
-It validates archive layout, fixed metadata, checksums, version validation, selected-component installation, bundled Lexicon adapter installation, skill installation, and concurrency defaults.
+It validates archive layout, fixed metadata, checksums, version validation, component dependency-closure installation, bundled Lexicon adapter installation, skill installation, and concurrency defaults.
 
 After producing a real build layout, run the release-consumer MCP smoke:
 
@@ -67,7 +67,7 @@ After producing a real build layout, run the release-consumer MCP smoke:
 python scripts/test_installed_mcp.py --source build --version installed-smoke
 ```
 
-This packages a combined release ZIP, extracts it, runs the ZIP's embedded installer into a clean temporary directory, launches the installed `grimoire mcp`, prepares managed Lexicon/Arcana/Grimoire state, and verifies opaque search handles through `inspect` and `trace`. It does not rely on source-checkout provider paths.
+This packages a combined release ZIP, extracts it, runs the ZIP's embedded installer into a clean temporary directory, verifies known C-family macro reasons and forward-compatible unknown unresolved-reason warning propagation through installed Lexicon, Arcana, and Grimoire, launches the installed `grimoire mcp`, prepares managed Lexicon/Arcana/Grimoire state, and verifies opaque search handles through `inspect` and `trace`. It does not rely on source-checkout provider paths.
 
 ## Build layout
 
@@ -96,15 +96,16 @@ python scripts/workflow.py install --source build --bin-dir PATH --component gri
 python scripts/workflow.py install --source build --bin-dir PATH --component lexicon --component arcana
 ```
 
-Omitting `--component` installs all three applications. Repeating it installs only the selected subset.
+Omitting `--component` installs the complete Grimoire runtime. Selecting `--component grimoire` also installs its required Lexicon and Arcana provider executables plus Lexicon runtime adapters. Selecting only `lexicon` or only `arcana` remains supported for independently usable component installations.
 
-When Grimoire is selected, installation copies:
+When Grimoire is selected, installation therefore copies:
 
-- the Grimoire executable;
-- the Lodestone native library beside it;
+- the Grimoire, Lexicon, and Arcana executables;
+- the Lexicon runtime adapter tree;
+- the Lodestone native library beside Grimoire;
 - the canonical skill to `~/.agents/skills/grimoire/SKILL.md` and `~/.hermes/skills/grimoire/SKILL.md` by default.
 
-When Lexicon is selected, its runtime adapters are copied into the installed adapter tree.
+When Lexicon is selected independently, its runtime adapters are also copied into the installed adapter tree.
 
 Override skill roots or skip skill installation:
 

@@ -29,15 +29,20 @@ type ExecutionPlan struct {
 }
 
 func (s *Scanner) executionPlan(plan analysisPlan) (ExecutionPlan, error) {
+	result := ExecutionPlan{
+		Language:      plan.Language,
+		LogicalShards: 1, ActiveWorkers: 1, MergeFanIn: 2, ReservedWeight: 1,
+	}
+	if plan.Language != "go" {
+		return result, nil
+	}
 	paths, bytes, err := s.analysisInventory(plan)
 	if err != nil {
 		return ExecutionPlan{}, err
 	}
-	result := ExecutionPlan{
-		Language: plan.Language, SourceFiles: len(paths), SourceBytes: bytes,
-		LogicalShards: 1, ActiveWorkers: 1, MergeFanIn: 2, ReservedWeight: 1,
-	}
-	if plan.Language != "go" || len(paths) < 2 {
+	result.SourceFiles = len(paths)
+	result.SourceBytes = bytes
+	if len(paths) < 2 {
 		return result, nil
 	}
 

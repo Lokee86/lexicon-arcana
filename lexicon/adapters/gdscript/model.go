@@ -37,6 +37,8 @@ type factSet struct {
 	fileByDeclarationID         map[string]*parsedFile
 	declaredMemberByOwner       map[string]map[string]bool
 	declaredLocalByFunction     map[string]map[string]bool
+	memberValueByOwner          map[string]map[string][]string
+	localValueByFunction        map[string]map[string][]string
 	parentByOwnerID             map[string][]string
 	externalParentByOwnerID     map[string]bool
 	scriptOwnerByPath           map[string]string
@@ -155,6 +157,8 @@ func (f *factSet) indexDeclaration(pf *parsedFile, decl *declaration) {
 		f.ownerByFunctionID = make(map[string]string)
 		f.declaredMemberByOwner = make(map[string]map[string]bool)
 		f.declaredLocalByFunction = make(map[string]map[string]bool)
+		f.memberValueByOwner = make(map[string]map[string][]string)
+		f.localValueByFunction = make(map[string]map[string][]string)
 	}
 	f.declarationByID[decl.nodeID] = decl
 	f.fileByDeclarationID[decl.nodeID] = pf
@@ -163,12 +167,20 @@ func (f *factSet) indexDeclaration(pf *parsedFile, decl *declaration) {
 			if f.declaredLocalByFunction[decl.ownerFunction] == nil {
 				f.declaredLocalByFunction[decl.ownerFunction] = make(map[string]bool)
 			}
+			if f.localValueByFunction[decl.ownerFunction] == nil {
+				f.localValueByFunction[decl.ownerFunction] = make(map[string][]string)
+			}
 			f.declaredLocalByFunction[decl.ownerFunction][decl.name] = true
+			f.localValueByFunction[decl.ownerFunction][decl.name] = append(f.localValueByFunction[decl.ownerFunction][decl.name], decl.nodeID)
 		} else {
 			if f.declaredMemberByOwner[decl.ownerID] == nil {
 				f.declaredMemberByOwner[decl.ownerID] = make(map[string]bool)
 			}
+			if f.memberValueByOwner[decl.ownerID] == nil {
+				f.memberValueByOwner[decl.ownerID] = make(map[string][]string)
+			}
 			f.declaredMemberByOwner[decl.ownerID][decl.name] = true
+			f.memberValueByOwner[decl.ownerID][decl.name] = append(f.memberValueByOwner[decl.ownerID][decl.name], decl.nodeID)
 		}
 	}
 	if decl.kind == "type" && decl.keyword != "class_name" {

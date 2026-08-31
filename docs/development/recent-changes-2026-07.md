@@ -115,7 +115,7 @@ See [Agent benchmark findings](agent-benchmark-findings.md) for methodology, lim
 
 ## Benchmark hardening and preparation telemetry
 
-The next agent benchmark suite is defined in `evaluation/agent_benchmark_tasks.v2.json`. Its room-scale architecture, Detekt unclear-ownership, Space Rocks cross-language locator, and LevelDB impact-analysis tasks have now been executed; only the source-plus-rationale task remains. It replaces prompt-supplied subsystem checklists with natural problem reports and hidden rubrics across five intended task classes.
+The version 2 agent benchmark suite in `evaluation/agent_benchmark_tasks.v2.json` is complete across all five task classes: room-scale architecture, unclear ownership, cross-language change, impact analysis, and source-plus-rationale investigation. The consolidated Sol/High/Fast run completed all 15 planned Plain/CBM/Grimoire conditions. Grimoire produced five grounded runs and scored 39/40 on the manual rubric; Plain scored 40/40, while CBM scored 32/32 across four valid runs after one disqualification. The suite replaces prompt-supplied subsystem checklists with natural problem reports and hidden rubrics.
 
 Benchmark grounding is now automatic. Every inline and structured path/range is checked against the pinned checkout, refusals and empty evidence are invalid, and Grimoire evidence handles are checked against exact inspected source ranges through an optional `grimoire.mcp.audit.v1` log, while handle coverage remains a metric rather than a mandatory tool-usage quota. Summaries distinguish process completion from grounded validity.
 
