@@ -31,6 +31,7 @@ Lexicon documentation follows these rules:
 | [GO_ADAPTER_VALIDATION.md](GO_ADAPTER_VALIDATION.md) | Dated Go semantic-adapter validation record and its measured limits |
 | [LOTUSSCRIPT_ADAPTER_VALIDATION.md](LOTUSSCRIPT_ADAPTER_VALIDATION.md) | Dated LotusScript calibration, validation, and holdout record |
 | [RELEASE_PACKAGING.md](RELEASE_PACKAGING.md) | Distribution layout, build requirements, runtime requirements, and packaging command |
+| [DOMAIN_ADAPTER_PROPOSAL.md](DOMAIN_ADAPTER_PROPOSAL.md) | Clearly labeled future proposal for broad Business/Construction adapters and learned Profiles; not implemented behavior |
 
 ## Related documentation
 
