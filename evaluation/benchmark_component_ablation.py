@@ -27,6 +27,7 @@ def prewarm_lexicon_arcana(
     shutil.copy2(arcana_binary, bin_dir / arcana_binary.name)
 
     environment = os.environ.copy()
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
     environment["PATH"] = isolated_path(lexicon_binary.parent, blocked_paths)
     lexicon_seconds, lexicon = _timed([
         str(lexicon_binary), "init", "--repo", str(checkout),
