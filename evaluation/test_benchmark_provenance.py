@@ -48,6 +48,18 @@ class BenchmarkProvenanceTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "expected frozen build version"):
             verify_build_version(provenance, version)
 
+    def test_component_only_build_versions_do_not_require_grimoire(self) -> None:
+        version = "benchmark-123456789abc"
+        verify_build_version(
+            {
+                "tools": {
+                    "lexicon": {"version": f"lexicon version {version}"},
+                    "arcana": {"version": f"Arcana {version}"},
+                }
+            },
+            version,
+        )
+
     def test_generated_outputs_do_not_dirty_harness(self) -> None:
         changes = [
             " M evaluation/results/run/summary.json",

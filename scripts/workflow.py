@@ -161,10 +161,16 @@ def write_utf8(path: Path, content: str) -> None:
     path.write_bytes(content.encode("utf-8"))
 
 
-def build(version: str, output: Path, jobs: int = 1) -> Path:
-    """Build every owning component into one disposable, CPU-bounded layout."""
+def build(
+    version: str,
+    output: Path,
+    jobs: int = 1,
+    components: Sequence[str] = ("grimoire", "lexicon", "arcana"),
+) -> Path:
+    """Build selected owning components into one disposable, CPU-bounded layout."""
     validate_version(version)
     jobs = validate_jobs(jobs)
+    selected = resolve_install_components(components)
     build_env = bounded_env(jobs)
     output = output.resolve()
     if output == ROOT:
@@ -172,57 +178,58 @@ def build(version: str, output: Path, jobs: int = 1) -> Path:
     if output.exists():
         shutil.rmtree(output)
     bin_dir = output / "bin"
-    native_dir = output / "native"
     bin_dir.mkdir(parents=True)
-    native_dir.mkdir(parents=True)
     for name in LEGAL_FILES:
         copy_file(ROOT / name, output / name)
-    copy_file(ROOT / LODESTONE_LICENSE, output / LODESTONE_LICENSE)
-    lodestone = verify_lodestone_checkout()
 
-    go_ldflags = f"-X github.com/Lokee86/grimoire/internal/app.Version={version}"
-    run(
-        ["go", "build", "-p", str(jobs), "-trimpath", "-buildvcs=false", "-ldflags", go_ldflags,
-         "-o", str(bin_dir / executable_name("grimoire")), "./cmd/grimoire"],
-        ROOT,
-        build_env,
-    )
-
-    lexicon_ldflags = f"-X github.com/Lokee86/lexicon/internal/cli.version={version}"
-    run(
-        ["go", "build", "-p", str(jobs), "-trimpath", "-buildvcs=false", "-ldflags", lexicon_ldflags,
-         "-o", str(bin_dir / executable_name("lexicon")), "./cmd/lexicon"],
-        ROOT / "lexicon",
-        build_env,
-    )
-
+    cargo = cargo_command() if "arcana" in selected or "grimoire" in selected else ""
     release_env = build_env.copy()
     release_env["GRIMOIRE_RELEASE_VERSION"] = version
-    cargo = cargo_command()
-    run(
-        [cargo, "build", "--jobs", str(jobs), "--release", "--locked", "--manifest-path", str(ROOT / "arcana" / "Cargo.toml")],
-        ROOT,
-        release_env,
-    )
-    copy_file(ROOT / "arcana" / "target" / "release" / executable_name("arcana"), bin_dir / executable_name("arcana"))
-
-    lodestone_manifest = lodestone / "Cargo.toml"
-    if not lodestone_manifest.is_file():
-        raise FileNotFoundError(
-            f"Lodestone repository was not found at {lodestone}; set LODESTONE_ROOT"
+    lodestone = None
+    if "grimoire" in selected:
+        copy_file(ROOT / LODESTONE_LICENSE, output / LODESTONE_LICENSE)
+        lodestone = verify_lodestone_checkout()
+        go_ldflags = f"-X github.com/Lokee86/grimoire/internal/app.Version={version}"
+        run(
+            ["go", "build", "-p", str(jobs), "-trimpath", "-buildvcs=false", "-ldflags", go_ldflags,
+             "-o", str(bin_dir / executable_name("grimoire")), "./cmd/grimoire"],
+            ROOT, build_env,
         )
-    run(
-        [cargo, "build", "--jobs", str(jobs), "--release", "--locked", "--manifest-path", str(lodestone_manifest), "-p", "lodestone-ffi"],
-        lodestone,
-        release_env,
-    )
-    lodestone_target = lodestone / "target" / "release"
-    copy_file(lodestone_target / native_library_name(), native_dir / native_library_name())
 
-    package_lexicon_adapters(output, cargo, jobs, build_env)
-    copy_file(ROOT / "skills" / "grimoire" / "SKILL.md", output / "skills" / "grimoire" / "SKILL.md")
-    verify_versions(output, version)
-    verify_arcana_protocol(output)
+    if "lexicon" in selected:
+        lexicon_ldflags = f"-X github.com/Lokee86/lexicon/internal/cli.version={version}"
+        run(
+            ["go", "build", "-p", str(jobs), "-trimpath", "-buildvcs=false", "-ldflags", lexicon_ldflags,
+             "-o", str(bin_dir / executable_name("lexicon")), "./cmd/lexicon"],
+            ROOT / "lexicon", build_env,
+        )
+        package_lexicon_adapters(output, cargo_command(), jobs, build_env)
+
+    if "arcana" in selected:
+        run(
+            [cargo, "build", "--jobs", str(jobs), "--release", "--locked", "--manifest-path", str(ROOT / "arcana" / "Cargo.toml")],
+            ROOT, release_env,
+        )
+        copy_file(ROOT / "arcana" / "target" / "release" / executable_name("arcana"), bin_dir / executable_name("arcana"))
+        verify_arcana_protocol(output)
+
+    if "grimoire" in selected:
+        assert lodestone is not None
+        native_dir = output / "native"
+        native_dir.mkdir(parents=True)
+        lodestone_manifest = lodestone / "Cargo.toml"
+        if not lodestone_manifest.is_file():
+            raise FileNotFoundError(
+                f"Lodestone repository was not found at {lodestone}; set LODESTONE_ROOT"
+            )
+        run(
+            [cargo, "build", "--jobs", str(jobs), "--release", "--locked", "--manifest-path", str(lodestone_manifest), "-p", "lodestone-ffi"],
+            lodestone, release_env,
+        )
+        copy_file(lodestone / "target" / "release" / native_library_name(), native_dir / native_library_name())
+        copy_file(ROOT / "skills" / "grimoire" / "SKILL.md", output / "skills" / "grimoire" / "SKILL.md")
+
+    verify_versions(output, version, selected)
     return output
 
 
@@ -278,18 +285,23 @@ def package_lexicon_adapters(
         run([npm, "run", "build", "--silent"], typescript, environment)
 
 
-def verify_versions(build_root: Path, version: str) -> None:
-    """Exercise all three version commands after a build."""
+def verify_versions(build_root: Path, version: str, components: Sequence[str] = ("grimoire", "lexicon", "arcana")) -> None:
+    """Exercise version commands for every selected build component."""
+    expected = {
+        "grimoire": ("version", version),
+        "lexicon": ("version", f"lexicon version {version}"),
+        "arcana": ("--version", f"Arcana {version}"),
+    }
     commands = [
-        ([build_root / "bin" / executable_name("grimoire"), "version"], version),
-        ([build_root / "bin" / executable_name("lexicon"), "version"], f"lexicon version {version}"),
-        ([build_root / "bin" / executable_name("arcana"), "--version"], f"Arcana {version}"),
+        ([build_root / "bin" / executable_name(name), argument], value)
+        for name in components
+        for argument, value in [expected[name]]
     ]
-    for command, expected in commands:
+    for command, expected_value in commands:
         completed = subprocess.run(command, cwd=build_root, check=True, capture_output=True, text=True)
         actual = completed.stdout.strip()
-        if actual != expected:
-            raise RuntimeError(f"{command[0]} reported {actual!r}; expected {expected!r}")
+        if actual != expected_value:
+            raise RuntimeError(f"{command[0]} reported {actual!r}; expected {expected_value!r}")
 
 
 def verify_arcana_protocol(build_root: Path) -> None:
@@ -535,10 +547,11 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    build_parser = subparsers.add_parser("build", help="build all components into one disposable layout")
+    build_parser = subparsers.add_parser("build", help="build selected components into one disposable layout")
     build_parser.add_argument("--version", default="dev")
     build_parser.add_argument("--output", type=Path, default=DEFAULT_BUILD)
     build_parser.add_argument("--jobs", type=int, default=1, help="maximum build workers; defaults to 1")
+    build_parser.add_argument("--component", action="append", choices=("grimoire", "lexicon", "arcana"), dest="components", help="component to build; repeatable; selecting grimoire includes Lexicon and Arcana")
 
     test_parser = subparsers.add_parser("test", help="run all component-owned test suites")
     test_parser.add_argument("--jobs", type=int, default=1, help="maximum package and test workers; defaults to 1")
@@ -563,7 +576,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv or sys.argv[1:])
     try:
         if args.command == "build":
-            build(args.version, args.output, args.jobs)
+            build(args.version, args.output, args.jobs, args.components or ("grimoire", "lexicon", "arcana"))
         elif args.command == "test":
             test(args.jobs)
         elif args.command == "install":

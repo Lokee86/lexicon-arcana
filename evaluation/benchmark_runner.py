@@ -7,12 +7,13 @@ import shutil
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
 from typing import Any
 
 import yaml
 
-from benchmark_grounding import summarize_audit, validate_answer
+from benchmark_collection import collect_runs
+from benchmark_component_ablation import prewarm_lexicon_arcana
+from benchmark_process import isolated_path, prepare_worktree, run_checked
 from benchmark_provenance import capture_provenance, file_identity
 
 COMMON_PROMPT = r'''Read-only repository investigation. Do not modify repository files, run generators, or implement the change. Normal shell, Git, and direct file inspection are allowed. Use only the optional discovery tool available in this condition, and stop using it when direct inspection is cheaper.
@@ -21,43 +22,6 @@ Produce an implementation-grade investigation grounded in the checked-out revisi
 
 End with exactly one line beginning `BENCHMARK_EVIDENCE_JSON:` followed by compact JSON with one array named `evidence`. Evidence without a discovery handle must contain `path`, `symbol`, `lines`, and `claim`. When Grimoire returns an opaque inspected source-range handle, submit only that exact `handle` plus `claim`; the harness derives the canonical path and range. Do not repeat or invent immutable handle metadata.
 '''
-
-
-def run_checked(command: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None, timeout: int = 1200) -> subprocess.CompletedProcess[str]:
-    result = subprocess.run(command, cwd=cwd, env=env, text=True, capture_output=True, timeout=timeout)
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"command failed ({result.returncode}): {command}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-        )
-    return result
-
-
-def resolve_revision(repository: Path, revision: str) -> str:
-    return run_checked(["git", "rev-parse", revision], cwd=repository, timeout=300).stdout.strip()
-
-
-def prepare_worktree(repository: Path, destination: Path, revision: str) -> str:
-    commit = resolve_revision(repository, revision)
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    if destination.exists():
-        try:
-            run_checked(["git", "worktree", "remove", "--force", str(destination)], cwd=repository, timeout=300)
-        except Exception:
-            shutil.rmtree(destination, ignore_errors=True)
-    run_checked(["git", "worktree", "prune"], cwd=repository, timeout=300)
-    run_checked(["git", "worktree", "add", "--detach", str(destination), commit], cwd=repository, timeout=600)
-    return commit
-
-
-def isolated_path(selected: Path | None, blocked: list[Path]) -> str:
-    denied = {str(path).casefold() for path in blocked}
-    kept = [
-        entry for entry in os.environ.get("PATH", "").split(os.pathsep)
-        if entry and str(Path(entry)).casefold() not in denied
-    ]
-    if selected is not None:
-        kept.insert(0, str(selected))
-    return os.pathsep.join(kept)
 
 
 class BenchmarkEnvironment:
@@ -77,19 +41,27 @@ class BenchmarkEnvironment:
         self.arcana_binary = grimoire_build / "bin" / "arcana.exe"
         self.cbm_skill = self.grimoire_repo / "evaluation" / "results" / "cbm-0.9.0-SKILL.md"
         self.grimoire_skill = grimoire_build / "skills" / "grimoire" / "SKILL.md"
+        self.lexicon_arcana_skill = (
+            self.grimoire_repo / "evaluation" / "skills" / "lexicon-arcana" / "SKILL.md"
+        )
 
-    def rebuild(self, version: str, jobs: int = 1) -> None:
-        run_checked([
+    def rebuild(self, version: str, conditions: tuple[str, ...], jobs: int = 1) -> None:
+        components: tuple[str, ...]
+        if "grimoire" in conditions:
+            components = ("grimoire",)
+        elif "lexicon-arcana" in conditions:
+            components = ("lexicon", "arcana")
+        else:
+            return
+        command = [
             sys.executable,
             str(self.grimoire_repo / "scripts" / "workflow.py"),
-            "build",
-            "--version",
-            version,
-            "--output",
-            str(self.grimoire_build),
-            "--jobs",
-            str(jobs),
-        ], cwd=self.grimoire_repo, timeout=7200)
+            "build", "--version", version, "--output", str(self.grimoire_build),
+            "--jobs", str(jobs),
+        ]
+        for component in components:
+            command.extend(["--component", component])
+        run_checked(command, cwd=self.grimoire_repo, timeout=7200)
 
     def provenance(self, task_suite: Path, conditions: tuple[str, ...]) -> dict[str, Any]:
         return capture_provenance(
@@ -104,13 +76,15 @@ class BenchmarkEnvironment:
 
     def profile_identity(self, name: str) -> dict[str, Any]:
         profile = self.profile_root / name
+        skill = None
+        for candidate in ("grimoire", "codebase-memory", "lexicon-arcana"):
+            path = profile / "skills" / candidate / "SKILL.md"
+            if path.is_file():
+                skill = file_identity(path)
+                break
         return {
             "config": file_identity(profile / "config.yaml"),
-            "skill_tree": file_identity(profile / "skills" / "grimoire" / "SKILL.md")
-            if (profile / "skills" / "grimoire" / "SKILL.md").is_file()
-            else file_identity(profile / "skills" / "codebase-memory" / "SKILL.md")
-            if (profile / "skills" / "codebase-memory" / "SKILL.md").is_file()
-            else None,
+            "skill_tree": skill,
         }
 
     def require_dependencies(self, conditions: tuple[str, ...]) -> None:
@@ -120,6 +94,11 @@ class BenchmarkEnvironment:
         if "grimoire" in conditions:
             required.extend([
                 self.grimoire_binary, self.lexicon_binary, self.arcana_binary, self.grimoire_skill,
+            ])
+        if "lexicon-arcana" in conditions:
+            required.extend([
+                self.lexicon_binary, self.arcana_binary, self.lexicon_arcana_skill,
+                self.grimoire_build / "adapters",
             ])
         for path in required:
             if not path.exists():
@@ -181,6 +160,10 @@ class BenchmarkEnvironment:
             target = profile / "skills" / "grimoire"
             target.mkdir(parents=True, exist_ok=True)
             shutil.copy2(self.grimoire_skill, target / "SKILL.md")
+        elif condition == "lexicon-arcana":
+            target = profile / "skills" / "lexicon-arcana"
+            target.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(self.lexicon_arcana_skill, target / "SKILL.md")
 
     def prewarm_cbm(self, checkout: Path, cache: Path, output: Path) -> dict[str, Any]:
         shutil.rmtree(cache, ignore_errors=True)
@@ -224,6 +207,20 @@ class BenchmarkEnvironment:
             "actions": payload.get("actions") or [],
         }
 
+    def prewarm_lexicon_arcana(
+        self,
+        checkout: Path,
+        output: Path,
+    ) -> tuple[dict[str, Any], dict[str, str]]:
+        return prewarm_lexicon_arcana(
+            checkout=checkout,
+            output=output,
+            lexicon_binary=self.lexicon_binary,
+            arcana_binary=self.arcana_binary,
+            adapters=self.grimoire_build / "adapters",
+            blocked_paths=[self.cbm_binary.parent, self.grimoire_build / "bin"],
+        )
+
     def launch(
         self,
         task: dict[str, Any],
@@ -232,6 +229,7 @@ class BenchmarkEnvironment:
         output: Path,
         profile: str,
         cbm_project: str | None,
+        condition_context: dict[str, str] | None = None,
     ) -> tuple[subprocess.Popen[str], float, object, object, Path]:
         usage = output / f"{condition}.usage.json"
         stdout_path = output / f"{condition}.stdout.txt"
@@ -247,73 +245,22 @@ class BenchmarkEnvironment:
             command.extend(["--skills", "codebase-memory"])
         elif condition == "grimoire":
             command.extend(["--skills", "grimoire"])
+        elif condition == "lexicon-arcana":
+            command.extend(["--skills", "lexicon-arcana"])
         command.extend(["-z", prompt])
         environment = os.environ.copy()
         environment["HERMES_ACCEPT_HOOKS"] = "1"
         blocked = [self.cbm_binary.parent, self.grimoire_build / "bin"]
         selected = self.cbm_binary.parent if condition == "cbm" else self.grimoire_build / "bin" if condition == "grimoire" else None
+        if condition == "lexicon-arcana":
+            if condition_context is None:
+                raise ValueError("Lexicon/Arcana condition requires prepared component context")
+            selected = Path(condition_context["bin_dir"])
+            environment["LEXICON_BENCH_EXPORT"] = condition_context["export_dir"]
+            environment["ARCANA_BENCH_SNAPSHOT"] = condition_context["arcana_snapshot"]
+            environment["LEXICON_BENCH_REPO"] = str(checkout)
         environment["PATH"] = isolated_path(selected, blocked)
         stdout_file = stdout_path.open("w", encoding="utf-8", newline="")
         stderr_file = stderr_path.open("w", encoding="utf-8", newline="")
         process = subprocess.Popen(command, cwd=checkout, env=environment, stdout=stdout_file, stderr=stderr_file, text=True)
         return process, time.perf_counter(), stdout_file, stderr_file, usage
-
-
-def collect_runs(
-    active: dict[str, tuple],
-    *,
-    checkout_by_condition: dict[str, Path],
-    output: Path,
-    expected_sections: list[str],
-    required_path_prefixes: list[str],
-    timeout_seconds: int = 2400,
-) -> dict[str, dict[str, Any]]:
-    results: dict[str, dict[str, Any]] = {}
-    pending = set(active)
-    while pending:
-        for condition in list(pending):
-            process, started, stdout_file, stderr_file, usage = active[condition]
-            exit_code = process.poll()
-            if exit_code is None and time.perf_counter() - started <= timeout_seconds:
-                continue
-            if exit_code is None:
-                process.kill()
-                try:
-                    process.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    pass
-                exit_code = -9
-            finished = time.perf_counter()
-            stdout_file.close()
-            stderr_file.close()
-            usage_data = json.loads(usage.read_text(encoding="utf-8")) if usage.is_file() else None
-            answer_path = output / f"{condition}.stdout.txt"
-            audit_path = output / "grimoire.mcp-audit.jsonl" if condition == "grimoire" else None
-            grounding = validate_answer(
-                checkout_by_condition[condition],
-                answer_path.read_text(encoding="utf-8") if answer_path.is_file() else "",
-                exit_code=exit_code,
-                expected_sections=expected_sections,
-                audit_log=audit_path,
-                require_grimoire_handles=False,
-                required_path_prefixes=required_path_prefixes,
-            )
-            grounding_path = output / f"{condition}.grounding.json"
-            grounding_path.write_text(json.dumps(grounding.to_dict(), indent=2) + "\n", encoding="utf-8")
-            results[condition] = {
-                "exit_code": exit_code,
-                "elapsed_seconds": round(finished - started, 3),
-                "usage": usage_data,
-                "answer_bytes": answer_path.stat().st_size if answer_path.is_file() else 0,
-                "discovery_output": summarize_audit(audit_path),
-                "grounding": grounding.to_dict(),
-                "execution_valid": exit_code == 0,
-                "grounding_valid": grounding.valid,
-                "eligible_for_scoring": exit_code == 0 and grounding.valid,
-                "quality_assessed": False,
-                "completed_at": datetime.now(timezone.utc).isoformat(),
-            }
-            pending.remove(condition)
-        if pending:
-            time.sleep(1)
-    return results

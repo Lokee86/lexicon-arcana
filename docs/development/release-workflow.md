@@ -48,7 +48,11 @@ python scripts/workflow.py test --jobs 2
 python scripts/workflow.py release --version 1.2.3 --jobs 2
 ```
 
-`--jobs` must be at least 1. A high value can still overload the machine.
+`--jobs` must be at least 1. A high value can still overload the machine. `build` also accepts repeatable `--component` selectors. Selecting `grimoire` retains the complete dependency closure; selecting only `lexicon` and `arcana` builds those providers and Lexicon adapters without requiring or building Lodestone. This is used by component-only evaluation and development workflows, not by release packaging.
+
+```bash
+python scripts/workflow.py build --version dev --component lexicon --component arcana
+```
 
 ## Smoke checks
 

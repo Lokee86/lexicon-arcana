@@ -20,7 +20,8 @@ DEFAULT_OUTPUT = GRIMOIRE_REPO / "evaluation" / "results" / "agent-benchmark-v2"
 DEFAULT_CHECKOUTS = ROOT / "benchmark-checkouts" / "agent-benchmark-v2"
 MODEL = "gpt-5.6-sol"
 PROVIDER = "openai-codex"
-CONDITIONS = ("plain", "cbm", "grimoire")
+DEFAULT_CONDITIONS = ("plain", "cbm", "grimoire")
+CONDITIONS = (*DEFAULT_CONDITIONS, "lexicon-arcana")
 IGNORED_HARNESS_CHANGES = (
     ".warlock/",
     ".worktrees/",
@@ -118,7 +119,7 @@ def main() -> int:
     task_suite = args.tasks.resolve()
     suite = load_task_suite(task_suite, ROOT)
     tasks = select_tasks(suite, args.task)
-    conditions = tuple(dict.fromkeys(args.condition or CONDITIONS))
+    conditions = tuple(dict.fromkeys(args.condition or DEFAULT_CONDITIONS))
     environment = BenchmarkEnvironment(ROOT, args.build.resolve(), args.model, args.provider)
     harness_commit = git_commit(GRIMOIRE_REPO)
     build_version = f"benchmark-{harness_commit[:12]}"
@@ -150,7 +151,7 @@ def main() -> int:
             "benchmark harness has uncommitted source changes; commit or isolate them before running:\n"
             + "\n".join(changes)
         )
-    environment.rebuild(build_version)
+    environment.rebuild(build_version, conditions)
     environment.require_dependencies(conditions)
     provenance = environment.provenance(task_suite, conditions)
     verify_build_version(provenance, build_version)
@@ -187,6 +188,13 @@ def main() -> int:
             cbm_project = preparation["cbm"]["project"]
         if "grimoire" in conditions:
             preparation["grimoire"] = environment.prewarm_grimoire(checkouts["grimoire"], task_output)
+        condition_context: dict[str, dict[str, str]] = {}
+        if "lexicon-arcana" in conditions:
+            component_summary, component_context = environment.prewarm_lexicon_arcana(
+                checkouts["lexicon-arcana"], task_output
+            )
+            preparation["lexicon-arcana"] = component_summary
+            condition_context["lexicon-arcana"] = component_context
 
         profiles: dict[str, str] = {}
         profile_provenance: dict[str, dict] = {}
@@ -219,6 +227,7 @@ def main() -> int:
                     task_output,
                     profiles[condition],
                     cbm_project,
+                    condition_context.get(condition),
                 )
             }
             runs.update(collect_runs(
@@ -240,6 +249,11 @@ def main() -> int:
             "runs": runs,
         }
         (args.output / "summary.partial.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+        for context in condition_context.values():
+            for key in ("export_dir", "bin_dir"):
+                path = context.get(key)
+                if path:
+                    shutil.rmtree(path, ignore_errors=True)
         time.sleep(3)
 
     summary["completed_at"] = datetime.now(timezone.utc).isoformat()

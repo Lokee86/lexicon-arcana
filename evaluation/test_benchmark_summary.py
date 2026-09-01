@@ -5,10 +5,14 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from run_agent_benchmark import initialize_summary
+from run_agent_benchmark import CONDITIONS, DEFAULT_CONDITIONS, initialize_summary
 
 
 class BenchmarkSummaryTests(unittest.TestCase):
+    def test_component_ablation_is_supported_but_not_default(self) -> None:
+        self.assertIn("lexicon-arcana", CONDITIONS)
+        self.assertNotIn("lexicon-arcana", DEFAULT_CONDITIONS)
+
     def test_existing_tasks_are_preserved_across_selected_runs(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary)

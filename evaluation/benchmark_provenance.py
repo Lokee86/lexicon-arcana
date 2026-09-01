@@ -97,15 +97,18 @@ def capture_provenance(
     if "cbm" in conditions:
         tools["cbm"] = file_identity(cbm_binary)
         skills["cbm"] = file_identity(cbm_skill)
-    if "grimoire" in conditions:
-        tools["grimoire"] = file_identity(binaries / "grimoire.exe", version_arguments=("version",))
+    if "grimoire" in conditions or "lexicon-arcana" in conditions:
         tools["lexicon"] = file_identity(binaries / "lexicon.exe", version_arguments=("version",))
         tools["arcana"] = file_identity(binaries / "arcana.exe", version_arguments=("--version",))
+        build["adapters_sha256"] = sha256_tree(build_root / "adapters")
+    if "grimoire" in conditions:
+        tools["grimoire"] = file_identity(binaries / "grimoire.exe", version_arguments=("version",))
         skills["grimoire"] = file_identity(build_root / "skills" / "grimoire" / "SKILL.md")
-        build = {
-            "adapters_sha256": sha256_tree(build_root / "adapters"),
-            "native_sha256": sha256_tree(build_root / "native"),
-        }
+        build["native_sha256"] = sha256_tree(build_root / "native")
+    if "lexicon-arcana" in conditions:
+        skills["lexicon-arcana"] = file_identity(
+            repository / "evaluation" / "skills" / "lexicon-arcana" / "SKILL.md"
+        )
     return {
         "schema": PROVENANCE_SCHEMA,
         "harness_commit": git_commit(repository),
@@ -135,6 +138,8 @@ def verify_build_version(provenance: dict[str, Any], version: str) -> None:
     }
     tools = provenance.get("tools") or {}
     for name, value in expected.items():
+        if name not in tools:
+            continue
         actual = (tools.get(name) or {}).get("version")
         if actual != value:
             raise RuntimeError(f"{name} reported {actual!r}; expected frozen build version {value!r}")

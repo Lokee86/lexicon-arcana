@@ -23,7 +23,7 @@ Coverage includes commands, packages, component boundaries, stateful flows, mach
 | Repository identity, conservative freshness, aligned provider state, and compatibility-warning promotion | `internal/repostate/` | [Analysis stack](../architecture/analysis-stack.md), [System overview](../architecture/system-overview.md), [Arcana Lexicon ingestion boundary](../../arcana/docs/LEXICON_CONTRACT.md) |
 | Persistent investigation evidence | `internal/investigation/` | [Agent MCP](../reference/agent-mcp.md), package README |
 | Embedding runtime and vector boundary | `internal/embedding/`, `internal/vectorstore/` | [Embedding model](../reference/embedding-model.md), [Vector store](../reference/vector-store.md), [Operations and trust](../architecture/operations-and-trust.md) |
-| Retrieval and agent outcome evaluation | `internal/knowledgeevaluation/`, `evaluation/agent_discovery/` | [Testing and benchmarks](testing-and-benchmarks.md), [Agent benchmark findings](agent-benchmark-findings.md) |
+| Retrieval and agent outcome evaluation | `internal/knowledgeevaluation/`, `evaluation/agent_discovery/`, `evaluation/benchmark_*.py`, `evaluation/run_agent_benchmark.py` | [Testing and benchmarks](testing-and-benchmarks.md), [Agent benchmark findings](agent-benchmark-findings.md) |
 
 ## Component coverage
 

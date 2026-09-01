@@ -18,10 +18,11 @@ def main() -> int:
     task_dirs = [output / task for task in args.task] if args.task else [path for path in output.iterdir() if path.is_dir()]
     removed: list[str] = []
     for task_dir in task_dirs:
-        cache = task_dir / "cbm-cache"
-        if cache.exists():
-            shutil.rmtree(cache)
-            removed.append(str(cache))
+        for name in ("cbm-cache", "lexicon-arcana-export", "lexicon-arcana-bin"):
+            transient = task_dir / name
+            if transient.exists():
+                shutil.rmtree(transient)
+                removed.append(str(transient))
     partial = output / "summary.partial.json"
     if partial.exists():
         partial.unlink()

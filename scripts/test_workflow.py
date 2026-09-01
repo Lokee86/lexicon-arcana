@@ -114,6 +114,28 @@ class WorkflowSmokeTests(unittest.TestCase):
             self.assertFalse((subset / "grimoire.exe").exists())
             self.assertFalse((subset / "lodestone_ffi.dll").exists())
 
+    def test_component_build_can_exclude_grimoire_and_lodestone(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="grimoire-component-build-") as temporary, \
+                mock.patch.object(workflow, "copy_file"), \
+                mock.patch.object(workflow, "run"), \
+                mock.patch.object(workflow, "cargo_command", return_value="cargo"), \
+                mock.patch.object(workflow, "package_lexicon_adapters") as adapters, \
+                mock.patch.object(workflow, "verify_arcana_protocol") as protocol, \
+                mock.patch.object(workflow, "verify_versions") as versions, \
+                mock.patch.object(workflow, "verify_lodestone_checkout") as lodestone:
+            workflow.build(
+                "benchmark-test",
+                Path(temporary) / "build",
+                components=("lexicon", "arcana"),
+            )
+
+        lodestone.assert_not_called()
+        adapters.assert_called_once()
+        protocol.assert_called_once()
+        versions.assert_called_once_with(
+            mock.ANY, "benchmark-test", ["lexicon", "arcana"]
+        )
+
     def test_component_tests_are_cpu_bounded_by_default(self) -> None:
         calls: list[tuple[list[str], Path, dict[str, str] | None]] = []
 
@@ -197,6 +219,10 @@ class WorkflowSmokeTests(unittest.TestCase):
                 workflow.verify_arcana_protocol(build)
 
     def test_release_jobs_default_and_override(self) -> None:
+        selected = workflow.parse_args([
+            "build", "--component", "lexicon", "--component", "arcana"
+        ])
+        self.assertEqual(selected.components, ["lexicon", "arcana"])
         default = workflow.parse_args(["release", "--version", "1.2.3"])
         self.assertEqual(default.jobs, 1)
         overridden = workflow.parse_args(["release", "--version", "1.2.3", "--jobs", "3"])
