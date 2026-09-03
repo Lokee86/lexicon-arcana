@@ -20,6 +20,7 @@ NODE_KINDS = {
     "symbol",
     "type",
     "interface",
+    "protocol",
     "trait",
     "function",
     "method",

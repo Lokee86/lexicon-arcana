@@ -98,6 +98,7 @@ Common node kinds:
 - `symbol`;
 - `type`;
 - `interface`;
+- `protocol`;
 - `trait`;
 - `function`;
 - `method`;
