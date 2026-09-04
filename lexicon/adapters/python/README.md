@@ -56,6 +56,8 @@ Current static resolution covers:
 
 The adapter also emits repository, directory, file, module, type, interface/protocol, function, method, and import nodes; structural `contains` and `defines` edges; resolved `imports`, `extends`, and `implements` edges; `overrides` edges to inherited or protocol contract methods; and source spans for emitted relationships.
 
+It implements Lexicon's semantic fact contract v1 for `control-flow`, `error-handling`, `calls`, and `source-spans`. Python `except` handlers emit normalized `error-handler:python` facts and classify explicit handling as `propagate`, `record`, or `recover`. Empty/pass-only handlers therefore feed Pitlord's language-neutral `swallowed-error` rule without requiring Python syntax in Pitlord.
+
 Protocol and other recognized interface contracts are not runtime call targets. An annotated protocol receiver expands only to repository-local concrete implementors: one proven implementation is `calls`, while multiple implementations are `possible-calls`. Exact concrete construction and C3-inherited methods remain definite when the receiver evidence is concrete. Dynamic `getattr` names, reflection, monkey patching, metaclass-generated members, and runtime class mutation remain unresolved.
 
 ## Deliberate unresolved boundaries
@@ -86,6 +88,7 @@ The adapter emits conservative `reads` and `writes` edges from functions and lam
 | Bindings and resolution | `bindings.py`, `resolution.py` | adapter tests |
 | Calls and dispatch | `callgraph*.py` | adapter tests |
 | Dependencies and dataflow | `dependencies.py`, `extraction_flow.py` | adapter tests |
+| Semantic capabilities and error handling | `semantic_facts.py` | `tests/test_semantic_facts.py` |
 | Contract and output | `model.py`, `contract.py`, `emission.py` | adapter tests |
 
 Dynamic imports, monkey-patching, and runtime-only dispatch remain conservative unresolved boundaries.

@@ -9,6 +9,8 @@ import re
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from semantic_contract import validate_semantic_links, validate_semantic_protocol_node
+
 ID_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 RECORD_ORDER = {"node": 0, "edge": 1, "unresolved": 2}
 NODE_KINDS = {
@@ -178,6 +180,7 @@ def validate(path: Path) -> None:
             nodes[record["id"]] = record
             content_id = record.get("content_id")
             require(content_id is None or ID_PATTERN.match(content_id) is not None, f"line {index}: invalid content id")
+            validate_semantic_protocol_node(record, index, require)
         elif record_kind == "edge":
             for field in ("source", "target", "relation"):
                 require(field in record, f"line {index}: edge.{field} is required")
@@ -208,6 +211,7 @@ def validate(path: Path) -> None:
             require(owner in changed, f"line {index}: owner is outside changed_files")
             require(owner not in removed, f"line {index}: removed file cannot emit replacement records")
 
+    validate_semantic_links(facts, nodes, require)
     require(facts == sorted(facts, key=sort_key), "fact records are not canonically sorted")
 
 

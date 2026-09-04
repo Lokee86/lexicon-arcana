@@ -13,6 +13,7 @@ from .extraction import DeclarationVisitor
 from .dependencies import add_dependency_facts
 from .model import Facts
 from .resolution import resolve_facts
+from .semantic_facts import emit_semantic_facts
 
 
 def build_facts(
@@ -81,6 +82,7 @@ def build_facts(
     for context in snapshot.contexts:
         if context.tree is not None:
             DeclarationVisitor(facts, context).visit(context.tree)
+    emit_semantic_facts(facts, snapshot.contexts)
     resolve_facts(facts, snapshot.contexts)
     add_dependency_facts(facts, snapshot)
     return emit_records(facts, __version__, changed_files, removed_files)
