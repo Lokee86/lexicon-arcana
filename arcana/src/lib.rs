@@ -17,7 +17,7 @@ pub const PROJECT_NAME: &str = "Arcana";
 
 /// Package version supplied by the release workflow or, for standalone Cargo
 /// builds, by the package manifest.
-pub const PROJECT_VERSION: &str = match option_env!("GRIMOIRE_RELEASE_VERSION") {
+pub const PROJECT_VERSION: &str = match option_env!("ARCANA_RELEASE_VERSION") {
     Some(version) => version,
     None => env!("CARGO_PKG_VERSION"),
 };

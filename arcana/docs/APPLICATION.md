@@ -33,7 +33,7 @@ Implemented top-level behavior:
 
 - `arcana` with no arguments prints the product name, description, and top-level usage, then succeeds.
 - Bare `arcana -h` and `arcana --help` print the same help and succeed.
-- Bare `arcana -V` and `arcana --version` print `Arcana <version>` and succeed. The build uses `GRIMOIRE_RELEASE_VERSION` when set, otherwise the Cargo package version.
+- Bare `arcana -V` and `arcana --version` print `Arcana <version>` and succeed. The build uses `ARCANA_RELEASE_VERSION` when set, otherwise the Cargo package version.
 - Only `benchmark` has command-specific `-h`/`--help` handling. Other commands treat `--help` as an unknown command flag.
 - CLI parse errors print `arcana: <error>`, followed by top-level usage, to stderr and return exit status 2.
 - Benchmark parse errors print `arcana benchmark: <error>`, followed by benchmark usage, and also return exit status 2.

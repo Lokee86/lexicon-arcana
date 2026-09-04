@@ -2,58 +2,16 @@
   "version": 1,
   "rules": [
     {
-      "id": "adr-monorepo-components-required",
+      "id": "adr-retirement-required",
       "type": "require_path",
-      "path": "docs/decisions/0001-monorepo-independent-components.md",
-      "message": "the independent-component monorepo decision must remain recorded"
-    },
-    {
-      "id": "adr-progressive-discovery-required",
-      "type": "require_path",
-      "path": "docs/decisions/0002-progressive-discovery.md",
-      "message": "the progressive-discovery decision must remain recorded"
-    },
-    {
-      "id": "adr-immutable-state-required",
-      "type": "require_path",
-      "path": "docs/decisions/0003-immutable-generated-state.md",
-      "message": "the immutable generated-state decision must remain recorded"
-    },
-    {
-      "id": "adr-process-boundaries-required",
-      "type": "require_path",
-      "path": "docs/decisions/0004-process-protocol-boundaries.md",
-      "message": "the process/protocol boundary decision must remain recorded"
-    },
-    {
-      "id": "adr-lodestone-boundary-required",
-      "type": "require_path",
-      "path": "docs/decisions/0005-lodestone-vector-boundary.md",
-      "message": "the Lodestone ownership decision must remain recorded"
+      "path": "docs/decisions/0006-retire-grimoire-lead-with-lexicon-arcana.md",
+      "message": "the Grimoire retirement and Lexicon + Arcana ownership decision must remain recorded"
     },
     {
       "id": "architecture-decision-index-required",
       "type": "require_path",
       "path": "docs/decisions/INDEX.md",
       "message": "architecture decisions must remain indexed"
-    },
-    {
-      "id": "operations-trust-owner-required",
-      "type": "require_path",
-      "path": "docs/architecture/operations-and-trust.md",
-      "message": "operations and trust boundaries require a canonical owner"
-    },
-    {
-      "id": "architecture-verification-owner-required",
-      "type": "require_path",
-      "path": "docs/development/architecture-verification.md",
-      "message": "architecture verification requires a canonical development owner"
-    },
-    {
-      "id": "grimoire-module-required",
-      "type": "require_path",
-      "path": "go.mod",
-      "message": "Grimoire must remain an independently buildable Go module"
     },
     {
       "id": "lexicon-module-required",
@@ -68,21 +26,6 @@
       "message": "Arcana must remain an independently buildable Rust crate"
     },
     {
-      "id": "grimoire-no-lexicon-module-imports",
-      "type": "forbid_content",
-      "regex": "\"github\\.com/Lokee86/(?:lexicon|grimoire/lexicon)(?:/|\\\")",
-      "include_paths": [
-        "cmd/*.go",
-        "cmd/**/*.go",
-        "internal/*.go",
-        "internal/**/*.go"
-      ],
-      "exclude_paths": [
-        "**/testdata/**"
-      ],
-      "message": "Grimoire must consume Lexicon through immutable or process boundaries rather than importing its implementation module"
-    },
-    {
       "id": "lexicon-no-grimoire-imports",
       "type": "forbid_content",
       "regex": "\"github\\.com/Lokee86/grimoire(?:/|\\\")",
@@ -93,31 +36,33 @@
       "exclude_paths": [
         "lexicon/**/testdata/**"
       ],
-      "message": "Lexicon must remain independent of Grimoire implementation packages"
+      "message": "Lexicon must remain independent of retired Grimoire implementation packages"
     },
     {
-      "id": "lodestone-unpinned-zero-version-forbidden",
+      "id": "active-release-must-not-name-grimoire",
       "type": "forbid_content",
-      "regex": "github\\.com/Lokee86/lodestone/bindings/go\\s+v0\\.0\\.0\\s*$",
+      "literal": "grimoire",
       "include_paths": [
-        "go.mod"
+        "scripts/workflow.py",
+        "scripts/install.py",
+        ".github/workflows/release.yml"
       ],
-      "message": "Lodestone must use an immutable module version rather than an unpinned zero version"
+      "message": "active build, install, and release surfaces must not publish or require Grimoire"
     },
     {
-      "id": "lodestone-build-verification-required",
+      "id": "root-workflow-required",
       "type": "require_path",
       "path": "scripts/workflow.py",
-      "message": "the root workflow must retain Lodestone checkout verification"
+      "message": "Lexicon + Arcana release composition requires an explicit root workflow"
     },
     {
-      "id": "lodestone-workflow-tests-required",
+      "id": "workflow-tests-required",
       "type": "require_path",
       "path": "scripts/test_workflow.py",
-      "message": "the root workflow and dependency identity require focused tests"
+      "message": "the root workflow requires focused packaging and install tests"
     },
     {
-      "id": "lodestone-release-checkout-required",
+      "id": "release-workflow-required",
       "type": "require_path",
       "path": ".github/workflows/release.yml",
       "message": "release source composition must remain explicit"
@@ -127,45 +72,6 @@
       "type": "require_path",
       "path": ".gitignore",
       "message": "generated and tool state require a repository ignore policy"
-    },
-    {
-      "id": "prepared-source-exclusions-required",
-      "type": "require_path",
-      "path": "internal/index/exclusions.go",
-      "message": "prepared-source traversal requires a permanent exclusion owner"
-    },
-    {
-      "id": "prepared-source-exclusion-tests-required",
-      "type": "require_path",
-      "path": "internal/app/index_exclude_test.go",
-      "message": "generated-state and nested-worktree exclusions require focused tests"
-    },
-    {
-      "id": "mcp-lifecycle-owner-required",
-      "type": "require_path",
-      "path": "internal/mcpserver/server.go",
-      "message": "MCP negotiation, admission, and cancellation require an explicit lifecycle owner"
-    },
-    {
-      "id": "mcp-contract-model-required",
-      "type": "require_path",
-      "path": "internal/mcpserver/model.go",
-      "message": "MCP protocol and admission limits require an explicit model owner"
-    },
-    {
-      "id": "mcp-lifecycle-tests-required",
-      "type": "require_path",
-      "path": "internal/mcpserver/server_test.go",
-      "message": "MCP negotiation, bounded admission, and cancellation require focused tests"
-    },
-    {
-      "id": "mcp-client-version-echo-forbidden",
-      "type": "forbid_content",
-      "regex": "protocol(?:Version)?\\s*=\\s*request\\.ProtocolVersion",
-      "include_paths": [
-        "internal/mcpserver/*.go"
-      ],
-      "message": "MCP initialization must validate supported protocol versions rather than echoing the client version"
     },
     {
       "id": "lexicon-consumer-runner-required",
@@ -195,7 +101,7 @@
       "id": "pitlord-policy-required",
       "type": "require_path",
       "path": "tools/pitlord/policy.json",
-      "message": "Grimoire architecture policy must remain owned by Pitlord"
+      "message": "Lexicon + Arcana architecture policy must remain owned by Pitlord"
     }
   ]
 }

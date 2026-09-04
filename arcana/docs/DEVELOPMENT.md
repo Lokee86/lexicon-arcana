@@ -21,7 +21,7 @@ Arcana is independently buildable, but it does not own language parsing or highe
 - Use Python when running the repository documentation checker or the root workflow. Python is not part of Arcana's Rust library or binary build.
 - Run direct Cargo commands from `arcana/`. From the repository root, use `--manifest-path arcana/Cargo.toml` instead.
 
-[`build.rs`](../build.rs) reads `GRIMOIRE_RELEASE_VERSION` when the root release workflow supplies it. Ordinary standalone builds do not need that variable; the build script falls back to the package version from `Cargo.toml`.
+[`build.rs`](../build.rs) reads `ARCANA_RELEASE_VERSION` when the root release workflow supplies it. Ordinary standalone builds do not need that variable; the build script falls back to the package version from `Cargo.toml`.
 
 ## Build boundaries
 

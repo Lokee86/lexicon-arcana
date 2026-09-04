@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Root build, test, install, and release workflow for the Grimoire monorepo."""
+"""Root build, test, install, and release workflow for Lexicon + Arcana."""
 
 from __future__ import annotations
 
@@ -18,14 +18,10 @@ from pathlib import Path
 from typing import Iterable, Sequence
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_LODESTONE_ROOT = ROOT.parent / "lodestone"
-LODESTONE_COMMIT = "372abb7b9d5c9fb19eeaf92774849505e1dfbade"
-LODESTONE_GO_VERSION = "v0.0.0-20260727052216-372abb7b9d5c"
 PITLORD_VERSION = "v0.1.2"
 DEFAULT_BUILD = ROOT / "build"
 DEFAULT_DIST = ROOT / "dist"
 LEGAL_FILES = ("LICENSE.md", "LICENSING.md", "THIRD_PARTY_NOTICES.md")
-LODESTONE_LICENSE = Path("licenses") / "lodestone-Apache-2.0.txt"
 VERSION_PATTERN = re.compile(r"^[0-9A-Za-z][0-9A-Za-z.+_-]*$")
 ARCANA_PROTOCOL = "arcana.query.v1"
 ARCANA_PROTOCOL_VERSION = 1
@@ -43,15 +39,6 @@ def executable_name(name: str, platform_name: str | None = None) -> str:
     return name + ".exe" if (platform_name or platform.system()).lower() == "windows" else name
 
 
-def native_library_name(platform_name: str | None = None) -> str:
-    name = (platform_name or platform.system()).lower()
-    if name == "windows":
-        return "lodestone_ffi.dll"
-    if name == "darwin":
-        return "liblodestone_ffi.dylib"
-    return "liblodestone_ffi.so"
-
-
 def pitlord_command() -> str:
     configured = os.environ.get("PITLORD")
     if configured:
@@ -66,44 +53,6 @@ def pitlord_command() -> str:
         f"Pitlord is required; install github.com/Lokee86/pitlord/cmd/pitlord@{PITLORD_VERSION} "
         "or set PITLORD"
     )
-
-
-def default_skill_roots() -> tuple[Path, ...]:
-    return (
-        Path.home() / ".agents" / "skills",
-        Path.home() / ".hermes" / "skills",
-    )
-
-
-def lodestone_root() -> Path:
-    configured = os.environ.get("LODESTONE_ROOT")
-    return Path(configured).resolve() if configured else DEFAULT_LODESTONE_ROOT.resolve()
-
-
-def verify_lodestone_checkout() -> Path:
-    """Require the exact Lodestone source identity consumed by this release."""
-    root = lodestone_root()
-    binding_module = root / "bindings" / "go" / "go.mod"
-    if not binding_module.is_file():
-        raise FileNotFoundError(
-            f"Lodestone Go bindings were not found at {binding_module}; set LODESTONE_ROOT"
-        )
-    module_text = binding_module.read_text(encoding="utf-8")
-    if "module github.com/Lokee86/lodestone/bindings/go" not in module_text:
-        raise RuntimeError(f"unexpected Lodestone Go module identity in {binding_module}")
-    completed = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=root, check=True, capture_output=True, text=True
-    )
-    actual = completed.stdout.strip()
-    if actual != LODESTONE_COMMIT:
-        raise RuntimeError(
-            f"Lodestone checkout {actual or '<unknown>'} does not match pinned {LODESTONE_COMMIT}"
-        )
-    root_module = (ROOT / "go.mod").read_text(encoding="utf-8")
-    requirement = f"github.com/Lokee86/lodestone/bindings/go {LODESTONE_GO_VERSION}"
-    if requirement not in root_module:
-        raise RuntimeError(f"go.mod does not require pinned Lodestone version {LODESTONE_GO_VERSION}")
-    return root
 
 
 def target_label(platform_name: str | None = None, machine: str | None = None) -> str:
@@ -165,7 +114,7 @@ def build(
     version: str,
     output: Path,
     jobs: int = 1,
-    components: Sequence[str] = ("grimoire", "lexicon", "arcana"),
+    components: Sequence[str] = ("lexicon", "arcana"),
 ) -> Path:
     """Build selected owning components into one disposable, CPU-bounded layout."""
     validate_version(version)
@@ -182,19 +131,9 @@ def build(
     for name in LEGAL_FILES:
         copy_file(ROOT / name, output / name)
 
-    cargo = cargo_command() if "arcana" in selected or "grimoire" in selected else ""
+    cargo = cargo_command() if "arcana" in selected else ""
     release_env = build_env.copy()
-    release_env["GRIMOIRE_RELEASE_VERSION"] = version
-    lodestone = None
-    if "grimoire" in selected:
-        copy_file(ROOT / LODESTONE_LICENSE, output / LODESTONE_LICENSE)
-        lodestone = verify_lodestone_checkout()
-        go_ldflags = f"-X github.com/Lokee86/grimoire/internal/app.Version={version}"
-        run(
-            ["go", "build", "-p", str(jobs), "-trimpath", "-buildvcs=false", "-ldflags", go_ldflags,
-             "-o", str(bin_dir / executable_name("grimoire")), "./cmd/grimoire"],
-            ROOT, build_env,
-        )
+    release_env["ARCANA_RELEASE_VERSION"] = version
 
     if "lexicon" in selected:
         lexicon_ldflags = f"-X github.com/Lokee86/lexicon/internal/cli.version={version}"
@@ -212,22 +151,6 @@ def build(
         )
         copy_file(ROOT / "arcana" / "target" / "release" / executable_name("arcana"), bin_dir / executable_name("arcana"))
         verify_arcana_protocol(output)
-
-    if "grimoire" in selected:
-        assert lodestone is not None
-        native_dir = output / "native"
-        native_dir.mkdir(parents=True)
-        lodestone_manifest = lodestone / "Cargo.toml"
-        if not lodestone_manifest.is_file():
-            raise FileNotFoundError(
-                f"Lodestone repository was not found at {lodestone}; set LODESTONE_ROOT"
-            )
-        run(
-            [cargo, "build", "--jobs", str(jobs), "--release", "--locked", "--manifest-path", str(lodestone_manifest), "-p", "lodestone-ffi"],
-            lodestone, release_env,
-        )
-        copy_file(lodestone / "target" / "release" / native_library_name(), native_dir / native_library_name())
-        copy_file(ROOT / "skills" / "grimoire" / "SKILL.md", output / "skills" / "grimoire" / "SKILL.md")
 
     verify_versions(output, version, selected)
     return output
@@ -285,10 +208,9 @@ def package_lexicon_adapters(
         run([npm, "run", "build", "--silent"], typescript, environment)
 
 
-def verify_versions(build_root: Path, version: str, components: Sequence[str] = ("grimoire", "lexicon", "arcana")) -> None:
+def verify_versions(build_root: Path, version: str, components: Sequence[str] = ("lexicon", "arcana")) -> None:
     """Exercise version commands for every selected build component."""
     expected = {
-        "grimoire": ("version", version),
         "lexicon": ("version", f"lexicon version {version}"),
         "arcana": ("--version", f"Arcana {version}"),
     }
@@ -307,7 +229,7 @@ def verify_versions(build_root: Path, version: str, components: Sequence[str] = 
 def verify_arcana_protocol(build_root: Path) -> None:
     """Require the built Arcana binary to satisfy the integration protocol contract."""
     arcana = build_root / "bin" / executable_name("arcana")
-    with tempfile.TemporaryDirectory(prefix="grimoire-arcana-protocol-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="lexicon-arcana-protocol-") as temporary:
         root = Path(temporary)
         facts = root / "facts.tsv"
         snapshot = root / "snapshot"
@@ -358,13 +280,11 @@ def test(jobs: int = 1) -> None:
     environment = bounded_env(jobs)
     cargo = cargo_command()
     pitlord = pitlord_command()
-    verify_lodestone_checkout()
     policy = "tools/pitlord/policy.json"
     run([pitlord, "validate", "--policy", policy], ROOT, environment)
     run([pitlord, "check", "--repo", ".", "--policy", policy, "--timeout", "2m"], ROOT, environment)
     run([sys.executable, "scripts/check_docs.py"], ROOT, environment)
     go_test = ["go", "test", "-p", str(jobs), "-parallel", str(jobs), "./..."]
-    run(go_test, ROOT, environment)
     run(go_test, ROOT / "lexicon", environment)
     for adapter in ("java", "kotlin"):
         run(go_test, ROOT / "lexicon" / "adapters" / adapter, environment)
@@ -382,48 +302,30 @@ def test(jobs: int = 1) -> None:
 
 def resolve_install_components(components: Sequence[str]) -> list[str]:
     selected = list(dict.fromkeys(components))
-    allowed = {"grimoire", "lexicon", "arcana"}
+    allowed = {"lexicon", "arcana"}
     if not selected or any(component not in allowed for component in selected):
-        raise ValueError("components must contain one or more of: grimoire, lexicon, arcana")
-    if "grimoire" in selected:
-        for dependency in ("lexicon", "arcana"):
-            if dependency not in selected:
-                selected.append(dependency)
+        raise ValueError("components must contain one or more of: lexicon, arcana")
     return selected
 
 
 def install(
     source: Path,
     bin_dir: Path,
-    components: Sequence[str] = ("grimoire", "lexicon", "arcana"),
-    skill_roots: Sequence[Path] | None = None,
+    components: Sequence[str] = ("lexicon", "arcana"),
 ) -> None:
-    """Install selected components and Grimoire's shared agent skill."""
+    """Install selected Lexicon + Arcana components."""
     source = source.resolve()
     bin_dir = bin_dir.resolve()
     source_bin = source / "bin"
-    source_native = source / "native"
     selected = resolve_install_components(components)
     required = [executable_name(name) for name in selected]
     for name in required:
         if not (source_bin / name).is_file():
             raise FileNotFoundError(f"combined build is missing {source_bin / name}")
-    library = source_native / native_library_name()
-    skill = source / "skills" / "grimoire" / "SKILL.md"
-    if "grimoire" in selected and not library.is_file():
-        raise FileNotFoundError(f"combined build is missing {library}")
-    if "grimoire" in selected and not skill.is_file():
-        raise FileNotFoundError(f"combined build is missing {skill}")
 
     bin_dir.mkdir(parents=True, exist_ok=True)
     for name in required:
         copy_file(source_bin / name, bin_dir / name)
-    if "grimoire" in selected:
-        # Keep the native library beside Grimoire so existing discovery works
-        # without setting GRIMOIRE_VECTOR_ENGINE.
-        copy_file(library, bin_dir / library.name)
-        for skills_dir in default_skill_roots() if skill_roots is None else skill_roots:
-            copy_file(skill, Path(skills_dir) / "grimoire" / "SKILL.md")
     if "lexicon" in selected:
         adapters = source / "adapters"
         if not adapters.is_dir():
@@ -438,8 +340,7 @@ def install(
 def _fixed_zip(source: Path, archive: Path) -> None:
     archive.parent.mkdir(parents=True, exist_ok=True)
     executable_names = {
-        "grimoire", "grimoire.exe", "lexicon", "lexicon.exe",
-        "arcana", "arcana.exe", "install.py",
+        "lexicon", "lexicon.exe", "arcana", "arcana.exe", "install.py",
     }
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as output:
         for path in sorted(source.rglob("*")):
@@ -476,21 +377,12 @@ def package_artifacts(build_root: Path, output: Path, version: str, platform_nam
     release_root.mkdir(parents=True)
     target = target_label(platform_name, machine)
     exe = lambda name: executable_name(name, platform_name)
-    library = native_library_name(platform_name)
     archives: list[Path] = []
 
-    with tempfile.TemporaryDirectory(prefix="grimoire-release-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="lexicon-arcana-release-") as temporary:
         staging = Path(temporary)
         common_legal = [(ROOT / name, name) for name in LEGAL_FILES]
-        lodestone_legal = (ROOT / LODESTONE_LICENSE, LODESTONE_LICENSE.as_posix())
         specs = {
-            "grimoire": [
-                (build_root / "bin" / exe("grimoire"), exe("grimoire")),
-                (build_root / "native" / library, library),
-                (build_root / "skills" / "grimoire" / "SKILL.md", "skills/grimoire/SKILL.md"),
-                *common_legal,
-                lodestone_legal,
-            ],
             "lexicon": [(build_root / "bin" / exe("lexicon"), exe("lexicon")), *common_legal],
             "arcana": [(build_root / "bin" / exe("arcana"), exe("arcana")), *common_legal],
         }
@@ -504,11 +396,11 @@ def package_artifacts(build_root: Path, output: Path, version: str, platform_nam
             archives.append(archive)
 
         combined_stage = staging / "combined"
-        _stage_files(combined_stage, [*common_legal, lodestone_legal], version)
-        for relative in ("bin", "native", "adapters", "skills"):
+        _stage_files(combined_stage, common_legal, version)
+        for relative in ("bin", "adapters"):
             shutil.copytree(build_root / relative, combined_stage / relative)
         copy_file(ROOT / "scripts" / "install.py", combined_stage / "install.py")
-        combined_archive = release_root / f"grimoire-bundle-{version}-{target}.zip"
+        combined_archive = release_root / f"lexicon-arcana-bundle-{version}-{target}.zip"
         _fixed_zip(combined_stage, combined_archive)
         archives.append(combined_archive)
 
@@ -518,9 +410,7 @@ def package_artifacts(build_root: Path, output: Path, version: str, platform_nam
         "artifacts": [archive.name for archive in archives],
         "combined_layout": {
             "executables": "bin/",
-            "lodestone_library": "native/",
             "lexicon_adapters": "adapters/",
-            "agent_skills": "skills/",
             "installer": "install.py",
         },
     }
@@ -538,7 +428,7 @@ def release(version: str, output: Path, jobs: int = 1) -> Path:
     jobs = validate_jobs(jobs)
     output = output.resolve()
     output.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="grimoire-release-build-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="lexicon-arcana-release-build-") as temporary:
         build_root = build(version, Path(temporary) / "build", jobs)
         return package_artifacts(build_root, output, version)
 
@@ -551,7 +441,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     build_parser.add_argument("--version", default="dev")
     build_parser.add_argument("--output", type=Path, default=DEFAULT_BUILD)
     build_parser.add_argument("--jobs", type=int, default=1, help="maximum build workers; defaults to 1")
-    build_parser.add_argument("--component", action="append", choices=("grimoire", "lexicon", "arcana"), dest="components", help="component to build; repeatable; selecting grimoire includes Lexicon and Arcana")
+    build_parser.add_argument("--component", action="append", choices=("lexicon", "arcana"), dest="components", help="component to build; repeatable; defaults to Lexicon + Arcana")
 
     test_parser = subparsers.add_parser("test", help="run all component-owned test suites")
     test_parser.add_argument("--jobs", type=int, default=1, help="maximum package and test workers; defaults to 1")
@@ -559,9 +449,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     install_parser = subparsers.add_parser("install", help="install a combined build into a selected bin directory")
     install_parser.add_argument("--source", type=Path, default=DEFAULT_BUILD)
     install_parser.add_argument("--bin-dir", type=Path, required=True)
-    install_parser.add_argument("--component", action="append", choices=("grimoire", "lexicon", "arcana"), dest="components", help="component to install; repeatable; defaults to all")
-    install_parser.add_argument("--skills-dir", action="append", type=Path, dest="skills_dirs", help="agent skills root receiving grimoire/SKILL.md; repeatable; defaults to ~/.agents/skills and ~/.hermes/skills")
-    install_parser.add_argument("--skip-skills", action="store_true", help="install binaries without installing the Grimoire agent skill")
+    install_parser.add_argument("--component", action="append", choices=("lexicon", "arcana"), dest="components", help="component to install; repeatable; defaults to Lexicon + Arcana")
 
     release_parser = subparsers.add_parser("release", help="test, build, package, and checksum a release")
     release_parser.add_argument("--version", required=True)
@@ -576,16 +464,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv or sys.argv[1:])
     try:
         if args.command == "build":
-            build(args.version, args.output, args.jobs, args.components or ("grimoire", "lexicon", "arcana"))
+            build(args.version, args.output, args.jobs, args.components or ("lexicon", "arcana"))
         elif args.command == "test":
             test(args.jobs)
         elif args.command == "install":
-            skill_roots = () if args.skip_skills else args.skills_dirs
             install(
                 args.source,
                 args.bin_dir,
-                args.components or ("grimoire", "lexicon", "arcana"),
-                skill_roots,
+                args.components or ("lexicon", "arcana"),
             )
         elif args.command == "release":
             test(args.jobs)

@@ -80,7 +80,7 @@ The intended active release contains:
 - `arcana`;
 - the production Lexicon + Arcana agent skill when that migration is complete.
 
-The existing root Grimoire build/release machinery is transitional and will be removed or rewritten in the next retirement pass. A combined bundle may remain, but it is a Lexicon + Arcana bundle rather than a wrapper application.
+The root build/release machinery now composes only Lexicon + Arcana. The combined bundle is an L+A distribution rather than a wrapper application and contains no Grimoire executable, MCP surface, skill, or Lodestone runtime.
 
 ## Consumer boundary
 
@@ -105,11 +105,11 @@ Warlock owns probabilistic task/context orchestration. Lexicon and Arcana remain
 | Arcana executable | `arcana/src/main.rs`, `arcana/src/cli.rs`, `arcana/src/cli_*.rs` | `arcana/src/cli*_tests.rs` |
 | Arcana graph and snapshots | `arcana/src/repository/`, `arcana/src/storage/`, `arcana/src/snapshot/` | module-local Rust tests |
 | Arcana query protocol | `arcana/src/protocol/` | protocol module tests |
-| Transitional root release composition | `scripts/workflow.py`, `.github/workflows/release.yml` | `scripts/test_workflow.py` |
+| Root L+A release composition | `scripts/workflow.py`, `.github/workflows/release.yml` | `scripts/test_workflow.py` |
 
 ## Tests
 
-Lexicon application/publication tests and Arcana ingestion/storage/snapshot/protocol tests are the active component-boundary verification. Root Grimoire-specific tests remain transitional until the implementation-removal pass.
+Lexicon application/publication tests and Arcana ingestion/storage/snapshot/protocol tests are the active component-boundary verification. Root Grimoire-specific tests are no longer part of the active test workflow and remain only until the implementation-removal pass deletes or reclassifies them.
 
 ## Related docs
 

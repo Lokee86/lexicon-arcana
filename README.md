@@ -135,7 +135,7 @@ go test ./...
 cargo test --all-targets --locked --manifest-path arcana/Cargo.toml
 ```
 
-The root workflow still contains transitional Grimoire build/test/release behavior and will be rewritten during the implementation-removal pass.
+The root workflow now builds, tests, installs, and packages only Lexicon + Arcana. Retired Grimoire runtime source remains temporarily in-tree for the following implementation-removal pass, but it is no longer an active build or release dependency.
 
 ## Architecture
 

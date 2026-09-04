@@ -27,43 +27,35 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          path: grimoire
-      - uses: actions/checkout@v6
-        with:
-          repository: Lokee86/lodestone
-          ref: 372abb7b9d5c9fb19eeaf92774849505e1dfbade
-          path: lodestone
+          path: source
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - uses: actions/setup-go@v6
         with:
-          go-version-file: grimoire/lexicon/go.mod
+          go-version-file: source/lexicon/go.mod
           cache: true
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: grimoire/lexicon/adapters/typescript/package-lock.json
+          cache-dependency-path: source/lexicon/adapters/typescript/package-lock.json
       - uses: dtolnay/rust-toolchain@stable
       - id: release
         shell: bash
-        working-directory: grimoire
+        working-directory: source
         run: |
           version="${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}"
           version="${version#v}"
           [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]
           echo "version=${version}" >> "${GITHUB_OUTPUT}"
       - name: Build and package release
-        working-directory: grimoire
-        env:
-          LODESTONE_ROOT: ${{ github.workspace }}/lodestone
-          GRIMOIRE_VERSION: ${{ steps.release.outputs.version }}
+        working-directory: source
         run: python scripts/workflow.py release --version "${{ steps.release.outputs.version }}" --output "dist-${{ matrix.target }}"
       - uses: actions/upload-artifact@v6
         with:
-          name: grimoire-${{ matrix.target }}
-          path: grimoire/dist-${{ matrix.target }}/${{ steps.release.outputs.version }}/grimoire-bundle-*.zip
+          name: lexicon-arcana-${{ matrix.target }}
+          path: source/dist-${{ matrix.target }}/${{ steps.release.outputs.version }}/lexicon-arcana-bundle-*.zip
 
   publish:
     needs: build
@@ -91,5 +83,5 @@ jobs:
           if gh release view "${TAG}" >/dev/null 2>&1; then
             gh release upload "${TAG}" dist/* --clobber
           else
-            gh release create "${TAG}" dist/* --title "Grimoire ${VERSION}" --generate-notes
+            gh release create "${TAG}" dist/* --title "Lexicon + Arcana ${VERSION}" --generate-notes
           fi
