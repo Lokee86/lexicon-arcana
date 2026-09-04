@@ -31,6 +31,10 @@ class WorkflowSmokeTests(unittest.TestCase):
             (build / "adapters" / "python" / "adapter.py").write_text("pass\n", encoding="utf-8")
             (build / "adapters" / "go").mkdir()
             (build / "adapters" / "go" / "lexicon-go.exe").write_bytes(b"adapter")
+            (build / "skills" / "lexicon-arcana").mkdir(parents=True)
+            (build / "skills" / "lexicon-arcana" / "SKILL.md").write_text(
+                "---\nname: lexicon-arcana\n---\n", encoding="utf-8"
+            )
             for name in ("lexicon.exe", "arcana.exe"):
                 (build / "bin" / name).write_bytes(name.encode())
 
@@ -52,6 +56,7 @@ class WorkflowSmokeTests(unittest.TestCase):
                 self.assertIn("bin/arcana.exe", names)
                 self.assertIn("adapters/python/adapter.py", names)
                 self.assertIn("install.py", names)
+                self.assertIn("skills/lexicon-arcana/SKILL.md", names)
                 self.assertNotIn("bin/grimoire.exe", names)
                 self.assertFalse(any(name.startswith("native/") for name in names))
                 self.assertFalse(any(name.startswith("skills/grimoire/") for name in names))
@@ -60,16 +65,20 @@ class WorkflowSmokeTests(unittest.TestCase):
             with zipfile.ZipFile(combined) as archive:
                 archive.extractall(extracted)
             installed = root / "installed"
-            bundle_installer.install(extracted, installed, [])
+            skills = root / "skills"
+            bundle_installer.install(extracted, installed, [], [skills])
             self.assertTrue((installed / "lexicon.exe").is_file())
             self.assertTrue((installed / "arcana.exe").is_file())
             self.assertTrue((installed / "adapters" / "python" / "adapter.py").is_file())
+            self.assertTrue((skills / "lexicon-arcana" / "SKILL.md").is_file())
             self.assertFalse((installed / "grimoire.exe").exists())
 
             subset = root / "lexicon-only"
-            workflow.install(build, subset, ("lexicon",))
+            subset_skills = root / "subset-skills"
+            workflow.install(build, subset, ("lexicon",), [subset_skills])
             self.assertTrue((subset / "lexicon.exe").is_file())
             self.assertFalse((subset / "arcana.exe").exists())
+            self.assertFalse((subset_skills / "lexicon-arcana" / "SKILL.md").exists())
 
     def test_build_defaults_to_surviving_components(self) -> None:
         with tempfile.TemporaryDirectory(prefix="lexicon-arcana-build-") as temporary, \
@@ -140,6 +149,10 @@ class WorkflowSmokeTests(unittest.TestCase):
             workflow.validate_jobs(0)
         with self.assertRaises(ValueError):
             workflow.resolve_install_components(("grimoire",))
+        skipped = workflow.parse_args([
+            "install", "--bin-dir", "bin", "--skip-skills"
+        ])
+        self.assertTrue(skipped.skip_skills)
 
     def test_version_validation_rejects_path_values(self) -> None:
         with self.assertRaises(ValueError):

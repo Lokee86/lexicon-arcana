@@ -13,6 +13,13 @@ def executable_name(name: str) -> str:
     return name + ".exe" if platform.system().lower() == "windows" else name
 
 
+def default_skill_roots() -> tuple[Path, ...]:
+    return (
+        Path.home() / ".agents" / "skills",
+        Path.home() / ".hermes" / "skills",
+    )
+
+
 def copy_file(source: Path, destination: Path) -> None:
     if not source.is_file():
         raise FileNotFoundError(source)
@@ -30,7 +37,12 @@ def resolve_components(components: list[str]) -> list[str]:
     return selected
 
 
-def install(source: Path, bin_dir: Path, components: list[str]) -> None:
+def install(
+    source: Path,
+    bin_dir: Path,
+    components: list[str],
+    skill_roots: list[Path] | tuple[Path, ...] | None = None,
+) -> None:
     source = source.resolve()
     bin_dir = bin_dir.resolve()
     source_bin = source / "bin"
@@ -53,6 +65,13 @@ def install(source: Path, bin_dir: Path, components: list[str]) -> None:
             shutil.rmtree(destination)
         shutil.copytree(adapters, destination)
 
+    if set(selected) == {"lexicon", "arcana"}:
+        skill = source / "skills" / "lexicon-arcana" / "SKILL.md"
+        if not skill.is_file():
+            raise FileNotFoundError(f"combined bundle is missing {skill}")
+        for skills_dir in default_skill_roots() if skill_roots is None else skill_roots:
+            copy_file(skill, Path(skills_dir) / "lexicon-arcana" / "SKILL.md")
+
     print(f"installed {', '.join(selected)} to {bin_dir}")
 
 
@@ -72,9 +91,22 @@ def main() -> int:
         dest="components",
         help="component to install; repeatable; defaults to Lexicon + Arcana",
     )
+    parser.add_argument(
+        "--skills-dir",
+        action="append",
+        type=Path,
+        dest="skills_dirs",
+        help="agent skills root receiving lexicon-arcana/SKILL.md; repeatable; defaults to ~/.agents/skills and ~/.hermes/skills",
+    )
+    parser.add_argument(
+        "--skip-skills",
+        action="store_true",
+        help="install binaries without installing the Lexicon + Arcana agent skill",
+    )
     args = parser.parse_args()
     try:
-        install(args.source, args.bin_dir, args.components or [])
+        skill_roots = () if args.skip_skills else args.skills_dirs
+        install(args.source, args.bin_dir, args.components or [], skill_roots)
     except (OSError, ValueError) as error:
         parser.error(str(error))
     return 0

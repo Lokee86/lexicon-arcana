@@ -27,6 +27,7 @@ The bundle contains:
 ```text
 bin/                    Lexicon and Arcana executables
 adapters/               Lexicon runtime adapters
+skills/lexicon-arcana/  Production agent skill
 install.py              Standalone installer
 VERSION                  Bundle version
 ```
@@ -50,7 +51,7 @@ python install.py --bin-dir /path/on/your/PATH --component lexicon
 python install.py --bin-dir /path/on/your/PATH --component arcana
 ```
 
-Selecting Lexicon also installs its runtime adapter tree. `grimoire` is not a valid component and no Grimoire binary, MCP server, native Lodestone library, or Grimoire skill is installed.
+Selecting Lexicon also installs its runtime adapter tree. When both Lexicon and Arcana are selected, the installer also installs `lexicon-arcana/SKILL.md` to `~/.agents/skills` and `~/.hermes/skills` by default. Repeat `--skills-dir PATH` to choose explicit agent skill roots, or use `--skip-skills` for binaries/adapters only. A single-component installation does not install the combined skill. `grimoire` is not a valid component and no Grimoire binary, MCP server, native Lodestone library, or Grimoire skill is installed.
 
 ## Verify the installation
 
@@ -133,7 +134,7 @@ The retired Grimoire MCP/skill surface is not installed. Agents and higher-level
 - Lexicon semantic facts/snapshots when language-semantic ownership is useful;
 - Arcana protocol queries for bounded graph questions.
 
-The production Lexicon + Arcana agent skill is a later migration step. Until that surface is shipped, benchmark skill files under `evaluation/` are experimental evidence rather than installation artifacts.
+The production skill is `skills/lexicon-arcana/SKILL.md`. It discovers normal repository-owned `.lexicon/` and `.arcana/` state through the public component commands, uses Lexicon for semantic facts and Arcana for bounded graph questions, and keeps direct source inspection authoritative. The separate skill under `evaluation/skills/` remains a frozen benchmark condition and may use benchmark-only environment variables; it is not installed.
 
 ## Optional Arcana semantic vectors
 

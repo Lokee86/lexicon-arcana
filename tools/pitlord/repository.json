@@ -50,6 +50,21 @@
       "message": "active build, install, and release surfaces must not publish or require Grimoire"
     },
     {
+      "id": "production-agent-skill-required",
+      "type": "require_path",
+      "path": "skills/lexicon-arcana/SKILL.md",
+      "message": "the combined Lexicon + Arcana distribution requires its production agent guidance"
+    },
+    {
+      "id": "production-agent-skill-benchmark-env-forbidden",
+      "type": "forbid_content",
+      "regex": "(?:LEXICON|ARCANA)_BENCH_",
+      "include_paths": [
+        "skills/lexicon-arcana/SKILL.md"
+      ],
+      "message": "the production Lexicon + Arcana skill must use installed repository state rather than benchmark-only environment variables"
+    },
+    {
       "id": "root-workflow-required",
       "type": "require_path",
       "path": "scripts/workflow.py",

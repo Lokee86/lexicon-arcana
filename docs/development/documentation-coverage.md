@@ -18,7 +18,7 @@ Current coverage contains two independently usable analysis products plus shared
 | Lexicon language semantics | `lexicon/adapters/`, `lexicon/spec/` | [Lexicon architecture](../../lexicon/docs/ARCHITECTURE.md), [Lexicon contracts](../../lexicon/spec/README.md) |
 | Arcana application and graph lifecycle | `arcana/src/` | [Arcana documentation](../../arcana/docs/README.md) |
 | Lexicon → Arcana ingestion | `arcana/src/lexicon/`, `arcana/src/repository/` | [Lexicon contract](../../arcana/docs/LEXICON_CONTRACT.md) |
-| Shared L+A build/install/release | `scripts/workflow.py`, `scripts/install.py`, `.github/workflows/release.yml` | [Release workflow](release-workflow.md), [Installation](../reference/installation.md) |
+| Shared L+A build/install/release and production agent skill | `scripts/workflow.py`, `scripts/install.py`, `.github/workflows/release.yml`, `skills/lexicon-arcana/SKILL.md` | [Release workflow](release-workflow.md), [Installation](../reference/installation.md) |
 | Architecture enforcement | `tools/pitlord/` | [Architecture verification](architecture-verification.md) |
 | Repository-analysis benchmark evidence | `evaluation/` | [Testing and benchmarks](testing-and-benchmarks.md), [Agent benchmark findings](agent-benchmark-findings.md) |
 | Documentation governance | `.standards/`, `docs-standard*.json`, `scripts/check_docs.py` | [Documentation policy](../documentation-policy.md), [Documentation procedure](../documentation-procedure.md) |
@@ -49,7 +49,7 @@ Current coverage contains two independently usable analysis products plus shared
 | --- | --- | --- |
 | Shared documentation policy | `.standards/docs_policy/`, `docs-standard*.json` | documentation-standard CI and `scripts/check_docs.py` |
 | Architecture policy | `tools/pitlord/policy.json`, `tools/pitlord/repository.json` | Pitlord validation/check in root workflow and CI |
-| Release composition | `scripts/workflow.py`, `scripts/install.py` | `scripts/test_workflow.py` |
+| Release composition and installed L+A skill | `scripts/workflow.py`, `scripts/install.py`, `skills/lexicon-arcana/SKILL.md` | `scripts/test_workflow.py` and Pitlord policy |
 | Lexicon | `lexicon/` | Lexicon package and adapter tests |
 | Arcana | `arcana/` | Arcana Cargo tests and protocol capability check |
 | Benchmark evidence | `evaluation/` | result-local summaries, grounding records, and benchmark reports |

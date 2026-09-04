@@ -24,7 +24,8 @@ The matrix protects independently usable component boundaries, immutable publica
 | Exact graph traversal remains independent of optional semantic vectors | protocol/traversal tests and vector-disabled tests |
 | `arcana.query.v1` capabilities required by consumers are negotiated before a combined build is accepted | root workflow protocol verification |
 | Lexicon and Arcana remain independently installable | workflow packaging/install smoke tests |
-| Combined release bundles contain only L+A executables, Lexicon adapters, installer, and legal metadata | `scripts/test_workflow.py` |
+| Combined release bundles contain L+A executables, Lexicon adapters, the production L+A skill, installer, and legal metadata | `scripts/test_workflow.py` |
+| The production L+A skill uses installed repository state and contains no benchmark-only environment contract | Pitlord repository policy and workflow smoke tests |
 | Active release surfaces do not build, install, or publish Grimoire | Pitlord repository policy and workflow smoke tests |
 | Root, Lexicon, and Arcana documentation trees pass without baselines | shared documentation policy and `scripts/check_docs.py` |
 | Historical Grimoire benchmark artifacts remain evidence, not current product contracts | ADR 0006 and documentation ownership rules |

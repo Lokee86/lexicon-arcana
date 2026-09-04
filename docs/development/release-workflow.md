@@ -86,6 +86,9 @@ build/
     arcana(.exe)
   adapters/
     <Lexicon runtime adapters>
+  skills/
+    lexicon-arcana/
+      SKILL.md
 ```
 
 Lexicon receives the requested release version through Go linker flags. Arcana receives it through `ARCANA_RELEASE_VERSION`; standalone Cargo builds fall back to the package version in `Cargo.toml`.
@@ -107,7 +110,7 @@ python scripts/workflow.py install --source build --bin-dir /path/on/your/PATH -
 python scripts/workflow.py install --source build --bin-dir /path/on/your/PATH --component arcana
 ```
 
-Selecting Lexicon also installs its runtime adapter tree. The installer does not modify `PATH` and does not install a Grimoire skill or MCP server.
+Selecting Lexicon also installs its runtime adapter tree. When Lexicon and Arcana are installed together, the installer writes the production `lexicon-arcana` skill to `~/.agents/skills` and `~/.hermes/skills` by default. Use repeatable `--skills-dir` options to choose other roots or `--skip-skills` to omit it. Installing only one component does not install the combined skill. The installer does not modify `PATH` and never installs a Grimoire skill or MCP server.
 
 ## Release packaging
 
@@ -131,6 +134,9 @@ The combined bundle contains:
 ```text
 bin/
 adapters/
+skills/
+  lexicon-arcana/
+    SKILL.md
 install.py
 VERSION
 LICENSE.md
@@ -155,9 +161,8 @@ Before external publication:
 3. exercise `lexicon version`;
 4. exercise `arcana --version`;
 5. run a representative Lexicon scan;
-6. synchronize Arcana from the resulting Lexicon snapshot and run a bounded protocol query.
-
-The production agent skill is a separate retirement-migration step and is not currently part of the release bundle.
+6. synchronize Arcana from the resulting Lexicon snapshot and run a bounded protocol query;
+7. confirm `skills/lexicon-arcana/SKILL.md` is present in the combined bundle and is installed byte-identically to a selected skill root.
 
 ## Code map
 

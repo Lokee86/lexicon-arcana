@@ -14,12 +14,6 @@ These constraints describe implemented behavior, not proposed remedies. Grimoire
 
 The source repository is still named `grimoire` even though the active products are Lexicon + Arcana. Current build and release artifacts use L+A naming, but repository/package/mirror naming has not completed its final migration.
 
-## Production agent guidance is not shipped yet
-
-The checked-in L+A skill under `evaluation/` is benchmark-oriented and may assume frozen exports/snapshots. The active release does not yet install a production L+A agent skill or define a final agent-host discovery convention.
-
-Consumers should currently use direct source/Git tools plus the documented Lexicon and Arcana command/protocol surfaces.
-
 ## Lexicon coverage remains language- and construct-dependent
 
 Lexicon semantic quality is bounded by its enabled adapters and supported constructs. Unsupported or ambiguous relationships should remain unresolved rather than being guessed. Cross-language semantic completeness is not guaranteed merely because a repository scans successfully.

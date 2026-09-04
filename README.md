@@ -106,7 +106,7 @@ The intended agent pattern is deliberately simple:
 4. use Git/history only when historical evidence is actually required;
 5. stop once the requested conclusion is supported.
 
-The benchmark-only `evaluation/skills/lexicon-arcana/SKILL.md` is being promoted into the production agent surface as part of the retirement migration.
+The production `skills/lexicon-arcana/SKILL.md` ships in the combined bundle and is installed to supported agent skill roots. It uses normal `.lexicon/` and `.arcana/` state and contains no benchmark environment-variable or Grimoire dependency.
 
 ## State
 

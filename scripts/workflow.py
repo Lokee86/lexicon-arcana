@@ -55,6 +55,13 @@ def pitlord_command() -> str:
     )
 
 
+def default_skill_roots() -> tuple[Path, ...]:
+    return (
+        Path.home() / ".agents" / "skills",
+        Path.home() / ".hermes" / "skills",
+    )
+
+
 def target_label(platform_name: str | None = None, machine: str | None = None) -> str:
     system = (platform_name or platform.system()).lower()
     machine_name = (machine or platform.machine()).lower().replace(" ", "-")
@@ -151,6 +158,12 @@ def build(
         )
         copy_file(ROOT / "arcana" / "target" / "release" / executable_name("arcana"), bin_dir / executable_name("arcana"))
         verify_arcana_protocol(output)
+
+    if set(selected) == {"lexicon", "arcana"}:
+        copy_file(
+            ROOT / "skills" / "lexicon-arcana" / "SKILL.md",
+            output / "skills" / "lexicon-arcana" / "SKILL.md",
+        )
 
     verify_versions(output, version, selected)
     return output
@@ -312,8 +325,9 @@ def install(
     source: Path,
     bin_dir: Path,
     components: Sequence[str] = ("lexicon", "arcana"),
+    skill_roots: Sequence[Path] | None = None,
 ) -> None:
-    """Install selected Lexicon + Arcana components."""
+    """Install selected Lexicon + Arcana components and their combined agent skill."""
     source = source.resolve()
     bin_dir = bin_dir.resolve()
     source_bin = source / "bin"
@@ -334,6 +348,12 @@ def install(
         if destination.exists():
             shutil.rmtree(destination)
         shutil.copytree(adapters, destination)
+    if set(selected) == {"lexicon", "arcana"}:
+        skill = source / "skills" / "lexicon-arcana" / "SKILL.md"
+        if not skill.is_file():
+            raise FileNotFoundError(f"combined build is missing {skill}")
+        for skills_dir in default_skill_roots() if skill_roots is None else skill_roots:
+            copy_file(skill, Path(skills_dir) / "lexicon-arcana" / "SKILL.md")
     print(f"installed {', '.join(selected)} to {bin_dir}")
 
 
@@ -397,7 +417,7 @@ def package_artifacts(build_root: Path, output: Path, version: str, platform_nam
 
         combined_stage = staging / "combined"
         _stage_files(combined_stage, common_legal, version)
-        for relative in ("bin", "adapters"):
+        for relative in ("bin", "adapters", "skills"):
             shutil.copytree(build_root / relative, combined_stage / relative)
         copy_file(ROOT / "scripts" / "install.py", combined_stage / "install.py")
         combined_archive = release_root / f"lexicon-arcana-bundle-{version}-{target}.zip"
@@ -411,6 +431,7 @@ def package_artifacts(build_root: Path, output: Path, version: str, platform_nam
         "combined_layout": {
             "executables": "bin/",
             "lexicon_adapters": "adapters/",
+            "agent_skills": "skills/",
             "installer": "install.py",
         },
     }
@@ -450,6 +471,8 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     install_parser.add_argument("--source", type=Path, default=DEFAULT_BUILD)
     install_parser.add_argument("--bin-dir", type=Path, required=True)
     install_parser.add_argument("--component", action="append", choices=("lexicon", "arcana"), dest="components", help="component to install; repeatable; defaults to Lexicon + Arcana")
+    install_parser.add_argument("--skills-dir", action="append", type=Path, dest="skills_dirs", help="agent skills root receiving lexicon-arcana/SKILL.md; repeatable; defaults to ~/.agents/skills and ~/.hermes/skills")
+    install_parser.add_argument("--skip-skills", action="store_true", help="install binaries without installing the Lexicon + Arcana agent skill")
 
     release_parser = subparsers.add_parser("release", help="test, build, package, and checksum a release")
     release_parser.add_argument("--version", required=True)
@@ -468,10 +491,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif args.command == "test":
             test(args.jobs)
         elif args.command == "install":
+            skill_roots = () if args.skip_skills else args.skills_dirs
             install(
                 args.source,
                 args.bin_dir,
                 args.components or ("lexicon", "arcana"),
+                skill_roots,
             )
         elif args.command == "release":
             test(args.jobs)

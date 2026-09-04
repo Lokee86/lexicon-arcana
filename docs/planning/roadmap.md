@@ -30,16 +30,15 @@ The product family should ship and operate as two deterministic analysis tools w
 
 1. Finish physical Grimoire runtime and product-specific dependency removal while preserving historical evidence.
 2. Remove or reclassify stale Grimoire-only documentation, governance, and evaluation entry points.
-3. Promote the Lexicon + Arcana agent guidance from benchmark-only assumptions into a production consumer surface without recreating Grimoire.
-4. Update Warlock and other downstream consumers to discover/use Lexicon and Arcana directly.
-5. Rename repository/release identity away from Grimoire when migration compatibility no longer benefits from the old repository name.
-6. Continue judged repository-analysis experiments on larger and more varied corpora.
+3. Update Warlock and other downstream consumers to discover/use Lexicon and Arcana directly.
+4. Rename repository/release identity away from Grimoire when migration compatibility no longer benefits from the old repository name.
+5. Continue judged repository-analysis experiments on larger and more varied corpora.
 
 ## Near-term priorities
 
 - Complete the runtime/source deletion and verify no active build, release, CI, policy, or documentation owner still requires Grimoire.
-- Define production installation/discovery of Lexicon and Arcana for agents and Warlock.
-- Preserve a clean distinction between benchmark prompt experiments and stable consumer guidance.
+- Wire Warlock to the direct Lexicon/Arcana surfaces and installed-state conventions now used by the production skill.
+- Preserve the clean distinction between the installed production skill and frozen benchmark prompt experiments.
 - Add stable machine-readable diagnostics/exit classes where current component behavior remains pre-release.
 - Expand judged corpora across languages, repository sizes, and task classes.
 
@@ -59,7 +58,7 @@ The product family should ship and operate as two deterministic analysis tools w
 
 ## Agent and consumer work
 
-- Convert the L+A benchmark skill into production guidance that locates installed component state rather than frozen benchmark exports.
+- Maintain the shipped L+A production skill as bounded direct-component guidance; keep the benchmark skill frozen to its experiment conditions.
 - Keep source inspection as implementation authority.
 - Use Lexicon for semantic ownership/relationships and Arcana for bounded graph questions.
 - Put stopping, task decomposition, context routing, and probabilistic continuation in Warlock rather than either analysis component.
@@ -101,7 +100,7 @@ Grimoire retirement is complete when:
 
 ## Open decisions
 
-Open decisions are the final repository/product-family naming, production agent-skill installation/discovery contract, downstream Warlock integration shape, and which larger-repository tasks justify additional Lexicon/Arcana capabilities.
+Open decisions are the final repository/product-family naming, downstream Warlock integration shape, and which larger-repository tasks justify additional Lexicon/Arcana capabilities.
 
 ## Related docs
 

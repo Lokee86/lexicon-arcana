@@ -78,7 +78,7 @@ The intended active release contains:
 - `lexicon`;
 - Lexicon runtime adapters;
 - `arcana`;
-- the production Lexicon + Arcana agent skill when that migration is complete.
+- the production Lexicon + Arcana agent skill for bounded direct component use.
 
 The root build/release machinery now composes only Lexicon + Arcana. The combined bundle is an L+A distribution rather than a wrapper application and contains no Grimoire executable, MCP surface, skill, or Lodestone runtime.
 
