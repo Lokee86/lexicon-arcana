@@ -1,0 +1,790 @@
+{
+  "schema": "grimoire.agent-benchmark.v2",
+  "task_suite": "C:\\!bin\\workspace\\grimoire\\evaluation\\agent_benchmark_tasks.v2.json",
+  "model": "gpt-5.6-sol",
+  "provider": "openai-codex",
+  "conditions": [
+    "lexicon-arcana"
+  ],
+  "parallel_within_task": false,
+  "condition_execution": "sequential",
+  "sequential_tasks": true,
+  "provenance": {
+    "schema": "grimoire.agent-benchmark.provenance.v1",
+    "harness_commit": "9de0fe68b6afcb3b7e9e444b0fa88cc5a68f094d",
+    "task_suite": {
+      "path": "C:\\!bin\\workspace\\grimoire\\evaluation\\agent_benchmark_tasks.v2.json",
+      "sha256": "sha256:693ca173f3f1b6e2d8c2bf3e695c3fb48cbe4eb22be4edec83eabc10bf1e482d",
+      "bytes": 9021
+    },
+    "tools": {
+      "hermes": {
+        "path": "C:\\Users\\archa\\AppData\\Local\\hermes\\hermes-agent\\venv\\Scripts\\hermes.exe",
+        "sha256": "sha256:12ef8dacabb816d9c82471fd39af2a9fac4bcf73baaa32bf4f61144a488b3c90",
+        "bytes": 46080,
+        "version": "Hermes Agent v0.20.0 (2026.8.3)\nInstall directory: C:\\Users\\archa\\AppData\\Local\\hermes\\hermes-agent\nPython: 3.11.15\nOpenAI SDK: 2.24.0\nRun 'hermes version' for update status."
+      },
+      "lexicon": {
+        "path": "C:\\!bin\\workspace\\grimoire\\build\\bin\\lexicon.exe",
+        "sha256": "sha256:027221426db133a906d6366dd5b2c9315166c467c274051ccab601741c3abe67",
+        "bytes": 5873152,
+        "version": "lexicon version benchmark-9de0fe68b6af"
+      },
+      "arcana": {
+        "path": "C:\\!bin\\workspace\\grimoire\\build\\bin\\arcana.exe",
+        "sha256": "sha256:a8bc297389282d9bf3870d562b8e1dc1cbb7f82a5a671530b30f24629a3c9972",
+        "bytes": 2183680,
+        "version": "Arcana benchmark-9de0fe68b6af"
+      }
+    },
+    "skills": {
+      "lexicon-arcana": {
+        "path": "C:\\!bin\\workspace\\grimoire\\evaluation\\skills\\lexicon-arcana\\SKILL.md",
+        "sha256": "sha256:4770736dc6eeb37d604e66cc8ac5db2b5dffe5ea7b9c10f7aceb1d1963691032",
+        "bytes": 3092
+      }
+    },
+    "build": {
+      "adapters_sha256": "sha256:40f1d273ca59805761a5e1fb11566b3273440577918a3d402e2da7ba4b3358c3"
+    }
+  },
+  "started_at": "2026-09-01T03:04:12.651046+00:00",
+  "last_run_started_at": "2026-09-01T03:04:12.651046+00:00",
+  "tasks": {
+    "space-rocks-room-scale-architecture": {
+      "category": "architectural-exploration",
+      "repository": "C:\\!bin\\workspace\\space-rocks",
+      "commit": "460da4af05c44d1835401fa853f5fc6b718262c8",
+      "rubric": {
+        "dimensions": [
+          {
+            "id": "ownership",
+            "weight": 2,
+            "description": "Finds the authoritative simulation, receiver-specific projection, transport lanes, and client application owners."
+          },
+          {
+            "id": "membership",
+            "weight": 2,
+            "description": "Accounts for entry, persistence, departure, baseline, delta, lifecycle, self, and spectated-target behavior."
+          },
+          {
+            "id": "budgeting",
+            "weight": 1,
+            "description": "Separates interest selection from prioritization and packet budgeting."
+          },
+          {
+            "id": "cross_stack",
+            "weight": 2,
+            "description": "Traces shared/generated contracts through Go and Godot without moving authority to the client."
+          },
+          {
+            "id": "verification",
+            "weight": 1,
+            "description": "Provides failure-oriented tests and rollout observability."
+          }
+        ],
+        "required_evidence": [
+          {
+            "path_prefix": "services/",
+            "reason": "authoritative simulation and receiver-specific network state"
+          },
+          {
+            "path_prefix": "shared/",
+            "reason": "wire or generated contract ownership"
+          },
+          {
+            "path_prefix": "client/",
+            "reason": "Godot routing and state application"
+          }
+        ],
+        "disallowed_assumptions": [
+          "client-authoritative interest",
+          "dropping departure/lifecycle state",
+          "equating interest selection with packet prioritization"
+        ]
+      },
+      "preparation": {
+        "lexicon-arcana": {
+          "elapsed_seconds": 74.467,
+          "lexicon_seconds": 68.58,
+          "arcana_seconds": 2.366,
+          "export_seconds": 3.52,
+          "lexicon_snapshot": "sha256:6db380ac02daf6082a1ff5c0452ecca8cf07c68f3437d35e93223b7dd542a94e",
+          "arcana_snapshot": "sha256:6db380ac02daf6082a1ff5c0452ecca8cf07c68f3437d35e93223b7dd542a94e",
+          "export_bytes": 139665588
+        }
+      },
+      "profiles": {
+        "lexicon-arcana": "bench-v2-space-rocks-room-sca-lexicon-arcana"
+      },
+      "profile_provenance": {
+        "lexicon-arcana": {
+          "config": {
+            "path": "C:\\Users\\archa\\AppData\\Local\\hermes\\profiles\\bench-v2-space-rocks-room-sca-lexicon-arcana\\config.yaml",
+            "sha256": "sha256:1bbafc1bfbddfc27f678d0b4cb28a557412a2dc9884423a62ffff8b71978feb7",
+            "bytes": 8507
+          },
+          "skill_tree": {
+            "path": "C:\\Users\\archa\\AppData\\Local\\hermes\\profiles\\bench-v2-space-rocks-room-sca-lexicon-arcana\\skills\\lexicon-arcana\\SKILL.md",
+            "sha256": "sha256:4770736dc6eeb37d604e66cc8ac5db2b5dffe5ea7b9c10f7aceb1d1963691032",
+            "bytes": 3092
+          }
+        }
+      },
+      "runs": {
+        "lexicon-arcana": {
+          "exit_code": 0,
+          "elapsed_seconds": 862.314,
+          "usage": {
+            "estimated_cost_usd": 0.0,
+            "cost_status": "included",
+            "cost_source": "none",
+            "input_tokens": 313597,
+            "output_tokens": 17451,
+            "cache_read_tokens": 2511360,
+            "cache_write_tokens": 0,
+            "reasoning_tokens": 4819,
+            "total_tokens": 2842408,
+            "api_calls": 23,
+            "model": "gpt-5.6-sol",
+            "provider": "openai-codex",
+            "session_id": "20260831_200554_d12c9c",
+            "completed": true,
+            "failed": false,
+            "service_tier": null
+          },
+          "answer_bytes": 29929,
+          "discovery_output": {
+            "calls": 0,
+            "response_bytes": 0,
+            "modes": {},
+            "new_nodes": 0,
+            "new_source_ranges": 0,
+            "new_documents": 0,
+            "new_relationships": 0,
+            "new_graph_paths": 0,
+            "tool_errors": 0,
+            "invalid_records": 0
+          },
+          "grounding": {
+            "valid": false,
+            "process_completed": true,
+            "refusal_detected": false,
+            "evidence_json_found": true,
+            "evidence_json_valid": true,
+            "inline_citations": 46,
+            "structured_items": 19,
+            "handle_items": 0,
+            "canonical_handle_items": 0,
+            "required_prefixes_found": [
+              "services",
+              "client"
+            ],
+            "missing_required_prefixes": [
+              "shared"
+            ],
+            "findings": [
+              {
+                "code": "inline_citation_out_of_range",
+                "message": "services/game-server/internal/game/input.go:56-76 is outside 1-69",
+                "path": "services/game-server/internal/game/input.go",
+                "start_line": 56,
+                "end_line": 76
+              },
+              {
+                "code": "inline_citation_out_of_range",
+                "message": "services/game-server/internal/game/spatial/grid/query_rect.go:3-63 is outside 1-45",
+                "path": "services/game-server/internal/game/spatial/grid/query_rect.go",
+                "start_line": 3,
+                "end_line": 63
+              },
+              {
+                "code": "structured_evidence_out_of_range",
+                "message": "services/game-server/internal/game/input.go:56-76 is outside 1-69",
+                "path": "services/game-server/internal/game/input.go",
+                "start_line": 56,
+                "end_line": 76
+              }
+            ]
+          },
+          "execution_valid": true,
+          "grounding_valid": false,
+          "eligible_for_scoring": false,
+          "quality_assessed": false,
+          "completed_at": "2026-09-01T03:20:07.981249+00:00"
+        }
+      }
+    },
+    "detekt-cli-gradle-plugin-divergence": {
+      "category": "unclear-ownership",
+      "repository": "C:\\!bin\\workspace\\corpus\\kotlin-detekt",
+      "commit": "f9e1d5cc239ab740ce499b1edb36b872012648e2",
+      "rubric": {
+        "dimensions": [
+          {
+            "id": "entry_paths",
+            "weight": 2,
+            "description": "Finds the CLI and Gradle plugin input paths without assuming they share setup."
+          },
+          {
+            "id": "classloading",
+            "weight": 2,
+            "description": "Locates classloader, ServiceLoader, worker/process, and provider lifetime boundaries."
+          },
+          {
+            "id": "convergence",
+            "weight": 2,
+            "description": "Identifies where both paths should converge and where configuration can diverge."
+          },
+          {
+            "id": "failure_modes",
+            "weight": 1,
+            "description": "Covers malformed services, duplicate providers, incompatible plugins, and propagated errors."
+          },
+          {
+            "id": "verification",
+            "weight": 1,
+            "description": "Tests the same fixture through both entry points."
+          }
+        ],
+        "required_evidence": [
+          {
+            "path_prefix": "detekt-cli/",
+            "reason": "command-line plugin ownership"
+          },
+          {
+            "path_prefix": "detekt-gradle-plugin/",
+            "reason": "Gradle task and worker ownership"
+          },
+          {
+            "path_prefix": "detekt-core/",
+            "reason": "shared provider discovery and execution"
+          }
+        ],
+        "disallowed_assumptions": [
+          "one global classloader",
+          "identical CLI and Gradle configuration",
+          "silent plugin failure"
+        ]
+      },
+      "preparation": {
+        "lexicon-arcana": {
+          "elapsed_seconds": 17.865,
+          "lexicon_seconds": 15.291,
+          "arcana_seconds": 1.037,
+          "export_seconds": 1.537,
+          "lexicon_snapshot": "sha256:46b2150be1157b446f2ce55bc2834017ff1381e48da7d9cf9cdf46b4f620c9e2",
+          "arcana_snapshot": "sha256:46b2150be1157b446f2ce55bc2834017ff1381e48da7d9cf9cdf46b4f620c9e2",
+          "export_bytes": 69289654
+        }
+      },
+      "profiles": {
+        "lexicon-arcana": "bench-v2-detekt-cli-gradle-pl-lexicon-arcana"
+      },
+      "profile_provenance": {
+        "lexicon-arcana": {
+          "config": {
+            "path": "C:\\Users\\archa\\AppData\\Local\\hermes\\profiles\\bench-v2-detekt-cli-gradle-pl-lexicon-arcana\\config.yaml",
+            "sha256": "sha256:1bbafc1bfbddfc27f678d0b4cb28a557412a2dc9884423a62ffff8b71978feb7",
+            "bytes": 8507
+          },
+          "skill_tree": {
+            "path": "C:\\Users\\archa\\AppData\\Local\\hermes\\profiles\\bench-v2-detekt-cli-gradle-pl-lexicon-arcana\\skills\\lexicon-arcana\\SKILL.md",
+            "sha256": "sha256:4770736dc6eeb37d604e66cc8ac5db2b5dffe5ea7b9c10f7aceb1d1963691032",
+            "bytes": 3092
+          }
+        }
+      },
+      "runs": {
+        "lexicon-arcana": {
+          "exit_code": 0,
+          "elapsed_seconds": 391.156,
+          "usage": {
+            "estimated_cost_usd": 0.0,
+            "cost_status": "included",
+            "cost_source": "none",
+            "input_tokens": 82043,
+            "output_tokens": 9326,
+            "cache_read_tokens": 550400,
+            "cache_write_tokens": 0,
+            "reasoning_tokens": 2469,
+            "total_tokens": 641769,
+            "api_calls": 14,
+            "model": "gpt-5.6-sol",
+            "provider": "openai-codex",
+            "session_id": "20260831_202037_5be2d7",
+            "completed": true,
+            "failed": false,
+            "service_tier": null
+          },
+          "answer_bytes": 16303,
+          "discovery_output": {
+            "calls": 0,
+            "response_bytes": 0,
+            "modes": {},
+            "new_nodes": 0,
+            "new_source_ranges": 0,
+            "new_documents": 0,
+            "new_relationships": 0,
+            "new_graph_paths": 0,
+            "tool_errors": 0,
+            "invalid_records": 0
+          },
+          "grounding": {
+            "valid": true,
+            "process_completed": true,
+            "refusal_detected": false,
+            "evidence_json_found": true,
+            "evidence_json_valid": true,
+            "inline_citations": 35,
+            "structured_items": 15,
+            "handle_items": 0,
+            "canonical_handle_items": 0,
+            "required_prefixes_found": [
+              "detekt-cli",
+              "detekt-gradle-plugin",
+              "detekt-core"
+            ],
+            "missing_required_prefixes": [],
+            "findings": []
+          },
+          "execution_valid": true,
+          "grounding_valid": true,
+          "eligible_for_scoring": true,
+          "quality_assessed": false,
+          "completed_at": "2026-09-01T03:27:03.786271+00:00"
+        }
+      }
+    },
+    "space-rocks-distant-player-locator": {
+      "category": "cross-language-change",
+      "repository": "C:\\!bin\\workspace\\space-rocks",
+      "commit": "460da4af05c44d1835401fa853f5fc6b718262c8",
+      "rubric": {
+        "dimensions": [
+          {
+            "id": "server_seam",
+            "weight": 2,
+            "description": "Chooses a low-cadence server-owned data seam separate from hot movement."
+          },
+          {
+            "id": "protocol",
+            "weight": 2,
+            "description": "Defines compact shared/generated wire data and compatibility behavior."
+          },
+          {
+            "id": "client",
+            "weight": 2,
+            "description": "Routes and applies locator data without flattening indicator identity or color."
+          },
+          {
+            "id": "cadence_budget",
+            "weight": 1,
+            "description": "Defines cadence, prioritization, staleness, and packet-budget behavior."
+          },
+          {
+            "id": "verification",
+            "weight": 1,
+            "description": "Covers interest transitions, spectating, wraparound, loss, and stale locators."
+          }
+        ],
+        "required_evidence": [
+          {
+            "path_prefix": "services/",
+            "reason": "server lane and candidate ownership"
+          },
+          {
+            "path_prefix": "shared/",
+            "reason": "generated packet contract"
+          },
+          {
+            "path_prefix": "client/",
+            "reason": "offscreen indicator application"
+          }
+        ],
+        "disallowed_assumptions": [
+          "reusing reliable control traffic for hot state",
+          "client extrapolation as authority",
+          "full movement payload for distant players"
+        ]
+      },
+      "preparation": {
+        "lexicon-arcana": {
+          "elapsed_seconds": 60.815,
+          "lexicon_seconds": 55.936,
+          "arcana_seconds": 1.938,
+          "export_seconds": 2.94,
+          "lexicon_snapshot": "sha256:53f7f7b65603cba3417a5890ce4048455522971b9c671593af30b4eec07c149c",
+          "arcana_snapshot": "sha256:53f7f7b65603cba3417a5890ce4048455522971b9c671593af30b4eec07c149c",
+          "export_bytes": 139665588
+        }
+      },
+      "profiles": {
+        "lexicon-arcana": "bench-v2-space-rocks-distant--lexicon-arcana"
+      },
+      "profile_provenance": {
+        "lexicon-arcana": {
+          "config": {
+            "path": "C:\\Users\\archa\\AppData\\Local\\hermes\\profiles\\bench-v2-space-rocks-distant--lexicon-arcana\\config.yaml",
+            "sha256": "sha256:1bbafc1bfbddfc27f678d0b4cb28a557412a2dc9884423a62ffff8b71978feb7",
+            "bytes": 8507
+          },
+          "skill_tree": {
+            "path": "C:\\Users\\archa\\AppData\\Local\\hermes\\profiles\\bench-v2-space-rocks-distant--lexicon-arcana\\skills\\lexicon-arcana\\SKILL.md",
+            "sha256": "sha256:4770736dc6eeb37d604e66cc8ac5db2b5dffe5ea7b9c10f7aceb1d1963691032",
+            "bytes": 3092
+          }
+        }
+      },
+      "runs": {
+        "lexicon-arcana": {
+          "exit_code": 0,
+          "elapsed_seconds": 560.228,
+          "usage": {
+            "estimated_cost_usd": 0.0,
+            "cost_status": "included",
+            "cost_source": "none",
+            "input_tokens": 184119,
+            "output_tokens": 12630,
+            "cache_read_tokens": 1640960,
+            "cache_write_tokens": 0,
+            "reasoning_tokens": 3685,
+            "total_tokens": 1837709,
+            "api_calls": 18,
+            "model": "gpt-5.6-sol",
+            "provider": "openai-codex",
+            "session_id": "20260831_202819_5f3221",
+            "completed": true,
+            "failed": false,
+            "service_tier": null
+          },
+          "answer_bytes": 18996,
+          "discovery_output": {
+            "calls": 0,
+            "response_bytes": 0,
+            "modes": {},
+            "new_nodes": 0,
+            "new_source_ranges": 0,
+            "new_documents": 0,
+            "new_relationships": 0,
+            "new_graph_paths": 0,
+            "tool_errors": 0,
+            "invalid_records": 0
+          },
+          "grounding": {
+            "valid": true,
+            "process_completed": true,
+            "refusal_detected": false,
+            "evidence_json_found": true,
+            "evidence_json_valid": true,
+            "inline_citations": 52,
+            "structured_items": 9,
+            "handle_items": 0,
+            "canonical_handle_items": 0,
+            "required_prefixes_found": [
+              "services",
+              "client"
+            ],
+            "missing_required_prefixes": [
+              "shared"
+            ],
+            "findings": []
+          },
+          "execution_valid": true,
+          "grounding_valid": true,
+          "eligible_for_scoring": true,
+          "quality_assessed": false,
+          "completed_at": "2026-09-01T03:37:32.953133+00:00"
+        }
+      }
+    },
+    "leveldb-background-compaction-pause": {
+      "category": "impact-analysis",
+      "repository": "C:\\!bin\\workspace\\corpus\\leveldb",
+      "commit": "99b3c03b3284f5886f9ef9a4ef703d57373e61be",
+      "rubric": {
+        "dimensions": [
+          {
+            "id": "scheduling",
+            "weight": 2,
+            "description": "Finds background scheduling predicates and wakeup/resume ownership."
+          },
+          {
+            "id": "manual_compaction",
+            "weight": 2,
+            "description": "Preserves manual compaction progress and completion semantics."
+          },
+          {
+            "id": "write_pressure",
+            "weight": 2,
+            "description": "Accounts for write stalls, immutable memtables, shutdown, and pending work."
+          },
+          {
+            "id": "concurrency",
+            "weight": 1,
+            "description": "Defines mutex/condition-variable and API lifetime semantics."
+          },
+          {
+            "id": "verification",
+            "weight": 1,
+            "description": "Covers pause, resume, close, manual work, and write-pressure failure cases."
+          }
+        ],
+        "required_evidence": [
+          {
+            "path_prefix": "db/db_impl",
+            "reason": "compaction scheduling and execution owner"
+          },
+          {
+            "path_prefix": "include/leveldb/",
+            "reason": "caller-visible API boundary"
+          },
+          {
+            "path_prefix": "db/",
+            "reason": "compaction and lifecycle tests"
+          }
+        ],
+        "disallowed_assumptions": [
+          "blocking every compaction path",
+          "pausing while holding the database mutex",
+          "resuming without scheduling pending work"
+        ]
+      },
+      "preparation": {
+        "lexicon-arcana": {
+          "elapsed_seconds": 5.744,
+          "lexicon_seconds": 4.844,
+          "arcana_seconds": 0.331,
+          "export_seconds": 0.569,
+          "lexicon_snapshot": "sha256:b009aef12ceb9d0c8fb38f506e2bf49bbf4f562d4699a20fb1510250717743f0",
+          "arcana_snapshot": "sha256:b009aef12ceb9d0c8fb38f506e2bf49bbf4f562d4699a20fb1510250717743f0",
+          "export_bytes": 20511806
+        }
+      },
+      "profiles": {
+        "lexicon-arcana": "bench-v2-leveldb-background-c-lexicon-arcana"
+      },
+      "profile_provenance": {
+        "lexicon-arcana": {
+          "config": {
+            "path": "C:\\Users\\archa\\AppData\\Local\\hermes\\profiles\\bench-v2-leveldb-background-c-lexicon-arcana\\config.yaml",
+            "sha256": "sha256:1bbafc1bfbddfc27f678d0b4cb28a557412a2dc9884423a62ffff8b71978feb7",
+            "bytes": 8507
+          },
+          "skill_tree": {
+            "path": "C:\\Users\\archa\\AppData\\Local\\hermes\\profiles\\bench-v2-leveldb-background-c-lexicon-arcana\\skills\\lexicon-arcana\\SKILL.md",
+            "sha256": "sha256:4770736dc6eeb37d604e66cc8ac5db2b5dffe5ea7b9c10f7aceb1d1963691032",
+            "bytes": 3092
+          }
+        }
+      },
+      "runs": {
+        "lexicon-arcana": {
+          "exit_code": 0,
+          "elapsed_seconds": 414.144,
+          "usage": {
+            "estimated_cost_usd": 0.0,
+            "cost_status": "included",
+            "cost_source": "none",
+            "input_tokens": 90164,
+            "output_tokens": 9689,
+            "cache_read_tokens": 519680,
+            "cache_write_tokens": 0,
+            "reasoning_tokens": 3359,
+            "total_tokens": 619533,
+            "api_calls": 15,
+            "model": "gpt-5.6-sol",
+            "provider": "openai-codex",
+            "session_id": "20260831_203749_f5afbf",
+            "completed": true,
+            "failed": false,
+            "service_tier": null
+          },
+          "answer_bytes": 17434,
+          "discovery_output": {
+            "calls": 0,
+            "response_bytes": 0,
+            "modes": {},
+            "new_nodes": 0,
+            "new_source_ranges": 0,
+            "new_documents": 0,
+            "new_relationships": 0,
+            "new_graph_paths": 0,
+            "tool_errors": 0,
+            "invalid_records": 0
+          },
+          "grounding": {
+            "valid": true,
+            "process_completed": true,
+            "refusal_detected": false,
+            "evidence_json_found": true,
+            "evidence_json_valid": true,
+            "inline_citations": 45,
+            "structured_items": 13,
+            "handle_items": 0,
+            "canonical_handle_items": 0,
+            "required_prefixes_found": [
+              "db/db_impl",
+              "include/leveldb",
+              "db"
+            ],
+            "missing_required_prefixes": [],
+            "findings": []
+          },
+          "execution_valid": true,
+          "grounding_valid": true,
+          "eligible_for_scoring": true,
+          "quality_assessed": false,
+          "completed_at": "2026-09-01T03:44:39.081124+00:00"
+        }
+      }
+    },
+    "grimoire-state-maintenance-ownership": {
+      "category": "source-plus-rationale",
+      "repository": "C:\\!bin\\workspace\\grimoire",
+      "commit": "9de0fe68b6afcb3b7e9e444b0fa88cc5a68f094d",
+      "rubric": {
+        "dimensions": [
+          {
+            "id": "implemented_ownership",
+            "weight": 2,
+            "description": "Separates Grimoire request-driven preparation from provider and daemon ownership."
+          },
+          {
+            "id": "rationale",
+            "weight": 2,
+            "description": "Uses architecture, roadmap, and limitation documents as rationale rather than executable truth."
+          },
+          {
+            "id": "seam",
+            "weight": 2,
+            "description": "Defines an explicit event/input seam without making one-shot commands daemon-dependent."
+          },
+          {
+            "id": "state_alignment",
+            "weight": 1,
+            "description": "Preserves Lexicon, Arcana, Grimoire, and documentation freshness contracts."
+          },
+          {
+            "id": "verification",
+            "weight": 1,
+            "description": "Covers no-daemon fallback, coalescing, branch changes, missed events, and cold start."
+          }
+        ],
+        "required_evidence": [
+          {
+            "path_prefix": "internal/repostate/",
+            "reason": "implemented preparation and state-alignment owner"
+          },
+          {
+            "path_prefix": "internal/agentruntime/",
+            "reason": "request-time orchestration"
+          },
+          {
+            "path_prefix": "docs/architecture/",
+            "reason": "component boundaries and rationale"
+          },
+          {
+            "path_prefix": "docs/planning/",
+            "reason": "explicit future lifecycle work"
+          }
+        ],
+        "disallowed_assumptions": [
+          "mandatory daemon dependency",
+          "provider state mutated by Warlock directly",
+          "documentation treated as current executable behavior"
+        ]
+      },
+      "preparation": {
+        "lexicon-arcana": {
+          "elapsed_seconds": 60.889,
+          "lexicon_seconds": 56.807,
+          "arcana_seconds": 1.574,
+          "export_seconds": 2.509,
+          "lexicon_snapshot": "sha256:8fa962ab5974203459fb349ec1c90c541d5c540ba557a13b6ef216c5a5450ff7",
+          "arcana_snapshot": "sha256:8fa962ab5974203459fb349ec1c90c541d5c540ba557a13b6ef216c5a5450ff7",
+          "export_bytes": 100779578
+        }
+      },
+      "profiles": {
+        "lexicon-arcana": "bench-v2-grimoire-state-maint-lexicon-arcana"
+      },
+      "profile_provenance": {
+        "lexicon-arcana": {
+          "config": {
+            "path": "C:\\Users\\archa\\AppData\\Local\\hermes\\profiles\\bench-v2-grimoire-state-maint-lexicon-arcana\\config.yaml",
+            "sha256": "sha256:1bbafc1bfbddfc27f678d0b4cb28a557412a2dc9884423a62ffff8b71978feb7",
+            "bytes": 8507
+          },
+          "skill_tree": {
+            "path": "C:\\Users\\archa\\AppData\\Local\\hermes\\profiles\\bench-v2-grimoire-state-maint-lexicon-arcana\\skills\\lexicon-arcana\\SKILL.md",
+            "sha256": "sha256:4770736dc6eeb37d604e66cc8ac5db2b5dffe5ea7b9c10f7aceb1d1963691032",
+            "bytes": 3092
+          }
+        }
+      },
+      "runs": {
+        "lexicon-arcana": {
+          "exit_code": 0,
+          "elapsed_seconds": 360.125,
+          "usage": {
+            "estimated_cost_usd": 0.0,
+            "cost_status": "included",
+            "cost_source": "none",
+            "input_tokens": 131912,
+            "output_tokens": 8351,
+            "cache_read_tokens": 670720,
+            "cache_write_tokens": 0,
+            "reasoning_tokens": 1716,
+            "total_tokens": 810983,
+            "api_calls": 12,
+            "model": "gpt-5.6-sol",
+            "provider": "openai-codex",
+            "session_id": "20260831_204552_74ab4a",
+            "completed": true,
+            "failed": false,
+            "service_tier": null
+          },
+          "answer_bytes": 17880,
+          "discovery_output": {
+            "calls": 0,
+            "response_bytes": 0,
+            "modes": {},
+            "new_nodes": 0,
+            "new_source_ranges": 0,
+            "new_documents": 0,
+            "new_relationships": 0,
+            "new_graph_paths": 0,
+            "tool_errors": 0,
+            "invalid_records": 0
+          },
+          "grounding": {
+            "valid": true,
+            "process_completed": true,
+            "refusal_detected": false,
+            "evidence_json_found": true,
+            "evidence_json_valid": true,
+            "inline_citations": 37,
+            "structured_items": 12,
+            "handle_items": 0,
+            "canonical_handle_items": 0,
+            "required_prefixes_found": [
+              "internal/repostate",
+              "internal/agentruntime",
+              "docs/architecture",
+              "docs/planning"
+            ],
+            "missing_required_prefixes": [],
+            "findings": []
+          },
+          "execution_valid": true,
+          "grounding_valid": true,
+          "eligible_for_scoring": true,
+          "quality_assessed": false,
+          "completed_at": "2026-09-01T03:51:47.512980+00:00"
+        }
+      }
+    }
+  },
+  "completed_at": "2026-09-01T03:52:03.122407+00:00"
+}

@@ -1,0 +1,86 @@
+{
+  "schema": "grimoire.agent-benchmark.v2.current-codex-runtime-control",
+  "purpose": "Detekt Plain/Grimoire rerun holding frozen task revision and July Grimoire toolchain constant; current Codex runtime is the intended variable.",
+  "model": "gpt-5.6-sol",
+  "reasoning_effort": "high",
+  "fast_mode": true,
+  "sandbox": "danger-full-access (benchmark prompt remains read-only)",
+  "task": "detekt-cli-gradle-plugin-divergence",
+  "task_revision": "f9e1d5cc239ab740ce499b1edb36b872012648e2",
+  "july_harness_commit": "0375e5f6e541970e6ef509ac655961405c82e0f3",
+  "codex": {
+    "path": "C:\\Users\\archa\\.vscode\\extensions\\openai.chatgpt-26.825.51511-win32-x64\\bin\\windows-x86_64\\codex.exe",
+    "sha256": "24a37127b8298b7bf96ca9b1d51a63c0685d561d1596f052bec73f734ed524b5",
+    "version": "codex-cli 0.151.0-alpha.7.2",
+    "original_sha256": "39e9e041ea33ac34aad9578adfe660c5c7a6dc8f82620b77623960f9352a6ef3",
+    "same_binary_as_original": false
+  },
+  "tool_binaries": {
+    "grimoire": {
+      "path": "C:\\!bin\\workspace\\grimoire\\bin\\grimoire.exe",
+      "sha256": "881715c69fe2fb6a144b9005883217d341ef24b2cf9a05d09b7466d21f3d31cf",
+      "original_sha256": "881715c69fe2fb6a144b9005883217d341ef24b2cf9a05d09b7466d21f3d31cf",
+      "exact_original": true
+    },
+    "lexicon": {
+      "path": "C:\\!bin\\workspace\\benchmark-tools\\grimoire-july-build\\bin\\lexicon.exe",
+      "sha256": "10bfa0b5cdae97e318931f4c57e73b57dd4938911b06e6f8e56130f6237700f5",
+      "original_sha256": "157e9710f43ac99f3c7884536f49045fc9923dd0b028e569c5c70e64282fb082",
+      "exact_original": false
+    },
+    "arcana": {
+      "path": "C:\\!bin\\workspace\\grimoire\\bin\\arcana.exe",
+      "sha256": "6796a7a42cedae899edc3655bb00643100ecf1236c80618799676c827bc5ac14",
+      "original_sha256": "6796a7a42cedae899edc3655bb00643100ecf1236c80618799676c827bc5ac14",
+      "exact_original": true
+    }
+  },
+  "history_isolation": "separate pruned clones; one benchmark ref; no remotes; all visible commits reachable from frozen revision",
+  "started_at": "2026-09-03T04:41:51.437211+00:00",
+  "preparation": {},
+  "runs": {
+    "plain": {
+      "exit_code": 0,
+      "timed_out": false,
+      "elapsed_seconds": 470.204,
+      "usage": {
+        "input_tokens": 1906498,
+        "cached_input_tokens": 1711488,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 14854,
+        "reasoning_output_tokens": 7714
+      },
+      "event_counts": {
+        "thread.started": 1,
+        "turn.started": 1,
+        "item.completed": 28,
+        "item.started": 25,
+        "turn.completed": 1
+      },
+      "event_lines": 56,
+      "answer_bytes": 11171,
+      "grounding": {
+        "valid": true,
+        "process_completed": true,
+        "refusal_detected": false,
+        "evidence_json_found": true,
+        "evidence_json_valid": true,
+        "inline_citations": 26,
+        "structured_items": 10,
+        "handle_items": 0,
+        "canonical_handle_items": 0,
+        "required_prefixes_found": [
+          "detekt-cli",
+          "detekt-gradle-plugin",
+          "detekt-core"
+        ],
+        "missing_required_prefixes": [],
+        "findings": []
+      },
+      "execution_valid": true,
+      "grounding_valid": true,
+      "eligible_for_scoring": true,
+      "completed_at": "2026-09-03T04:49:41.685121+00:00"
+    }
+  }
+}

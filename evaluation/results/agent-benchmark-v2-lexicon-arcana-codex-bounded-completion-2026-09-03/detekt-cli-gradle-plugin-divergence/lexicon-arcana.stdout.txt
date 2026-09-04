@@ -1,0 +1,55 @@
+## Conclusion
+
+Responsibility most likely lies in the Gradle plugin’s invocation/classloader boundary, not in the third-party rule set or detekt core.
+
+The CLI communicates plugin JARs explicitly through `--plugins`; the Gradle plugin instead adds them to a globally cached execution classpath. That cache is keyed only by file paths, so replacing a JAR at the same path can leave a Gradle daemon using its previously loaded providers and embedded configuration. This explains both symptoms: a provider can appear missing, or an older `config/config.yml` can remain effective.
+
+## Verified current behavior
+
+- `detektPlugins` is a resolvable, transitive Gradle configuration, and its files are wired into each analysis, baseline, and configuration-generation task as `pluginClasspath` (`detekt-gradle-plugin/src/main/kotlin/dev/detekt/gradle/plugin/DetektBasePlugin.kt:59-65`, `detekt-gradle-plugin/src/main/kotlin/dev/detekt/gradle/plugin/DetektPlugin.kt:137-172`).
+
+- The CLI defines `--plugins` as JAR paths and transfers those paths into the processing model (`detekt-cli/src/main/kotlin/dev/detekt/cli/CliArgs.kt:78-85`, `detekt-cli/src/main/kotlin/dev/detekt/cli/Spec.kt:62-65`). Core then constructs a plugin-specific `URLClassLoader`; processing settings close loaders created from paths after the run (`detekt-core/src/main/kotlin/dev/detekt/core/settings/ClassloaderAware.kt:22-55`, `detekt-core/src/main/kotlin/dev/detekt/core/ProcessingSettings.kt:57-61`).
+
+- Gradle’s real analysis arguments contain no equivalent plugin argument. Both execution branches combine `detektClasspath` and `pluginClasspath` into the launcher classpath (`detekt-gradle-plugin/src/main/kotlin/dev/detekt/gradle/Detekt.kt:172-206`, `detekt-gradle-plugin/src/main/kotlin/dev/detekt/gradle/Detekt.kt:218-239`). Curiously, the debug-only reproduction command synthesizes `--plugins`, so the command printed to users does not represent how Gradle actually loads those JARs (`detekt-gradle-plugin/src/main/kotlin/dev/detekt/gradle/Detekt.kt:243-255`).
+
+- Baseline creation and configuration generation repeat the same classpath-based loading behavior (`detekt-gradle-plugin/src/main/kotlin/dev/detekt/gradle/DetektCreateBaselineTask.kt:152-206`, `detekt-gradle-plugin/src/main/kotlin/dev/detekt/gradle/DetektGenerateConfigTask.kt:43-71`).
+
+- `DefaultCliInvoker` obtains its isolated loader from the global cache before reflectively invoking the CLI (`detekt-gradle-plugin/src/main/kotlin/dev/detekt/gradle/invoke/DetektInvoker.kt:61-74`). The cache key is only `HashSet(classpath).hashCode()`; neither file contents, size, nor modification time participates, and cached loaders are retained globally (`detekt-gradle-plugin/src/main/kotlin/dev/detekt/gradle/internal/ClassLoaderCache.kt:12-27`).
+
+- Rule providers are discovered through the selected plugin loader (`detekt-core/src/main/kotlin/dev/detekt/core/rules/RuleSets.kt:11-39`). The same loader supplies every plugin’s embedded `config/config.yml`, and that configuration is subsequently selected by rule-set ID (`detekt-core/src/main/kotlin/dev/detekt/core/tooling/DefaultConfigProvider.kt:32-53`, `detekt-core/src/main/kotlin/dev/detekt/core/RuleDescriptor.kt:24-40`).
+
+Therefore, the causal explanation is an inference directly from the verified lifecycle: after a JAR has been loaded, rebuilding it at the same pathname leaves the Gradle cache key unchanged. Java cannot redefine already loaded provider classes in that cached loader, and resource lookup may likewise continue through the old JAR state. A standalone CLI process follows the explicit-path loader path afresh.
+
+## Smallest correct fix boundary
+
+The fix should remain entirely in `detekt-gradle-plugin`:
+
+1. Add an internal `PluginsArgument(FileCollection)` alongside the existing CLI argument adapters, emitting `--plugins` plus absolute JAR paths separated with `File.pathSeparator`. That matches the CLI’s `PathSplitter` contract (`detekt-gradle-plugin/src/main/kotlin/dev/detekt/gradle/invoke/CliArgument.kt:40-69`, `detekt-cli/src/main/kotlin/dev/detekt/cli/ArgumentConverters.kt:68-76`).
+
+2. Include that argument in `Detekt`, `DetektCreateBaselineTask`, and `DetektGenerateConfigTask`.
+
+3. Pass only `detektClasspath` to `DetektWorkAction`/`DefaultCliInvoker`; remove `pluginClasspath` from the launcher classpath in both worker and non-worker branches.
+
+This restores CLI-equivalent ownership: the cached loader contains the stable detekt runtime, while core creates a fresh plugin loader from current paths for each invocation. All three tasks belong in the boundary because otherwise analysis, baseline creation, and generated configuration would continue to disagree. No changes are indicated in `ServiceLoader` discovery, rule configuration, the tooling API, or the third-party JAR format; existing core tests already verify that explicit plugin paths load both custom providers and embedded defaults (`detekt-core/src/test/kotlin/dev/detekt/core/rules/RuleSetsSpec.kt:88-101`, `detekt-core/src/test/kotlin/dev/detekt/core/tooling/DefaultConfigProviderSpec.kt:34-67`).
+
+## Verification plan
+
+- Unit-test `PluginsArgument` for empty input, multiple absolute paths, and platform-specific separation.
+- Add task-model tests asserting all three task types emit `--plugins`.
+- Through dry-run/TestKit output, assert plugin JARs appear in `Arguments` but not the launcher `Classpath`.
+- Add a functional regression using two sequential Gradle invocations against the same project and daemon:
+  - Execute with version A of a fixture rule-set JAR.
+  - Replace that JAR at exactly the same pathname with version B, changing both provider behavior and its embedded default configuration.
+  - Re-run with `--rerun-tasks`, without `gradle --stop`.
+  - Assert version B’s finding and configuration take effect.
+- Exercise both the default invoker and `-Pdetekt.use.worker.api=true`, since both current branches merge the plugin classpath (`detekt-gradle-plugin/src/main/kotlin/dev/detekt/gradle/Detekt.kt:218-239`).
+- Add smoke coverage showing the custom rule contributes a baseline entry and its embedded defaults appear in `detektGenerateConfig`.
+- Run `.\gradlew.bat -p detekt-gradle-plugin test functionalTest`.
+
+## Documentation rationale
+
+The documentation presents CLI `--plugins` and Gradle `detektPlugins` as equivalent integration mechanisms (`website/docs/introduction/extensions.mdx:252-278`). It also recommends stopping Gradle daemons when custom-rule violations disappear (`website/docs/introduction/extensions.mdx:280-290`). That workaround corroborates the classloader-lifetime diagnosis, but it is documentation rationale rather than implementation evidence.
+
+No repository files were modified; the pre-existing `.gitignore` worktree modification remained untouched.
+
+BENCHMARK_EVIDENCE_JSON:{"evidence":[{"path":"detekt-gradle-plugin/src/main/kotlin/dev/detekt/gradle/internal/ClassLoaderCache.kt","symbol":"DefaultClassLoaderCache.getOrCreate","lines":"12-27","claim":"The global Gradle-side loader cache is keyed only by the hash of classpath file paths and retains URLClassLoader instances."},{"path":"detekt-gradle-plugin/src/main/kotlin/dev/detekt/gradle/invoke/DetektInvoker.kt","symbol":"DefaultCliInvoker.invokeCli","lines":"61-74","claim":"Gradle invokes the CLI through the globally cached isolated classloader."},{"path":"detekt-gradle-plugin/src/main/kotlin/dev/detekt/gradle/Detekt.kt","symbol":"Detekt.arguments/check/printCliCommand","lines":"172-255","claim":"Actual Gradle analysis omits --plugins and places pluginClasspath on the launcher classpath, although the debug reproduction command prints --plugins."},{"path":"detekt-gradle-plugin/src/main/kotlin/dev/detekt/gradle/DetektCreateBaselineTask.kt","symbol":"DetektCreateBaselineTask.arguments/baseline","lines":"152-206","claim":"Baseline creation also omits a plugin argument and merges pluginClasspath into the launcher classpath."},{"path":"detekt-gradle-plugin/src/main/kotlin/dev/detekt/gradle/DetektGenerateConfigTask.kt","symbol":"DetektGenerateConfigTask.arguments/generateConfig","lines":"43-71","claim":"Configuration generation repeats the same classpath-based plugin loading behavior."},{"path":"detekt-cli/src/main/kotlin/dev/detekt/cli/Spec.kt","symbol":"CliArgs.createSpec","lines":"62-65","claim":"CLI --plugins paths are recorded explicitly in the processing specification."},{"path":"detekt-core/src/main/kotlin/dev/detekt/core/settings/ClassloaderAware.kt","symbol":"ExtensionFacade.pluginLoader","lines":"22-55","claim":"Explicit plugin paths create a dedicated URLClassLoader which the processing lifecycle can close."},{"path":"detekt-core/src/main/kotlin/dev/detekt/core/rules/RuleSets.kt","symbol":"ProcessingSettings.createRuleProviders","lines":"11-39","claim":"Rule-set providers are discovered with ServiceLoader using the selected plugin loader."},{"path":"detekt-core/src/main/kotlin/dev/detekt/core/tooling/DefaultConfigProvider.kt","symbol":"configInputStream","lines":"32-53","claim":"Plugin default configuration resources are loaded through the same selected plugin loader."},{"path":"website/docs/introduction/extensions.mdx","symbol":"Integrating extensions with detekt/Pitfalls","lines":"252-290","claim":"Documentation treats CLI and Gradle plugin integration as equivalent and records stopping Gradle daemons as the workaround for missing custom-rule violations."}]}

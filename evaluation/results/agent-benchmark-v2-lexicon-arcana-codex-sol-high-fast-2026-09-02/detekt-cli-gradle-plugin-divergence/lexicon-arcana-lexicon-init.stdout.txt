@@ -1,0 +1,8 @@
+analyzing typescript
+analyzing generic-sh
+analyzing java
+analyzing kotlin
+interstack: 0 HTTP contracts, 0 HTTP links, 0 message channels, 0 message links, 0 config keys
+initialized Lexicon: C:\!bin\workspace\benchmark-checkouts\agent-benchmark-v2-lexicon-arcana-codex\detekt-cli-gradle-plugin-divergence
+libraries: generic-sh, java, kotlin, typescript
+snapshot: sha256:205fa2a4db0072c11d566fe84a89ec744a7bec7deca63a23508d77ad00902ede

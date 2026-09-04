@@ -1,0 +1,41 @@
+{
+  "valid": false,
+  "process_completed": true,
+  "refusal_detected": false,
+  "evidence_json_found": true,
+  "evidence_json_valid": true,
+  "inline_citations": 46,
+  "structured_items": 19,
+  "handle_items": 0,
+  "canonical_handle_items": 0,
+  "required_prefixes_found": [
+    "services",
+    "client"
+  ],
+  "missing_required_prefixes": [
+    "shared"
+  ],
+  "findings": [
+    {
+      "code": "inline_citation_out_of_range",
+      "message": "services/game-server/internal/game/input.go:56-76 is outside 1-69",
+      "path": "services/game-server/internal/game/input.go",
+      "start_line": 56,
+      "end_line": 76
+    },
+    {
+      "code": "inline_citation_out_of_range",
+      "message": "services/game-server/internal/game/spatial/grid/query_rect.go:3-63 is outside 1-45",
+      "path": "services/game-server/internal/game/spatial/grid/query_rect.go",
+      "start_line": 3,
+      "end_line": 63
+    },
+    {
+      "code": "structured_evidence_out_of_range",
+      "message": "services/game-server/internal/game/input.go:56-76 is outside 1-69",
+      "path": "services/game-server/internal/game/input.go",
+      "start_line": 56,
+      "end_line": 76
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "valid": true,
+  "process_completed": true,
+  "refusal_detected": false,
+  "evidence_json_found": true,
+  "evidence_json_valid": true,
+  "inline_citations": 45,
+  "structured_items": 13,
+  "handle_items": 0,
+  "canonical_handle_items": 0,
+  "required_prefixes_found": [
+    "db/db_impl",
+    "include/leveldb",
+    "db"
+  ],
+  "missing_required_prefixes": [],
+  "findings": []
+}

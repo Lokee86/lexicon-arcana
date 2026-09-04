@@ -83,6 +83,47 @@ Grimoire made one 50,915-byte search call, then shifted to direct inspection. In
 
 Cold preparation identifies Lexicon as the clear optimization target: 69.3 of 95.2 internal preparation seconds. The single 50.9 KB discovery response also confirms that broad response shaping remains unfinished.
 
+## September 3 Detekt bounded-completion experiment
+
+Artifacts: [`evaluation/results/agent-benchmark-v2-lexicon-arcana-codex-bounded-completion-2026-09-03/`](../../evaluation/results/agent-benchmark-v2-lexicon-arcana-codex-bounded-completion-2026-09-03/)
+
+A current-Codex follow-up isolated a different question from the July discovery-system comparison: once Lexicon and Arcana have supplied useful evidence, can prompt wording alone stop the model from continuing to investigate after the requested diagnosis is already supported?
+
+The task remained `detekt-cli-gradle-plugin-divergence` at frozen revision `f9e1d5cc239ab740ce499b1edb36b872012648e2`, using GPT-5.6 Sol with High reasoning and Fast mode. Three raw Lexicon+Arcana conditions were compared: the original skill wording, a first evidence-bounded wording, and a stronger completion-bound wording. The stronger wording explicitly told the agent to stop once it could identify the likely owner, explain the causal divergence, define the smallest fix boundary, and support those conclusions with source.
+
+| Metric | Original L+A | Evidence-bounded wording | Completion-bounded wording |
+| --- | ---: | ---: | ---: |
+| Started items | 22 | 24 | **19** |
+| Runtime | 533.0s | 676.7s | **300.6s** |
+| Total input | 2.144M | 2.293M | **1.472M** |
+| Fresh input | 381.2k | 232.4k | **112.9k** |
+| Cached input | 1.763M | 2.060M | **1.359M** |
+| Output | 15.5k | 18.5k | **13.2k** |
+| Reasoning | 7.5k | 8.9k | **6.2k** |
+| Grounding | valid | valid | **valid** |
+| Manual quality | 8/8 | 8/8 | **8/8*** |
+
+The stronger wording materially reduced cost, especially fresh input, but failed the intended stopping discriminator. At item 6 the model explicitly stated that the central CLI-versus-Gradle asymmetry was verified. At item 7 it immediately ran Git history despite an explicit instruction not to broaden into history unless a requested point remained unresolved. It later inspected additional configuration consequences, documentation, test plumbing, and build surfaces. The run ended at 19 started items rather than the approximately 6–12 expected if prompt-level stopping were reliable.
+
+The same completion-bounded L+A run also beat the current plain-exploration control, which used the same frozen task and current GPT-5.6 Sol/High/Fast runtime but no Grimoire, Lexicon, or Arcana:
+
+| Metric | Current plain exploration | Completion-bounded L+A | Change |
+| --- | ---: | ---: | ---: |
+| Started items | 25 | **19** | **-24.0%** |
+| Runtime | 470.2s | **300.6s** | **-36.1%** |
+| Total input | 1.906M | **1.472M** | **-22.8%** |
+| Fresh input | 195.0k | **112.9k** | **-42.1%** |
+| Cached input | 1.711M | **1.359M** | **-20.6%** |
+| Output | 14.9k | **13.2k** | **-11.4%** |
+| Reasoning | 7.7k | **6.2k** | **-19.7%** |
+| Grounding | valid | **valid** | same |
+
+This changes the working diagnosis of the efficiency problem. Prepared Lexicon+Arcana context is already reducing independent repository exploration relative to a naked agent. Strong completion wording improves that advantage further. The residual failure is that an open-ended agent still treats plausible adjacent questions as invitations to continue even after it has enough evidence for the requested output.
+
+The current architectural hypothesis is therefore **bounded inference orchestration**, not another round of stopping-prompt tuning: software should bound each inference question and own progression, while the model may report that a bounded question is unresolved and name one specific missing fact for the framework to schedule next. Fixed deterministic thresholds such as a required number of files, sources, or edges are explicitly rejected; semantic sufficiency remains a model judgment inside the bounded question.
+
+*The 8/8 score follows the existing Detekt manual-scoring precedent. A stricter literal reading of the rubric's failure-mode wording should be applied by rescoring prior Detekt runs consistently rather than changing the standard for this run alone.
+
 ## Version 2 Detekt ownership result
 
 Report: [`evaluation/results/agent-benchmark-v2/detekt-cli-gradle-plugin-divergence/report.md`](../../evaluation/results/agent-benchmark-v2/detekt-cli-gradle-plugin-divergence/report.md)

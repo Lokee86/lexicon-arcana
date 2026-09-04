@@ -1,0 +1,95 @@
+{
+  "task": "detekt-cli-gradle-plugin-divergence",
+  "model": "gpt-5.6-sol",
+  "reasoning_effort": "high",
+  "fast_mode": true,
+  "comparison": {
+    "plain_current_control": {
+      "condition": "plain repository exploration; no Grimoire, Lexicon, or Arcana",
+      "started_items": 25,
+      "runtime_seconds": 470.204,
+      "input_tokens": 1906498,
+      "fresh_input_tokens": 195010,
+      "cached_input_tokens": 1711488,
+      "output_tokens": 14854,
+      "reasoning_output_tokens": 7714,
+      "grounding_valid": true,
+      "eligible_for_scoring": true
+    },
+    "original_lexicon_arcana": {
+      "started_items": 22,
+      "runtime_seconds": 532.999,
+      "input_tokens": 2143781,
+      "fresh_input_tokens": 381221,
+      "cached_input_tokens": 1762560,
+      "output_tokens": 15499,
+      "reasoning_output_tokens": 7468,
+      "grounding_valid": true,
+      "manual_quality": "8/8"
+    },
+    "bounded_evidence_expansion": {
+      "started_items": 24,
+      "runtime_seconds": 676.695,
+      "input_tokens": 2292523,
+      "fresh_input_tokens": 232363,
+      "cached_input_tokens": 2060160,
+      "output_tokens": 18450,
+      "reasoning_output_tokens": 8864,
+      "grounding_valid": true,
+      "manual_quality": "8/8"
+    },
+    "bounded_completion_surface": {
+      "started_items": 19,
+      "runtime_seconds": 300.55,
+      "input_tokens": 1471587,
+      "fresh_input_tokens": 112867,
+      "cached_input_tokens": 1358720,
+      "output_tokens": 13162,
+      "reasoning_output_tokens": 6194,
+      "grounding_valid": true,
+      "manual_quality": "8/8 (apples-to-apples with prior Detekt manual-scoring precedent)"
+    }
+  },
+  "bounded_completion_change_vs_plain_current_control_percent": {
+    "started_items": -24.0,
+    "runtime_seconds": -36.1,
+    "input_tokens": -22.8,
+    "fresh_input_tokens": -42.1,
+    "cached_input_tokens": -20.6,
+    "output_tokens": -11.4,
+    "reasoning_output_tokens": -19.7
+  },
+  "bounded_completion_change_vs_original_percent": {
+    "started_items": -13.6,
+    "runtime_seconds": -43.6,
+    "input_tokens": -31.4,
+    "fresh_input_tokens": -70.4,
+    "cached_input_tokens": -22.9,
+    "output_tokens": -15.1,
+    "reasoning_output_tokens": -17.1
+  },
+  "bounded_completion_change_vs_bounded_evidence_percent": {
+    "started_items": -20.8,
+    "runtime_seconds": -55.6,
+    "input_tokens": -35.8,
+    "fresh_input_tokens": -51.4,
+    "cached_input_tokens": -34.0,
+    "output_tokens": -28.7,
+    "reasoning_output_tokens": -30.1
+  },
+  "trace_assessment": {
+    "central_asymmetry_stated_at_item": 6,
+    "history_search_started_at_item": 7,
+    "later_expansion_examples": [
+      "Git history",
+      "core/configuration consequences",
+      "documentation",
+      "functional-test plumbing",
+      "additional task/build surfaces"
+    ],
+    "strict_target_met": false,
+    "target_started_items": "approximately 6-12",
+    "interpretation": "Completion-surface wording materially improves efficiency but does not reliably bound the investigation. The model still violates explicit anti-expansion instructions after the central asymmetry is established. This supports stepped bounded inference units rather than relying on one open-ended agent call for deterministic stopping."
+  },
+  "quality_note": "The final answer preserves the same core Detekt ownership, classloader-cache, convergence, fix-boundary, and verification conclusions as prior runs. For consistency it is recorded as 8/8 under the existing Detekt manual-scoring precedent. A stricter literal interpretation of the rubric's failure_modes wording would warrant separately revisiting all prior Detekt scores as well."
+}

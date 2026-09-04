@@ -1,0 +1,64 @@
+{
+  "schema": "grimoire.agent-benchmark.v2.prompt-variant",
+  "condition": "lexicon-arcana",
+  "variant": "bounded-evidence-expansion",
+  "model": "gpt-5.6-sol",
+  "task": "detekt-cli-gradle-plugin-divergence",
+  "commit": "f9e1d5cc239ab740ce499b1edb36b872012648e2",
+  "skill_path": "C:\\!bin\\workspace\\grimoire\\evaluation\\skills\\lexicon-arcana\\SKILL.md",
+  "preparation": {
+    "elapsed_seconds": 32.82,
+    "lexicon_seconds": 27.811,
+    "arcana_seconds": 2.586,
+    "export_seconds": 2.424,
+    "lexicon_snapshot": "sha256:6d5cc9a37804b8c9a87a4e4cc98e7c4e13d6343542626d4a461b0cc10cab1a7c",
+    "arcana_snapshot": "sha256:6d5cc9a37804b8c9a87a4e4cc98e7c4e13d6343542626d4a461b0cc10cab1a7c",
+    "export_bytes": 69289654
+  },
+  "run": {
+    "exit_code": 0,
+    "timed_out": false,
+    "elapsed_seconds": 676.695,
+    "usage": {
+      "input_tokens": 2292523,
+      "cached_input_tokens": 2060160,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 18450,
+      "reasoning_output_tokens": 8864
+    },
+    "event_counts": {
+      "thread.started": 1,
+      "turn.started": 1,
+      "item.completed": 28,
+      "item.started": 24,
+      "item.updated": 1,
+      "turn.completed": 1
+    },
+    "event_lines": 56,
+    "answer_bytes": 12058,
+    "grounding": {
+      "valid": true,
+      "process_completed": true,
+      "refusal_detected": false,
+      "evidence_json_found": true,
+      "evidence_json_valid": true,
+      "inline_citations": 33,
+      "structured_items": 11,
+      "handle_items": 0,
+      "canonical_handle_items": 0,
+      "required_prefixes_found": [
+        "detekt-cli",
+        "detekt-gradle-plugin",
+        "detekt-core"
+      ],
+      "missing_required_prefixes": [],
+      "findings": []
+    },
+    "execution_valid": true,
+    "grounding_valid": true,
+    "eligible_for_scoring": true,
+    "quality_assessed": false,
+    "completed_at": "2026-09-03T07:51:00.741017+00:00"
+  },
+  "completed_at": "2026-09-03T07:51:00.741543+00:00"
+}

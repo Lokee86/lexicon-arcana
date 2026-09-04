@@ -1,0 +1,27 @@
+{
+  "valid": false,
+  "process_completed": true,
+  "refusal_detected": false,
+  "evidence_json_found": true,
+  "evidence_json_valid": true,
+  "inline_citations": 27,
+  "structured_items": 9,
+  "handle_items": 0,
+  "canonical_handle_items": 0,
+  "required_prefixes_found": [
+    "services",
+    "client"
+  ],
+  "missing_required_prefixes": [
+    "shared"
+  ],
+  "findings": [
+    {
+      "code": "inline_citation_out_of_range",
+      "message": "README.md:488-488 is outside 1-101",
+      "path": "README.md",
+      "start_line": 488,
+      "end_line": 488
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+analyzing typescript
+analyzing generic-sh
+analyzing csharp
+analyzing java
+analyzing go
+analyzing generic-ps1
+analyzing rust
+analyzing ruby
+analyzing kotlin
+analyzing python
+interstack: 8 HTTP contracts, 0 HTTP links, 1 message channels, 2 message links, 36 config keys
+initialized Lexicon: C:\!bin\workspace\benchmark-checkouts\agent-benchmark-v2-lexicon-arcana-codex\grimoire-state-maintenance-ownership
+libraries: csharp, generic-ps1, generic-sh, go, java, kotlin, python, ruby, rust, typescript
+snapshot: sha256:1e90e1e81214786b591ce284af9b497aaf4ea15da76e2f3ac175220b556c6545

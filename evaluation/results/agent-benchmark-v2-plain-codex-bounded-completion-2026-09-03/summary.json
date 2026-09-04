@@ -1,0 +1,62 @@
+{
+  "schema": "grimoire.agent-benchmark.v2.prompt-variant",
+  "condition": "plain",
+  "variant": "bounded-completion-surface",
+  "model": "gpt-5.6-sol",
+  "reasoning_effort": "high",
+  "fast_mode": true,
+  "task": "detekt-cli-gradle-plugin-divergence",
+  "task_revision": "f9e1d5cc239ab740ce499b1edb36b872012648e2",
+  "codex": {
+    "path": "C:\\Users\\archa\\.vscode\\extensions\\openai.chatgpt-26.825.51511-win32-x64\\bin\\windows-x86_64\\codex.exe",
+    "sha256": "24a37127b8298b7bf96ca9b1d51a63c0685d561d1596f052bec73f734ed524b5",
+    "version": "codex-cli 0.151.0-alpha.7.2"
+  },
+  "history_isolation": "pruned clone; one benchmark ref; no remotes; all visible commits reachable from frozen revision",
+  "completion_policy": "Completion policy for this run:\nInvestigate only until the requested diagnosis is supported. Once you can identify the likely owner, explain the causal divergence, define the smallest correct fix boundary, and provide a sufficient verification plan with source support, stop repository exploration and answer.\nDo not broaden into related execution paths, Git history, documentation, alternative hypotheses, additional test plumbing, or extra verification solely to increase confidence in conclusions that are already supported. Investigate further only when you can name a specific unresolved fact that prevents one of the requested conclusions. Do not seek redundant confirmation of an already-supported conclusion.",
+  "started_at": "2026-09-03T18:19:26.833670+00:00",
+  "run": {
+    "exit_code": 0,
+    "timed_out": false,
+    "elapsed_seconds": 490.596,
+    "usage": {
+      "input_tokens": 1218716,
+      "cached_input_tokens": 1072384,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 14038,
+      "reasoning_output_tokens": 8373
+    },
+    "event_counts": {
+      "thread.started": 1,
+      "item.completed": 25,
+      "turn.started": 1,
+      "item.started": 21,
+      "turn.completed": 1
+    },
+    "event_lines": 49,
+    "answer_bytes": 8268,
+    "grounding": {
+      "valid": true,
+      "process_completed": true,
+      "refusal_detected": false,
+      "evidence_json_found": true,
+      "evidence_json_valid": true,
+      "inline_citations": 21,
+      "structured_items": 9,
+      "handle_items": 0,
+      "canonical_handle_items": 0,
+      "required_prefixes_found": [
+        "detekt-cli",
+        "detekt-gradle-plugin",
+        "detekt-core"
+      ],
+      "missing_required_prefixes": [],
+      "findings": []
+    },
+    "execution_valid": true,
+    "grounding_valid": true,
+    "eligible_for_scoring": true,
+    "completed_at": "2026-09-03T18:27:41.004753+00:00"
+  },
+  "completed_at": "2026-09-03T18:27:41.005811+00:00"
+}

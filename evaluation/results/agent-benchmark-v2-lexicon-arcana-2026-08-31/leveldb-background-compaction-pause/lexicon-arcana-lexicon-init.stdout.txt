@@ -1,0 +1,5 @@
+analyzing c-family
+interstack: 0 HTTP contracts, 0 HTTP links, 0 message channels, 0 message links, 0 config keys
+initialized Lexicon: C:\!bin\workspace\benchmark-checkouts\agent-benchmark-v2\leveldb-background-compaction-pause\lexicon-arcana
+libraries: c-family
+snapshot: sha256:b009aef12ceb9d0c8fb38f506e2bf49bbf4f562d4699a20fb1510250717743f0

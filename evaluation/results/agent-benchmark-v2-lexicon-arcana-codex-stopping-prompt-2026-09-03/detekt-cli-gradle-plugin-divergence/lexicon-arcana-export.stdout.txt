@@ -1,0 +1,1 @@
+exported snapshot CURRENT to C:\!bin\workspace\grimoire\evaluation\results\agent-benchmark-v2-lexicon-arcana-codex-stopping-prompt-2026-09-03\detekt-cli-gradle-plugin-divergence\lexicon-arcana-export

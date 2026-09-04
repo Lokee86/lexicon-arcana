@@ -1,0 +1,39 @@
+{
+  "task": "detekt-cli-gradle-plugin-divergence",
+  "model": "gpt-5.6-sol",
+  "reasoning_effort": "high",
+  "fast_mode": true,
+  "plain_current_control": {
+    "started_items": 25,
+    "runtime_seconds": 470.204,
+    "input_tokens": 1906498,
+    "fresh_input_tokens": 195010,
+    "cached_input_tokens": 1711488,
+    "output_tokens": 14854,
+    "reasoning_output_tokens": 7714,
+    "grounding_valid": true
+  },
+  "plain_bounded_completion": {
+    "started_items": 21,
+    "runtime_seconds": 490.596,
+    "input_tokens": 1218716,
+    "fresh_input_tokens": 146332,
+    "cached_input_tokens": 1072384,
+    "output_tokens": 14038,
+    "reasoning_output_tokens": 8373,
+    "grounding_valid": true,
+    "central_divergence_stated_at_item": 6,
+    "commands_before_or_through_divergence": 4,
+    "commands_after_divergence": 17
+  },
+  "change_percent": {
+    "started_items": -16.0,
+    "runtime_seconds": 4.3,
+    "input_tokens": -36.1,
+    "fresh_input_tokens": -25.0,
+    "cached_input_tokens": -37.3,
+    "output_tokens": -5.5,
+    "reasoning_output_tokens": 8.5
+  },
+  "interpretation": "Stronger completion wording reduced shell-call count and context replay substantially, but did not improve wall time and increased reasoning output. The agent identified the central divergence after four repository commands and then made seventeen more commands, so about 81% of tool work still occurred after the answer's core causal boundary was already explicit. Prompting narrows and cheapens the reassurance loop but does not reliably eliminate it."
+}

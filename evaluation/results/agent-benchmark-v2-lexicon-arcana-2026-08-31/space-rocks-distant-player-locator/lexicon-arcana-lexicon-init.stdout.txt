@@ -1,0 +1,11 @@
+analyzing typescript
+analyzing go
+analyzing gdscript
+analyzing ruby
+analyzing generic-sh
+analyzing python
+analyzing generic-ps1
+interstack: 23 HTTP contracts, 40 HTTP links, 25 message channels, 27 message links, 30 config keys
+initialized Lexicon: C:\!bin\workspace\benchmark-checkouts\agent-benchmark-v2\space-rocks-distant-player-locator\lexicon-arcana
+libraries: gdscript, generic-ps1, generic-sh, go, python, ruby, typescript
+snapshot: sha256:53f7f7b65603cba3417a5890ce4048455522971b9c671593af30b4eec07c149c

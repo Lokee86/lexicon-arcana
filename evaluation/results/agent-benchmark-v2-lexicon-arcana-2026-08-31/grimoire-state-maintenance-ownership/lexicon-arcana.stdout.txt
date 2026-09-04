@@ -1,0 +1,163 @@
+Investigation target: checked-out revision `9de0fe68b6afcb3b7e9e444b0fa88cc5a68f094d`.
+
+Decision
+
+Split ownership:
+
+- Warlock should own the long-lived repository lifecycle: repository registration, OS filesystem watchers, event normalization/coalescing, overflow recovery, process supervision, backpressure, and scheduling.
+- Grimoire should continue to own change interpretation and coordinated preparation: freshness policy, state invalidation, dependency ordering across Lexicon → Arcana → Grimoire source → documentation, locking, snapshot alignment, and final readiness verification.
+- Lexicon and Arcana should retain their component semantics and independently runnable one-shot commands. Lexicon’s existing `demon` should remain as a standalone convenience, not become the shared product watcher.
+- Change events should be hints that prompt Grimoire preparation, never authoritative proof that state is current.
+
+This split follows the implemented domain boundary: Grimoire owns repository-state preparation and provider routing but not language parsing or graph semantics (`docs/architecture/components.md:15-26`), while consumers must not mutate another component’s state directly (`docs/architecture/components.md:77-86`). It also places long-lived process ownership in the shared lifecycle supervisor without moving Grimoire’s correctness policy into Warlock.
+
+Verified current behavior
+
+1. Preparation is request-driven and can dominate the first query.
+
+Every discovery execution calls the repository preparation boundary before querying. If neither the request nor its host supplies a mode, the runtime selects `refresh-if-needed`; it refuses to query unless the resulting Grimoire source state is current (`internal/agentruntime/runtime.go:20-55`, `internal/agentruntime/runtime.go:163-178`). Both the one-shot discovery CLI and the MCP server expose the same three preparation modes, with `refresh-if-needed` as their default (`internal/app/query.go:39-65`, `internal/app/mcp.go:18-38`).
+
+The documented current limitation agrees with the implementation: Grimoire does not continuously watch repositories, and first-use alignment of source, Lexicon, Arcana, and documentation state can dominate a query (`docs/limits/current-limitations.md:95-99`).
+
+2. Grimoire already owns the coordinated preparation transaction.
+
+`repostate.Ensure`:
+
+- supports `current-only`, `refresh-if-needed`, and `force-refresh`;
+- prepares the separate state locations;
+- inspects freshness before doing work;
+- takes an in-process guard and a cross-process `.grimoire/repostate.lock`;
+- reinspects after acquiring the lock in case another caller completed the work;
+- refreshes Lexicon;
+- synchronizes Arcana;
+- prepares Grimoire’s source index;
+- prepares the documentation index;
+- fingerprints the repository again and rejects a source change during preparation (`internal/repostate/ensure.go:22-92`, `internal/repostate/ensure.go:93-178`, `internal/repostate/ensure.go:179-197`).
+
+The cross-process lock records its owning PID, waits with context cancellation, and reclaims a dead owner rather than relying on a supervisor for writer correctness (`internal/repostate/lock.go:15-52`). Tests protect both the preparation order and the final source-change rejection (`internal/repostate/repostate_test.go:276-323`).
+
+This is the central reason not to move preparation policy into Warlock: Grimoire’s orchestration is an implemented correctness transaction, not merely process launching.
+
+3. Refresh-if-needed already has an inexpensive current-state path.
+
+When all four deterministic states are current—Lexicon, Arcana, Grimoire source, and documentation—`repositoryStateCurrent` succeeds (`internal/repostate/current.go:3-8`), and `Ensure` returns before taking the refresh lock or invoking providers (`internal/repostate/ensure.go:42-70`). A focused test verifies that this path launches no refresh command and does not enter lock, reinspection, or final-verification work (`internal/repostate/repostate_test.go:45-81`).
+
+Therefore a Warlock event feed should reduce unnecessary repository discovery and enable proactive warming, but it should not replace the existing current-state fast path.
+
+4. Grimoire’s freshness domain is broader than Lexicon’s watcher domain.
+
+The repository fingerprint deliberately covers a conservative superset of Grimoire-indexed files and every source/configuration input that may affect Lexicon. It includes source languages, documentation, build manifests, dependency files, generic-language extensions, `.gitignore`, and `.lexiconignore`; false positives are preferred over leaving Arcana stale (`internal/repostate/fingerprint.go:171-198`). Tool state—including `.warlock`—is excluded to prevent maintenance loops (`internal/repostate/fingerprint.go:227-252`, `internal/repostate/fingerprint.go:281-288`).
+
+Consequently, Warlock should emit repository-level events, while Grimoire should decide whether an event affects source preparation, Lexicon, Arcana, documentation, or nothing. Reusing Lexicon’s narrower relevance filter as the unified policy would miss Grimoire documentation and prepared-source concerns.
+
+5. The only implemented repository watcher belongs to standalone Lexicon.
+
+Lexicon’s `demon` is a long-running exception to an otherwise one-shot CLI. Its purpose is explicitly limited to translating filesystem activity and periodic reconciliation into the same locked scan transaction used by `lexicon scan`; snapshot consumers do not depend on it (`lexicon/docs/APPLICATION.md:15-21`).
+
+The implementation recursively installs an `fsnotify` watcher, performs a startup scan, debounces relevant paths, uses `ScanPaths` for ordinary events, uses a full scan for ignore-policy changes, and performs periodic and error-triggered reconciliation (`lexicon/internal/watch/daemon.go:24-53`, `lexicon/internal/watch/daemon.go:54-140`). The scan API acquires Lexicon’s writer lock and invokes consumers only after a successful scan (`lexicon/internal/scan/scanner.go:35-60`).
+
+That watcher should remain available for `lexicon demon`, because removing it would weaken Lexicon’s independently usable surface. It should not become the implementation behind shared Grimoire/Warlock lifecycle management: it owns only Lexicon-relevant paths and directly schedules Lexicon scans.
+
+6. Arcana already uses an event-triggered but non-resident handoff.
+
+A successful Lexicon scan may invoke Arcana as a deterministic post-publication consumer (`lexicon/internal/scan/scanner.go:35-52`). Arcana’s registration stores a one-shot `sync` command; the trigger is not state transfer, and explicit `arcana sync` remains valid because the immutable Lexicon snapshot is the durable handoff (`arcana/docs/APPLICATION.md:153-163`). Arcana serializes writers and atomically publishes `CURRENT`, so manual and hook-triggered synchronization cannot expose partial graph state (`arcana/README.md:119-130`).
+
+This is the right model for Warlock integration too: events trigger bounded work, while immutable state and manifests remain the authoritative interface.
+
+7. Warlock lifecycle integration and shared watching are not implemented current behavior.
+
+The roadmap explicitly labels optional repository watching, Warlock-fed events, and Warlock lifecycle integration as future work, while requiring that one-shot commands remain daemon-independent and components remain independently usable (`docs/planning/roadmap.md:1-23`, `docs/planning/roadmap.md:71-76`, `docs/planning/roadmap.md:96-103`). Repository policy says planning pages must not be treated as current behavior (`docs/documentation-policy.md:27-36`).
+
+There is, however, an existing integration seam: `repostate.Options` accepts explicit state roots and provider commands without absorbing their analyzers (`internal/repostate/types.go:14-37`). A test already prepares Lexicon, Arcana, and Grimoire beneath `.warlock/tools/...` and confirms that the default component state directories are not created (`internal/repostate/repostate_test.go:325-373`).
+
+Proposed design
+
+Warlock responsibilities
+
+1. Own one watcher per registered repository/worktree.
+2. Normalize platform-specific events into a small repository-event contract:
+   - repository identity/root;
+   - monotonic sequence or generation;
+   - operation: create, modify, remove, rename;
+   - normalized repository-relative path;
+   - old path for rename;
+   - `overflow`/`reconcile_required`;
+   - event timestamp for diagnostics, not freshness authority.
+3. Coalesce bursts and apply bounded queues/backpressure.
+4. Exclude universal tool-state roots such as `.git`, `.warlock`, `.grimoire`, `.lexicon`, and `.arcana` to prevent self-trigger loops, but do not implement Grimoire’s complete eligibility policy.
+5. Supervise optional background preparation workers, restart failed watchers, and convert watcher overflow or lost state into a full-reconciliation request.
+6. On repository registration, schedule an initial background `refresh-if-needed`. Watching only future changes would not remove first-query cost for an unprepared repository.
+
+Grimoire responsibilities
+
+1. Add an optional event-consumer boundary adjacent to `internal/repostate`, not inside retrieval or component adapters.
+2. Treat each event batch as a dirty hint:
+   - map changed paths through Grimoire’s conservative fingerprint/eligibility policy;
+   - decide which deterministic lanes may be stale;
+   - schedule one coalesced `Ensure(..., RefreshIfNeeded)`.
+3. Keep `Ensure` as the sole product-level authority for ordering, provider degradation, writer locking, reinspection, and final fingerprint verification.
+4. Never mark a repository current solely from a Warlock sequence number. Event loss, external edits, branch changes, and races remain covered by fingerprints and final verification.
+5. Preserve vector behavior: repository events may report document-vector staleness, but ordinary preparation must not silently build vectors; current architecture explicitly keeps vector construction separate (`docs/architecture/analysis-stack.md:72-87`).
+6. Expose preparation status/readiness to Warlock, but do not give Warlock direct write access to component state.
+
+Component responsibilities
+
+- Lexicon keeps `scan`, `rebuild`, its incremental planning, publication lock, and optional standalone `demon`.
+- Arcana keeps `sync`, overlay/rebuild decisions, graph publication, and its lock.
+- Grimoire keeps source/document indexing and aligned-state readiness.
+- Warlock invokes these owners; it does not reproduce their freshness or incremental-analysis rules.
+
+Standalone one-shot preservation
+
+The following paths should remain valid without Warlock:
+
+- `grimoire search` and MCP requests continue to default to `refresh-if-needed`.
+- `grimoire status --refresh` remains the explicit bounded preparation entry point (`internal/app/status.go:14-50`).
+- `lexicon scan`, `lexicon demon`, and `arcana sync` remain directly runnable.
+- `current-only` remains available for callers that prohibit mutation.
+- Missing Warlock/event state must be operationally equivalent to today’s request-driven behavior, not an error or degraded correctness mode.
+
+Managed mode should therefore be an optimization: Warlock makes state likely to be warm before the first interactive query, while the query still calls `Ensure` and cheaply confirms readiness.
+
+Important integration hazard
+
+A managed refresh can duplicate Arcana synchronization if Lexicon already has the Arcana consumer registered. After a successful Lexicon refresh, current `Ensure` synchronizes Arcana whenever `lexiconChanged` is true, even if reinspection found Arcana already current (`internal/repostate/ensure.go:115-144`). Arcana’s `existing` mode makes this safe, but it is unnecessary process work.
+
+Before adding background event processing, choose and test one policy:
+
+- preferred: after Lexicon refresh, synchronize Arcana only when post-refresh inspection says Arcana is stale; or
+- managed installations omit the Arcana consumer and let Grimoire coordinate it, while standalone Lexicon installations retain consumer registration.
+
+The first option preserves interoperability when users alternate managed and standalone commands.
+
+Suggested implementation sequence
+
+1. Define the Warlock-to-Grimoire event contract and overflow semantics.
+2. Add a Grimoire event adapter that only marks/schedules dirty repository state.
+3. Route scheduled work through the existing `Ensure(RefreshIfNeeded)` transaction.
+4. Adjust the post-Lexicon Arcana condition to avoid duplicate synchronization.
+5. Add Warlock initial-registration warming and periodic reconciliation.
+6. Preserve the existing CLI/MCP defaults and standalone Lexicon/Arcana surfaces.
+7. Add focused tests for:
+   - event coalescing and rename/remove handling;
+   - watcher overflow forcing full reconciliation;
+   - tool-state loop exclusion;
+   - concurrent query and background refresh serialization;
+   - source mutation during background preparation;
+   - no duplicate Arcana sync after a consumer update;
+   - operation with Warlock absent;
+   - explicit `.warlock/tools/...` state roots;
+   - continued `lexicon demon` and direct `arcana sync` operation.
+
+Documentation rationale versus proposed design
+
+Verified documentation rationale says component convenience must not erase independent ownership (`docs/architecture/components.md:102-119`), state preparation and provider freshness belong to Grimoire (`docs/architecture/analysis-stack.md:157-166`), and planned watching must not make one-shot commands daemon-dependent (`docs/planning/roadmap.md:71-76`). The exact event schema, Warlock queue model, initial warming behavior, and duplicate-sync resolution above are proposed design, not behavior present in this revision.
+
+Documentation impact:
+- Inspected: root architecture, component boundaries, analysis lifecycle, indexing, limitations, roadmap, documentation policy/coverage, Lexicon application/architecture, Arcana application, and owning implementation.
+- Updated: none; investigation was read-only.
+- Not affected: repository files, generated state, and component state.
+- Compliance check: direct source and documentation inspection only; no generators or modifying commands were run.
+- Known documentation gaps: no implemented Warlock lifecycle/event contract exists; once implemented, it will require architecture, reference, limitations/roadmap, documentation-coverage, behavioral-contract, and component integration updates.
+
+BENCHMARK_EVIDENCE_JSON:{"evidence":[{"path":"internal/agentruntime/runtime.go","symbol":"Execute/normalizeRequest","lines":"20-55,163-178","claim":"Every discovery request runs repository preparation, defaults to refresh-if-needed when no mode is supplied, and refuses querying unless deterministic source state is current."},{"path":"internal/repostate/ensure.go","symbol":"Ensure","lines":"22-197","claim":"Grimoire owns the locked, ordered preparation transaction across Lexicon, Arcana, source indexing, documentation indexing, and final source-fingerprint verification."},{"path":"internal/repostate/lock.go","symbol":"acquireFileLock","lines":"15-52","claim":"Repository preparation has a context-aware cross-process lock with dead-owner recovery independent of an external supervisor."},{"path":"internal/repostate/fingerprint.go","symbol":"fingerprintPath/excludedDirectory","lines":"171-198,281-288","claim":"Grimoire freshness covers a conservative cross-component set of source, documentation, configuration, and ignore inputs while excluding tool state including .warlock."},{"path":"internal/repostate/repostate_test.go","symbol":"TestEnsureRefreshesAbsentStateInOrder/TestEnsureRejectsSourceChangesDuringPreparation","lines":"276-323","claim":"Tests protect final mutation rejection and the Lexicon-to-Arcana-to-Grimoire-to-documentation preparation order."},{"path":"lexicon/internal/watch/daemon.go","symbol":"Run","lines":"24-140","claim":"Lexicon's implemented watcher translates filesystem events into debounced path scans and uses full periodic or error-triggered reconciliation."},{"path":"lexicon/internal/scan/scanner.go","symbol":"Scan/ScanPaths/notifyConsumers","lines":"35-60","claim":"Manual and watcher-triggered Lexicon updates share the locked scan transaction and invoke consumers only after successful scanning."},{"path":"arcana/docs/APPLICATION.md","symbol":"Lexicon consumer registration","lines":"153-163","claim":"Arcana consumer registration is a one-shot trigger rather than state transfer, and explicit standalone synchronization remains valid."},{"path":"internal/repostate/repostate_test.go","symbol":"TestEnsureRefreshesExplicitManagedProviderState","lines":"325-373","claim":"The preparation API already supports explicit Warlock-managed component state roots without creating default repository-local state."},{"path":"docs/limits/current-limitations.md","symbol":"State maintenance is request-driven","lines":"95-99","claim":"Current Grimoire behavior is request-driven with no continuous repository watcher, and initial alignment can dominate the first query."},{"path":"docs/planning/roadmap.md","symbol":"Prepared-state maintenance/Distribution and compatibility","lines":"71-76,96-103","claim":"Repository watching, Warlock-fed events, and Warlock lifecycle integration are planned rather than implemented and must preserve daemon-independent one-shot use."},{"path":"docs/architecture/analysis-stack.md","symbol":"Change ownership","lines":"157-166","claim":"Implemented architecture assigns provider freshness and coordinated preparation to Grimoire while Lexicon and Arcana retain their semantic and storage domains."}]}

@@ -1,0 +1,19 @@
+{
+  "valid": true,
+  "process_completed": true,
+  "refusal_detected": false,
+  "evidence_json_found": true,
+  "evidence_json_valid": true,
+  "inline_citations": 67,
+  "structured_items": 12,
+  "handle_items": 0,
+  "canonical_handle_items": 0,
+  "required_prefixes_found": [
+    "services",
+    "client"
+  ],
+  "missing_required_prefixes": [
+    "shared"
+  ],
+  "findings": []
+}

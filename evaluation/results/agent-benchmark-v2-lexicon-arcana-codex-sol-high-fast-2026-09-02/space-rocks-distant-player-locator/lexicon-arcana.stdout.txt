@@ -1,0 +1,172 @@
+## Investigation result
+
+The smallest correct change is a low-rate, reliable `player_locators` projection on the existing session lane, consumed only by offscreen-indicator presentation. It should not preserve filtered ships in the world lane, create remote ship nodes, or expose locator positions to gameplay targeting.
+
+No files were modified, and no generators or tests were run.
+
+### Verified current behavior
+
+The server’s immutable presentation frame contains every active runtime ship. Each receiver snapshot currently shares that unfiltered player map; only `SelfID`, lives, and pending events are receiver-specific. `services/game-server/internal/game/presentation_snapshot.go:22-30`, `services/game-server/internal/game/presentation_snapshot.go:81-113`
+
+`ProjectWorldLane` iterates every entry in that map and emits full ship state, including position. There is currently no receiver-interest check in this projection. `services/game-server/internal/protocol/realtime/projection_world.go:16-39`
+
+Ship position, rotation, and thrust changes are separated into the dedicated ship hot lane, which currently projects every ship and may emit those updates every tick. `services/game-server/internal/protocol/realtime/lane_candidate_world.go:88-107`, `services/game-server/internal/protocol/realtime/hot_lane_allocator.go:106-140`
+
+On the client, world state is the sole input to player rendering: every application removes players missing from `world_lane_state.ships`, then applies the remaining ships. `client/scripts/world/world_sync.gd:91-99` Removing a player also clears its target positions and hue cache. `client/legacy/player_render/player_sync.gd:199-205`
+
+The offscreen-indicator call chain is:
+
+```text
+rendered remote-player position cache
+    -> WorldSync.get_remote_player_visual_positions()
+    -> GameplayPresentationFlow
+    -> OSIndicatorController
+```
+
+`client/scripts/world/world_sync.gd:204-213`, `client/scripts/gameplay/presentation/gameplay_presentation_flow.gd:41-44`
+
+That cache is populated from interpolated remote player nodes, not from an independent authoritative position source. `client/legacy/player_render/player_sync_interpolation.gd:15-32`, `client/legacy/player_render/player_sync_targets.gd:42-53` The indicator controller removes an indicator as soon as its player ID disappears from the supplied position dictionary. `client/scripts/gameplay/presentation/os_indicator_controller.gd:36-59`
+
+Therefore, the expected future failure is verified by composition: once receiver filtering removes a distant ship from that receiver’s world projection, client removal clears its only position source, and the next presentation frame deletes its indicator.
+
+The generic remote-position API must not be augmented with locator fallbacks. Target selection also consumes that API, so doing so would make filtered, non-rendered players target candidates. `client/scripts/gameplay/targeting/target_position_source.gd:21-38`, `client/scripts/gameplay/targeting/gameplay_target_candidate_flow.gd:16-37`
+
+The existing session lane is the appropriate transport foundation:
+
+- It already carries roster and lifecycle collections with baseline/delta reconstruction. `services/game-server/internal/protocol/realtime/projection_session.go:20-63`, `client/scripts/protocol/realtime/session_lane_state.gd:13-26`
+- Session deltas are classified as required rather than supersedable. `services/game-server/internal/protocol/realtime/candidate_policy.go:8-15`
+- `sr.session` is an existing ordered/reliable WebRTC channel. `services/game-server/internal/networking/webrtc_transport.go:27-40`
+- Gameplay presentation waits for world, overlay, and session baselines, allowing locators to exist before normal presentation begins. `client/scripts/protocol/realtime/gameplay_readiness.gd:6-36`
+
+### Proposed design
+
+Add three fields to the existing session packet family:
+
+```text
+session_full:
+  player_locators: [{player_id, x, y}]
+
+session_delta:
+  player_locators: [...]          # creates
+  player_locator_updates: [...]   # sparse x/y patches
+  player_locator_deletes: [...]   # player IDs
+```
+
+The locator collection should contain every active remote ship, not merely the currently filtered subset. This ensures the fallback is already present when an interest transition removes a ship from the world lane; it avoids a cross-lane “ship disappeared before locator arrived” gap.
+
+Locator semantics:
+
+- Derive membership from the raw, unfiltered `GameplayPresentationSnapshot.Players`.
+- Exclude `snapshot.SelfID`.
+- Synchronize membership every server tick: new active ships get an immediate locator, and absent/dead ships get an immediate delete.
+- Refresh positions at a proposed 5 Hz—every 12 projection ticks at the current 60 Hz server rate.
+- Carry only `player_id`, `x`, and `y`; do not duplicate rotation, thrust, velocity, health, targeting, or other ship state.
+- On session full/resync, send current positions immediately regardless of cadence.
+
+The 5 Hz value is proposed policy, not current repository behavior. It should be a named protocol constant in the new locator sampler so it can be adjusted without changing packet semantics.
+
+Store the sampled locator map and last-sample tick in `RealtimeSessionState`. Update it through a new focused server seam such as `player_locator_projection.go`; `lane_candidate_session.go` should only route the sampled collection into the normal session full/delta machinery. The sample map must be cloned before mutation because `RealtimeSessionState` is passed by value while containing maps.
+
+Extend session full, quantized-full, delta, change detection, and wire serialization with a separate `PlayerLocatorRecord` collection. Do not put live positions into `PlayerSessionState` or reuse `spawn_x`/`spawn_y`; those fields already represent session/spawn data rather than a live avatar locator. `services/game-server/internal/protocol/realtime/records.go:65-77`
+
+In the physical wire contract:
+
+- Add compact aliases for the three readable collection keys.
+- Add a fixed tuple record for locator creates/full state.
+- Add a sparse positional tuple for locator updates.
+- Reuse the player-ID codec for identity and position quantization for `x`/`y`.
+- Bind the records to `session_full` and `session_delta`.
+
+`shared/packets/realtime_wire.toml` is the documented source of truth for these physical aliases, records, encodings, bindings, and quantization rules; its generated outputs must be regenerated rather than hand-edited. `docs/data/source-of-truth-map.md:65-66`, `tools/data_sync/!README.md:488`
+
+### Client seam
+
+Add a focused `PlayerIndicatorPositionSource` under `client/scripts/gameplay/presentation/` or `client/scripts/world/`. It should:
+
+1. Store locator coordinates in server space.
+2. Convert them to the current nearest toroidal visual copy each time indicator positions are requested.
+3. Start with locator-derived positions, then overwrite matching IDs with live interpolated render positions.
+4. Remove the current receiver ID.
+5. Clear on gameplay reset.
+
+The existing server-to-visual conversion already accounts for the current render anchor and toroidal shortest delta. `client/legacy/player_render/local_visual_sync.gd:35-42` Recomputing from stored server coordinates each render frame is important: even between 5 Hz locator samples, the indicator should react smoothly to local camera movement and wrapping.
+
+Route the decoded session locator collection from `PresentationAdapter` into this source during the existing fanout. The adapter already receives world and decoded session state together. `client/scripts/protocol/realtime/presentation_adapter.gd:15-32`
+
+Expose a new, indicator-specific `WorldSync.get_remote_player_indicator_visual_positions()` thin façade and wire only `GameplayPresentationFlow` to it. Keep these unchanged:
+
+- `WorldSync.get_remote_player_visual_positions()`
+- player-node lifecycle
+- targeting position sources
+- spectate eligibility
+- `OSIndicatorController`
+- Godot scenes
+
+Live positions should win while a ship remains rendered, preserving smooth full-rate indicator movement near the screen boundary. The low-rate locator becomes active only when the receiver’s world projection lacks that ship.
+
+### Expected implementation touch set
+
+Server handwritten files:
+
+- `services/game-server/internal/protocol/realtime/player_locator_projection.go` — new sampling/membership owner
+- `services/game-server/internal/protocol/realtime/baseline.go`
+- `services/game-server/internal/protocol/realtime/records.go`
+- `services/game-server/internal/protocol/realtime/metadata.go`
+- `services/game-server/internal/protocol/realtime/quantized_records.go`
+- `services/game-server/internal/protocol/realtime/quantize_session.go`
+- `services/game-server/internal/protocol/realtime/projection_session.go`
+- `services/game-server/internal/protocol/realtime/delta.go`
+- `services/game-server/internal/protocol/realtime/wire_packets.go`
+- `services/game-server/internal/protocol/realtime/lane_candidate_session.go`
+- `services/game-server/internal/protocol/realtime/planner.go`
+
+Client handwritten files:
+
+- `client/scripts/protocol/realtime/session_lane_state.gd`
+- `client/scripts/protocol/realtime/realtime_quantize.gd`
+- `client/scripts/protocol/realtime/presentation_adapter.gd`
+- new focused indicator-position source
+- `client/scripts/world/world_sync.gd` for thin routing/accessors
+- `client/scripts/gameplay/gameplay_composition.gd` to switch the indicator provider
+
+Schema and generated outputs:
+
+- `shared/packets/realtime_wire.toml`
+- `services/game-server/internal/protocol/realtimewire/generated.go`
+- `client/scripts/generated/networking/realtime_wire_generated.gd`
+- `shared/packets/generated/realtime_wire.json`
+- `docs/protocol/generated/realtime-wire-reference.md`
+
+No new logical packet family, DataChannel, scene, or shared gameplay-state struct is necessary.
+
+### Verification plan
+
+Focused server tests should prove:
+
+- Session full includes sorted active remote locators and excludes self.
+- Existing locator coordinates do not change during the 11 intervening ticks.
+- The twelfth tick emits a sparse locator update.
+- Creates and deletes occur immediately regardless of position cadence.
+- Session resync/full uses current coordinates.
+- Wire full/create/update/delete forms compact and expand correctly.
+- Quantization failures propagate.
+- A receiver-filtered world projection can omit a distant ship and its hot update while the session locator remains present.
+
+Focused client tests should prove:
+
+- Session full and delta correctly replace, merge, and delete locators.
+- A locator without a rendered player produces an indicator position but no player node or targeting candidate.
+- A rendered player’s interpolated position overrides its locator.
+- A filtered player retains its indicator.
+- Locator deletion removes the indicator.
+- Toroidal edge cases choose the shortest direction.
+- Reset and match changes clear stale locators.
+- Existing indicator fallback hue remains valid when no rendered-player hue is available; exact team/FFA hue preservation can be added separately only if it becomes an acceptance requirement. The controller already defines a fallback hue. `client/scripts/gameplay/presentation/os_indicator_controller.gd:36-51`
+
+### Documentation rationale
+
+The planning documentation says future interest policy belongs in `protocol/realtime` over immutable presentation input and must not read the mutable collision index directly. It also calls for consistent filtering across full, delta, lifecycle, and hot lanes. `docs/planning/protocol/realtime-protocol-architecture.md:146-152`
+
+The architecture rules require policy to live in a concrete owner and broad world-sync/composition files to remain thin routing seams. That supports a dedicated locator sampler and indicator-position source rather than embedding policy in the planner, `WorldSync`, or HUD controller. `docs/agent/architecture-rules.md:20-32`
+
+BENCHMARK_EVIDENCE_JSON:{"evidence":[{"path":"services/game-server/internal/game/presentation_snapshot.go","symbol":"publishPresentationFrameLocked / GameplayPresentationSnapshot","lines":"22-30,81-113","claim":"The immutable frame captures all active runtime ships and each receiver snapshot currently exposes the same unfiltered player map."},{"path":"services/game-server/internal/protocol/realtime/projection_world.go","symbol":"ProjectWorldLane","lines":"16-39","claim":"Current world projection enumerates every snapshot player and emits complete ship position/state without receiver-interest filtering."},{"path":"services/game-server/internal/protocol/realtime/lane_candidate_world.go","symbol":"buildIndependentHotLaneCandidates","lines":"88-107","claim":"Current ship hot-lane projection derives movement updates from the complete current world projection and can emit them on every allowed tick."},{"path":"client/scripts/gameplay/presentation/os_indicator_controller.gd","symbol":"update_indicators","lines":"25-59","claim":"Offscreen indicators are driven solely by the supplied target-position dictionary and are deleted when a target ID disappears."},{"path":"client/legacy/player_render/player_sync_interpolation.gd","symbol":"interpolate_player_nodes","lines":"7-32","claim":"The remote visual-position cache used by indicators is populated from rendered player nodes during interpolation."},{"path":"client/legacy/player_render/player_sync.gd","symbol":"remove_missing","lines":"199-205","claim":"Removing a remote player clears its target positions and hue cache, eliminating the current indicator position source."},{"path":"client/scripts/gameplay/targeting/target_position_source.gd","symbol":"player_positions","lines":"21-38","claim":"Gameplay targeting consumes the generic rendered remote-player position API, so locator fallbacks must use a separate indicator-only API."},{"path":"services/game-server/internal/networking/webrtc_transport.go","symbol":"webRTCChannelSpecs","lines":"27-40","claim":"The existing session lane uses the ordered/reliable sr.session WebRTC channel, while ship hot updates use the unordered zero-retransmit sr.ships channel."},{"path":"client/legacy/player_render/local_visual_sync.gd","symbol":"visual_position_for_server_position","lines":"35-42","claim":"The client already has a toroidal server-to-visual conversion based on the current visual and authoritative anchor positions."}]}
