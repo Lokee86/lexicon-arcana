@@ -50,7 +50,7 @@ The binary command modules orchestrate these library owners; library modules do 
 | `vector` | Optional graph documents, embedding cache, vector index, and semantic search | One opened repository snapshot and an external embedder |
 | CLI orchestration | Import, update, sync, protocol, and vector command lifecycles | The library owners above |
 
-`NodeId`, `EdgeKind`, `Edge`, and `GraphDataset` are currently defined in `synthetic` and reused as graph primitives by compilation, storage, and snapshots. Synthetic generation and benchmarking are not part of the Lexicon-to-query runtime path.
+`NodeId`, `EdgeKind`, `Edge`, and `GraphDataset` are defined in `synthetic`, re-exported from the Arcana library root as reusable graph primitives, and shared by compilation, storage, snapshots, and external library consumers. `traversal` exposes bounded repository-agnostic graph traversal over caller-supplied adjacency. Synthetic generation and benchmarking are not part of the Lexicon-to-query runtime path.
 
 Evidence: [`lib.rs`](../src/lib.rs), [`repository/mod.rs`](../src/repository/mod.rs), [`storage/mod.rs`](../src/storage/mod.rs), [`snapshot/mod.rs`](../src/snapshot/mod.rs), [`protocol/mod.rs`](../src/protocol/mod.rs), [`vector/mod.rs`](../src/vector/mod.rs), and [`synthetic/mod.rs`](../src/synthetic/mod.rs).
 

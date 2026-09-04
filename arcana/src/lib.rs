@@ -10,7 +10,13 @@ pub mod repository;
 pub mod snapshot;
 pub mod storage;
 pub mod synthetic;
+pub mod traversal;
 pub mod vector;
+
+pub use synthetic::{Edge, EdgeKind, GraphDataset, NodeId};
+
+#[cfg(test)]
+mod traversal_tests;
 
 /// Product name presented by the Arcana library and CLI.
 pub const PROJECT_NAME: &str = "Arcana";
