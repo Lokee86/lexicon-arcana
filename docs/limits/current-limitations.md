@@ -4,15 +4,11 @@ Parent index: [Limits](INDEX.md)
 
 ## Purpose
 
-Record current limitations of the active Lexicon + Arcana product family and the unfinished retirement transition.
+Record current limitations of the active Lexicon + Arcana product family.
 
 ## Overview
 
 These constraints describe implemented behavior, not proposed remedies. Grimoire-specific runtime limitations are historical after ADR 0006 and no longer belong in the active limitations list.
-
-## Repository identity is still transitional
-
-The source repository is still named `grimoire` even though the active products are Lexicon + Arcana. Current build and release artifacts use L+A naming, but repository/package/mirror naming has not completed its final migration.
 
 ## Lexicon coverage remains language- and construct-dependent
 

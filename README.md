@@ -118,9 +118,9 @@ The production `skills/lexicon-arcana/SKILL.md` ships in the combined bundle and
 
 Arcana records the exact Lexicon snapshot it consumed. Neither component mutates the other's private state.
 
-## Repository transition
+## Repository identity
 
-The source repository is still named `grimoire` while the final naming/downstream migration remains incomplete. The active architecture and release surface are Lexicon + Arcana. Historical Grimoire ADRs, selected docs, evaluation fixtures, and benchmark artifacts are retained deliberately rather than deleted indiscriminately.
+The canonical source repository is `Lokee86/lexicon-arcana`. The active architecture and release surface are Lexicon + Arcana. Historical Grimoire ADRs, selected docs, evaluation fixtures, and benchmark artifacts are retained deliberately rather than deleted indiscriminately.
 
 Historical Grimoire benchmark results remain intentionally preserved.
 

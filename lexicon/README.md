@@ -1,6 +1,6 @@
 # Lexicon
 
-> **Canonical source:** Lexicon currently lives under `lexicon/` in this repository while the repository is being transitioned from the retired Grimoire product to the Lexicon + Arcana product family. Lexicon remains an independently buildable application, adapter platform, snapshot producer, and reusable language-analysis engine.
+> **Canonical source:** Lexicon lives under `lexicon/` in the shared `Lokee86/lexicon-arcana` repository. Lexicon remains an independently buildable application, adapter platform, snapshot producer, and reusable language-analysis engine.
 
 Lexicon is the lead semantic-analysis product in the Lexicon + Arcana stack and a deterministic analysis provider for Warlock and other consumers. It turns source repositories into deterministic, versioned facts about files, symbols, calls, dataflow, inheritance, dependencies, and unresolved relationships.
 

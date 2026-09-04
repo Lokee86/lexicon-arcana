@@ -26,7 +26,7 @@ Detailed references:
 
 Arcana is an independently buildable Rust library and process that consumes language-neutral repository facts and publishes immutable, validated graph generations. It currently provides deterministic packed storage, edge-only overlays, standalone and Lexicon-managed ingestion paths, an exact JSONL query protocol, bounded graph export, an optional semantic-vector index, deterministic synthetic graph generation, and a release-mode storage benchmark harness.
 
-Arcana does not parse source languages, own language adapters, own higher-level repository-discovery or agent workflow policy, or replace exact graph relationships with embedding similarity. Source co-location with Lexicon and retired Grimoire code does not collapse those ownership boundaries.
+Arcana does not parse source languages, own language adapters, own higher-level repository-discovery or agent workflow policy, or replace exact graph relationships with embedding similarity. Source co-location with Lexicon and retained historical Grimoire material does not collapse those ownership boundaries.
 
 Evidence: [`Cargo.toml`](../Cargo.toml), [`src/lib.rs`](../src/lib.rs), [`src/cli.rs`](../src/cli.rs), [ARCHITECTURE.md](ARCHITECTURE.md), and the [analysis-stack ownership summary](../../docs/architecture/analysis-stack.md#ownership-summary).
 
@@ -137,7 +137,7 @@ Evidence: [`benchmark/mutation_runner.rs`](../src/benchmark/mutation_runner.rs),
 
 Warlock is the primary higher-level agent consumer. Other human or machine consumers may invoke Lexicon and Arcana directly. The boundary remains process- and snapshot-based: consumers do not read or mutate packed Arcana bytes as an ownership shortcut, and the presence of an Arcana vector index does not imply that a consumer must use it.
 
-The retired Grimoire provider/client code remains transitional historical implementation until deletion; it is not the current ownership model.
+The retired Grimoire provider/client implementation has been removed from the active source tree; historical evidence remains only for prior design and benchmark interpretation.
 
 Evidence: [analysis-stack.md](../../docs/architecture/analysis-stack.md), [Arcana architecture](ARCHITECTURE.md), and [`src/protocol/`](../src/protocol/).
 

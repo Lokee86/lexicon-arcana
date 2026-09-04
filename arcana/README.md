@@ -1,6 +1,6 @@
 # Arcana
 
-> **Canonical source:** Arcana currently lives under `arcana/` in this repository while the repository is being transitioned from the retired Grimoire product to the Lexicon + Arcana product family. It remains an independently buildable Rust application, CLI, protocol, and reusable graph engine.
+> **Canonical source:** Arcana lives under `arcana/` in the shared `Lokee86/lexicon-arcana` repository. It remains an independently buildable Rust application, CLI, protocol, and reusable graph engine.
 
 Arcana is the graph-analysis product in the Lexicon + Arcana stack and a deterministic analysis provider for the [**Warlock Toolchain**](https://github.com/Lokee86/warlock-toolchain).
 It models repositories as queryable graphs and provides storage, snapshots, traversal, impact, paths, call chains, and architecture queries for humans and higher-level tools such as Warlock and Pitlord.
@@ -24,7 +24,7 @@ not link it through cgo or FFI.
 
 ### Repository boundary
 
-Arcana and Lexicon share this repository while the repository/product naming transition is completed, but the implementation boundary remains intentional. Arcana is a separate Rust process, independently testable and directly usable for graph work. Lexicon snapshots and the Arcana protocol remain the authoritative integration boundaries; source co-location does not permit direct mutation of Lexicon state or language-analysis ownership.
+Arcana and Lexicon share the `lexicon-arcana` repository, but the implementation boundary remains intentional. Arcana is a separate Rust process, independently testable and directly usable for graph work. Lexicon snapshots and the Arcana protocol remain the authoritative integration boundaries; source co-location does not permit direct mutation of Lexicon state or language-analysis ownership.
 
 ## Graph workload foundation
 

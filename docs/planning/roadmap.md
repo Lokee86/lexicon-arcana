@@ -12,7 +12,7 @@ Grimoire's discovery runtime, MCP surface, repository state, installed skill, an
 
 ## Current status
 
-Retirement implementation is in progress. Active build/test/install/release already targets Lexicon + Arcana only. The retired Grimoire source/runtime is being removed while historical benchmark evidence and ADRs remain preserved.
+Grimoire retirement is complete. Active build/test/install/release targets Lexicon + Arcana only, the retired runtime/MCP/discovery source is absent from the active tree, the canonical repository is now `Lokee86/lexicon-arcana`, and historical benchmark evidence and ADRs remain preserved.
 
 ## Expected ownership
 
@@ -28,16 +28,16 @@ The product family should ship and operate as two deterministic analysis tools w
 
 ## Implementation sequence
 
-1. Finish physical Grimoire runtime and product-specific dependency removal while preserving historical evidence.
-2. Remove or reclassify stale Grimoire-only documentation, governance, and evaluation entry points.
-3. Update Warlock and other downstream consumers to discover/use Lexicon and Arcana directly.
-4. Rename repository/release identity away from Grimoire when migration compatibility no longer benefits from the old repository name.
+1. **Complete:** remove the physical Grimoire runtime and product-specific dependencies while preserving historical evidence.
+2. **Complete:** remove or reclassify stale Grimoire-only documentation, governance, and evaluation entry points.
+3. **Complete for current analysis tooling:** update Warlock and Reliquary to consume direct Lexicon/Arcana boundaries; broader Warlock runtime integration remains separately planned.
+4. **Complete:** rename the canonical repository identity to `Lokee86/lexicon-arcana`.
 5. Continue judged repository-analysis experiments on larger and more varied corpora.
 
 ## Near-term priorities
 
-- Complete the runtime/source deletion and verify no active build, release, CI, policy, or documentation owner still requires Grimoire.
-- Wire Warlock to the direct Lexicon/Arcana surfaces and installed-state conventions now used by the production skill.
+- Keep active build, release, CI, policy, and documentation surfaces free of dependencies on retired Grimoire runtime/state.
+- Wire the future Warlock runtime integration to direct Lexicon/Arcana surfaces and installed-state conventions rather than recreating an umbrella layer.
 - Preserve the clean distinction between the installed production skill and frozen benchmark prompt experiments.
 - Add stable machine-readable diagnostics/exit classes where current component behavior remains pre-release.
 - Expand judged corpora across languages, repository sizes, and task classes.
@@ -66,7 +66,7 @@ The product family should ship and operate as two deterministic analysis tools w
 
 ## Distribution and compatibility
 
-- Decide final repository and bundle naming after retirement cleanup.
+- Use `Lokee86/lexicon-arcana` as the canonical repository identity and Lexicon + Arcana naming for the combined bundle.
 - Define canonical install/discovery locations for Lexicon executable, adapters, and Arcana executable.
 - Decide whether former component repositories become mirrors or redirects.
 - Define stable migration policy for `.lexicon/` and `.arcana/` before a stable release.
@@ -89,7 +89,7 @@ Establish measured gates for:
 
 A roadmap item requires a named owner, implementation plan, focused tests/evaluation, documentation impact, and a clear current-behavior owner before it is complete.
 
-Grimoire retirement is complete when:
+Grimoire retirement is complete:
 
 - no active build/release/CI surface requires or publishes Grimoire;
 - retired runtime/MCP/discovery source is absent from the active tree;
@@ -100,7 +100,7 @@ Grimoire retirement is complete when:
 
 ## Open decisions
 
-Open decisions are the final repository/product-family naming, downstream Warlock integration shape, and which larger-repository tasks justify additional Lexicon/Arcana capabilities.
+Open decisions are the downstream Warlock runtime integration shape and which larger-repository tasks justify additional Lexicon/Arcana capabilities.
 
 ## Related docs
 
