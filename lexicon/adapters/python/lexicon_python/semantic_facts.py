@@ -7,7 +7,7 @@ import ast
 from .contract import span
 from .model import Facts, FileContext
 
-CAPABILITIES = ("control-flow", "error-handling", "calls", "source-spans")
+CAPABILITIES = ("control-flow", "error-handling", "calls", "source-spans", "outcome-obligations")
 _ACTIONS = ("propagate", "record", "recover")
 _RECORDING_TARGETS = frozenset(
     {

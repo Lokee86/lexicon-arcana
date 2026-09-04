@@ -26,3 +26,29 @@ pub fn recovered(value: Result<(), ()>) {
         Err(_) => fallback(),
     }
 }
+
+pub fn fallible() -> Result<(), ()> {
+    Ok(())
+}
+
+pub fn observe_outcomes() -> Result<(), ()> {
+    fallible();
+    let _value = fallible();
+    fallible()?;
+    Ok(())
+}
+
+pub struct Worker;
+
+impl Worker {
+    pub fn fallible_method(&self) -> Result<(), ()> {
+        Ok(())
+    }
+}
+
+pub fn observe_method_outcomes(worker: &Worker) -> Result<(), ()> {
+    worker.fallible_method();
+    let _value = worker.fallible_method();
+    worker.fallible_method()?;
+    Ok(())
+}

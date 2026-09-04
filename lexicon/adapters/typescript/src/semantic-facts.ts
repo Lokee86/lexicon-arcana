@@ -2,7 +2,7 @@ import * as ts from "typescript";
 import { spanFor, staticTarget } from "./contract";
 import type { FactStore, FileContext } from "./model";
 
-const CAPABILITIES = "control-flow,error-handling,calls,source-spans";
+const CAPABILITIES = "control-flow,error-handling,calls,source-spans,outcome-obligations";
 type ErrorAction = "propagate" | "record" | "recover";
 
 type ActionEvidence = {
@@ -18,10 +18,11 @@ export function emitSemanticFacts(contexts: FileContext[], facts: FactStore): vo
 }
 
 function emitCapabilities(context: FileContext, facts: FactStore): void {
-  const identity = `@semantic/capabilities/typescript/${context.relativePath}`;
+  const language = semanticLanguage(context);
+  const identity = `@semantic/capabilities/${language}/${context.relativePath}`;
   facts.addNode(
     "protocol",
-    `semantic-capabilities:typescript:${CAPABILITIES}`,
+    `semantic-capabilities:${language}:${CAPABILITIES}`,
     context.relativePath,
     identity,
     identity,
@@ -34,11 +35,12 @@ function visit(node: ts.Node, context: FileContext, facts: FactStore): void {
 }
 
 function emitCatchClause(clause: ts.CatchClause, context: FileContext, facts: FactStore): void {
+  const language = semanticLanguage(context);
   const start = clause.getStart(context.sourceFile);
-  const identity = `@semantic/error-handler/typescript/${context.relativePath}:${start}`;
+  const identity = `@semantic/error-handler/${language}/${context.relativePath}:${start}`;
   const handlerId = facts.addNode(
     "protocol",
-    "error-handler:typescript",
+    `error-handler:${language}`,
     context.relativePath,
     identity,
     identity,
@@ -97,4 +99,8 @@ function isRecordingTarget(target: string | null): boolean {
 
 function isAssignmentOperator(kind: ts.SyntaxKind): boolean {
   return kind >= ts.SyntaxKind.FirstAssignment && kind <= ts.SyntaxKind.LastAssignment;
+}
+
+export function semanticLanguage(context: FileContext): "javascript" | "typescript" {
+  return /\.(?:js|jsx|mjs|cjs)$/i.test(context.relativePath) ? "javascript" : "typescript";
 }

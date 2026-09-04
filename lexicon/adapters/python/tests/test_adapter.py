@@ -826,7 +826,7 @@ class PythonAdapterTest(unittest.TestCase):
         records = self._run(output)
         header = records[0]
         self.assertEqual(header, {
-            "adapter_version": "0.4.0",
+            "adapter_version": "0.5.0",
             "language": "python",
             "record": "lexicon",
             "repository": "fixture-repository",

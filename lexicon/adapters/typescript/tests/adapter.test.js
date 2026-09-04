@@ -219,7 +219,7 @@ test("extracts TypeScript declarations, imports, exports, inheritance, and exclu
   const unresolved = recordsOf(records, "unresolved");
 
   assert.deepEqual(records[0], {
-    adapter_version: "0.4.0",
+    adapter_version: "0.5.0",
     language: "typescript",
     record: "lexicon",
     repository: path.basename(repo),

@@ -568,7 +568,7 @@ fn header_and_fact_order_are_canonical() {
     let output = orchestrator::generate(&fixture(), None, None).unwrap();
     assert_eq!(
         output.lines().next().unwrap(),
-        r#"{"adapter_version":"0.4.0","language":"rust","record":"lexicon","repository":"lexicon_fixture","schema_version":1}"#
+        r#"{"adapter_version":"0.5.0","language":"rust","record":"lexicon","repository":"lexicon_fixture","schema_version":1}"#
     );
     let records: Vec<Value> = output
         .lines()

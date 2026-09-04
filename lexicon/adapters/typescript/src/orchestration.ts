@@ -9,6 +9,7 @@ import { emitDataflow } from "./dataflow";
 import { FactStore, type Fact } from "./model";
 import { addDependencyFacts } from "./dependencies";
 import { emitSemanticFacts } from "./semantic-facts";
+import { emitOutcomeFacts } from "./semantic-outcomes";
 
 export function buildFacts(repositoryPath: string, changedFiles?: string[], removedFiles?: string[]): Fact[] {
   const root = path.resolve(repositoryPath);
@@ -36,6 +37,7 @@ export function buildFacts(repositoryPath: string, changedFiles?: string[], remo
   });
   for (const context of contexts) extractDeclarations(context, facts);
   emitSemanticFacts(contexts, facts);
+  emitOutcomeFacts(contexts, facts, checker);
   resolveImports(facts, readPathMappings(root));
   addDependencyFacts(facts, root);
   resolveCalls(facts, checker);

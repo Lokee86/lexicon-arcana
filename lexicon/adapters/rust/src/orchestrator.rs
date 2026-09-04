@@ -56,6 +56,7 @@ pub(crate) fn generate(
     crate::dependencies::add_dependencies(&mut context, &metadata);
     extractor::extract(&mut context);
     crate::semantic_facts::emit(&mut context);
+    crate::semantic_outcomes::emit(&mut context);
     crate::dataflow::emit(&mut context);
     emit::render(&context, &repository, changed_files, removed_files)
 }

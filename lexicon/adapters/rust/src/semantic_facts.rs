@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 
-const CAPABILITIES: &str = "control-flow,error-handling,calls,source-spans";
+const CAPABILITIES: &str = "control-flow,error-handling,calls,source-spans,outcome-obligations";
 
 use crate::semantic_actions::{actions_for_block, actions_for_expr, ErrorAction};
 

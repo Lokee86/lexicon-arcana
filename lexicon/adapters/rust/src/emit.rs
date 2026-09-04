@@ -16,7 +16,7 @@ pub(crate) fn render(
         .map(|path| path.replace('\\', "/"))
         .collect();
     let mut header = JsonMap::new();
-    header.insert("adapter_version".into(), Value::String("0.4.0".into()));
+    header.insert("adapter_version".into(), Value::String("0.5.0".into()));
     header.insert("language".into(), Value::String("rust".into()));
     header.insert("record".into(), Value::String("lexicon".into()));
     header.insert("repository".into(), Value::String(repository.into()));

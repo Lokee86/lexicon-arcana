@@ -2,7 +2,7 @@ import * as crypto from "node:crypto";
 import * as ts from "typescript";
 import type { Fact, JsonRecord, Span } from "./model";
 
-export const VERSION = "0.4.0";
+export const VERSION = "0.5.0";
 export const LANGUAGE = "typescript";
 export const SCHEMA_VERSION = 1;
 

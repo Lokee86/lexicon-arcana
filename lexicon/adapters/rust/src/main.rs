@@ -27,6 +27,9 @@ mod semantic_actions;
 mod semantic_facts;
 #[cfg(test)]
 mod semantic_facts_tests;
+mod semantic_outcomes;
+#[cfg(test)]
+mod semantic_outcomes_tests;
 mod syntax;
 mod type_resolution;
 

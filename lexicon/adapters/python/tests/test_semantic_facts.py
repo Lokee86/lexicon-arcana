@@ -74,7 +74,7 @@ class PythonSemanticFactsTest(unittest.TestCase):
             self.assertEqual(len(capabilities), 1)
             self.assertEqual(
                 capabilities[0]["name"],
-                "semantic-capabilities:python:control-flow,error-handling,calls,source-spans",
+                "semantic-capabilities:python:control-flow,error-handling,calls,source-spans,outcome-obligations",
             )
             self.assertEqual(len(handlers), 5)
             self.assertEqual(

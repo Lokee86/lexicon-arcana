@@ -26,6 +26,7 @@ test("emits normalized error-handling capabilities and actions", () => {
   const actions = nodes.filter((node) => node.kind === "protocol" && String(node.name).startsWith("error-action:"));
 
   assert.equal(capabilities.length, 1);
+  assert.equal(capabilities[0].name, "semantic-capabilities:typescript:control-flow,error-handling,calls,source-spans,outcome-obligations");
   assert.equal(handlers.length, 4);
   assert.deepEqual(new Set(actions.map((node) => node.name)), new Set(["error-action:propagate", "error-action:record", "error-action:recover"]));
   const actionIds = new Set(actions.map((node) => node.id));

@@ -1,6 +1,6 @@
 # Lexicon semantic fact contract v1
 
-This contract defines language-neutral semantic capability and error-handling facts carried inside Lexicon facts v1 streams. It is intentionally narrower than a universal AST: adapters keep syntax-specific interpretation, while consumers operate on normalized semantic facts.
+This contract defines language-neutral semantic capabilities, error-handling facts, and outcome-obligation facts carried inside Lexicon facts v1 streams. It is intentionally narrower than a universal AST: adapters keep syntax-specific interpretation, while consumers operate on normalized semantic facts.
 
 Semantic records use ordinary facts-v1 `protocol` nodes and `contains` edges. Their node IDs therefore remain language-owned Lexicon v1 identities.
 
@@ -21,6 +21,7 @@ Capabilities are a set serialized in this canonical registry order:
 2. `error-handling`
 3. `calls`
 4. `source-spans`
+5. `outcome-obligations`
 
 An adapter may advertise a subset, but it must not advertise a capability it cannot support for that file. Consumers must fail closed when a rule's required capability set is unavailable.
 
@@ -60,6 +61,33 @@ The v1 action registry is:
 
 `recover` means that the handler is not semantically empty for the purposes of generic error-handling rules. It does not claim that the recovery is correct.
 
+## Outcome-obligation nodes
+
+An operation whose result has a statically proven observation obligation emits:
+
+```text
+kind: protocol
+name: outcome-operation:<language>:<obligation>
+qualified_name: @semantic/outcome-operation/<language>/<repository-relative-path>:<adapter-stable-source-location>
+path: <repository-relative-path>
+span: <operation expression>
+```
+
+The v1 obligation registry is:
+
+- `fallible`: a language-level result value whose success/error outcome must be observed;
+- `async`: an asynchronous result whose completion/rejection or coroutine execution must be observed.
+
+When the adapter proves that the operation's outcome is consumed, transferred, awaited, handled, returned, or explicitly discarded, it emits one contained action:
+
+```text
+kind: protocol
+name: outcome-action:consume
+qualified_name: <operation-qualified-name>/consume:<adapter-stable-source-location>
+```
+
+Adapters may omit operations outside their static proof boundary. They must not emit an `outcome-operation` merely because a call might fail dynamically.
+
 ## Consumer semantics
 
 Consumers must treat capabilities as prerequisites rather than inferred parser features. A rule may evaluate only files whose capability nodes satisfy all of its declared requirements.
@@ -68,6 +96,11 @@ For `swallowed-error`, a handler is reportable only when:
 
 - the owning file advertises `control-flow`, `error-handling`, `calls`, and `source-spans`;
 - the handler has no contained `error-action:propagate`, `error-action:record`, or `error-action:recover` node.
+
+For `unobserved-outcome`, an operation is reportable only when:
+
+- the owning file advertises `calls`, `source-spans`, and `outcome-obligations`;
+- the operation has no contained `outcome-action:consume` node.
 
 Consumers must not inspect Rust, TypeScript, JavaScript, Python, or other language syntax to reconstruct these facts. Syntax ownership remains in Lexicon adapters.
 

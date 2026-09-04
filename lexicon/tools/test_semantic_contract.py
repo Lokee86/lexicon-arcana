@@ -42,6 +42,31 @@ class SemanticContractTest(unittest.TestCase):
             require,
         )
 
+    def test_valid_outcome_obligation_and_consumption_contract(self) -> None:
+        operation = {
+            "id": "operation",
+            "kind": "protocol",
+            "name": "outcome-operation:python:async",
+            "path": "src/app.py",
+            "qualified_name": "@semantic/outcome-operation/python/src/app.py:8:5",
+            "span": {"path": "src/app.py"},
+        }
+        action = {
+            "id": "consume",
+            "kind": "protocol",
+            "name": "outcome-action:consume",
+            "path": "src/app.py",
+            "qualified_name": "@semantic/outcome-operation/python/src/app.py:8:5/consume:8:5",
+            "span": {"path": "src/app.py"},
+        }
+        validate_semantic_protocol_node(operation, 1, require)
+        validate_semantic_protocol_node(action, 2, require)
+        validate_semantic_links(
+            [{"record": "edge", "relation": "contains", "source": "operation", "target": "consume"}],
+            {"operation": operation, "consume": action},
+            require,
+        )
+
     def test_rejects_unknown_or_noncanonical_capabilities(self) -> None:
         for name in (
             "semantic-capabilities:python:control-flow,unknown",

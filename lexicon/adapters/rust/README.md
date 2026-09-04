@@ -16,7 +16,7 @@ The scanner excludes Git/worktree metadata, generated output, dependency trees, 
 
 ## Analysis model
 
-Adapter version 0.4.0 emits:
+Adapter version 0.5.0 emits:
 
 - repository, directory, file, crate/module, type, trait, function, method, import, and macro facts;
 - inline and external module ownership;
@@ -27,7 +27,8 @@ Adapter version 0.4.0 emits:
 - receiver and return-value propagation through bindings, fields, parameters, and local expressions;
 - callable propagation through function values, closures, callback parameters, tuples, and fields;
 - definite `calls` edges and conservative `possible-calls` edges for generic or multi-target trait dispatch;
-- explicit builtin, external, dynamic, missing, ambiguous, and unsupported classifications where a definite local target cannot be proven.
+- explicit builtin, external, dynamic, missing, ambiguous, and unsupported classifications where a definite local target cannot be proven;
+- semantic fact contract v1 error-handler facts plus conservative `outcome-obligations` derived from definite resolved calls to repository call targets whose declared return type is `Result`; bare discarded calls remain unconsumed while assigned, propagated, nested, or explicitly discarded results receive `outcome-action:consume`.
 
 Canonical identities are based on Cargo package/target/module-qualified names and normalized repository-relative paths. Absolute checkout paths are never used in node identities or emitted paths.
 
@@ -50,7 +51,7 @@ cargo test
 cargo clippy --all-targets -- -D warnings
 ```
 
-The semantic fixture suite covers declarations, imports, traits, inherent methods, field aliases, constructor-like calls, UFCS, local macros, callbacks, generic trait dispatch, canonical ordering, relative paths, unresolved classifications, and byte-identical repeat runs.
+The semantic fixture suite covers declarations, imports, traits, inherent methods, field aliases, constructor-like calls, UFCS, local macros, callbacks, generic trait dispatch, error-handler semantics, `Result` outcome obligations, canonical ordering, relative paths, unresolved classifications, and byte-identical repeat runs.
 
 ## Dependency semantics
 

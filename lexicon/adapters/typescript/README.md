@@ -12,7 +12,7 @@ The scanner includes:
 
 It excludes `.git/`, `.worktrees/`, `.workingtrees/`, `.ddocs/`, `.lexicon/`, `.arcana/`, `.grimoire/`, `.pitlord/`, `.cantrip/`, `.homunculus/`, `.incubus/`, `.ritual/`, `.warlock/`, `node_modules/`, generated output directories, dependency/vendor trees, and common caches.
 
-The stream language remains `typescript` because JavaScript, TypeScript, and Svelte scripts share one compiler-backed semantic frontend and one stable node-ID namespace.
+The stream language remains `typescript` because JavaScript, TypeScript, and Svelte scripts share one compiler-backed frontend and stable node-ID namespace. Semantic protocol facts still identify JavaScript source as `javascript` and TypeScript/Svelte source as `typescript`, so downstream semantic rules report the source language accurately.
 
 ## Setup and usage
 
@@ -42,7 +42,7 @@ python tools/validate_jsonl.py /path/to/facts.jsonl
 
 The adapter creates one TypeScript `Program` for all discovered JS, TS, and Svelte files with `allowJs` and `checkJs` enabled. Svelte markup and styles are replaced with same-length whitespace before parsing, so declarations and relationships emitted from `<script>` blocks retain their original component line and column spans. Repository `tsconfig.json` or `jsconfig.json` options are preserved while analysis-required options remain enabled.
 
-It emits declarations, imports, exports, inheritance, implementation, definite calls, possible calls, source spans, and explicit unresolved classifications.
+It emits declarations, imports, exports, inheritance, implementation, definite calls, possible calls, source spans, and explicit unresolved classifications. Semantic fact contract v1 support includes error handlers/actions plus `outcome-obligations`: Promise-like calls proven by the TypeScript checker emit async outcome operations, with `consume` actions for awaited, returned, transferred, assigned, explicitly discarded, or rejection-handled outcomes.
 
 Class `extends` and `implements` relationships are compiler-backed. Mixin-style `extends factory(Base)` heritage is emitted as `uses-trait` when the factory is repository-local, and concrete overrides target inherited class methods rather than interface declarations. Interface signatures are contracts only: they are removed from runtime call targets, with one concrete implementation emitted as `calls` and multiple candidates as `possible-calls`.
 
@@ -91,7 +91,7 @@ External packages are represented as `external-target` records unless their sour
 npm test
 ```
 
-The suite covers TypeScript semantics, JavaScript ESM, JSX, CommonJS, JSDoc flow, Svelte script extraction and module resolution, path mappings, exclusions, stable IDs, deterministic repeat runs, and the shared JSONL validator.
+The suite covers TypeScript semantics, JavaScript ESM, JSX, CommonJS, JSDoc flow, Svelte script extraction and module resolution, semantic error handling, Promise outcome obligations, path mappings, exclusions, stable IDs, deterministic repeat runs, and the shared JSONL validator.
 
 ## Dependency semantics
 

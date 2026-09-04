@@ -11,8 +11,11 @@ CAPABILITY_ORDER = (
     "error-handling",
     "calls",
     "source-spans",
+    "outcome-obligations",
 )
 ERROR_ACTIONS = {"propagate", "record", "recover"}
+OUTCOME_KINDS = {"fallible", "async"}
+OUTCOME_ACTIONS = {"consume"}
 _LANGUAGE_PATTERN = re.compile(r"^[a-z][a-z0-9+-]*$")
 
 Require = Callable[[bool, str], None]
@@ -24,26 +27,10 @@ def validate_semantic_protocol_node(record: dict[str, Any], line: int, require: 
     name = record.get("name", "")
     qualified_name = record.get("qualified_name", "")
     if name.startswith("semantic-capabilities:"):
-        parts = name.split(":", 2)
-        require(len(parts) == 3, f"line {line}: invalid semantic capability node name")
-        language, raw_capabilities = parts[1], parts[2]
-        require(_LANGUAGE_PATTERN.match(language) is not None, f"line {line}: invalid semantic language")
-        capabilities = raw_capabilities.split(",") if raw_capabilities else []
-        order = {value: index for index, value in enumerate(CAPABILITY_ORDER)}
-        require(bool(capabilities), f"line {line}: semantic capability set is empty")
-        require(len(capabilities) == len(set(capabilities)), f"line {line}: duplicate semantic capability")
-        require(all(value in order for value in capabilities), f"line {line}: unknown semantic capability")
-        require(
-            capabilities == sorted(capabilities, key=order.__getitem__),
-            f"line {line}: semantic capabilities are not canonically ordered",
-        )
-        require(
-            qualified_name == f"@semantic/capabilities/{language}/{record['path']}",
-            f"line {line}: invalid semantic capability qualified_name",
-        )
+        _validate_capabilities(record, line, require)
     elif name.startswith("error-handler:"):
         language = name.split(":", 1)[1]
-        require(_LANGUAGE_PATTERN.match(language) is not None, f"line {line}: invalid error-handler language")
+        require(_valid_language(language), f"line {line}: invalid error-handler language")
         require(
             qualified_name.startswith(f"@semantic/error-handler/{language}/{record['path']}:"),
             f"line {line}: invalid error-handler qualified_name",
@@ -52,11 +39,54 @@ def validate_semantic_protocol_node(record: dict[str, Any], line: int, require: 
     elif name.startswith("error-action:"):
         action = name.split(":", 1)[1]
         require(action in ERROR_ACTIONS, f"line {line}: unknown semantic error action")
+        _require_action_identity(record, line, require, "@semantic/error-handler/", action)
+    elif name.startswith("outcome-operation:"):
+        parts = name.split(":", 2)
+        require(len(parts) == 3, f"line {line}: invalid outcome operation name")
+        language, outcome = parts[1], parts[2]
+        require(_valid_language(language), f"line {line}: invalid outcome-operation language")
+        require(outcome in OUTCOME_KINDS, f"line {line}: unknown outcome obligation")
         require(
-            qualified_name.startswith("@semantic/error-handler/") and f"/{action}:" in qualified_name,
-            f"line {line}: invalid error-action qualified_name",
+            qualified_name.startswith(f"@semantic/outcome-operation/{language}/{record['path']}:"),
+            f"line {line}: invalid outcome-operation qualified_name",
         )
-        require(record.get("span") is not None, f"line {line}: error-action requires a source span")
+        require(record.get("span") is not None, f"line {line}: outcome-operation requires a source span")
+    elif name.startswith("outcome-action:"):
+        action = name.split(":", 1)[1]
+        require(action in OUTCOME_ACTIONS, f"line {line}: unknown semantic outcome action")
+        _require_action_identity(record, line, require, "@semantic/outcome-operation/", action)
+
+
+def _validate_capabilities(record: dict[str, Any], line: int, require: Require) -> None:
+    parts = record["name"].split(":", 2)
+    require(len(parts) == 3, f"line {line}: invalid semantic capability node name")
+    language, raw_capabilities = parts[1], parts[2]
+    require(_valid_language(language), f"line {line}: invalid semantic language")
+    capabilities = raw_capabilities.split(",") if raw_capabilities else []
+    order = {value: index for index, value in enumerate(CAPABILITY_ORDER)}
+    require(bool(capabilities), f"line {line}: semantic capability set is empty")
+    require(len(capabilities) == len(set(capabilities)), f"line {line}: duplicate semantic capability")
+    require(all(value in order for value in capabilities), f"line {line}: unknown semantic capability")
+    require(
+        capabilities == sorted(capabilities, key=order.__getitem__),
+        f"line {line}: semantic capabilities are not canonically ordered",
+    )
+    require(
+        record["qualified_name"] == f"@semantic/capabilities/{language}/{record['path']}",
+        f"line {line}: invalid semantic capability qualified_name",
+    )
+
+
+def _require_action_identity(record: dict[str, Any], line: int, require: Require, prefix: str, action: str) -> None:
+    require(
+        record["qualified_name"].startswith(prefix) and f"/{action}:" in record["qualified_name"],
+        f"line {line}: invalid semantic action qualified_name",
+    )
+    require(record.get("span") is not None, f"line {line}: semantic action requires a source span")
+
+
+def _valid_language(value: str) -> bool:
+    return _LANGUAGE_PATTERN.match(value) is not None
 
 
 def validate_semantic_links(
@@ -64,10 +94,22 @@ def validate_semantic_links(
     nodes: dict[str, dict[str, Any]],
     require: Require,
 ) -> None:
+    _validate_action_links(records, nodes, require, "error-action:", "error-handler:", "error")
+    _validate_action_links(records, nodes, require, "outcome-action:", "outcome-operation:", "outcome")
+
+
+def _validate_action_links(
+    records: list[dict[str, Any]],
+    nodes: dict[str, dict[str, Any]],
+    require: Require,
+    action_prefix: str,
+    owner_prefix: str,
+    label: str,
+) -> None:
     actions = {
         node_id: node
         for node_id, node in nodes.items()
-        if node.get("kind") == "protocol" and str(node.get("name", "")).startswith("error-action:")
+        if node.get("kind") == "protocol" and str(node.get("name", "")).startswith(action_prefix)
     }
     if not actions:
         return
@@ -77,11 +119,11 @@ def validate_semantic_links(
             continue
         source = nodes.get(record.get("source", ""))
         target = actions[record["target"]]
-        require(record.get("relation") == "contains", "semantic error actions require contains edges")
+        require(record.get("relation") == "contains", f"semantic {label} actions require contains edges")
         require(
-            source is not None and str(source.get("name", "")).startswith("error-handler:"),
-            "semantic error actions must be contained by error handlers",
+            source is not None and str(source.get("name", "")).startswith(owner_prefix),
+            f"semantic {label} actions must be contained by {label} owners",
         )
-        require(source.get("path") == target.get("path"), "semantic handler/action paths must match")
+        require(source.get("path") == target.get("path"), f"semantic {label} owner/action paths must match")
         linked.add(record["target"])
-    require(linked == set(actions), "every semantic error action must be contained by an error handler")
+    require(linked == set(actions), f"every semantic {label} action must be contained by its owner")
