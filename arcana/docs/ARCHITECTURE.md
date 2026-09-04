@@ -8,7 +8,7 @@ This document defines Arcana's ownership, dependency direction, ingestion, compi
 
 ## Overview
 
-Arcana consumes language-neutral facts and owns deterministic repository-graph state. It does not parse source languages or own Grimoire's provider-neutral discovery response.
+Arcana consumes language-neutral facts and owns deterministic repository-graph state. It does not parse source languages or own higher-level repository-discovery, context, or agent workflow policy.
 
 This document describes the architecture implemented by the current Arcana source and covered by its focused tests. It is an ownership and dependency map, not a roadmap or a file-format specification.
 
@@ -213,7 +213,7 @@ Evidence: [`lexicon/records.rs`](../src/lexicon/records.rs), [`repository/increm
 | Optional vectors | `src/vector/` | vector index and document tests |
 | Synthetic workloads and benchmarks | `src/synthetic/`, `src/benchmark/` | module-local tests |
 
-Arcana does not own language adapters, Grimoire's evidence assembly, or the embedding service process.
+Arcana does not own language adapters, higher-level evidence/workflow assembly, or the embedding service process.
 
 ## Tests
 

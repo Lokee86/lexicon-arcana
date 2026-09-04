@@ -12,7 +12,7 @@ Correctness tests for facts, storage, snapshots, protocol behavior, and vectors 
 
 This guide covers the current Arcana crate under `arcana/`: how to build it, choose focused correctness tests, complete verification, and collect performance evidence. Commands are shown from the `arcana/` directory unless a command explicitly starts at the repository root.
 
-Arcana is independently buildable, but it is not an independent owner of language parsing or Grimoire discovery. Read [ARCHITECTURE.md](ARCHITECTURE.md) for dependency direction and [MAINTAINER_MAP.md](MAINTAINER_MAP.md) when ownership of an unfamiliar seam is unclear.
+Arcana is independently buildable, but it does not own language parsing or higher-level repository-discovery/agent workflow policy. Read [ARCHITECTURE.md](ARCHITECTURE.md) for dependency direction and [MAINTAINER_MAP.md](MAINTAINER_MAP.md) when ownership of an unfamiliar seam is unclear.
 
 ## Prerequisites
 
@@ -45,7 +45,7 @@ Source co-location does not change component ownership:
 
 - Lexicon owns language adapters, parsing, and publication of immutable language facts.
 - Arcana owns consuming those facts, repository compilation, graph storage and snapshots, exact graph queries, optional graph vectors, synthetic graph workloads, and storage-representation benchmarks.
-- Grimoire owns provider-neutral discovery and repository-state orchestration.
+- Higher-level consumers own repository-discovery, context, and agent workflow policy; Warlock is the primary agent consumer.
 
 A change crossing those boundaries needs the owning component's tests in addition to Arcana verification. Direct Arcana Cargo verification does not prove the root application or release bundle.
 

@@ -10,12 +10,12 @@ This document defines Arcana's optional semantic graph-document policy, embeddin
 
 The semantic index supplies bounded graph entry points for conceptual queries. Exact graph traversal, repository snapshot validity, and structural relationships remain deterministic and authoritative without vectors.
 
-Arcana can build an optional semantic index over the current immutable repository graph. The index provides semantic entry points into Arcana's deterministic graph traversal without moving graph ownership into Grimoire.
+Arcana can build an optional semantic index over the current immutable repository graph. The index provides semantic entry points into Arcana's deterministic graph traversal without moving graph ownership into an embedding service or higher-level consumer.
 
 ## Ownership
 
 - Arcana owns graph-document generation, vector persistence, index invalidation, and semantic graph search.
-- Grimoire owns the existing embedding model runtime and endpoint.
+- The embedding model runtime and endpoint are external to Arcana; Warlock or another local service may provide them.
 - Arcana requests embeddings from that endpoint; it does not install or load a second model.
 - Lexicon remains the authority for language facts and source identities.
 
@@ -23,10 +23,10 @@ The ordinary `arcana sync`, graph protocol, and packed snapshots remain embeddin
 
 ## Build the index
 
-Start the existing Grimoire embedding service, synchronize Arcana, then build the semantic graph index explicitly:
+Start an OpenAI-compatible embedding service, synchronize Arcana, then build the semantic graph index explicitly:
 
 ```text
-grimoire model serve
+# start an OpenAI-compatible embedding service separately
 arcana sync
 arcana vectorize
 ```
@@ -114,7 +114,7 @@ The policy is intentionally a substantial reduction, not a graph-size change. In
 - Grimoire had 30,260 graph nodes, including 22,295 variables. Excluding variables alone caps the semantic index at 7,965 documents, at least a 73.7% reduction; the other excluded kinds reduce it further.
 - Space Rocks had 64,069 graph nodes, including 31,218 variables and 6,516 parameters. Excluding those two kinds alone caps the semantic index at 26,335 documents, at least a 58.9% reduction; fields, imports, exports, directories, and the repository node reduce it further.
 
-Manifest `item_count`, vector byte-length validation, record-count validation, build summaries, and `grimoire status` all report and validate the indexed-document count. They do not compare that count with the complete graph node count.
+Manifest `item_count`, vector byte-length validation, record-count validation, and Arcana build summaries report and validate the indexed-document count. They do not compare that count with the complete graph node count.
 
 ## Query the index
 
@@ -149,13 +149,13 @@ The JSON response has this shape:
 }
 ```
 
-Semantic query performs cheap manifest and file-size checks when opening the pinned snapshot, then decodes and finite-checks each vector in the same single scoring pass. It does not checksum or pre-scan the complete vector file on every query. Full checksums and exhaustive structural validation remain build and `grimoire status` boundary work.
+Semantic query performs cheap manifest and file-size checks when opening the pinned snapshot, then decodes and finite-checks each vector in the same single scoring pass. It does not checksum or pre-scan the complete vector file on every query. Full checksums and exhaustive structural validation remain build/validation boundary work.
 
 ## Process integration
 
 Process integrations can pass `--expected-snapshot sha256:<digest>` to `semantic-query`. Arcana then rejects the query if `.arcana/CURRENT` no longer matches the graph snapshot that the caller already resolved. This prevents semantic seeds from one graph snapshot being expanded through another.
 
-The active Grimoire discovery interface does not automatically query or build the Arcana semantic index. It resolves symbols through Lexicon and uses deterministic Arcana neighbors, paths, impact, and inspection operations. The semantic index remains available to Arcana's standalone CLI and paired graph-retrieval evaluation.
+Higher-level consumers do not automatically gain or require Arcana semantic-vector behavior merely because an index exists. The semantic index remains an explicit Arcana surface for standalone CLI use and paired graph-retrieval evaluation; deterministic Lexicon facts and Arcana graph operations remain independently available.
 
 ## Code map
 

@@ -40,7 +40,7 @@ Arcana does not reject an otherwise valid Lexicon snapshot solely because a newe
 - unknown node kinds are conservatively represented as `symbol` so their identities and recognized relationships remain available;
 - edge and unresolved-reference records with unknown relation labels are skipped because Arcana cannot safely invent graph semantics for them.
 
-Every degradation is deduplicated and reported as an `arcana sync WARNING`. The warnings are also written to the immutable Arcana snapshot as `compatibility.warnings`, and Grimoire repository status promotes them into its top-level warnings. Empty or structurally malformed required fields remain hard errors.
+Every degradation is deduplicated and reported as an `arcana sync WARNING`. The warnings are also written to the immutable Arcana snapshot as `compatibility.warnings` so higher-level consumers can surface them. The retired Grimoire status path historically promoted these warnings. Empty or structurally malformed required fields remain hard errors.
 
 ## Snapshot synchronization
 

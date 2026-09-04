@@ -235,7 +235,7 @@ Required work includes:
 9. add representative corpus coverage when a suitable repository exists;
 10. update [STATUS.md](STATUS.md), [adapters/README.md](../adapters/README.md), and affected contracts.
 
-Adapters must not introduce Arcana, Grimoire, documentation-policy, or other consumer-specific behavior.
+Adapters must not introduce Arcana, higher-level discovery/workflow, documentation-policy, or other consumer-specific behavior.
 
 ## Contract changes
 

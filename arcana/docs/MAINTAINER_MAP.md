@@ -28,7 +28,7 @@ Use this page to select the owning Arcana document. Continue in that document's 
 
 - Arcana consumes normalized facts; it does not parse source languages.
 - Packed graph traversal remains authoritative; semantic vectors provide entry points only.
-- Grimoire owns the provider-neutral discovery response and evidence-lane assembly.
+- Higher-level consumers own discovery/result assembly and agent workflow; Arcana exposes deterministic graph evidence through its owned protocol.
 - Focused implementation paths and tests belong in each subject document's `## Code map` section.
 
 ## Related docs

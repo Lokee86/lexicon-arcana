@@ -4,152 +4,116 @@ Parent index: [Architecture](INDEX.md)
 
 ## Purpose
 
-This document defines Grimoire's current product architecture, discovery lanes, repository preparation, failure behavior, and state boundaries.
+Define the active Lexicon + Arcana product architecture, data flow, state boundaries, failure behavior, and consumer model.
 
 ## Overview
 
-Grimoire presents source retrieval, documentation retrieval, Lexicon symbols, and Arcana relationships through one progressive interface while preserving independent evidence classes and explicit provider degradation.
-
-Grimoire contains three independently owned engines presented through one repository-discovery interface:
-
-- Grimoire owns source and documentation discovery, stable handles, progressive investigation, and state orchestration.
-- Lexicon owns language analysis and normalized symbols and relationships.
-- Arcana owns packed repository graphs and graph queries.
-
-Source co-location does not merge runtime state or domain ownership. See [Component architecture](components.md).
-
-## Repository preparation
+Lexicon and Arcana provide deterministic repository intelligence without an intermediate discovery product:
 
 ```text
-Repository source
-  -> Grimoire eligibility and ignore rules
-  -> immutable prepared source snapshot
-  -> exact lookup and BM25 postings
-
-Repository source
-  -> Lexicon language adapters
-  -> immutable Lexicon facts and snapshot
-  -> Arcana graph compilation
-  -> immutable Arcana graph snapshot
-
-Repository documentation
-  -> independent document index
-  -> section handles, freshness metadata, and BM25 postings
-  -> optional documentation vectors
+repository
+    -> Lexicon semantic analysis
+       symbols, calls, dataflow, dependencies, unresolved evidence
+       immutable .lexicon snapshot
+    -> Arcana graph compilation
+       repository/call graph, traversal, impact, paths, architecture
+       immutable .arcana snapshot
 ```
 
-Source discovery does not require embeddings. Lexicon, Arcana, and documentation vectors may degrade independently.
+Consumers combine those analysis products with ordinary source/Git access according to their own needs. Higher-level agent orchestration belongs in Warlock or another consumer, not inside Lexicon or Arcana.
 
-## Query-time discovery
+## Lexicon boundary
+
+Lexicon owns language-specific semantic extraction and normalized repository facts. It publishes immutable, content-addressed snapshots and can be used independently.
+
+Important properties:
+
+- adapter-specific parsing behind a normalized fact contract;
+- stable source and symbol identities;
+- conservative unresolved evidence instead of guessed relationships;
+- incremental analysis with complete-language fallback when needed;
+- deterministic output and crash-safe publication.
+
+## Arcana boundary
+
+Arcana consumes one verified Lexicon snapshot and owns graph representation and query semantics.
+
+Important properties:
+
+- packed forward and reverse adjacency;
+- immutable graph snapshots and overlays;
+- exact graph traversal independent of embeddings;
+- symbol/file resolution, neighbours, impact, paths, call chains, unresolved references, and architecture summaries;
+- snapshot identity tied to the consumed Lexicon generation.
+
+## Consumer model
 
 ```text
-User or agent query
-  -> exact source discovery             -> exact_matches
-  -> source BM25 discovery              -> source_matches
-  -> document BM25 / optional vectors   -> document_matches
-  -> Lexicon symbol resolution          -> symbol_matches
-  -> structural expansion deferred to trace/impact
+Agent / human / Warlock / Pitlord
+    |
+    +-> source + Git directly
+    +-> Lexicon facts/snapshot when semantic ownership is needed
+    +-> Arcana protocol when graph structure is needed
 ```
 
-Balanced search preserves independent lane limits; narrow search applies one combined code-evidence budget. Search does not traverse graph neighbors automatically. This preserves heterogeneous ranked evidence and lets the agent choose a stable handle before structural expansion.
-
-Follow-up operations use stable handles:
-
-```text
-inspect(handle) -> exact source or document evidence
-trace(handle)   -> bounded graph paths
-impact(handle)  -> bounded incoming or outgoing dependents
-```
-
-## Ownership boundaries
-
-### Grimoire application
-
-`internal/app` owns CLI and MCP commands, repository-state preparation, timeout and fallback policy, and the flattened discovery contract.
-
-`internal/agentruntime` combines source/symbol/relationship responses with the separately indexed documentation lane and optional investigation sessions.
-
-`internal/agentquery` owns provider-neutral orient, search, trace, impact, and source-inspection behavior.
-
-### Source state
-
-`internal/index` owns repository traversal, chunking, immutable object reuse, exact lookup inputs, lexical postings, and prepared snapshot publication. Generated state, Git metadata, and nested worktrees are excluded.
-
-`internal/retrieve` owns exact and BM25 source discovery. It does not rank documentation or structural graph evidence.
-
-### Documentation state
-
-`internal/knowledge` owns documentation discovery, section extraction, stable citation handles, freshness metadata, BM25 ranking, and code links.
-
-`internal/knowledgevector` optionally supplements document ranking. Document scores never enter source, symbol, or relationship ranking.
-
-### Lexicon
-
-`lexicon/` owns language extraction, normalized source identities, symbols, relationships, immutable analysis objects, snapshot publication, and adapter execution.
-
-`internal/lexiconfacts` is Grimoire's read-only integration boundary for immutable Lexicon exports.
-
-### Arcana
-
-`arcana/` owns Lexicon snapshot ingestion, repository graph construction, packed graph storage, overlays, compaction, neighbors, paths, impact, unresolved references, and the graph protocol.
-
-`internal/arcanagraph` is Grimoire's protocol client. It resolves discovered symbols and asks Arcana for direct relationships or bounded graph expansions without copying graph ownership into Grimoire.
-
-### Investigation sessions
-
-`internal/investigation` records returned nodes, source ranges, documents, and graph paths. Repeated evidence is represented by prior handles rather than replayed content.
-
-### Embeddings and vector storage
-
-`internal/embedding` owns the configured embedding model and managed runtime. `internal/vectorstore` is Grimoire's Lodestone compatibility boundary. Embeddings are optional for documentation and graph semantic entry points; they are not required for source discovery.
-
-## Failure and fallback behavior
-
-- Missing documentation vectors leave the document lane on BM25.
-- Missing or stale Arcana state omits Arcana from the prepared query snapshot; structural graph traversal is unavailable until Arcana is current.
-- Missing Lexicon and Arcana state leaves exact and source discovery available.
-- Provider failures are reported in `warnings` and do not discard unrelated evidence lanes.
-- Stale handles are rejected rather than silently rediscovered.
-- Arcana state remains bound to the Lexicon snapshot it consumed.
+Consumers should use the cheapest authoritative surface for the question. A precise literal lookup does not need graph traversal. A call-path or dependency-impact question can use Arcana. A language-semantics question can use Lexicon facts. Material implementation conclusions should be verified against source.
 
 ## State directories
 
-- `.grimoire/` — prepared source state, document state, and investigation sessions.
-- `.grimoire/knowledge/` — document index and optional vector state.
-- `.lexicon/` — immutable Lexicon analysis state.
-- `.arcana/` — Arcana graph state and optional semantic graph indexes.
+- `.lexicon/` — Lexicon configuration, immutable fact objects, manifests, and current snapshot pointer.
+- `.arcana/` — Arcana graph snapshots, overlays, catalogue/unresolved metadata, and optional graph-vector state.
+- `.grimoire/` — retired generated discovery state; migration/history only.
 
-Each format remains independently versioned and owned. Integration occurs through manifests, immutable exports, and explicit protocols.
+No active component mutates the other's state directly.
 
-## Retired context-package path
+## Failure behavior
 
-The former package compiler attempted to merge and token-fit source and structural evidence before an agent could investigate it. The command and its assembly, compiler, curation, query-shape, diff-context, graph-ranking, and source-evaluation code have been removed. Historical reports remain calibration records only.
+- A Lexicon publication is valid independently of Arcana consumer success.
+- Arcana rejects corrupt, incompatible, or unverified Lexicon inputs.
+- Arcana never silently treats a graph built from a different Lexicon snapshot as current for a newer generation.
+- Missing optional graph vectors do not affect deterministic Arcana traversal.
+- Consumers decide whether absence of Lexicon or Arcana evidence is fatal for their particular task; the components do not invent fallback source-retrieval semantics.
+
+## Embeddings
+
+Arcana's optional semantic graph index uses a generic external OpenAI-compatible embedding endpoint. Embeddings provide semantic entry points only; exact graph relationships remain authoritative.
+
+The embedding runtime is not owned by Lexicon or Arcana. Warlock or another local service may provide it.
+
+## Retired Grimoire responsibilities
+
+The following are not part of the active system architecture:
+
+- Grimoire source/document indexes;
+- Grimoire BM25/exact discovery policy;
+- heterogeneous evidence lanes and global response shaping;
+- stable Grimoire handles and investigation sessions;
+- Grimoire repository preparation/provider routing;
+- Grimoire MCP and `grimoire.discovery.v1`.
+
+They remain in the source tree temporarily until the implementation-removal pass and remain in historical documentation where needed to explain prior experiments.
 
 ## Code map
 
-| Runtime stage | Primary implementation | Related tests |
+| Product boundary | Primary implementation | Related tests |
 | --- | --- | --- |
-| CLI/MCP entry and dispatch | `cmd/grimoire/main.go`, `internal/app/run.go`, `internal/app/query.go`, `internal/app/mcp.go` | `internal/app/run_test.go`, `internal/app/discovery_test.go`, `internal/app/mcp_test.go` |
-| Repository preparation | `internal/repostate/`, `internal/app/discovery_prepare.go` | `internal/repostate/*_test.go`, `internal/app/discovery_test.go` |
-| Source indexing and retrieval | `internal/index/`, `internal/lexical/`, `internal/retrieve/` | package-local `*_test.go` files |
-| Documentation retrieval | `internal/knowledge/`, `internal/knowledgevector/` | package-local `*_test.go` files |
-| Symbol and relationship providers | `internal/lexiconfacts/`, `internal/arcanagraph/`, `internal/structure/` | provider package tests |
-| Unified discovery response | `internal/agentruntime/`, `internal/agentquery/`, `internal/evidence/` | package-local `*_test.go` files |
-| Session persistence | `internal/investigation/` | `internal/investigation/*_test.go` |
-
-The retired context-package assembly path is documentation history only; it is not an active implementation owner.
+| Lexicon CLI and lifecycle | `lexicon/cmd/lexicon/`, `lexicon/internal/cli/`, `lexicon/internal/scan/` | Lexicon package tests |
+| Lexicon semantic analysis | `lexicon/adapters/` | adapter tests and semantic validation |
+| Lexicon immutable publication | `lexicon/internal/objectstore/` | publication/recovery tests |
+| Arcana repository compilation | `arcana/src/lexicon/`, `arcana/src/repository/` | ingestion/repository tests |
+| Arcana graph storage and snapshots | `arcana/src/storage/`, `arcana/src/snapshot/` | storage/snapshot tests |
+| Arcana query protocol | `arcana/src/protocol/` | protocol/traversal tests |
 
 ## Tests
 
-The active architecture is protected by command and preparation tests under `internal/app/`, state tests under `internal/repostate/`, retrieval and provider package tests, investigation-session tests, and the end-to-end agent-discovery evaluation harness.
+The active architecture is verified primarily by Lexicon application, adapter, object-store, incremental-analysis, and snapshot tests; Arcana ingestion, packed-storage, snapshot, overlay, traversal, and protocol tests; and direct end-to-end Lexicon + Arcana benchmark/evaluation conditions.
+
+Root tests that exist only to protect Grimoire's retired product behavior are transitional rather than future compatibility requirements.
 
 ## Related docs
 
+- [ADR 0006](../decisions/0006-retire-grimoire-lead-with-lexicon-arcana.md)
 - [Component architecture](components.md)
 - [Analysis stack](analysis-stack.md)
-- [Unified discovery contract](../reference/agent-query.md)
-- [Current limitations](../limits/current-limitations.md)
-
-## Notes
-
-The retired context-package pipeline is historical only and is not a current implementation or planning owner.
+- [Lexicon documentation](../../lexicon/docs/README.md)
+- [Arcana documentation](../../arcana/docs/README.md)

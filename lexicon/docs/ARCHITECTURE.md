@@ -224,4 +224,4 @@ Architecture invariants are protected by package-local tests under `internal/sca
 
 ## Notes
 
-Arcana graph compilation and Grimoire discovery remain outside Lexicon's ownership boundary.
+Arcana graph compilation and higher-level repository-discovery/agent workflow remain outside Lexicon's ownership boundary.

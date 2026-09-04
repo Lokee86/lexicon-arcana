@@ -4,131 +4,117 @@ Parent index: [Architecture](INDEX.md)
 
 ## Purpose
 
-This document defines component ownership, dependency direction, state ownership, independent-use rules, and release boundaries for Grimoire, Lexicon, and Arcana.
+Define the active ownership, dependency direction, state, independent-use rules, and release boundaries for Lexicon and Arcana after Grimoire retirement.
 
 ## Overview
 
-The three applications are packaged together but remain independently usable products with separate executables, private state, implementation domains, tests, and specialist command surfaces.
+Lexicon and Arcana are complementary repository-analysis products with separate executables, implementation domains, state, tests, documentation, and direct command surfaces.
 
-Grimoire, Lexicon, and Arcana share one repository but retain separate ownership, state, and advanced command surfaces.
+The active dependency direction is intentionally simple:
 
-## Grimoire
+```text
+repository source
+    -> Lexicon semantic snapshot
+        -> Arcana repository graph
+            -> humans, agents, Warlock, Pitlord, other consumers
+```
 
-The repository-root Go application is the primary discovery interface. It owns:
+Ordinary source search, direct file reads, IDEs, and Git remain parallel development tools. They are not a hidden third repository-analysis component.
 
-- exact and BM25 source discovery;
-- independent documentation discovery;
-- stable handles and progressive inspect, trace, and impact operations;
-- repository-state preparation and provider routing;
-- investigation-session deduplication;
-- the CLI and MCP discovery contracts.
-
-Grimoire does not own language parsing or graph semantics. It exposes `grimoire lexicon ...` and `grimoire arcana ...` as thin product namespaces that delegate specialist operations to the owning binaries.
+See [ADR 0006](../decisions/0006-retire-grimoire-lead-with-lexicon-arcana.md).
 
 ## Lexicon
 
 `lexicon/` owns:
 
-- one adapter per supported programming language;
-- normalized symbols, spans, and relationships;
-- immutable analysis objects and snapshots;
-- incremental and Git-aware source analysis;
-- standalone scan, export, and inspection commands.
+- one semantic adapter per supported programming-language surface;
+- normalized symbols, spans, calls, relationships, dataflow, dependencies, and unresolved evidence;
+- immutable content-addressed analysis objects and snapshots;
+- incremental repository analysis, deterministic merge, and crash-safe publication;
+- direct `init`, `scan`, `status`, `doctor`, `export`, and consumer commands.
 
-Grimoire consumes Lexicon snapshots through immutable exports. Lexicon does not depend on Grimoire or Arcana.
+Lexicon does not depend on Arcana. A published Lexicon snapshot remains valid if an optional downstream consumer fails.
 
 ## Arcana
 
 `arcana/` owns:
 
-- ingestion of one immutable Lexicon snapshot;
-- packed forward and reverse repository graphs;
-- neighbors, paths, impact, call chains, unresolved references, and graph inspection;
-- optional semantic graph entry points;
-- standalone graph commands and protocol behavior.
+- ingestion and verification of one immutable Lexicon snapshot;
+- packed forward and reverse repository/call graphs;
+- immutable snapshots, overlays, and compaction;
+- symbol/file resolution, neighbours, impact, paths, call chains, unresolved references, graph statistics, operational roles, and architecture summaries;
+- optional semantic graph entry points backed by a generic external embedding endpoint;
+- direct CLI and `arcana.query.v1` protocol behavior.
 
-Arcana does not own language adapters or Grimoire's discovery response. Optional semantic indexing uses a compatible external embedding endpoint.
+Arcana does not own language parsing or adapter semantics. It preserves Lexicon's durable identities while using snapshot-local compact graph IDs internally.
 
-## Dependency direction
+## Grimoire retirement boundary
 
-```text
-repository source
-    -> Lexicon snapshot
-        -> Arcana graph snapshot
+Grimoire is no longer an active component owner. Its source/document retrieval, stable handles, sessions, MCP, provider routing, and unified discovery response are retirement targets rather than responsibilities to be absorbed into Lexicon or Arcana.
 
-repository source and documentation
-    -> Grimoire prepared state
-
-Grimoire discovery
-    -> reads Lexicon snapshot
-    -> queries Arcana graph
-    -> returns one provider-neutral response
-```
-
-Lexicon is upstream of Arcana. Grimoire may consume both but neither component calls back into Grimoire for deterministic analysis.
-
-## Independent use
-
-- Lexicon can analyze and export source facts without Arcana or Grimoire.
-- Arcana can synchronize and answer graph queries without Grimoire.
-- Grimoire can return exact, source, and document evidence without Lexicon or Arcana.
-- Missing structural providers reduce available lanes and produce warnings; they do not invalidate unrelated evidence.
+Existing `.grimoire/` state and historical benchmark artifacts may remain during migration or for reproducibility, but they do not define current product behavior.
 
 ## State ownership
 
 | State | Owner |
 | --- | --- |
-| `.grimoire/` source index | Grimoire |
-| `.grimoire/knowledge/` documents and optional vectors | Grimoire |
-| `.lexicon/` immutable language-analysis snapshots | Lexicon |
-| `.arcana/` graph snapshots and optional graph vectors | Arcana |
+| `.lexicon/` immutable semantic-analysis snapshots | Lexicon |
+| `.arcana/` graph snapshots and optional graph-vector state | Arcana |
+| `.grimoire/` legacy discovery/index/session state | Retired; migration/history only |
 
-Consumers interact through immutable manifests, exported facts, stable handles, and explicit protocols. No component mutates another component's state directly.
+No component mutates another component's private state directly. Integration uses immutable snapshots, manifests, exports, and explicit protocols.
 
-## Build and release boundaries
+## Independent use
 
-The repository-root workflow builds and packages the components together while preserving separate binaries:
+- Lexicon can analyze and export repository facts without Arcana.
+- Arcana can synchronize from Lexicon and answer graph queries without Grimoire.
+- Consumers may read source or Git directly without routing through either product.
+- Arcana synchronization may be registered as a deterministic Lexicon post-publication consumer, but Lexicon publication does not depend on Arcana success.
 
-- `grimoire`
-- `lexicon`
-- `arcana`
+## Build and release boundary
 
-The workflow defaults to one build or test worker to avoid uncontrolled CPU fan-out. Higher concurrency requires an explicit `--jobs N`.
+The intended active release contains:
 
-Each component may still be built and used independently from its owning source root. Ordinary product use does not require invoking those binaries directly: Grimoire resolves the bundled or configured provider and forwards namespaced commands while preserving process isolation and native exit behavior.
+- `lexicon`;
+- Lexicon runtime adapters;
+- `arcana`;
+- the production Lexicon + Arcana agent skill when that migration is complete.
 
-Lodestone remains a separately owned cross-repository native dependency. Grimoire pins the consumed Go module pseudo-version and exact source commit; local and release workflows verify that identity before tests or packaging. The checked-in local `replace` directive is a development override, not a second source authority.
+The existing root Grimoire build/release machinery is transitional and will be removed or rewritten in the next retirement pass. A combined bundle may remain, but it is a Lexicon + Arcana bundle rather than a wrapper application.
 
-## Product boundary
+## Consumer boundary
 
-The active investigation path is Grimoire's progressive discovery interface. Direct Lexicon and Arcana commands remain available as namespaced specialist operations, not competing repository-discovery interfaces. The former context-package compiler is not part of the CLI or MCP contract. Historical package evaluators and reports do not define current architecture.
+Higher-level products consume the owned component surfaces directly:
+
+```text
+Warlock / agent framework
+    -> Lexicon snapshots/exports for semantic evidence
+    -> Arcana protocol for bounded graph questions
+    -> ordinary source/Git tools for exact implementation evidence
+```
+
+Warlock owns probabilistic task/context orchestration. Lexicon and Arcana remain deterministic analysis providers.
 
 ## Code map
 
-| Component boundary | Primary implementation | Related tests |
+| Boundary | Primary implementation | Related tests |
 | --- | --- | --- |
-| Grimoire executable and command dispatch | `cmd/grimoire/main.go`, `internal/app/run.go` | `internal/app/run_test.go` |
-| Grimoire provider forwarding | `internal/app/engine_commands.go`, `internal/app/engine_specs.go` | `internal/app/engine_commands_test.go` |
-| Grimoire state alignment | `internal/repostate/`, `internal/app/discovery_prepare.go` | `internal/repostate/*_test.go`, `internal/app/discovery_test.go` |
-| Lexicon executable and application boundary | `lexicon/cmd/lexicon/main.go`, `lexicon/internal/cli/` | `lexicon/internal/cli/*_test.go` |
-| Lexicon publication boundary | `lexicon/internal/scan/`, `lexicon/internal/objectstore/` | package-local `*_test.go` files |
-| Arcana executable and command boundary | `arcana/src/main.rs`, `arcana/src/cli.rs`, `arcana/src/cli_*.rs` | `arcana/src/cli*_tests.rs` |
-| Arcana graph and protocol boundary | `arcana/src/repository/`, `arcana/src/storage/`, `arcana/src/snapshot/`, `arcana/src/protocol/` | module-local Rust test files |
-| Release composition | `scripts/workflow.py`, `scripts/install.py`, `.github/workflows/release.yml` | `scripts/test_workflow.py`, installation smoke tests |
-
-Grimoire must not absorb Lexicon's parsers or Arcana's storage internals. Cross-component changes should update the owning component document and the integration document together.
+| Lexicon executable and application | `lexicon/cmd/lexicon/main.go`, `lexicon/internal/cli/` | `lexicon/internal/cli/*_test.go` |
+| Lexicon scan/publication | `lexicon/internal/scan/`, `lexicon/internal/objectstore/` | package-local `*_test.go` |
+| Lexicon adapters | `lexicon/adapters/` | adapter-owned tests/evaluations |
+| Arcana executable | `arcana/src/main.rs`, `arcana/src/cli.rs`, `arcana/src/cli_*.rs` | `arcana/src/cli*_tests.rs` |
+| Arcana graph and snapshots | `arcana/src/repository/`, `arcana/src/storage/`, `arcana/src/snapshot/` | module-local Rust tests |
+| Arcana query protocol | `arcana/src/protocol/` | protocol module tests |
+| Transitional root release composition | `scripts/workflow.py`, `.github/workflows/release.yml` | `scripts/test_workflow.py` |
 
 ## Tests
 
-Component boundaries are protected by root command-forwarding and repository-state tests, Lexicon application and publication tests, Arcana CLI and snapshot tests, and the combined build, installation, and release workflow tests.
+Lexicon application/publication tests and Arcana ingestion/storage/snapshot/protocol tests are the active component-boundary verification. Root Grimoire-specific tests remain transitional until the implementation-removal pass.
 
 ## Related docs
 
 - [Analysis stack](analysis-stack.md)
 - [System overview](system-overview.md)
-- [Grimoire maintainer map](maintainer-map.md)
-- [Documentation coverage](../development/documentation-coverage.md)
-
-## Notes
-
-Cross-component convenience must not erase the component boundaries defined here.
+- [Architecture decisions](../decisions/INDEX.md)
+- [Lexicon maintainer map](../../lexicon/docs/MAINTAINER_MAP.md)
+- [Arcana maintainer map](../../arcana/docs/MAINTAINER_MAP.md)

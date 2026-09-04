@@ -8,7 +8,7 @@ This document records Arcana's current implementation status, supported capabili
 
 ## Overview
 
-Status distinguishes deterministic graph functionality, optional vector behavior, standalone operation, Grimoire integration, and future ideas that are not current commitments.
+Status distinguishes deterministic graph functionality, optional vector behavior, standalone operation, Lexicon integration, external consumer boundaries, and future ideas that are not current commitments.
 
 This document summarizes behavior implemented in the current Arcana source and covered by focused tests. It is a status boundary, not a roadmap, performance guarantee, or substitute for the focused contracts linked below.
 
@@ -26,7 +26,7 @@ Detailed references:
 
 Arcana is an independently buildable Rust library and process that consumes language-neutral repository facts and publishes immutable, validated graph generations. It currently provides deterministic packed storage, edge-only overlays, standalone and Lexicon-managed ingestion paths, an exact JSONL query protocol, bounded graph export, an optional semantic-vector index, deterministic synthetic graph generation, and a release-mode storage benchmark harness.
 
-Arcana does not parse source languages, own language adapters, rank Grimoire's heterogeneous discovery lanes, or replace exact graph relationships with embedding similarity. Source co-location with Lexicon and Grimoire does not collapse those ownership boundaries.
+Arcana does not parse source languages, own language adapters, own higher-level repository-discovery or agent workflow policy, or replace exact graph relationships with embedding similarity. Source co-location with Lexicon and retired Grimoire code does not collapse those ownership boundaries.
 
 Evidence: [`Cargo.toml`](../Cargo.toml), [`src/lib.rs`](../src/lib.rs), [`src/cli.rs`](../src/cli.rs), [ARCHITECTURE.md](ARCHITECTURE.md), and the [analysis-stack ownership summary](../../docs/architecture/analysis-stack.md#ownership-summary).
 
@@ -120,7 +120,7 @@ The repository also retains semantic retrieval evaluations under [`evaluation/re
 
 Evidence: [`benchmark/mutation_runner.rs`](../src/benchmark/mutation_runner.rs), [`benchmark/mutation_query.rs`](../src/benchmark/mutation_query.rs), [`benchmark/report.rs`](../src/benchmark/report.rs), benchmark tests, [DEVELOPMENT.md](DEVELOPMENT.md#correctness-tests-versus-performance-evidence), and the [semantic calibration summary](../../evaluation/results/arcana-semantic-vector-calibration-2026-07-26.md).
 
-## Standalone Arcana and Grimoire responsibilities
+## Standalone Arcana and consumer responsibilities
 
 ### Arcana owns
 
@@ -129,15 +129,17 @@ Evidence: [`benchmark/mutation_runner.rs`](../src/benchmark/mutation_runner.rs),
 - Optional graph-document rendering, vector cache/index state, semantic scoring, and snapshot/model/policy validation.
 - Direct CLI/library operation, including standalone `import-facts` and `update-facts` outputs and managed `sync` state.
 
-### Grimoire owns
+### Consumers own
 
-- Prepared source and document retrieval, provider freshness/alignment, discovery sessions, cross-provider routing, result normalization, and final discovery evidence.
-- Invoking Arcana as a process, matching Arcana state to the Lexicon snapshot used by a query, sending `arcana.query.v1` requests, and converting results into provider-neutral structural evidence.
-- The embedding service runtime used by Arcana; Arcana's client calls the configured endpoint and does not install or host a second model.
+- Agent/task/context orchestration, repository-discovery policy, source/document retrieval, and any cross-provider result assembly they require.
+- Invoking Arcana as a process or protocol endpoint, matching Arcana state to the Lexicon snapshot used by the task, and interpreting `arcana.query.v1` results.
+- The embedding service runtime used by Arcana's optional semantic index; Arcana's client calls the configured endpoint and does not install or host a model.
 
-The boundary is process- and snapshot-based. There is no Go FFI/cgo link to Arcana, and Grimoire does not read or mutate packed Arcana bytes as an internal shortcut. Grimoire's Arcana provider includes optional retrieval from an already-built semantic index and evaluation wiring exercises it, but Grimoire does not build Arcana vector state during a query. Current ordinary discovery must not be assumed to use semantic graph vectors merely because an Arcana index exists.
+Warlock is the primary higher-level agent consumer. Other human or machine consumers may invoke Lexicon and Arcana directly. The boundary remains process- and snapshot-based: consumers do not read or mutate packed Arcana bytes as an ownership shortcut, and the presence of an Arcana vector index does not imply that a consumer must use it.
 
-Evidence: [analysis-stack.md](../../docs/architecture/analysis-stack.md), [`internal/arcanagraph/README.md`](../../internal/arcanagraph/README.md), [`internal/arcanagraph/client.go`](../../internal/arcanagraph/client.go), [`internal/arcanagraph/semantic.go`](../../internal/arcanagraph/semantic.go), and [`internal/arcanaevaluation/README.md`](../../internal/arcanaevaluation/README.md).
+The retired Grimoire provider/client code remains transitional historical implementation until deletion; it is not the current ownership model.
+
+Evidence: [analysis-stack.md](../../docs/architecture/analysis-stack.md), [Arcana architecture](ARCHITECTURE.md), and [`src/protocol/`](../src/protocol/).
 
 ## Current limitations and non-claims
 
@@ -155,11 +157,11 @@ Evidence: [analysis-stack.md](../../docs/architecture/analysis-stack.md), [`inte
 - **Semantic search is optional, selective, and exact-scan.** It indexes only policy-eligible entry points, depends on an external plain-HTTP embedding endpoint, scans stored `f32` vectors rather than using an ANN index, and does not establish relationship truth.
 - **Vector absence is not graph staleness.** Missing, stale, corrupt, or unavailable vector state blocks or degrades semantic retrieval only; it does not invalidate deterministic synchronization or exact protocol queries.
 - **Synthetic scale is not production scalability proof.** Supported generator tiers and passing correctness tests do not establish latency, memory, or throughput guarantees for real repositories.
-- **Benchmarks are conditional evidence.** The storage harness compares two representations under synthetic workloads. Historical semantic evaluations are corpus- and policy-specific. Neither is an SLA, a universal ranking claim, or proof that Arcana improves every Grimoire investigation.
+- **Benchmarks are conditional evidence.** The storage harness compares two representations under synthetic workloads. Historical semantic evaluations are corpus- and policy-specific. Neither is an SLA, a universal ranking claim, or proof that Arcana improves every repository investigation.
 
 ## Future possibilities that are not implemented behavior
 
-Focused documents mention or leave room for direct adapter-produced file-scoped fact batches, a provenance sidecar, and later unresolved-reference resolver passes. The source does not currently implement those boundaries. A compaction CLI, automatic vector construction during sync, automatic use of semantic graph vectors in every Grimoire query, approximate-nearest-neighbour indexing, and a network protocol service are likewise not current capabilities or commitments.
+Focused documents mention or leave room for direct adapter-produced file-scoped fact batches, a provenance sidecar, and later unresolved-reference resolver passes. The source does not currently implement those boundaries. A compaction CLI, automatic vector construction during sync, automatic semantic-vector use by higher-level consumers, approximate-nearest-neighbour indexing, and a network protocol service are likewise not current capabilities or commitments.
 
 Treat any such change as future work until it has an owning source path, focused tests, and updated contracts. Current source constants and request enums remain authoritative when older focused documents or evaluation reports describe an earlier policy or integration state.
 

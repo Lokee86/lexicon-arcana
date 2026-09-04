@@ -1,8 +1,8 @@
 # Lexicon
 
-> **Canonical source:** Lexicon now lives inside the [Grimoire repository](https://github.com/Lokee86/grimoire) under `lexicon/`. It remains an independently buildable application, adapter platform, snapshot producer, and reusable language-analysis engine.
+> **Canonical source:** Lexicon currently lives under `lexicon/` in this repository while the repository is being transitioned from the retired Grimoire product to the Lexicon + Arcana product family. Lexicon remains an independently buildable application, adapter platform, snapshot producer, and reusable language-analysis engine.
 
-Lexicon is the shared language-analysis component of Grimoire and the Warlock toolchain. It turns source repositories into deterministic, versioned facts about files, symbols, calls, dataflow, inheritance, dependencies, and unresolved relationships.
+Lexicon is the lead semantic-analysis product in the Lexicon + Arcana stack and a deterministic analysis provider for Warlock and other consumers. It turns source repositories into deterministic, versioned facts about files, symbols, calls, dataflow, inheritance, dependencies, and unresolved relationships.
 
 Lexicon is primarily a one-shot CLI application. It can also run an optional filesystem watch mode through `lexicon demon`, but consumers do not depend on a resident Lexicon process.
 
@@ -121,7 +121,8 @@ Lexicon owns language extraction, normalized fact identities, source ownership, 
 Lexicon does not own:
 
 - graph query algorithms or packed graph traversal; Arcana owns those concerns;
-- repository discovery policy, source/document ranking, or investigation sessions; Grimoire owns those concerns;
+- repository discovery policy, source/document ranking, investigation sessions, or a replacement Grimoire wrapper; those retired concerns have no Lexicon owner;
+- agent/task/context orchestration; Warlock or another consumer owns that higher-level workflow;
 - documentation policy or repository documentation repair; Demon Docs owns those concerns;
 - runtime instrumentation providers; the runtime-evidence contract only defines their exchange boundary;
 - general repository version control; the private Git mirror is an internal change detector, not a user-facing history.

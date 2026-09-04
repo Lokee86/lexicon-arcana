@@ -1,24 +1,22 @@
 # Architecture
 
-Architecture documentation describes implemented ownership, data flow, state transitions, and degradation behavior.
+Architecture documentation describes implemented ownership, data flow, state transitions, and the active retirement boundary.
 
-- [Component architecture](components.md) — monorepo layout, independent-use contract, dependency direction, state ownership, and release boundaries.
-- [Analysis stack](analysis-stack.md) — the implemented Lexicon publication, Arcana synchronization, Grimoire preparation, snapshot alignment, and degradation lifecycle.
-- [Grimoire maintainer map](maintainer-map.md) — short ownership routing for common Grimoire changes.
-- [System overview](system-overview.md) — unified discovery lanes, provider routing, progressive expansion, and fallback boundaries.
-- [Operations and trust boundaries](operations-and-trust.md) — process trust, MCP lifecycle, timeouts, diagnostics, recovery, and pinned cross-repository dependencies.
-- [Prepared index](prepared-index.md) — immutable source identities, incremental rebuilds, and publication.
-- [Architecture decisions](../decisions/INDEX.md) — accepted rationale, alternatives, consequences, and superseding conditions for consequential boundaries.
+- [Component architecture](components.md) — Lexicon and Arcana ownership, independent-use contract, dependency direction, state, and release boundary.
+- [Analysis stack](analysis-stack.md) — repository source → Lexicon snapshot → Arcana graph → consumer lifecycle.
+- [System overview](system-overview.md) — active deterministic analysis products, consumer model, state, and failure behavior.
+- [Architecture decisions](../decisions/INDEX.md) — accepted rationale and superseding decisions, including Grimoire retirement.
+- [Operations and trust boundaries](operations-and-trust.md) — transitional operations documentation; Grimoire-specific sections remain until implementation removal.
+- [Prepared index](prepared-index.md) — historical/transitional Grimoire prepared-index architecture pending removal.
+- [Grimoire maintainer map](maintainer-map.md) — historical/transitional ownership routing pending removal.
 
-Related contracts:
+Active component contracts:
 
-- [Unified discovery contract](../reference/agent-query.md)
-- [Grimoire MCP interface](../reference/agent-mcp.md)
-- [Indexing](../reference/indexing.md)
-- [Vector store](../reference/vector-store.md)
 - [Lexicon contracts](../../lexicon/spec/README.md)
+- [Lexicon architecture](../../lexicon/docs/ARCHITECTURE.md)
 - [Arcana Lexicon contract](../../arcana/docs/LEXICON_CONTRACT.md)
+- [Arcana architecture](../../arcana/docs/ARCHITECTURE.md)
 
-The former context-package architecture is retired from the product interface. Historical evaluation artifacts remain historical evidence, not active architecture.
+Historical Grimoire discovery/MCP/reference documents remain in the tree during retirement so prior benchmark and design records stay understandable. They are not current product contracts after [ADR 0006](../decisions/0006-retire-grimoire-lead-with-lexicon-arcana.md).
 
-Planned architecture changes belong under [Planning](../planning/INDEX.md), not here.
+Planned work belongs under [Planning](../planning/INDEX.md), not here.

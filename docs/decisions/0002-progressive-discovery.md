@@ -12,7 +12,7 @@ Independent evidence lanes preserve provenance, degradation, and exact follow-up
 
 ## Status
 
-Accepted — this records the current product path.
+Superseded by [ADR 0006](0006-retire-grimoire-lead-with-lexicon-arcana.md) as an active product path. Retained as historical rationale for the retired Grimoire discovery layer.
 
 ## Context
 

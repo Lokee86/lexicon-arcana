@@ -1,11 +1,11 @@
 # Arcana
 
-> **Canonical source:** Arcana now lives inside the [Grimoire repository](https://github.com/Lokee86/grimoire) under `arcana/`. It remains an independently buildable Rust application, CLI, protocol, and reusable graph engine.
+> **Canonical source:** Arcana currently lives under `arcana/` in this repository while the repository is being transitioned from the retired Grimoire product to the Lexicon + Arcana product family. It remains an independently buildable Rust application, CLI, protocol, and reusable graph engine.
 
-Arcana is the repository-graph component of Grimoire and the [**Warlock Toolchain**](https://github.com/Lokee86/warlock-toolchain).
-It models repositories as queryable graphs and provides the storage, snapshot,
-and traversal foundations used by higher-level Warlock tools such as Demon Docs,
-Grimoire, and Pitlord.
+Arcana is the graph-analysis product in the Lexicon + Arcana stack and a deterministic analysis provider for the [**Warlock Toolchain**](https://github.com/Lokee86/warlock-toolchain).
+It models repositories as queryable graphs and provides storage, snapshots, traversal, impact, paths, call chains, and architecture queries for humans and higher-level tools such as Warlock and Pitlord.
+
+
 
 ## Ownership boundaries
 
@@ -15,16 +15,16 @@ Grimoire, and Pitlord.
 - **Demon Docs** owns documentation semantics, policy, review history, and
   Codemap decisions. It consumes Arcana facts without owning the graph
   engine.
-- **Grimoire** owns the provider-neutral discovery interface, source and document
-  retrieval, stable handles, repository-state preparation, and investigation
-  sessions. It queries Arcana without becoming the graph storage layer.
+- **Warlock or another consumer** owns agent/task/context orchestration and higher-level probabilistic workflow.
+- **Grimoire** is retired. Its former discovery, retrieval, stable-handle, and investigation-session responsibilities are not being transferred into Arcana.
+
 
 Arcana remains a standalone Rust process or CLI boundary. Go consumers do
 not link it through cgo or FFI.
 
-### Consolidated repository boundary
+### Repository boundary
 
-Arcana and Lexicon now share the Grimoire repository, but the implementation boundary remains intentional. Arcana is still a separate Rust process, independently testable and directly usable for advanced graph work. Lexicon snapshots and the Arcana protocol remain the authoritative integration boundaries; source co-location does not permit direct mutation of Lexicon state or language-analysis ownership.
+Arcana and Lexicon share this repository while the repository/product naming transition is completed, but the implementation boundary remains intentional. Arcana is a separate Rust process, independently testable and directly usable for graph work. Lexicon snapshots and the Arcana protocol remain the authoritative integration boundaries; source co-location does not permit direct mutation of Lexicon state or language-analysis ownership.
 
 ## Graph workload foundation
 
@@ -169,13 +169,13 @@ boundary and incremental ownership policy.
 
 ## Optional semantic graph index
 
-Arcana can explicitly vectorize the current immutable graph through Grimoire's
-existing OpenAI-compatible embedding endpoint. Arcana stores and invalidates the
-graph vectors; it does not install or load a second model. Ordinary `arcana sync`
+Arcana can explicitly vectorize the current immutable graph through a generic
+OpenAI-compatible embedding endpoint. Arcana stores and invalidates the
+graph vectors; it does not install or own the embedding runtime. Warlock or another local service may provide the endpoint. Ordinary `arcana sync`
 and graph-protocol operations remain embedding-free.
 
 ```text
-grimoire model serve
+# start an OpenAI-compatible embedding service separately
 arcana sync
 arcana vectorize
 arcana semantic-query --query "where is profile persistence handled?"
@@ -193,8 +193,8 @@ graph but are not indexed directly. Semantic matches provide entry points; exact
 Arcana traversal remains authoritative for relationships, impact, and call chains.
 
 The semantic index is currently consumed by Arcana's standalone `semantic-query`
-command and paired Arcana evaluation. Grimoire's unified discovery interface uses
-deterministic Lexicon symbol resolution and Arcana graph queries; it does not
+command and paired Arcana evaluation. The semantic index is optional;
+deterministic Lexicon facts and Arcana graph queries do not
 silently build or require the semantic index.
 
 See [`docs/vector-index.md`](docs/vector-index.md) for storage, invalidation,

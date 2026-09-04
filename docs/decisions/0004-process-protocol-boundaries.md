@@ -12,7 +12,7 @@ Process and protocol seams preserve component lifecycle, failure attribution, in
 
 ## Status
 
-Accepted — this records the current integration boundary.
+Partially superseded by [ADR 0006](0006-retire-grimoire-lead-with-lexicon-arcana.md). Lexicon snapshot publication and Arcana process/protocol ownership remain current; Grimoire forwarding, discovery, and response-shaping ownership is retired.
 
 ## Context
 

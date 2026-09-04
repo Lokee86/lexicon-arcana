@@ -12,7 +12,7 @@ The monorepo is a coordination and packaging boundary, not permission to merge c
 
 ## Status
 
-Accepted — this records the current architecture.
+Partially superseded by [ADR 0006](0006-retire-grimoire-lead-with-lexicon-arcana.md). Component independence and the Lexicon/Arcana ownership boundaries remain valid; Grimoire-as-normal-entry-point and three-product packaging do not.
 
 ## Context
 

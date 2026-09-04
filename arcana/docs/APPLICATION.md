@@ -386,4 +386,4 @@ The direct `query` command is not the overlay-aware repository protocol. Languag
 
 ## Notes
 
-Direct commands expose Arcana's specialist surface; Grimoire normally coordinates synchronization and protocol sessions automatically.
+Direct commands are Arcana's normal specialist surface. Higher-level consumers such as Warlock may coordinate synchronization and protocol sessions, but Arcana does not require a Grimoire wrapper.

@@ -1,65 +1,42 @@
-# Grimoire documentation
+# Lexicon + Arcana documentation
 
-This directory documents Grimoire's unified discovery interface, component ownership, repository state, verification, limitations, and planned work. Lexicon and Arcana retain component-specific documentation under their source directories.
+This tree contains shared architecture, decisions, development evidence, historical Grimoire material, and transition planning. Component-specific current behavior lives under the Lexicon and Arcana source roots.
 
-## Sections
+## Current architecture
 
-- [Architecture](architecture/INDEX.md) — component boundaries, the Lexicon–Arcana–Grimoire lifecycle, maintainer routing, focused code maps, state ownership, and prepared-index design.
-- [Architecture decisions](decisions/INDEX.md) — accepted rationale, alternatives, consequences, risks, and superseding conditions for durable decisions.
-- [Reference](reference/INDEX.md) — installation, agent setup, discovery commands, Lexicon and Arcana operations, JSON/MCP contracts, source and document semantics, vectors, and state.
-- [Development](development/INDEX.md) — tests, judged corpora, benchmark procedure, implementation coverage, behavioral contracts, and outcome interpretation.
-- [Limits](limits/INDEX.md) — current constraints and failure modes.
-- [Planning](planning/INDEX.md) — unimplemented work.
-- [Documentation policy](documentation-policy.md) — canonical ownership, product/component boundaries, coverage, and status rules.
-- [Documentation procedure](documentation-procedure.md) — required update, graduation, indexing, and verification workflow.
-- [Investigation ledger](../internal/investigation/README.md) — persistent agent-facing discovery state.
-- [Lexicon reference](reference/lexicon.md) and [Lexicon documentation](../lexicon/docs/README.md) — language analysis, adapters, snapshots, contracts, operations, maintainer routing, and focused code maps.
-- [Arcana reference](reference/arcana.md) and [Arcana documentation](../arcana/docs/README.md) — graph ingestion, packed storage, snapshots, protocol operations, vectors, maintainer routing, and focused code maps.
+- [Architecture](architecture/INDEX.md) — active Lexicon→Arcana ownership, data flow, state, consumer boundaries, and transitional Grimoire retirement notes.
+- [Architecture decisions](decisions/INDEX.md) — accepted and superseded decisions, including [ADR 0006](decisions/0006-retire-grimoire-lead-with-lexicon-arcana.md).
+- [Lexicon documentation](../lexicon/docs/README.md) — semantic analysis, adapters, snapshots, contracts, operations, and verification.
+- [Arcana documentation](../arcana/docs/README.md) — graph ingestion, packed storage, snapshots, protocol operations, vectors, and verification.
 
-## Component ownership
+## Evidence and development
 
-| Component | Location | Owns |
-| --- | --- | --- |
-| Grimoire | repository root | Unified discovery API, source and document retrieval, stable handles, state preparation, and investigation sessions |
-| Lexicon | [`lexicon/`](../lexicon/) | Language analysis, normalized symbols and relationships, adapters, and immutable snapshots |
-| Arcana | [`arcana/`](../arcana/) | Graph ingestion, packed graph state, traversal, impact, paths, and graph protocol |
+- [Development](development/INDEX.md) — tests, corpora, benchmark procedures, implementation evidence, and historical outcome interpretation.
+- [Agent benchmark findings](development/agent-benchmark-findings.md) — historical Grimoire and current Lexicon + Arcana experiment results.
+- [Limits](limits/INDEX.md) — constraints and failure modes; Grimoire-specific entries are transitional until retirement cleanup.
+- [Planning](planning/INDEX.md) — unimplemented work and current migration planning.
 
-See [Component architecture](architecture/components.md) for dependency and independent-use rules.
+## Historical Grimoire references
 
-## Grimoire package ownership
+The existing `reference/`, prepared-index, MCP, discovery-contract, maintainer-map, and Grimoire package README documents remain temporarily so historical benchmarks and source still have understandable documentation during removal.
 
-| Package | Owns |
+They are not active product contracts after [ADR 0006](decisions/0006-retire-grimoire-lead-with-lexicon-arcana.md). Current product ownership is:
+
+| Product/surface | Owns |
 | --- | --- |
-| [`internal/app`](../internal/app/README.md) | CLI/MCP orchestration and repository preparation |
-| [`internal/agentruntime`](../internal/agentruntime/README.md) | Flattened source/document/symbol/relationship discovery and sessions |
-| [`internal/evidence`](../internal/evidence/README.md) | Provider-neutral intents, roles, links, graph signals, identities, and merge rules |
-| [`internal/lexical`](../internal/lexical/README.md) | Shared deterministic tokenization, document analysis, postings, candidates, and lexical persistence |
-| [`internal/agentquery`](../internal/agentquery/README.md) | Orient, search, trace, impact, and source inspection |
-| [`internal/index`](../internal/index/README.md) | Prepared source state and immutable chunk identities |
-| [`internal/retrieve`](../internal/retrieve/README.md) | Exact and BM25 source discovery |
-| [`internal/knowledge`](../internal/knowledge/README.md) | Document indexing, sections, freshness, BM25, citations, and code links |
-| [`internal/knowledgevector`](../internal/knowledgevector/README.md) | Optional document-vector ranking and freshness |
-| [`internal/lexiconfacts`](../internal/lexiconfacts/README.md) | Read-only Lexicon export integration |
-| [`internal/arcanagraph`](../internal/arcanagraph/README.md) | Arcana graph protocol integration |
-| [`internal/structure`](../internal/structure/README.md) | Provider-neutral symbol and relationship contracts |
-| [`internal/repostate`](../internal/repostate/README.md) | Repository identity and aligned state preparation |
-| [`internal/investigation`](../internal/investigation/README.md) | Persistent snapshot-bound evidence ledger |
-| [`internal/embedding`](../internal/embedding/README.md) | Embedding runtime and request contract |
-| [`internal/vectorstore`](../internal/vectorstore/README.md) | Lodestone vector-storage compatibility boundary |
-| [`internal/knowledgeevaluation`](../internal/knowledgeevaluation/README.md) | Judged document-retrieval evaluation |
-| [`evaluation/agent_discovery`](../evaluation/agent_discovery/README.md) | Progressive discovery and agent-outcome scoring |
-
-Historical package-assembly reports may remain as calibration records. The retired assembly, compiler, curation, query-shape, and source-evaluation implementations are no longer part of the Grimoire codebase.
+| Lexicon | Language semantics, normalized facts, immutable semantic snapshots |
+| Arcana | Repository/call graph ingestion, storage, traversal, impact, paths, architecture queries |
+| Warlock/consumers | Agent/task/context orchestration and higher-level workflow |
+| Ordinary developer tools | Literal search, direct source inspection, Git/history |
+| Grimoire | Retired; historical/transitional source only |
 
 ## Documentation rules
 
-1. Reference pages describe current code, defaults, and failure behavior.
-2. Architecture pages identify ownership and data flow, not aspirations.
-3. Development pages state how claims are measured and name report artifacts.
-4. Limitations record unresolved constraints without disguising them as plans.
-5. Planning pages contain unimplemented work and must not be cited as current behavior.
-6. Commands, schemas, defaults, and field names must match code and tests.
-7. Source and documentation must be described as separate evidence classes.
-8. Component-specific behavior belongs in the owning component's documentation.
+1. Current architecture pages describe Lexicon + Arcana, not the retired Grimoire product path.
+2. Historical benchmark and ADR material retains original names and results.
+3. Component-specific behavior belongs with the owning component.
+4. Planned migration work must not be described as already implemented.
+5. Exact commands, state formats, and protocol fields must match current component code.
+6. Retiring a capability does not silently transfer its ownership to a surviving component.
 
-When behavior changes, update the owning package README, public reference pages, and affected limitations or roadmap entries in the same change.
+When behavior changes, update the owning component documentation and any shared architecture/decision page affected by the change.

@@ -21,8 +21,8 @@ This directory is the authoritative documentation set for Arcana's current appli
 ## Related documentation
 
 - [Arcana README](../README.md) — product overview, quick examples, graph workload rationale, and licensing.
-- [Grimoire analysis stack](../../docs/architecture/analysis-stack.md) — how Lexicon publication, Arcana synchronization, and Grimoire discovery fit together.
-- [Grimoire Arcana reference](../../docs/reference/arcana.md) — the product-facing operational summary.
+- [Lexicon–Arcana analysis stack](../../docs/architecture/analysis-stack.md) — how Lexicon publication and Arcana synchronization fit together after Grimoire retirement.
+- [Shared Arcana reference](../../docs/reference/arcana.md) — transitional shared reference retained during repository cleanup; this component documentation is authoritative.
 - [Lexicon documentation](../../lexicon/docs/README.md) — the upstream language-analysis and snapshot producer.
 
 ## Status vocabulary
