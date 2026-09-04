@@ -22,7 +22,7 @@ from benchmark_tasks import load_task_suite, validate_evidence_prefixes
 OUTPUT = Path(__file__).resolve().parent
 CHECKOUT = ROOT / "benchmark-checkouts" / "agent-benchmark-v2-la-bounded-completion" / "detekt-cli-gradle-plugin-divergence"
 TASK_SUITE = EVALUATION / "agent_benchmark_tasks.v2.json"
-SKILL = EVALUATION / "skills" / "lexicon-arcana" / "SKILL.md"
+SKILL = OUTPUT / "SKILL.md"
 TASK_ID = "detekt-cli-gradle-plugin-divergence"
 
 

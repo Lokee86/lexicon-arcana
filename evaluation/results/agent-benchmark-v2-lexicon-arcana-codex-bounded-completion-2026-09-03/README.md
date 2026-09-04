@@ -5,6 +5,8 @@ Model: `gpt-5.6-sol`, High reasoning, Fast
 Condition: raw Lexicon + Arcana  
 Pinned Detekt revision: `f9e1d5cc239ab740ce499b1edb36b872012648e2`
 
+The exact completion-bounded skill wording used for this condition is frozen in [`SKILL.md`](SKILL.md). The rerun script reads that snapshot rather than the shared benchmark skill, so later skill changes do not alter this experiment.
+
 ## Result
 
 | Metric | Original L+A | Evidence-bounded prompt | Completion-bounded prompt |
