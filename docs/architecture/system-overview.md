@@ -91,7 +91,7 @@ The following are not part of the active system architecture:
 - Grimoire repository preparation/provider routing;
 - Grimoire MCP and `grimoire.discovery.v1`.
 
-They remain in the source tree temporarily until the implementation-removal pass and remain in historical documentation where needed to explain prior experiments.
+Their active implementation has been removed. Historical documentation, ADRs, evaluation fixtures, and benchmark results retain the retired names where needed to explain prior experiments.
 
 ## Code map
 
@@ -108,7 +108,7 @@ They remain in the source tree temporarily until the implementation-removal pass
 
 The active architecture is verified primarily by Lexicon application, adapter, object-store, incremental-analysis, and snapshot tests; Arcana ingestion, packed-storage, snapshot, overlay, traversal, and protocol tests; and direct end-to-end Lexicon + Arcana benchmark/evaluation conditions.
 
-Root tests that exist only to protect Grimoire's retired product behavior are transitional rather than future compatibility requirements.
+Grimoire-only runtime tests were removed with the retired implementation and are not future compatibility requirements.
 
 ## Related docs
 
@@ -117,3 +117,7 @@ Root tests that exist only to protect Grimoire's retired product behavior are tr
 - [Analysis stack](analysis-stack.md)
 - [Lexicon documentation](../../lexicon/docs/README.md)
 - [Arcana documentation](../../arcana/docs/README.md)
+
+## Notes
+
+No active component owns the retired Grimoire discovery/session/document-index responsibilities. Reintroducing any such capability requires a new explicit ownership decision.

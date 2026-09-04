@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate Grimoire's documentation surface, focused code maps, and local links."""
+"""Validate the shared Lexicon + Arcana documentation surface and local links."""
 
 from __future__ import annotations
 
@@ -37,14 +37,16 @@ REQUIRED_DOCUMENTS = (
     "README.md",
     "docs/INDEX.md",
     "docs/architecture/analysis-stack.md",
-    "docs/architecture/maintainer-map.md",
-    "docs/architecture/operations-and-trust.md",
+    "docs/architecture/components.md",
+    "docs/architecture/system-overview.md",
     "docs/decisions/INDEX.md",
+    "docs/decisions/0006-retire-grimoire-lead-with-lexicon-arcana.md",
     "docs/development/architecture-verification.md",
+    "docs/development/documentation-coverage.md",
+    "docs/development/behavioral-contract-matrix.md",
+    "docs/reference/installation.md",
     "docs/reference/lexicon.md",
     "docs/reference/arcana.md",
-    "internal/evidence/README.md",
-    "internal/lexical/README.md",
     "lexicon/docs/README.md",
     "lexicon/docs/MAINTAINER_MAP.md",
     "arcana/docs/README.md",
@@ -110,8 +112,6 @@ PLANNING_SECTIONS = (
 ARCHITECTURE_DOCUMENTS = (
     "docs/architecture/analysis-stack.md",
     "docs/architecture/components.md",
-    "docs/architecture/operations-and-trust.md",
-    "docs/architecture/prepared-index.md",
     "docs/architecture/system-overview.md",
     "lexicon/docs/ARCHITECTURE.md",
     "arcana/docs/ARCHITECTURE.md",
@@ -121,24 +121,13 @@ GUIDE_SECTIONS = ("Prerequisites", "Expected result", "Failure and recovery")
 CODE_MAP_DOCUMENTS = (
     "docs/architecture/analysis-stack.md",
     "docs/architecture/components.md",
-    "docs/architecture/operations-and-trust.md",
-    "docs/architecture/prepared-index.md",
     "docs/architecture/system-overview.md",
     "docs/development/architecture-verification.md",
-    "docs/reference/agent-mcp.md",
-    "docs/reference/agent-query.md",
     "docs/reference/arcana.md",
-    "docs/reference/cli.md",
-    "docs/reference/embedding-model.md",
-    "docs/reference/indexing.md",
-    "docs/reference/knowledge.md",
     "docs/reference/lexicon.md",
-    "docs/reference/vector-store.md",
     "docs/development/behavioral-contract-matrix.md",
     "docs/development/documentation-coverage.md",
     "docs/development/release-workflow.md",
-    "docs/development/retrieval-quality.md",
-    "docs/development/testing-and-benchmarks.md",
     "lexicon/docs/APPLICATION.md",
     "lexicon/docs/ARCHITECTURE.md",
     "lexicon/docs/DEPENDENCY_SEMANTICS.md",
@@ -314,7 +303,7 @@ def validate_index_visibility() -> list[str]:
     failures: list[str] = []
     required_links = {
         ROOT / "README.md": (
-            "docs/architecture/maintainer-map.md",
+            "docs/INDEX.md",
             "docs/reference/lexicon.md",
             "docs/reference/arcana.md",
         ),

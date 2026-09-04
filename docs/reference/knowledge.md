@@ -2,6 +2,8 @@
 
 Parent index: [Reference](INDEX.md)
 
+Historical status: this page describes the retired Grimoire document-retrieval layer and is retained only for prior benchmark/design interpretation. It is not an active product contract.
+
 ## Purpose
 
 This document defines Grimoire's independent repository-documentation discovery, indexing, BM25 search, stable handles, optional vectors, and judged evaluation surface.

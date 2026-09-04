@@ -27,15 +27,15 @@ jobs:
         run: |
           pitlord validate --policy tools/pitlord/policy.json
           pitlord check --repo . --policy tools/pitlord/policy.json --timeout 2m
-      - name: Check Grimoire documentation
+      - name: Check shared Lexicon + Arcana documentation
         run: python .standards/docs_policy/check.py --repo .
       - name: Check Lexicon documentation
         run: python .standards/docs_policy/check.py --repo . --config docs-standard.lexicon.json
       - name: Check Arcana documentation
         run: python .standards/docs_policy/check.py --repo . --config docs-standard.arcana.json
-      - name: Check Grimoire documentation governance
+      - name: Check shared documentation governance
         run: python scripts/check_docs.py
-      - name: Check Grimoire documentation impact
+      - name: Check shared documentation impact
         if: github.event_name == 'pull_request'
         run: python .standards/docs_policy/check.py --repo . --changed-from "${{ github.event.pull_request.base.sha }}"
       - name: Check Lexicon documentation impact

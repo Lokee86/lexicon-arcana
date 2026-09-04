@@ -42,7 +42,8 @@ def load_task_suite(path: Path, workspace_root: Path) -> dict[str, Any]:
         repository = workspace_root / str(task.get("repository", ""))
         if not repository.is_dir():
             raise ValueError(f"task {task_id!r} repository is unavailable: {repository}")
-        validate_evidence_prefixes(task, repository)
+        if not bool(task.get("retired")):
+            validate_evidence_prefixes(task, repository)
         task["repo"] = repository
         seen.add(task_id)
         categories.add(category)

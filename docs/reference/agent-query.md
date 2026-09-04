@@ -2,6 +2,8 @@
 
 Parent index: [Reference](INDEX.md)
 
+Historical status: this page describes the retired `grimoire.discovery.v1` contract and is retained only for prior benchmark/design interpretation. It is not an active product contract.
+
 ## Purpose
 
 This document defines the exact `grimoire.discovery.v1` request, response, evidence-lane, handle, warning, and progressive-expansion contract.

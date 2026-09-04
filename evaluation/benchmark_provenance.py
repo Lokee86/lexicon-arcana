@@ -6,7 +6,7 @@ from pathlib import Path
 import subprocess
 from typing import Any, Iterable
 
-PROVENANCE_SCHEMA = "grimoire.agent-benchmark.provenance.v1"
+PROVENANCE_SCHEMA = "lexicon-arcana.agent-benchmark.provenance.v1"
 
 
 def sha256_file(path: Path) -> str:
@@ -97,15 +97,10 @@ def capture_provenance(
     if "cbm" in conditions:
         tools["cbm"] = file_identity(cbm_binary)
         skills["cbm"] = file_identity(cbm_skill)
-    if "grimoire" in conditions or "lexicon-arcana" in conditions:
+    if "lexicon-arcana" in conditions:
         tools["lexicon"] = file_identity(binaries / "lexicon.exe", version_arguments=("version",))
         tools["arcana"] = file_identity(binaries / "arcana.exe", version_arguments=("--version",))
         build["adapters_sha256"] = sha256_tree(build_root / "adapters")
-    if "grimoire" in conditions:
-        tools["grimoire"] = file_identity(binaries / "grimoire.exe", version_arguments=("version",))
-        skills["grimoire"] = file_identity(build_root / "skills" / "grimoire" / "SKILL.md")
-        build["native_sha256"] = sha256_tree(build_root / "native")
-    if "lexicon-arcana" in conditions:
         skills["lexicon-arcana"] = file_identity(
             repository / "evaluation" / "skills" / "lexicon-arcana" / "SKILL.md"
         )
@@ -132,7 +127,6 @@ def assert_frozen(actual: dict[str, Any], expected: dict[str, Any]) -> None:
 
 def verify_build_version(provenance: dict[str, Any], version: str) -> None:
     expected = {
-        "grimoire": version,
         "lexicon": f"lexicon version {version}",
         "arcana": f"Arcana {version}",
     }

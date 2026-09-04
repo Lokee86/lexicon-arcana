@@ -5,7 +5,7 @@ Lexicon and Arcana are complementary deterministic repository-analysis tools for
 - **Lexicon** performs polyglot semantic analysis and publishes immutable facts about files, symbols, calls, dataflow, dependencies, and unresolved relationships.
 - **Arcana** consumes a verified Lexicon snapshot and publishes a queryable repository/call graph with deterministic traversal, impact, paths, call chains, architecture summaries, and unresolved-reference queries.
 
-The former **Grimoire** repository-discovery product is retired. Its source/document retrieval, stable handles, investigation sessions, MCP surface, and unified discovery layer remain in this source tree temporarily while the retirement migration is completed; they are not the lead product architecture. See [ADR 0006](docs/decisions/0006-retire-grimoire-lead-with-lexicon-arcana.md).
+The former **Grimoire** repository-discovery product is retired. Its runtime, source/document retrieval layer, stable handles, investigation sessions, MCP surface, repository state, and installed skill have been removed from the active source tree. Historical ADRs, reference material, fixtures, and benchmark results remain for evidence. See [ADR 0006](docs/decisions/0006-retire-grimoire-lead-with-lexicon-arcana.md).
 
 ## Product model
 
@@ -120,7 +120,7 @@ Arcana records the exact Lexicon snapshot it consumed. Neither component mutates
 
 ## Repository transition
 
-The source repository is still named `grimoire` while the retirement migration is in progress. Current architecture targets a Lexicon + Arcana product family and a later repository/release rename. Existing Grimoire code, tests, release scripts, docs, and benchmark artifacts are being removed or reclassified in bounded passes rather than deleted indiscriminately.
+The source repository is still named `grimoire` while the final naming/downstream migration remains incomplete. The active architecture and release surface are Lexicon + Arcana. Historical Grimoire ADRs, selected docs, evaluation fixtures, and benchmark artifacts are retained deliberately rather than deleted indiscriminately.
 
 Historical Grimoire benchmark results remain intentionally preserved.
 
@@ -135,7 +135,7 @@ go test ./...
 cargo test --all-targets --locked --manifest-path arcana/Cargo.toml
 ```
 
-The root workflow now builds, tests, installs, and packages only Lexicon + Arcana. Retired Grimoire runtime source remains temporarily in-tree for the following implementation-removal pass, but it is no longer an active build or release dependency.
+The root workflow builds, tests, installs, and packages only Lexicon + Arcana. The retired Grimoire runtime is absent from the active source tree and is not a build, test, install, or release dependency.
 
 ## Architecture
 
@@ -143,7 +143,7 @@ The root workflow now builds, tests, installs, and packages only Lexicon + Arcan
 - [Component architecture](docs/architecture/components.md)
 - [Lexicon–Arcana analysis stack](docs/architecture/analysis-stack.md)
 - [System overview](docs/architecture/system-overview.md)
-- [Maintainer map](docs/architecture/maintainer-map.md) — transitional Grimoire routing retained during removal
+- [Documentation index](docs/INDEX.md) — current L+A architecture/reference guidance and clearly marked historical Grimoire evidence
 - [Lexicon reference](docs/reference/lexicon.md) — transitional shared reference; component docs are authoritative
 - [Arcana reference](docs/reference/arcana.md) — transitional shared reference; component docs are authoritative
 - [Architecture decisions](docs/decisions/INDEX.md)

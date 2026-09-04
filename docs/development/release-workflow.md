@@ -176,3 +176,7 @@ The production agent skill is a separate retirement-migration step and is not cu
 - [Component architecture](../architecture/components.md)
 - [ADR 0006](../decisions/0006-retire-grimoire-lead-with-lexicon-arcana.md)
 - [Lexicon release packaging](../../lexicon/docs/RELEASE_PACKAGING.md)
+
+## Notes
+
+The shared workflow composes independently owned artifacts. It does not restore Grimoire runtime behavior or redefine Lexicon/Arcana internal contracts.

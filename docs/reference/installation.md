@@ -6,6 +6,10 @@ Parent index: [Reference](INDEX.md)
 
 Define installation and source-build behavior for the active Lexicon + Arcana product family.
 
+## Overview
+
+The supported shared distribution installs Lexicon and Arcana directly. It contains no Grimoire runtime, MCP server, Grimoire skill, or Lodestone native library.
+
 ## Prerequisites
 
 Release installation requires Python 3.12 or newer, a writable binary directory, and permission to add that directory to `PATH`. Source builds additionally require Go 1.26.5, Rust 1.90 or newer, and Node.js 22 for the TypeScript adapter.
@@ -161,3 +165,7 @@ That integration is retired. Remove the old MCP/skill configuration and use dire
 - [Lexicon documentation](../../lexicon/docs/README.md)
 - [Arcana documentation](../../arcana/docs/README.md)
 - [ADR 0006](../decisions/0006-retire-grimoire-lead-with-lexicon-arcana.md)
+
+## Notes
+
+The combined bundle is an installation convenience only. Lexicon and Arcana remain independently installable products and no umbrella Grimoire process is installed.

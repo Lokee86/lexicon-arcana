@@ -2,6 +2,8 @@
 
 Parent index: [Reference](INDEX.md)
 
+Historical status: this page describes the retired Grimoire-managed embedding runtime and is retained only for prior benchmark/design interpretation. It is not an active product contract.
+
 ## Purpose
 
 This document defines Grimoire's embedding identity, endpoint contract, managed runtime, request shaping, verification, and operational boundaries.

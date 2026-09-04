@@ -4,205 +4,178 @@ Parent index: [Development Documentation](INDEX.md)
 
 ## Purpose
 
-This document defines Grimoire's correctness-test, documentation-check, evaluation, and benchmark workflows.
+Define the active Lexicon + Arcana correctness, documentation, packaging, and repository-agent benchmark workflows while preserving historical Grimoire evidence.
 
 ## Overview
 
-Verification is split by component ownership and evidence type. Deterministic correctness gates remain distinct from performance measurements and agent-outcome experiments.
+Current verification is owned by Lexicon, Arcana, and the shared L+A release tooling. Grimoire runtime tests, MCP tests, discovery tests, and installed-release smokes were retired with the implementation under ADR 0006.
 
-Verification is split by owning component and by discovery outcome.
+The active repository-agent comparison is normally:
 
-## CPU-bounded root workflow
+```text
+Plain repository tools
+vs.
+Plain repository tools + Lexicon + Arcana
+```
 
-The root workflow verifies architectural invariants and the pinned Lodestone checkout, validates the complete Markdown surface, and then runs component tests. It defaults to one worker:
+CBM remains available as an explicit comparison condition when a competitive control is useful. Grimoire is not a selectable condition for new runs.
+
+Historical Grimoire benchmark results, grounding reports, audit logs, and adapters remain checked in so earlier conclusions can still be inspected and revalidated against their pinned revisions.
+
+## Root verification
+
+Run the bounded active matrix with:
 
 ```bash
-pitlord validate --policy tools/pitlord/policy.json
-pitlord check --repo . --policy tools/pitlord/policy.json
-python scripts/check_docs.py
 python scripts/workflow.py test
-python scripts/workflow.py build --version dev
-python scripts/workflow.py release --version 0.1.0
 ```
 
-This constrains Go package concurrency, Go test parallelism, Cargo build jobs, and Rust test threads. Increase concurrency only explicitly:
+The root workflow runs:
+
+1. Pitlord policy validation and repository checks;
+2. root documentation governance;
+3. Lexicon Go tests;
+4. Java and Kotlin adapter Go tests;
+5. the C# adapter test harness;
+6. Arcana Cargo tests.
+
+The workflow defaults to one worker. Increase concurrency deliberately with `--jobs N`.
+
+Packaging/install behavior is covered by:
 
 ```bash
-python scripts/workflow.py test --jobs 2
-```
-
-Do not use a high `--jobs` value as a routine default. Component test suites may each contain many packages and test binaries.
-
-The workflow smoke suite does not compile the full product:
-
-```bash
+python scripts/workflow.py smoke
 python scripts/test_workflow.py
 ```
 
-After a build, verify the actual combined-ZIP consumer path:
+Those checks verify that active builds and bundles contain Lexicon, Arcana, and Lexicon adapters but no Grimoire executable, MCP surface, installed Grimoire skill, or Lodestone runtime.
 
-```bash
-python scripts/test_installed_mcp.py --source build --version installed-smoke
-```
+## Direct component verification
 
-This extracts the release bundle, runs its embedded installer, launches the installed MCP server from a clean temporary repository, refreshes managed provider state, and verifies a session handle through exact inspection and graph trace.
-
-## Direct bounded Go verification
-
-For focused Grimoire work:
-
-```bash
-GOMAXPROCS=1 go test -p 1 -parallel 1 ./internal/agentquery ./internal/agentruntime ./internal/app
-GOMAXPROCS=1 go test -p 1 -parallel 1 ./...
-```
-
-## Lexicon and Arcana
-
-Lexicon retains its owning Go tests under `lexicon/`. Arcana retains its owning Cargo tests under `arcana/`.
+Lexicon:
 
 ```bash
 cd lexicon
-go test -p 1 -parallel 1 ./...
-
-cd ../arcana
-cargo test --jobs 1 --all-targets --locked -- --test-threads 1
+go test ./...
 ```
 
-## Discovery contract tests
-
-The active Grimoire contract is covered by:
-
-| Concern | Tests |
-| --- | --- |
-| Independent exact, source, symbol, and relationship limits | `internal/agentquery/query_test.go` |
-| Bounded source excerpts | `internal/agentquery/query_test.go` |
-| Separate document lane and document-handle inspection | `internal/agentruntime/runtime_test.go` |
-| Session deduplication for nodes, documents, relationships, and paths | `internal/agentruntime/*_test.go` and `internal/investigation/*_test.go` |
-| Direct CLI commands and retired context command | `internal/app/run_test.go`, `internal/app/exact_context_test.go` |
-| MCP schema and state preparation | `internal/app/*_test.go`, `internal/repostate/*_test.go` |
-| Documentation presence, index visibility, and local links | `scripts/check_docs.py` |
-| Release concurrency bounds and bundled adapter installation | `scripts/test_workflow.py` |
-| Selected-run summary retention and compatibility checks | `evaluation/test_benchmark_summary.py` |
-| Installed release MCP, managed provider state, opaque inspect/trace handles | `scripts/test_installed_mcp.py` |
-
-## Documentation retrieval evaluation
-
-The independent document lane uses the checked-in knowledge evaluator:
+Arcana:
 
 ```bash
-grimoire eval knowledge --cases evaluation/knowledge/grimoire.json --root .
+cargo test --all-targets --locked --manifest-path arcana/Cargo.toml
 ```
 
-Record corpus revision, document-index identity, vector mode, model identity, top-k, and date.
+Component-specific adapter and corpus validation remains documented under the owning component trees.
 
-## Arcana evaluation
+## Documentation verification
 
-Graph discovery and optional semantic entry points use:
+Run all three current documentation checks:
 
 ```bash
-grimoire eval arcana --cases evaluation/arcana/grimoire.json --root .
-grimoire eval arcana --cases evaluation/arcana/space-rocks.json --root C:/!bin/workspace/space-rocks
+python .standards/docs_policy/check.py --repo .
+python .standards/docs_policy/check.py --repo . --config docs-standard.lexicon.json
+python .standards/docs_policy/check.py --repo . --config docs-standard.arcana.json
+python scripts/check_docs.py
 ```
 
-Record Lexicon snapshot, Arcana snapshot, vector mode, model identity, and date.
+No documentation baseline is permitted.
 
-## Agent discovery evaluation
+## Repository-agent benchmark
 
-The canonical end-to-end runner is:
+The active runner is:
 
 ```bash
 python evaluation/run_agent_benchmark.py --help
 python evaluation/run_agent_benchmark.py --check
 ```
 
-`--check` validates the task catalogue and selected packaged dependencies without creating worktrees, profiles, indexes, or agent runs. Output and checkout paths are resolved to absolute paths before subprocess launch so usage and MCP audit files cannot drift into detached worktrees. Existing compatible suite summaries are preserved when selected tasks run; incompatible schema, task-suite, model, or provider metadata is rejected. `python evaluation/revalidate_agent_benchmark.py --task <task-id>` rechecks saved answers and rewrites grounding reports without rerunning agents, recreating and removing pinned worktrees when needed. `import_agent_benchmark_run.py` imports an intentionally isolated result root into the canonical suite summary and supports summary-only recovery against a Git revision. Successful runs remove CBM caches, Lexicon/Arcana ablation exports and isolated binaries, and the partial summary automatically; `cleanup_agent_benchmark.py` removes those transients after interrupted runs. Do not run the benchmark itself as part of ordinary verification. The task catalogue is `evaluation/agent_benchmark_tasks.v2.json`. It contains natural problem reports plus hidden rubrics for architectural exploration, unclear ownership, cross-language change, impact analysis, and source-plus-rationale investigation. The prompt receives only the problem report and one generic evidence envelope; rubric dimensions and expected ownership areas are not disclosed to the agent.
+Default conditions are:
 
-The runner also supports an explicit `lexicon-arcana` ablation condition. It is not part of the default Plain/CBM/Grimoire matrix. When Grimoire is absent from the selected conditions, benchmark setup uses the component-selective root build to compile only Lexicon, Arcana, and Lexicon adapters, so Lodestone and the Grimoire executable are not part of the build or agent environment. The harness then prepares Lexicon and Arcana directly, verifies their immutable snapshot IDs are aligned, exposes a verified Lexicon JSONL export plus Arcana's native `arcana.query.v1` protocol, and places only the Lexicon and Arcana executables on the agent's benchmark PATH. Because Lexicon and Arcana do not ship a combined agent skill, this ablation uses the frozen, provenance-hashed benchmark skill at `evaluation/skills/lexicon-arcana/SKILL.md`; interpret it as a component-value ablation rather than a shipping-product usability comparison.
-
-Run only that condition with a fresh result root:
-
-```bash
-python evaluation/run_agent_benchmark.py --condition lexicon-arcana --output evaluation/results/agent-benchmark-v2-lexicon-arcana-<date>
+```text
+plain
+lexicon-arcana
 ```
 
-`evaluation/benchmark_grounding.py` validates every backticked `path:line` citation and every structured evidence path/range against the pinned checkout. Missing files, path traversal, line overruns, malformed or empty evidence, refusals, and nonzero process exits make the run invalid. When Grimoire evidence includes an inspected source-range handle, it must resolve through the MCP audit log to the same canonical path and lines. Handle coverage is measured separately so direct source verification remains valid. Hidden-rubric path-family coverage is also reported without changing factual grounding validity; semantic completeness remains a separate answer-quality judgment. Each condition writes `<condition>.grounding.json`, and the suite summary records `valid: false` for failed grounding even when the agent process completed.
+The L+A condition builds only Lexicon, Arcana, and Lexicon adapters. It prepares aligned immutable Lexicon and Arcana state, exposes the frozen `evaluation/skills/lexicon-arcana/SKILL.md`, and keeps normal shell, Git, and direct source inspection available.
 
-`evaluation/agent_discovery` scores complete progressive investigation traces. It measures:
+CBM can be requested explicitly:
 
-- required source and structural evidence found;
-- ownership-boundary identification;
-- unsupported conclusions;
-- discovery calls;
-- input and output tokens;
-- latency to first required evidence and completion;
-- irrelevant branches opened.
+```bash
+python evaluation/run_agent_benchmark.py --condition plain --condition lexicon-arcana --condition cbm
+```
 
-The evaluator accepts progressive JSONL and generic raw tool traces. External CBM adapters can be registered without coupling Grimoire to CBM.
+`grimoire` is deliberately absent from the accepted condition set. New benchmark summaries use `lexicon-arcana.agent-benchmark.v2` and new provenance uses `lexicon-arcana.agent-benchmark.provenance.v1`.
 
-Preparation warnings and missing providers remain part of the measured product result. A degraded run may still complete through fallback discovery, but reports must distinguish it from a healthy full-stack condition and retain the exact preparation warning.
+## Retired task handling
 
-A fair assisted-agent comparison must use:
+The task catalogue retains the historical `grimoire-state-maintenance-ownership` case with `retired: true`. The new-run selector excludes retired tasks and rejects an explicit attempt to run one.
 
-- the same repository revision, clean checkout state, and task wording;
-- equivalent warm or cold state, reported explicitly;
-- the same agent model, normal shell/Git/file tools, and completion criteria;
-- exactly one optional discovery system per assisted condition;
-- the product's installed skill rather than ad hoc prompt instructions;
-- all setup, refresh, discovery, direct-read, token, model-call, and elapsed costs;
-- automatic citation and structured-deliverable validation against the pinned checkout;
-- strict validation of any supplied Grimoire source-range handles against `grimoire.mcp.audit.v1` records, plus separate handle-coverage reporting;
-- no free preassembled context package or hidden prepared answer.
+The task remains in the catalogue because historical summaries and grounding reports may still need their original rubric and repository identity during revalidation. Retired tasks skip current-checkout evidence-prefix validation because the implementation they reference has intentionally been deleted from current HEAD.
 
-### Task suitability
+## Historical Grimoire evidence
 
-A mechanically fair comparison can still be a poor discovery benchmark. Prompts that name the subsystem, enumerate every expected ownership area, and provide the likely identifiers are specifically favorable to a strong model using `rg`. They pre-solve much of the discovery problem and measure checklist execution more than uncertainty reduction.
+The following remain evidence, not active product surfaces:
 
-Benchmark task selection should distinguish two context regimes:
+- saved Plain/CBM/Grimoire benchmark summaries and reports;
+- `grimoire.mcp-audit.jsonl` recordings;
+- historical Grimoire grounding-handle support in the result validator;
+- historical import and revalidation utilities;
+- the `grimoire-context` agent-discovery adapter for frozen context-package artifacts;
+- old Grimoire knowledge/Arcana evaluation corpora tied to retired implementation revisions.
 
-- **Small/direct working set:** exact identifiers, compact call chains, or prompts that already provide the search plan. Additional discovery results can create a lost-in-the-middle problem by competing with a small amount of obvious evidence.
-- **Large/ambiguous working set:** unclear ownership, cross-language boundaries, transitive impact, generated contracts, conflicting source and documentation, or incomplete problem reports. Structured discovery can prevent lost-in-the-middle by reducing and organizing the context the model must retain.
+Do not rewrite or delete those artifacts merely because the product was retired. Their original names are part of the experimental record.
 
-This task-size inversion should be treated as a hypothesis to test explicitly. A useful suite needs both regimes and should include tasks whose starting vocabulary does not reveal the complete investigation plan. Citation validity, irrelevant branches opened, context volume, and whether key evidence survives into the final answer should be measured separately.
+Historical results may be revalidated without rerunning the retired product:
 
-The version 2 runner records answer bytes and, for Grimoire, audited discovery response bytes, operation counts, and newly emitted evidence counts. Cold preparation summaries retain provider actions plus explicit timing buckets for Lexicon, Arcana, source indexing, documentation indexing, inspection, lock wait, marker overhead, and final source verification. This allows later optimization to target measured stages rather than total wall time alone.
+```bash
+python evaluation/revalidate_agent_benchmark.py --task <historical-task-id>
+```
 
-Grimoire should be exercised through `search`, `inspect`, `trace`, and `impact`, while allowing the agent to use direct source inspection whenever it is cheaper. Do not require a minimum number of Grimoire calls.
+The revalidator reconstructs the pinned repository revision when needed and understands old Grimoire audit evidence. It does not make Grimoire a runnable current condition.
 
-## Report interpretation
+## Benchmark controls
 
-Checked-in reports are evidence for their exact corpus, repository revision, provider state, and date. They are not permanent product guarantees.
+A fair current comparison uses:
 
-Do not compare source-lane scores directly with document, symbol, or relationship scores. Cross-provider scores are not globally calibrated. Compare end-to-end evidence coverage and agent outcomes instead.
+- the same repository revision and task wording;
+- the same model/provider and completion criteria;
+- equivalent warm/cold state, reported explicitly;
+- normal shell, Git, and direct file access in every condition;
+- only the named optional analysis surface for each assisted condition;
+- all model calls, token usage, preparation cost, and elapsed time;
+- exact citation validation against the pinned checkout;
+- no hidden prepared answer or free preassembled context package.
 
-Historical context-package reports remain useful for measuring the retired pipeline but must be labeled historical.
+Measure answer quality separately from grounding validity and efficiency. Prepared analysis is useful only if it improves the task outcome or reduces discovery cost without degrading correctness.
 
-Current end-to-end results and task-shape interpretation are summarized in [Agent benchmark findings](agent-benchmark-findings.md). The checked-in raw reports include the version 2 architecture, ownership, cross-language, and impact-analysis tasks under `evaluation/results/agent-benchmark-v2/`, the final [Space Rocks network-interest benchmark](../../evaluation/results/network-interest-agent-benchmark-2026-07-27-v4/report.md), and the completed [HikariCP/Detekt/Now in Android unfamiliar-repository benchmark](../../evaluation/results/multi-repo-agent-benchmark-2026-07-27-v1/report.md). Raw reports remain authoritative for exact conditions.
+## Interpretation
+
+Repository graphs and semantic facts are not expected to win every task. Exact identifiers and small local call chains often remain cheaper with direct inspection. Larger or ambiguous ownership, cross-language, dependency, or architecture investigations are the intended cases where L+A may reduce rediscovery.
+
+The Detekt completion-bounded experiment is retained as current evidence that L+A can reduce fresh input and total investigation work while preserving accepted answer quality. It does not establish a universal performance guarantee.
+
+Historical Grimoire results remain useful specifically as evidence for why the umbrella discovery layer was retired.
 
 ## Code map
 
-| Verification surface | Primary implementation or command owner | Related artifacts |
+| Verification surface | Primary implementation or artifact | Protecting checks |
 | --- | --- | --- |
-| Root bounded workflow and Lodestone identity | `scripts/workflow.py` | `scripts/test_workflow.py`, pinned checkout verification |
-| Architecture policy | `tools/pitlord/policy.json`, `tools/pitlord/repository.json` | root workflow and standards CI Pitlord checks |
-| Go package tests | `internal/**`, `cmd/**` | package-local `*_test.go` files |
-| Lexicon full matrix | `lexicon/evaluation/run_tests.py` | adapter and application test suites |
-| Lexicon corpus validation | `lexicon/evaluation/run_validation.py` | `lexicon/evaluation/validation/` |
-| Arcana correctness | `arcana/Cargo.toml`, `arcana/src/**` | Rust module tests and fixtures |
-| Documentation retrieval evaluation | `internal/knowledgeevaluation/`, `evaluation/knowledge/` | judged corpus and reports |
-| Arcana structural evaluation | `internal/arcanaevaluation/`, `evaluation/arcana/` | judged corpus and reports |
-| Agent discovery benchmark | `evaluation/agent_discovery/` | task definitions, run artifacts, and findings |
-| Documentation validation | `scripts/check_docs.py`, `.standards/docs_policy/` | root and component documentation gates |
-
-Benchmarks provide measured evidence; they do not replace deterministic correctness tests or component contracts.
+| Root active matrix | `scripts/workflow.py` | `scripts/test_workflow.py` and component suites |
+| Architecture policy | `tools/pitlord/policy.json`, `tools/pitlord/repository.json` | root workflow and standards CI |
+| Documentation governance | `scripts/check_docs.py`, `.standards/docs_policy/` | root and component documentation checks |
+| Lexicon correctness | `lexicon/` | package, adapter, corpus, and publication tests |
+| Arcana correctness | `arcana/` | Cargo storage, snapshot, ingestion, traversal, protocol, and vector tests |
+| Current agent benchmark | `evaluation/run_agent_benchmark.py`, `benchmark_runner.py`, `benchmark_component_ablation.py` | preflight/provenance and grounding validation |
+| Historical result compatibility | `evaluation/benchmark_grounding.py`, `revalidate_agent_benchmark.py`, `import_agent_benchmark_run.py` | frozen saved reports and pinned checkout reconstruction |
 
 ## Related docs
 
-- [Release workflow](release-workflow.md)
-- [Discovery quality](retrieval-quality.md)
 - [Agent benchmark findings](agent-benchmark-findings.md)
+- [Release workflow](release-workflow.md)
 - [Behavioral contract matrix](behavioral-contract-matrix.md)
 - [Architecture verification](architecture-verification.md)
+- [ADR 0006](../decisions/0006-retire-grimoire-lead-with-lexicon-arcana.md)
 
 ## Notes
 
-Benchmark evidence supplements but never replaces deterministic component, contract, storage, or documentation checks.
+Historical benchmark compatibility is intentionally narrower than product compatibility: old evidence remains readable, but no retired Grimoire runtime, installation, MCP, or discovery behavior is protected for future execution.

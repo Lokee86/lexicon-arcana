@@ -109,7 +109,7 @@ Warlock owns probabilistic task/context orchestration. Lexicon and Arcana remain
 
 ## Tests
 
-Lexicon application/publication tests and Arcana ingestion/storage/snapshot/protocol tests are the active component-boundary verification. Root Grimoire-specific tests are no longer part of the active test workflow and remain only until the implementation-removal pass deletes or reclassifies them.
+Lexicon application/publication tests and Arcana ingestion/storage/snapshot/protocol tests are the active component-boundary verification. Root Grimoire-specific runtime tests were removed with the retired implementation.
 
 ## Related docs
 
@@ -118,3 +118,7 @@ Lexicon application/publication tests and Arcana ingestion/storage/snapshot/prot
 - [Architecture decisions](../decisions/INDEX.md)
 - [Lexicon maintainer map](../../lexicon/docs/MAINTAINER_MAP.md)
 - [Arcana maintainer map](../../arcana/docs/MAINTAINER_MAP.md)
+
+## Notes
+
+The combined L+A distribution is packaging convenience, not an umbrella runtime or ownership layer.

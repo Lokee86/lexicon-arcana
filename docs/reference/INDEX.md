@@ -1,18 +1,30 @@
 # Reference
 
-Reference pages describe current public commands, schemas, defaults, and operating behavior.
+Reference pages are split into current Lexicon + Arcana contracts and historical Grimoire material retained for prior benchmark/design interpretation.
 
-- [Installation and agent setup](installation.md) — release installation, source builds, PATH, skill locations, MCP configuration, first-run preparation, and troubleshooting.
-- [CLI](cli.md) — direct discovery commands, state preparation, vectors, and failure behavior.
-- [Lexicon](lexicon.md) — language-analysis commands, state, scan lifecycle, adapters, contracts, consumers, diagnostics, and focused code map.
-- [Arcana](arcana.md) — graph synchronization, packed state, snapshots, protocol operations, semantic vectors, diagnostics, and focused code map.
-- [Unified discovery contract](agent-query.md) — independent exact, source, document, symbol, and relationship lanes plus progressive expansion.
-- [Agent and MCP guide](agent-mcp.md) — the `grimoire_discover` tool, installed skill, efficient agent workflow, automatic preparation, and session deduplication.
-- [Embedding model](embedding-model.md) — model identity, managed runtime, backend selection, and service verification.
-- [Indexing](indexing.md) — prepared source snapshots and independent documentation indexing.
-- [Document retrieval](knowledge.md) — documentation discovery, BM25, optional vectors, citations, freshness, and code links.
-- [Vector store](vector-store.md) — document-vector object storage, packed snapshots, ABI behavior, freshness, and exact search.
+## Current reference
 
-The former context-package and query-shape/assembly references are retired because those mechanisms are no longer part of the CLI or MCP product contract.
+- [Installation](installation.md) — active L+A bundle installation, source builds, verification, and troubleshooting.
+- [Lexicon](lexicon.md) — language-analysis commands, state, scan lifecycle, adapters, contracts, consumers, and diagnostics.
+- [Arcana](arcana.md) — graph synchronization, snapshots, protocol operations, semantic vectors, diagnostics, and focused code map.
+
+Component-local documentation remains authoritative for detailed current behavior:
+
+- [Lexicon documentation](../../lexicon/docs/README.md)
+- [Arcana documentation](../../arcana/docs/README.md)
+
+## Historical Grimoire reference
+
+The following pages describe retired Grimoire behavior and are preserved only as historical context for ADRs, evaluation fixtures, and benchmark reports:
+
+- [Historical Grimoire CLI](cli.md)
+- [Historical unified discovery contract](agent-query.md)
+- [Historical Grimoire MCP/agent guide](agent-mcp.md)
+- [Historical embedding-model integration](embedding-model.md)
+- [Historical prepared indexing](indexing.md)
+- [Historical document retrieval](knowledge.md)
+- [Historical vector store](vector-store.md)
+
+These pages are not active product contracts after [ADR 0006](../decisions/0006-retire-grimoire-lead-with-lexicon-arcana.md). No surviving component inherits their responsibilities automatically.
 
 Architecture rationale belongs under [Architecture](../architecture/INDEX.md). Evaluation procedure belongs under [Development](../development/INDEX.md).

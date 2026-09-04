@@ -2,6 +2,8 @@
 
 Parent index: [Reference](INDEX.md)
 
+Historical status: this page describes the retired Grimoire document-vector/Lodestone integration and is retained only for prior benchmark/design interpretation. It is not an active product contract.
+
 ## Purpose
 
 This document defines Grimoire's Lodestone-backed documentation-vector storage boundary, state identities, build and publication behavior, ABI expectations, and degradation semantics.

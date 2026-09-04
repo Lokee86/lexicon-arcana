@@ -2,6 +2,8 @@
 
 Parent index: [Reference](INDEX.md)
 
+Historical status: this page describes the retired Grimoire MCP/agent surface and is retained only for prior benchmark/design interpretation. It is not an active product contract.
+
 ## Purpose
 
 This document defines how agent hosts install, configure, invoke, and safely use Grimoire's MCP discovery surface.
@@ -47,7 +49,7 @@ See [Installation and agent setup](installation.md) for release installation, so
 
 ## Installed agent skill
 
-Grimoire distributions include the canonical [`skills/grimoire/SKILL.md`](../../skills/grimoire/SKILL.md). The installer writes it by default to:
+Historical Grimoire distributions included the canonical `skills/grimoire/SKILL.md`. That source/install surface has been removed; the paths below document the former installation behavior:
 
 ```text
 ~/.agents/skills/grimoire/SKILL.md

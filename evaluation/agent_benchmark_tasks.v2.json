@@ -93,6 +93,8 @@
     {
       "id": "grimoire-state-maintenance-ownership",
       "category": "source-plus-rationale",
+      "retired": true,
+      "retirement_reason": "Historical Grimoire task retained only for result revalidation after ADR 0006.",
       "repository": "grimoire",
       "revision": "HEAD",
       "prompt": "Grimoire's first query may need substantial repository preparation, while Warlock is becoming the shared lifecycle supervisor. Decide whether repository watching and change-event ownership should live in Grimoire, Warlock, or be split between them. Ground the recommendation in implemented boundaries and repository documentation, and preserve standalone one-shot use.",

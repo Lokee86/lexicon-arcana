@@ -15,13 +15,13 @@ from benchmark_tasks import load_task_suite, validate_evidence_prefixes
 ROOT = Path(r"C:\!bin\workspace")
 GRIMOIRE_REPO = ROOT / "grimoire"
 DEFAULT_TASKS = GRIMOIRE_REPO / "evaluation" / "agent_benchmark_tasks.v2.json"
-DEFAULT_BUILD = Path(os.environ.get("GRIMOIRE_BENCH_BUILD", GRIMOIRE_REPO / "build"))
-DEFAULT_OUTPUT = GRIMOIRE_REPO / "evaluation" / "results" / "agent-benchmark-v2"
-DEFAULT_CHECKOUTS = ROOT / "benchmark-checkouts" / "agent-benchmark-v2"
+DEFAULT_BUILD = Path(os.environ.get("LEXICON_ARCANA_BENCH_BUILD", GRIMOIRE_REPO / "build"))
+DEFAULT_OUTPUT = GRIMOIRE_REPO / "evaluation" / "results" / "agent-benchmark-v2-lexicon-arcana"
+DEFAULT_CHECKOUTS = ROOT / "benchmark-checkouts" / "agent-benchmark-v2-lexicon-arcana"
 MODEL = "gpt-5.6-sol"
 PROVIDER = "openai-codex"
-DEFAULT_CONDITIONS = ("plain", "cbm", "grimoire")
-CONDITIONS = (*DEFAULT_CONDITIONS, "lexicon-arcana")
+DEFAULT_CONDITIONS = ("plain", "lexicon-arcana")
+CONDITIONS = (*DEFAULT_CONDITIONS, "cbm")
 IGNORED_HARNESS_CHANGES = (
     ".warlock/",
     ".worktrees/",
@@ -43,12 +43,17 @@ def relevant_harness_changes(changes: list[str]) -> list[str]:
 def select_tasks(suite: dict, selected: list[str]) -> list[dict]:
     tasks = suite["tasks"]
     if not selected:
-        return tasks
+        return [task for task in tasks if not bool(task.get("retired"))]
     wanted = set(selected)
     chosen = [task for task in tasks if task["id"] in wanted]
     missing = wanted - {task["id"] for task in chosen}
     if missing:
         raise ValueError(f"unknown task ids: {', '.join(sorted(missing))}")
+    retired = [task["id"] for task in chosen if bool(task.get("retired"))]
+    if retired:
+        raise ValueError(
+            "retired benchmark tasks cannot be used for new runs: " + ", ".join(sorted(retired))
+        )
     return chosen
 
 
@@ -65,7 +70,7 @@ def initialize_summary(
     summary_path = output / "summary.json"
     if not summary_path.is_file():
         return {
-            "schema": "grimoire.agent-benchmark.v2",
+            "schema": "lexicon-arcana.agent-benchmark.v2",
             "task_suite": str(task_suite),
             "model": model,
             "provider": provider,
@@ -80,7 +85,7 @@ def initialize_summary(
         }
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     expected = {
-        "schema": "grimoire.agent-benchmark.v2",
+        "schema": "lexicon-arcana.agent-benchmark.v2",
         "task_suite": str(task_suite),
         "model": model,
         "provider": provider,
@@ -186,8 +191,6 @@ def main() -> int:
         if "cbm" in conditions:
             preparation["cbm"] = environment.prewarm_cbm(checkouts["cbm"], cbm_cache, task_output)
             cbm_project = preparation["cbm"]["project"]
-        if "grimoire" in conditions:
-            preparation["grimoire"] = environment.prewarm_grimoire(checkouts["grimoire"], task_output)
         condition_context: dict[str, dict[str, str]] = {}
         if "lexicon-arcana" in conditions:
             component_summary, component_context = environment.prewarm_lexicon_arcana(
@@ -200,15 +203,11 @@ def main() -> int:
         profile_provenance: dict[str, dict] = {}
         for condition in conditions:
             profile = f"bench-v2-{task['id'][:20]}-{condition}"
-            audit = task_output / "grimoire.mcp-audit.jsonl" if condition == "grimoire" else None
-            if audit and audit.exists():
-                audit.unlink()
             environment.prepare_profile(
                 profile,
                 condition,
                 checkouts[condition],
                 cbm_cache=cbm_cache if condition == "cbm" else None,
-                audit_log=audit,
             )
             profiles[condition] = profile
             profile_provenance[condition] = environment.profile_identity(profile)

@@ -140,7 +140,7 @@ Historical benchmark results remain evidence and should retain their original co
 
 ## Tests
 
-The active stack is protected by Lexicon application, adapter, object-store, incremental-analysis, and publication tests plus Arcana ingestion, repository, storage, snapshot, traversal, and protocol tests. Direct Lexicon + Arcana benchmark conditions provide end-to-end consumer evidence. Grimoire-specific discovery tests are transitional retirement coverage, not future compatibility requirements.
+The active stack is protected by Lexicon application, adapter, object-store, incremental-analysis, and publication tests plus Arcana ingestion, repository, storage, snapshot, traversal, and protocol tests. Direct Lexicon + Arcana benchmark conditions provide end-to-end consumer evidence. Grimoire-specific discovery tests were removed with the retired runtime and are not future compatibility requirements.
 
 ## Related docs
 
@@ -148,3 +148,7 @@ The active stack is protected by Lexicon application, adapter, object-store, inc
 - [System overview](system-overview.md)
 - [Lexicon architecture](../../lexicon/docs/ARCHITECTURE.md)
 - [Arcana Lexicon contract](../../arcana/docs/LEXICON_CONTRACT.md)
+
+## Notes
+
+The analysis stack deliberately ends at component-owned deterministic evidence. Higher-level task decomposition, stopping policy, and context orchestration belong to downstream consumers rather than a revived Grimoire layer.

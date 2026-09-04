@@ -1,6 +1,6 @@
-# Agent discovery benchmark
+# Historical agent discovery benchmark
 
-This evaluation-only harness compares recorded progressive repository investigations. It does not run an agent or alter Grimoire behavior.
+Historical status: this evaluation-only harness is retained to score recorded Grimoire-era repository investigations and frozen context-package artifacts. It does not represent a current execution mode, and the retired Grimoire runtime is not required or supported for new runs.
 
 Corpus files use [`schema.v1.json`](schema.v1.json). The initial Space Rocks corpus is [`space-rocks.v1.json`](space-rocks.v1.json), pinned to its recorded revision.
 
@@ -14,9 +14,9 @@ Each case defines:
 
 Scores include correctness, required-evidence recall, input/output and repeated-input tokens, discovery calls, source opens, evidence timing, irrelevant branches, unsupported claims, and repeatability.
 
-## Progressive recordings
+## Historical progressive recordings
 
-Record complete Grimoire `search`, `inspect`, `trace`, and `impact` interactions as JSONL, then score them:
+The example below documents how complete Grimoire `search`, `inspect`, `trace`, and `impact` recordings were scored while that runtime existed. Reproducing it now requires reconstructing the historical source/module revision; it is not part of current L+A verification:
 
 ```powershell
 go run ./evaluation/agent_discovery/cmd/agent-discovery `
@@ -37,9 +37,7 @@ CBM execution remains external. A CBM exporter can register its transcript adapt
 agentdiscovery.RegisterAdapter("cbm", adapter)
 ```
 
-No CBM dependency is embedded in Grimoire.
-
-A fair paired run uses the same repository revision, task, agent model, completion criteria, and warm/cold state. Grimoire receives no free preassembled context package; its discovery calls and source inspections are counted normally.
+The historical harness embedded no CBM dependency. Historical comparisons remain interpretable only with their recorded repository revision, task, model, completion criteria, and warm/cold state. New repository-agent comparisons use the active Plain versus Lexicon + Arcana harness documented in `docs/development/testing-and-benchmarks.md`.
 
 ## Historical adapter
 

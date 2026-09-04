@@ -4,121 +4,70 @@ Parent index: [Limits](INDEX.md)
 
 ## Purpose
 
-This document records current defects, incomplete transitional behavior, practical ceilings, and pre-release compatibility limits in Grimoire and its integrated components.
+Record current limitations of the active Lexicon + Arcana product family and the unfinished retirement transition.
 
 ## Overview
 
-These limitations describe the active system rather than proposed future work. Resolved items must be removed or rewritten in the same change that establishes the new current behavior.
+These constraints describe implemented behavior, not proposed remedies. Grimoire-specific runtime limitations are historical after ADR 0006 and no longer belong in the active limitations list.
 
-These constraints describe the active unified discovery system.
+## Repository identity is still transitional
 
-## Discovery quality remains corpus-bound
+The source repository is still named `grimoire` even though the active products are Lexicon + Arcana. Current build and release artifacts use L+A naming, but repository/package/mirror naming has not completed its final migration.
 
-Current judged corpora cover only a fraction of possible languages, repository layouts, and development tasks. Passing Grimoire, Lexicon, Arcana, or agent-discovery cases does not establish equivalent recall elsewhere.
+## Production agent guidance is not shipped yet
 
-Measured benefit is task-shaped. Broad architectural investigations can improve substantially, while exact lookups and short named call chains may remain faster with direct shell inspection. Grimoire is an optional discovery aid inside a normal repository workflow, not a requirement for every query.
+The checked-in L+A skill under `evaluation/` is benchmark-oriented and may assume frozen exports/snapshots. The active release does not yet install a production L+A agent skill or define a final agent-host discovery convention.
 
-Exact source, BM25 source, document, and symbol lanes can fail independently. Trace and impact can separately degrade when Lexicon or Arcana structural state is unavailable. Evaluate the affected owner before attributing a missed investigation to the interface as a whole.
+Consumers should currently use direct source/Git tools plus the documented Lexicon and Arcana command/protocol surfaces.
 
-## Independent lanes are not a global answer ranking
+## Lexicon coverage remains language- and construct-dependent
 
-Grimoire deliberately does not merge heterogeneous evidence into one score. The consumer must decide whether implementation, documentation, symbols, or graph relationships are most useful for the current task.
+Lexicon semantic quality is bounded by its enabled adapters and supported constructs. Unsupported or ambiguous relationships should remain unresolved rather than being guessed. Cross-language semantic completeness is not guaranteed merely because a repository scans successfully.
 
-Per-lane rank is meaningful only inside that lane. Scores from different providers are not calibrated against one another.
+## Arcana graph completeness depends on Lexicon evidence
 
-## Source excerpts are bounded
+Arcana can only compile relationships represented by the consumed Lexicon snapshot or by Arcana-owned deterministic graph semantics. Missing or unresolved Lexicon evidence can therefore produce an incomplete graph without making the graph corrupt.
 
-Search results include compact source excerpts to reduce unnecessary inspection calls. Excerpts are capped and may omit relevant surrounding context. Full evidence still requires `inspect` on the returned handle.
+Unknown relation semantics must not be invented for compatibility.
 
-## Documentation can be stale
+## Arcana semantic vectors are optional external-service features
 
-Document results include freshness and provenance metadata where available, but relevance does not prove that a document still matches implementation. Current source remains the authority for executable behavior.
+Exact graph traversal does not require embeddings. Optional semantic graph entry points require a compatible external embedding endpoint and are subject to that service's availability, model identity, latency, and resource limits.
 
-## Structural expansion is explicit and bounded
+The active release does not ship or supervise a Grimoire/Lodestone embedding runtime.
 
-Search does not automatically expand graph neighbours. Use a returned stable handle with `trace` for bounded paths or `impact` for bounded dependents.
+## Combined distribution is not a third product
 
-Impact merges candidate evidence from Lexicon and Arcana and ranks it for the current query, but it is still bounded by candidate, depth, and result limits. Unsupported or unresolved language constructs can omit edges, and provider-local traversal may truncate before every possible dependent is considered.
+The root workflow packages Lexicon and Arcana together for convenience, but there is no umbrella runtime. Consumers that require orchestration, context routing, stopping policy, or probabilistic task decomposition need a downstream owner such as Warlock.
 
-## Structural components remain optional runtime dependencies
+## Benchmark evidence is task-shaped
 
-Lexicon and Arcana retain independent executables, state formats, and publication lifecycles. Missing, stale, timed-out, or incompatible structural state produces warnings while exact, source, and document discovery continue when possible.
+Current agent benchmarks do not prove universal benefit. L+A can reduce independent repository exploration on some diagnosis tasks, while direct source search may remain cheaper for exact lookups or already-known symbols.
 
-Grimoire prepares and aligns available state but does not supervise provider daemons.
+Benchmark claims must retain model, task, repository revision, prompt condition, grounding, and date.
 
-Arcana now accepts Lexicon's C-family macro-specific unresolved reasons and preserves unknown unresolved-reason labels. Unknown node kinds degrade to `symbol`, while records with unknown relation labels are skipped because Arcana cannot safely invent graph semantics. These degradations are loud and persistent, but the resulting graph can be incomplete until Arcana learns the new relation.
+## Historical Grimoire material remains in the repository
 
-## Semantic source boundaries depend on Lexicon coverage
+Historical ADRs, benchmark results, reports, evaluation fixtures, and some reference pages intentionally retain Grimoire names. They are evidence for prior experiments, not active implementation contracts.
 
-Prepared source uses Lexicon declaration spans when current facts are available. Unsupported files, omitted constructs, stale state, ambiguous overlaps, and source outside declarations retain fallback line-window chunks.
+During retirement cleanup, tooling and documentation must distinguish historical references from active dependencies rather than deleting evidence indiscriminately.
 
-Nested declarations are reduced to non-overlapping leaf spans. Oversized semantic declarations are split at the hard token ceiling.
+## Release workflow is deliberately bounded
 
-## Prepared state is fully materialized
+The root workflow defaults to one worker across Go and Cargo. `--jobs N` is an explicit operator choice and can overload a machine when set too high.
 
-Prepared source snapshots and lexical postings are decoded into memory. There is no lazy shard reader or long-lived resident retrieval service for very large repositories.
+## Compatibility is pre-stable
 
-## File eligibility is fixed
-
-Supported extensions and extensionless names are compiled into Grimoire. Repositories can add ignore rules and explicit exclusions but cannot currently register new file classes or generated-content classifiers.
-
-## Exact recovery has a scanning fallback
-
-Identifier-aware postings localize most exact searches. Queries with no lexical token, such as punctuation-only literals, still fall back to scanning prepared chunks to preserve exact behavior.
-
-## Managed model setup is Windows x64 only
-
-`grimoire model setup` installs pinned CPU, Vulkan, or CUDA `llama.cpp` artifacts only on Windows x64. Other platforms require a compatible runtime and local model configured externally.
-
-Backend detection cannot guarantee the fastest or most stable backend for every device and driver.
-
-## The embedding service is external process state
-
-`grimoire model serve` is blocking. Grimoire does not supervise or restart it as a daemon. Exact, source, symbol, and deterministic graph discovery remain available without embeddings. Document vectors and optional semantic graph entry points require a compatible live endpoint.
-
-## The Go native vector loader is Windows-only
-
-The Rust vector engine is portable, but the production Go dynamic-library loader currently targets a Windows DLL. On unsupported platforms the document lane remains BM25-only.
-
-## Document vector search is exact float32 scanning
-
-The current snapshot stores aligned `float32` vectors and performs exact inner-product search. It does not use quantized or approximate-nearest-neighbour indexes. This is deterministic but may become material for very large document corpora.
-
-## Immutable vector objects are not garbage-collected
-
-Replaced document sections disappear from current manifests and snapshots, but immutable vector objects remain available for reuse. There is no reachability-based cleanup across retained snapshots.
-
-## Object ingestion is serialized
-
-Embedding requests may overlap, but native object ingestion is serialized. Increasing endpoint concurrency can increase CPU, GPU, and memory pressure without removing persistence cost.
-
-## State maintenance is request-driven
-
-Grimoire does not continuously watch repositories. Discovery defaults to refresh-if-needed preparation. Documentation vectors remain explicit build artifacts, and freshness checks prevent silently using mismatched snapshots.
-
-Initial preparation can dominate a first query because source, Lexicon, Arcana, and documentation state may all need alignment. Repeated `force-refresh` requests can erase the efficiency benefit of progressive discovery.
-
-## Investigation sessions store evidence, not reasoning
-
-Sessions deduplicate returned nodes, ranges, documents, relationships, and paths. They do not preserve an agent's private reasoning or guarantee that two semantically equivalent queries map to identical evidence handles.
-
-## Release workflow is deliberately conservative
-
-The root test, build, and release workflow defaults to one worker across Go and Cargo to prevent uncontrolled CPU fan-out. `--jobs N` is an explicit operator choice and can still overload a machine when set too high.
-
-## Diagnostics and compatibility are pre-release
-
-Human-readable errors, diagnostic codes, JSON error envelopes, exit-code classes, CLI spelling, and prepared/vector state migration policy are not yet stable release promises.
-
-The current public discovery schema is `grimoire.discovery.v1`. Consumers must reject unsupported schemas rather than infer compatibility from field presence.
+Lexicon and Arcana command spelling, diagnostic codes, exit classes, state migration policy, and packaging conventions are not yet stable-release promises unless their component documentation states otherwise.
 
 ## Related docs
 
 - [System overview](../architecture/system-overview.md)
-- [Discovery quality](../development/retrieval-quality.md)
 - [Roadmap](../planning/roadmap.md)
-- [Embedding model](../reference/embedding-model.md)
+- [Agent benchmark findings](../development/agent-benchmark-findings.md)
+- [Lexicon documentation](../../lexicon/docs/README.md)
+- [Arcana documentation](../../arcana/docs/README.md)
 
 ## Notes
 
-Intentional architecture invariants belong in architecture documents; future remedies belong in planning.
+Resolved limitations should be removed or rewritten in the same change that establishes the new current behavior. Historical Grimoire limitations belong in historical reports, not here.

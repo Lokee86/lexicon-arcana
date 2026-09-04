@@ -26,11 +26,11 @@ class BenchmarkProvenanceTests(unittest.TestCase):
             self.assertNotEqual(sha256_tree(root), initial_tree)
 
     def test_frozen_provenance_rejects_any_change(self) -> None:
-        expected = {"tools": {"grimoire": {"sha256": "sha256:one"}}}
+        expected = {"tools": {"lexicon": {"sha256": "sha256:one"}}}
         assert_frozen(expected, expected)
         with self.assertRaisesRegex(RuntimeError, "provenance changed"):
             assert_frozen(
-                {"tools": {"grimoire": {"sha256": "sha256:two"}}},
+                {"tools": {"lexicon": {"sha256": "sha256:two"}}},
                 expected,
             )
 
@@ -38,7 +38,6 @@ class BenchmarkProvenanceTests(unittest.TestCase):
         version = "benchmark-123456789abc"
         provenance = {
             "tools": {
-                "grimoire": {"version": version},
                 "lexicon": {"version": f"lexicon version {version}"},
                 "arcana": {"version": f"Arcana {version}"},
             }
@@ -48,7 +47,7 @@ class BenchmarkProvenanceTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "expected frozen build version"):
             verify_build_version(provenance, version)
 
-    def test_component_only_build_versions_do_not_require_grimoire(self) -> None:
+    def test_active_build_versions_require_only_lexicon_and_arcana(self) -> None:
         version = "benchmark-123456789abc"
         verify_build_version(
             {
@@ -63,12 +62,12 @@ class BenchmarkProvenanceTests(unittest.TestCase):
     def test_generated_outputs_do_not_dirty_harness(self) -> None:
         changes = [
             " M evaluation/results/run/summary.json",
-            "?? build/bin/grimoire.exe",
-            " M internal/agentruntime/runtime.go",
+            "?? build/bin/lexicon.exe",
+            " M evaluation/benchmark_runner.py",
         ]
         self.assertEqual(
             relevant_harness_changes(changes),
-            [" M internal/agentruntime/runtime.go"],
+            [" M evaluation/benchmark_runner.py"],
         )
 
 

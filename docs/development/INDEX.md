@@ -1,17 +1,22 @@
 # Development
 
-Development documentation defines how Grimoire is verified and how retrieval claims are measured.
+Development documentation defines current L+A verification/release practice and preserves measured historical evidence.
 
-- [Documentation coverage](documentation-coverage.md) — production commands, packages, components, stateful flows, and canonical current owners.
-- [Architecture verification](architecture-verification.md) — deterministic ownership, dependency, lifecycle, generated-state, and source-identity gates.
-- [Behavioral contract matrix](behavioral-contract-matrix.md) — critical cross-component invariants and their protecting tests or gates.
-- [Testing and benchmarks](testing-and-benchmarks.md) — documentation validation, component test suites, evaluation commands, benchmark controls, and report artifacts.
-- [Agent benchmark findings](agent-benchmark-findings.md) — current task-shape conclusions, Space Rocks comparisons, and the HikariCP/Detekt/Now in Android unfamiliar-repository suite.
-- [Recent changes — July 2026](recent-changes-2026-07.md) — progressive-discovery consolidation, lexical-first retrieval, packaging, skill, and benchmark summary.
-- [Release workflow](release-workflow.md) — root orchestration, local installation, skill packaging, version injection, and release artifacts.
-- [Retrieval quality](retrieval-quality.md) — corpus schema, pipeline-loss attribution, and metric interpretation.
-- [Ranking calibration corpus](ranking-calibration-corpus.md) — judged case design and expansion rules.
+## Current verification and release
 
-The checked-in documentation evaluation corpus is [`evaluation/knowledge/grimoire.json`](../../evaluation/knowledge/grimoire.json). Paired Arcana graph-seed corpora are checked in for [Grimoire](../../evaluation/arcana/grimoire.json) and the external [Space Rocks](../../evaluation/arcana/space-rocks.json) repository. Their execution and validation paths are documented in [Testing and benchmarks](testing-and-benchmarks.md).
+- [Documentation coverage](documentation-coverage.md) — active component, contract, stateful-flow, release, and benchmark owners.
+- [Architecture verification](architecture-verification.md) — Pitlord and focused component/workflow gates.
+- [Behavioral contract matrix](behavioral-contract-matrix.md) — active L+A invariants and protecting tests.
+- [Release workflow](release-workflow.md) — root L+A build, install, packaging, protocol verification, and release artifacts.
+- [Testing and benchmarks](testing-and-benchmarks.md) — component/evaluation procedures and retained report artifacts.
 
-Checked-in evaluation reports are evidence for the exact repository and state recorded by the report. They are not permanent product guarantees and must not be summarized without their mode, corpus, provider set, and date.
+## Research and historical evidence
+
+- [Agent benchmark findings](agent-benchmark-findings.md) — Grimoire historical comparisons and current L+A experiments.
+- [Retrieval quality](retrieval-quality.md) — historical retrieval-pipeline methodology and result interpretation where still relevant to preserved experiments.
+- [Ranking calibration corpus](ranking-calibration-corpus.md) — judged-case design retained as research evidence.
+- [Recent changes — July 2026](recent-changes-2026-07.md) — historical Grimoire development record.
+
+Checked-in Grimoire evaluation corpora and reports remain evidence for their recorded revisions/conditions. They are not active Grimoire product guarantees after [ADR 0006](../decisions/0006-retire-grimoire-lead-with-lexicon-arcana.md).
+
+Future repository-agent comparisons normally use Plain versus Lexicon + Arcana; Grimoire conditions are retained as historical baselines only.

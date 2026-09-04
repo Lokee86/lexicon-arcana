@@ -2,6 +2,8 @@
 
 Parent index: [Reference](INDEX.md)
 
+Historical status: this page describes the retired Grimoire prepared-index layer and is retained only for prior benchmark/design interpretation. It is not an active product contract.
+
 ## Purpose
 
 This document defines Grimoire's source preparation, documentation indexing, eligibility, exclusions, chunking, reuse, token accounting, and freshness behavior.

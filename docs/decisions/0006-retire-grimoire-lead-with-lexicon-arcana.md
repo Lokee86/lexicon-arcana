@@ -6,6 +6,10 @@ Parent index: [Architecture decisions](INDEX.md)
 
 Record the decision to retire Grimoire as a product and repository-discovery layer, make Lexicon and Arcana the lead repository-analysis products, and avoid transferring Grimoire's retired responsibilities into either component without separate evidence and ownership decisions.
 
+## Overview
+
+Grimoire's umbrella discovery layer no longer justifies an active product/runtime boundary. The surviving architecture is direct repository source plus Lexicon semantic analysis plus Arcana graph analysis, with higher-level orchestration owned by consumers such as Warlock.
+
 ## Status
 
 Accepted — 2026-09-03.
