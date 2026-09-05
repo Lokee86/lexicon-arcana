@@ -23,13 +23,18 @@ fn emits_normalized_error_handling_capabilities_and_actions() {
         .filter_map(|node| node["name"].as_str())
         .filter(|name| name.starts_with("error-action:"))
         .collect();
+    let flows: std::collections::BTreeSet<_> = nodes
+        .iter()
+        .filter_map(|node| node["name"].as_str())
+        .filter(|name| name.starts_with("error-flow:"))
+        .collect();
 
     assert!(nodes.iter().any(|node| {
         node["name"]
             .as_str()
             .is_some_and(|name| name.starts_with("semantic-capabilities:rust:"))
     }));
-    assert_eq!(handlers.len(), 4);
+    assert_eq!(handlers.len(), 7);
     assert!(!nodes.iter().any(|node| {
         node["path"] == "src/generated.rs"
             && node["qualified_name"]
@@ -42,6 +47,16 @@ fn emits_normalized_error_handling_capabilities_and_actions() {
             "error-action:propagate",
             "error-action:record",
             "error-action:recover"
+        ]
+        .into_iter()
+        .collect()
+    );
+    assert_eq!(
+        flows,
+        [
+            "error-flow:continuation",
+            "error-flow:enclosing-propagation",
+            "error-flow:fallback"
         ]
         .into_iter()
         .collect()

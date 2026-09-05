@@ -36,9 +36,21 @@ class SemanticContractTest(unittest.TestCase):
         }
         for line, node in enumerate((capability, handler, action), start=1):
             validate_semantic_protocol_node(node, line, require)
+        flow = {
+            "id": "flow",
+            "kind": "protocol",
+            "name": "error-flow:fallback",
+            "path": "src/app.py",
+            "qualified_name": "@semantic/error-handler/python/src/app.py:4:1/flow-fallback:6:1",
+            "span": {"path": "src/app.py"},
+        }
+        validate_semantic_protocol_node(flow, 4, require)
         validate_semantic_links(
-            [{"record": "edge", "relation": "contains", "source": "handler", "target": "action"}],
-            {"handler": handler, "action": action},
+            [
+                {"record": "edge", "relation": "contains", "source": "handler", "target": "action"},
+                {"record": "edge", "relation": "contains", "source": "handler", "target": "flow"},
+            ],
+            {"handler": handler, "action": action, "flow": flow},
             require,
         )
 
@@ -84,6 +96,20 @@ class SemanticContractTest(unittest.TestCase):
                     1,
                     require,
                 )
+
+    def test_rejects_unknown_error_flow(self) -> None:
+        with self.assertRaises(ValueError):
+            validate_semantic_protocol_node(
+                {
+                    "kind": "protocol",
+                    "name": "error-flow:guess",
+                    "path": "src/app.py",
+                    "qualified_name": "@semantic/error-handler/python/src/app.py:4:1/flow-guess:6:1",
+                    "span": {"path": "src/app.py"},
+                },
+                1,
+                require,
+            )
 
     def test_rejects_uncontained_or_misowned_error_actions(self) -> None:
         action = {

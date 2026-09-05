@@ -19,6 +19,7 @@ use crate::semantic_actions::{actions_for_block, actions_for_expr, ErrorAction};
 struct Handler {
     span: Span,
     actions: Vec<(ErrorAction, Span)>,
+    flows: Vec<(&'static str, Span)>,
 }
 
 pub(crate) fn emit(context: &mut Context) {
@@ -30,6 +31,9 @@ pub(crate) fn emit(context: &mut Context) {
         emit_capabilities(context, &source);
         let mut collector = HandlerCollector::default();
         collector.visit_file(&source.syntax);
+        for flow in crate::semantic_error_flow::collect(&source.syntax) {
+            collector.attach_flow(flow.handler_span, flow.flow, flow.evidence_span);
+        }
         for handler in collector.handlers {
             emit_handler(context, &source, handler);
         }
@@ -95,6 +99,27 @@ fn emit_handler(context: &mut Context, source: &SourceFile, handler: Handler) {
             span_value(span, &source.relative),
         );
     }
+    for (flow, span) in handler.flows {
+        let (flow_line, flow_column) = span_start(span);
+        let flow_identity = format!("{identity}/flow-{flow}:{flow_line}:{flow_column}");
+        let flow_id = context.facts.add_node(
+            "rust",
+            "protocol",
+            &flow_identity,
+            &format!("error-flow:{flow}"),
+            &source.relative,
+            &flow_identity,
+            None,
+            span_value(span, &source.relative),
+            BTreeMap::new(),
+        );
+        context.facts.add_edge(
+            &handler_id,
+            &flow_id,
+            "contains",
+            span_value(span, &source.relative),
+        );
+    }
 }
 
 #[derive(Default)]
@@ -109,6 +134,7 @@ impl<'ast> Visit<'ast> for HandlerCollector {
                 self.handlers.push(Handler {
                     span: arm.span(),
                     actions: actions_for_expr(&arm.body),
+                    flows: Vec::new(),
                 });
             }
         }
@@ -121,10 +147,24 @@ impl<'ast> Visit<'ast> for HandlerCollector {
                 self.handlers.push(Handler {
                     span: node.then_branch.span(),
                     actions: actions_for_block(&node.then_branch),
+                    flows: Vec::new(),
                 });
             }
         }
         visit::visit_expr_if(self, node);
+    }
+}
+
+impl HandlerCollector {
+    fn attach_flow(&mut self, handler_span: Span, flow: &'static str, evidence: Span) {
+        let key = span_start(handler_span);
+        if let Some(handler) = self
+            .handlers
+            .iter_mut()
+            .find(|item| span_start(item.span) == key)
+        {
+            handler.flows.push((flow, evidence));
+        }
     }
 }
 

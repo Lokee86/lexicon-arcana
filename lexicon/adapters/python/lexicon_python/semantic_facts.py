@@ -6,6 +6,7 @@ import ast
 
 from .contract import span
 from .model import Facts, FileContext
+from .semantic_error_flow import emit_error_flow_facts
 
 CAPABILITIES = ("control-flow", "error-handling", "calls", "source-spans", "outcome-obligations")
 _ACTIONS = ("propagate", "record", "recover")
@@ -34,6 +35,7 @@ def emit_semantic_facts(facts: Facts, contexts: list[FileContext]) -> None:
         _emit_capabilities(facts, context)
         collector = _HandlerCollector(facts, context)
         collector.visit(context.tree)
+        emit_error_flow_facts(facts, context)
 
 
 def is_generated_semantic_source(source: str) -> bool:

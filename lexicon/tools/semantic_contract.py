@@ -14,6 +14,7 @@ CAPABILITY_ORDER = (
     "outcome-obligations",
 )
 ERROR_ACTIONS = {"propagate", "record", "recover"}
+ERROR_FLOWS = {"fallback", "enclosing-propagation", "intentional-suppression", "continuation"}
 OUTCOME_KINDS = {"fallible", "async"}
 OUTCOME_ACTIONS = {"consume"}
 _LANGUAGE_PATTERN = re.compile(r"^[a-z][a-z0-9+-]*$")
@@ -40,6 +41,10 @@ def validate_semantic_protocol_node(record: dict[str, Any], line: int, require: 
         action = name.split(":", 1)[1]
         require(action in ERROR_ACTIONS, f"line {line}: unknown semantic error action")
         _require_action_identity(record, line, require, "@semantic/error-handler/", action)
+    elif name.startswith("error-flow:"):
+        flow = name.split(":", 1)[1]
+        require(flow in ERROR_FLOWS, f"line {line}: unknown semantic error flow")
+        _require_action_identity(record, line, require, "@semantic/error-handler/", f"flow-{flow}")
     elif name.startswith("outcome-operation:"):
         parts = name.split(":", 2)
         require(len(parts) == 3, f"line {line}: invalid outcome operation name")
@@ -95,6 +100,7 @@ def validate_semantic_links(
     require: Require,
 ) -> None:
     _validate_action_links(records, nodes, require, "error-action:", "error-handler:", "error")
+    _validate_action_links(records, nodes, require, "error-flow:", "error-handler:", "error flow")
     _validate_action_links(records, nodes, require, "outcome-action:", "outcome-operation:", "outcome")
 
 

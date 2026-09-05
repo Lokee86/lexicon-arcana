@@ -27,6 +27,30 @@ pub fn recovered(value: Result<(), ()>) {
     }
 }
 
+pub fn fallback_after_handler(value: Result<(), ()>) -> usize {
+    match value {
+        Ok(()) => {}
+        Err(_) => {}
+    }
+    return 1;
+}
+
+pub fn propagate_after_handler(value: Result<(), ()>) -> Result<(), ()> {
+    match value {
+        Ok(()) => {}
+        Err(_) => {}
+    }
+    return Err(());
+}
+
+pub fn continue_after_handler(value: Result<(), ()>) {
+    match value {
+        Ok(()) => {}
+        Err(_) => {}
+    }
+    fallback();
+}
+
 pub fn fallible() -> Result<(), ()> {
     Ok(())
 }

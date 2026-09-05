@@ -24,6 +24,7 @@ mod relationships;
 mod resolve;
 mod semantic;
 mod semantic_actions;
+mod semantic_error_flow;
 mod semantic_facts;
 #[cfg(test)]
 mod semantic_facts_tests;

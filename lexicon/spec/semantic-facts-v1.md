@@ -63,6 +63,27 @@ The v1 action registry is:
 
 `recover` means that the handler is not semantically empty for the purposes of generic error-handling rules. It does not claim that the recovery is correct.
 
+## Error-flow nodes
+
+A semantically empty handler may still have a proven downstream disposition outside its own body. Adapters may emit one or more normalized flow facts:
+
+```text
+kind: protocol
+name: error-flow:<flow>
+qualified_name: <handler-qualified-name>/flow-<flow>:<adapter-stable-source-location>
+path: <same path as handler>
+span: <downstream evidence span>
+```
+
+The flow node is connected from its handler with a `contains` edge. The v1 flow registry is:
+
+- `fallback`: control proceeds into a statically identified fallback path;
+- `enclosing-propagation`: a surrounding failure path propagates after best-effort handling or cleanup;
+- `intentional-suppression`: the adapter has explicit language-level evidence that suppression is deliberate;
+- `continuation`: execution demonstrably continues after the handler, but the adapter cannot prove that the later work disposes of the error.
+
+`continuation` is evidence, not recovery. Consumers must not treat arbitrary following work as equivalent to `fallback`, propagation, or explicit suppression.
+
 ## Outcome-obligation nodes
 
 An operation whose result has a statically proven observation obligation emits:
@@ -97,7 +118,10 @@ Consumers must treat capabilities as prerequisites rather than inferred parser f
 For `swallowed-error`, a handler is reportable only when:
 
 - the owning file advertises `control-flow`, `error-handling`, `calls`, and `source-spans`;
-- the handler has no contained `error-action:propagate`, `error-action:record`, or `error-action:recover` node.
+- the handler has no contained `error-action:propagate`, `error-action:record`, or `error-action:recover` node;
+- the handler has no contained `error-flow:fallback`, `error-flow:enclosing-propagation`, or `error-flow:intentional-suppression` node.
+
+A contained `error-flow:continuation` does not suppress the finding.
 
 For `unobserved-outcome`, an operation is reportable only when:
 

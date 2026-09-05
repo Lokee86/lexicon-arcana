@@ -115,7 +115,7 @@ Common node kinds:
 
 Adapters may add language-specific kinds, but consumers may reject kinds they do not support.
 
-Language-neutral semantic protocol nodes use the versioned [semantic fact contract v1](semantic-facts-v1.md). The shared validator enforces its capability, error-handler, and error-action vocabularies in addition to the generic facts-v1 structure.
+Language-neutral semantic protocol nodes use the versioned [semantic fact contract v1](semantic-facts-v1.md). The shared validator enforces its capability, error-handler/action, error-flow, and outcome-obligation vocabularies in addition to the generic facts-v1 structure.
 
 ## Edge record
 

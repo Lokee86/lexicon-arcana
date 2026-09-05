@@ -11,6 +11,11 @@ type ActionEvidence = {
   node: ts.Node;
 };
 
+type FlowEvidence = {
+  flow: "fallback" | "enclosing-propagation" | "continuation";
+  node: ts.Statement;
+};
+
 export function emitSemanticFacts(contexts: FileContext[], facts: FactStore): void {
   for (const context of contexts) {
     if (isGeneratedSemanticSource(context)) continue;
@@ -66,6 +71,37 @@ function emitCatchClause(clause: ts.CatchClause, context: FileContext, facts: Fa
     );
     facts.addEdge(handlerId, actionId, "contains", spanFor(evidence.node, context.sourceFile, context.relativePath));
   }
+  const flow = collectErrorFlow(clause);
+  if (flow) {
+    const flowStart = flow.node.getStart(context.sourceFile);
+    const flowIdentity = `${identity}/flow-${flow.flow}:${flowStart}`;
+    const flowId = facts.addNode(
+      "protocol",
+      `error-flow:${flow.flow}`,
+      context.relativePath,
+      flowIdentity,
+      flowIdentity,
+      spanFor(flow.node, context.sourceFile, context.relativePath),
+    );
+    facts.addEdge(handlerId, flowId, "contains", spanFor(flow.node, context.sourceFile, context.relativePath));
+  }
+}
+
+function collectErrorFlow(clause: ts.CatchClause): FlowEvidence | null {
+  if (clause.block.statements.length !== 0 || !ts.isTryStatement(clause.parent)) return null;
+  const owner = clause.parent;
+  const parent = owner.parent as ts.Node & { statements?: ts.NodeArray<ts.Statement> };
+  const statements = parent?.statements;
+  if (!statements) return null;
+  const index = statements.indexOf(owner);
+  if (index < 0 || index + 1 >= statements.length) return null;
+  const next = statements[index + 1];
+  if (ts.isThrowStatement(next)) return { flow: "enclosing-propagation", node: next };
+  if (ts.isReturnStatement(next) || ts.isTryStatement(next)) return { flow: "fallback", node: next };
+  if (ts.isVariableStatement(next) && index + 2 < statements.length && ts.isReturnStatement(statements[index + 2])) {
+    return { flow: "fallback", node: next };
+  }
+  return { flow: "continuation", node: next };
 }
 
 function collectActions(block: ts.Block): ActionEvidence[] {

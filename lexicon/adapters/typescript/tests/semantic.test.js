@@ -33,6 +33,24 @@ test("emits normalized error-handling capabilities and actions", () => {
   assert.equal(edges.filter((edge) => edge.relation === "contains" && actionIds.has(edge.target)).length, 3);
 });
 
+test("emits downstream error-flow dispositions without treating continuation as recovery", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lexicon-ts-error-flow-"));
+  fs.writeFileSync(path.join(root, "tsconfig.json"), JSON.stringify({ compilerOptions: { target: "ES2022" } }));
+  fs.writeFileSync(path.join(root, "main.ts"), [
+    "declare function work(): void;",
+    "declare function note(): void;",
+    "export function fallback(): number { try { work(); } catch {} return 1; }",
+    "export function continued(): void { try { work(); } catch {} note(); }",
+    "",
+  ].join("\n"));
+
+  const nodes = buildFacts(root).filter((record) => record.record === "node");
+  assert.deepEqual(
+    nodes.filter((node) => String(node.name).startsWith("error-flow:")).map((node) => node.name),
+    ["error-flow:fallback", "error-flow:continuation"],
+  );
+});
+
 test("omits semantic protocol facts for generated sources", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lexicon-ts-generated-semantic-"));
   fs.writeFileSync(path.join(root, "tsconfig.json"), JSON.stringify({ compilerOptions: { target: "ES2022" } }));
