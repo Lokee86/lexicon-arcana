@@ -32,3 +32,20 @@ test("emits normalized error-handling capabilities and actions", () => {
   const actionIds = new Set(actions.map((node) => node.id));
   assert.equal(edges.filter((edge) => edge.relation === "contains" && actionIds.has(edge.target)).length, 3);
 });
+
+test("omits semantic protocol facts for generated sources", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lexicon-ts-generated-semantic-"));
+  fs.writeFileSync(path.join(root, "tsconfig.json"), JSON.stringify({ compilerOptions: { target: "ES2022" } }));
+  fs.writeFileSync(path.join(root, "generated.ts"), [
+    "// This file is auto-generated; please do not edit!",
+    "declare function work(): void;",
+    "export function generated(): void { try { work(); } catch {} }",
+    "",
+  ].join("\n"));
+
+  const nodes = buildFacts(root).filter((record) => record.record === "node");
+  assert.equal(
+    nodes.filter((node) => String(node.qualified_name ?? "").startsWith("@semantic/")).length,
+    0,
+  );
+});

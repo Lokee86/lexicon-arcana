@@ -7,6 +7,7 @@ from typing import Any
 
 from .contract import span
 from .model import Facts, FileContext
+from .semantic_facts import is_generated_semantic_source
 
 SpanKey = tuple[str, int, int, int, int]
 
@@ -26,7 +27,7 @@ def emit_outcome_facts(facts: Facts, contexts: list[FileContext]) -> None:
     if not proven_spans:
         return
     for context in contexts:
-        if context.tree is not None:
+        if context.tree is not None and not is_generated_semantic_source(context.source):
             _OutcomeCollector(facts, context, proven_spans).visit(context.tree)
 
 

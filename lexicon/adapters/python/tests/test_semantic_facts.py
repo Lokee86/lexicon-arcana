@@ -110,6 +110,27 @@ class PythonSemanticFactsTest(unittest.TestCase):
                 )
             )
 
+    def test_generated_sources_are_omitted_and_import_fallback_recovers(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            repo = Path(tempdir) / "fixture"
+            repo.mkdir()
+            (repo / "generated.py").write_text(
+                "# Code generated; DO NOT EDIT.\ntry:\n    work()\nexcept Exception:\n    pass\n",
+                encoding="utf-8",
+            )
+            (repo / "fallback.py").write_text(
+                "try:\n    import tomllib\nexcept ModuleNotFoundError:\n    import tomli as tomllib\n",
+                encoding="utf-8",
+            )
+            records = build_facts(repo)
+            nodes = [record for record in records if record["record"] == "node"]
+            semantic = [node for node in nodes if str(node.get("qualified_name", "")).startswith("@semantic/")]
+            self.assertFalse(any(node["path"] == "generated.py" for node in semantic))
+            handlers = [node for node in semantic if node["name"] == "error-handler:python"]
+            self.assertEqual(len(handlers), 1)
+            recover = [node for node in semantic if node["name"] == "error-action:recover"]
+            self.assertEqual(len(recover), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

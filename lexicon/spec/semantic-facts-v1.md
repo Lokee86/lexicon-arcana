@@ -25,6 +25,8 @@ Capabilities are a set serialized in this canonical registry order:
 
 An adapter may advertise a subset, but it must not advertise a capability it cannot support for that file. Consumers must fail closed when a rule's required capability set is unavailable.
 
+Adapters may omit semantic protocol facts for source that is deterministically identified as generated or machine-owned. This semantic omission does not remove ordinary structural facts for the file. Consumers must therefore treat the missing capability node as an unsupported semantic surface, not as evidence that the generated file is semantically clean.
+
 ## Error-handler nodes
 
 A syntactic construct that handles an error condition emits:
@@ -57,7 +59,7 @@ The v1 action registry is:
 
 - `propagate`: the handler explicitly rethrows, returns, rejects, or otherwise propagates the error outcome;
 - `record`: the handler explicitly records or reports the error through recognized logging/reporting semantics;
-- `recover`: the handler performs an explicit recovery/control-flow effect such as returning a fallback, invoking recovery work, assigning recovery state, or leaving/continuing the enclosing control flow.
+- `recover`: the handler performs an explicit recovery/control-flow effect such as returning a fallback, invoking recovery work, loading a fallback dependency, assigning recovery state, or leaving/continuing the enclosing control flow.
 
 `recover` means that the handler is not semantically empty for the purposes of generic error-handling rules. It does not claim that the recovery is correct.
 

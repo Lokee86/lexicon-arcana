@@ -17,6 +17,9 @@ pub(crate) fn emit(context: &mut Context) {
     }
     let sources: Vec<SourceFile> = context.sources.values().cloned().collect();
     for source in sources {
+        if crate::semantic_facts::is_generated_semantic_source(&source) {
+            continue;
+        }
         let mut collector = OutcomeCollector {
             path: &source.relative,
             proven_spans: &proven_spans,

@@ -30,6 +30,12 @@ fn emits_normalized_error_handling_capabilities_and_actions() {
             .is_some_and(|name| name.starts_with("semantic-capabilities:rust:"))
     }));
     assert_eq!(handlers.len(), 4);
+    assert!(!nodes.iter().any(|node| {
+        node["path"] == "src/generated.rs"
+            && node["qualified_name"]
+                .as_str()
+                .is_some_and(|name| name.starts_with("@semantic/"))
+    }));
     assert_eq!(
         actions,
         [

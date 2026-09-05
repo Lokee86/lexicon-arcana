@@ -1,10 +1,11 @@
 import * as ts from "typescript";
 import { spanFor } from "./contract";
 import type { FactStore, FileContext } from "./model";
-import { semanticLanguage } from "./semantic-facts";
+import { isGeneratedSemanticSource, semanticLanguage } from "./semantic-facts";
 
 export function emitOutcomeFacts(contexts: FileContext[], facts: FactStore, checker: ts.TypeChecker): void {
   for (const context of contexts) {
+    if (isGeneratedSemanticSource(context)) continue;
     visit(context.sourceFile, undefined, context, facts, checker);
   }
 }
