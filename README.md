@@ -1,11 +1,17 @@
 # Lexicon + Arcana
 
-Lexicon and Arcana are complementary deterministic repository-analysis tools for humans, agents, and higher-level developer systems.
+**Deterministic repository intelligence for developers and coding agents.**
+
+Large repositories force humans and agents to repeatedly rediscover the same structure: where symbols live, what calls what, which files depend on a change, and where architectural boundaries actually sit. Lexicon + Arcana turns that work into reusable, queryable repository state.
 
 - **Lexicon** performs polyglot semantic analysis and publishes immutable facts about files, symbols, calls, dataflow, dependencies, and unresolved relationships.
 - **Arcana** consumes a verified Lexicon snapshot and publishes a queryable repository/call graph with deterministic traversal, impact, paths, call chains, architecture summaries, and unresolved-reference queries.
 
-The former **Grimoire** repository-discovery product is retired. Its runtime, source/document retrieval layer, stable handles, investigation sessions, MCP surface, repository state, and installed skill have been removed from the active source tree. Historical ADRs, reference material, fixtures, and benchmark results remain for evidence. See [ADR 0006](docs/decisions/0006-retire-grimoire-lead-with-lexicon-arcana.md).
+The pair is designed to augment direct source inspection, not replace it: use deterministic repository facts to find the right evidence faster, then inspect the source that owns the answer.
+
+### Measured agent impact
+
+On a frozen Detekt repository investigation, completion-bounded Lexicon + Arcana reduced an agent from **25 to 19 started inference/tool items**, **470.2s to 300.6s wall time**, **1.906M to 1.472M total input tokens**, and **195k to 113k fresh input tokens** relative to plain repository exploration while preserving accepted answer quality and grounding. These are task-specific measurements, not universal performance guarantees. See [Agent benchmark findings](docs/development/agent-benchmark-findings.md).
 
 ## Product model
 
@@ -28,9 +34,7 @@ Lexicon and Arcana are not intended to replace direct source inspection. They pr
 
 ## Why the pair
 
-Lexicon owns language semantics. Arcana owns graph semantics. Keeping those domains separate lets each remain deterministic, independently testable, and independently usable.
-
-Recent repository-agent experiments also support the simpler direct surface. On the current frozen Detekt investigation, completion-bounded Lexicon + Arcana reduced the agent from 25 to 19 started inference/tool items, 470.2s to 300.6s wall time, 1.906M to 1.472M total input tokens, and 195k to 113k fresh input tokens relative to plain repository exploration while preserving the accepted answer quality and grounding. These are task-specific measurements, not universal performance guarantees. See [Agent benchmark findings](docs/development/agent-benchmark-findings.md).
+Lexicon owns language semantics. Arcana owns graph semantics. Keeping those domains separate lets each remain deterministic, independently testable, independently usable, and replaceable without forcing consumers through one monolithic analysis runtime.
 
 ## Quick start
 
