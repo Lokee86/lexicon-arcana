@@ -60,7 +60,7 @@ Evidence: [`snapshot/overlay_writer.rs`](../src/snapshot/overlay_writer.rs), [`s
 
 ### Ingestion and repository compilation
 
-The primary integration path consumes Lexicon's immutable snapshot store. Arcana resolves and verifies Lexicon `CURRENT`, its content-addressed manifest, and every referenced binary-v1 or legacy canonical-JSON fact object, then converts normalized nodes, relationships, and unresolved records into `RepositoryFacts`. Arcana also retains complete canonical TSV import/update paths and a complete Lexicon JSONL migration/diagnostic importer.
+The primary integration path consumes Lexicon's immutable snapshot store. Arcana resolves and verifies Lexicon `CURRENT`, its content-addressed manifest, and every referenced binary-v2, binary-v1, or legacy canonical-JSON fact object, then converts normalized nodes, relationships, and unresolved records into `RepositoryFacts`. Arcana also retains complete canonical TSV import/update paths and a complete Lexicon JSONL migration/diagnostic importer.
 
 Compilation validates nodes and relationship endpoints, orders stable `NodeKey` identities, assigns deterministic snapshot-local dense `NodeId` values, maps known relationships to stable nonzero edge codes, deduplicates repeated relationship occurrences for reachability, and emits the packed dataset plus catalogue and unresolved metadata.
 

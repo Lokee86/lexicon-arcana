@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 )
@@ -68,7 +69,9 @@ func TestGCPlansPreservationAndSupportsDryRun(t *testing.T) {
 	if !reflect.DeepEqual(plan.DeleteSnapshots, []string{manifests[0]}) {
 		t.Fatalf("delete snapshots = %v", plan.DeleteSnapshots)
 	}
-	if !reflect.DeepEqual(plan.DeleteObjects, []string{objects[0], objects[5]}) {
+	wantDeleteObjects := []string{objects[0], objects[5]}
+	sort.Strings(wantDeleteObjects)
+	if !reflect.DeepEqual(plan.DeleteObjects, wantDeleteObjects) {
 		t.Fatalf("delete objects = %v", plan.DeleteObjects)
 	}
 

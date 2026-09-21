@@ -102,7 +102,7 @@ manifest last. The source snapshot remains untouched.
 ## Repository ingestion
 
 Arcana consumes Lexicon's immutable snapshot store, verifies each content-addressed
-fact object, and decodes Lexicon binary v1 node, edge, and unresolved sections
+fact object, and decodes Lexicon binary v2 or v1 node, edge, and unresolved sections
 into typed repository facts without reconstructing JSONL. Legacy canonical JSON
 fact objects remain readable during migration. Language adapters live in the co-located [`../lexicon`](../lexicon/) component; Arcana does not own language parsers.
 

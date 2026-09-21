@@ -98,10 +98,93 @@ func (s Store) loadNodeFacts(id string, entry LanguageEntry, kind, owner, conten
 }
 
 func decodeBinaryNodeFacts(data []byte) (FactObject, []nodeRecord, error) {
-	reader := binaryObjectReader{data: data}
-	if !reader.magic() {
+	if len(data) < len(binaryObjectMagic) {
 		return FactObject{}, nil, fmt.Errorf("invalid Lexicon binary object magic")
 	}
+	switch {
+	case bytes.Equal(data[:len(binaryObjectMagic)], binaryObjectMagic[:]):
+		return decodeBinaryNodeFactsV2(data)
+	case bytes.Equal(data[:len(legacyBinaryObjectMagic)], legacyBinaryObjectMagic[:]):
+		return decodeBinaryNodeFactsV1(data)
+	default:
+		return FactObject{}, nil, fmt.Errorf("invalid Lexicon binary object magic")
+	}
+}
+
+func decodeBinaryNodeFactsV2(data []byte) (FactObject, []nodeRecord, error) {
+	reader := binaryObjectReader{data: data, position: len(binaryObjectMagic)}
+	version, err := reader.uvarint("object version")
+	if err != nil {
+		return FactObject{}, nil, err
+	}
+	schemaVersion, err := reader.uvarint("schema version")
+	if err != nil {
+		return FactObject{}, nil, err
+	}
+	strings, err := reader.stringTableV2()
+	if err != nil {
+		return FactObject{}, nil, err
+	}
+	language, err := reader.stringRef(strings, "language")
+	if err != nil {
+		return FactObject{}, nil, err
+	}
+	owner, err := reader.stringRef(strings, "owner")
+	if err != nil {
+		return FactObject{}, nil, err
+	}
+	sourceContentID, err := readIdentity(&reader, strings, "source content ID")
+	if err != nil {
+		return FactObject{}, nil, err
+	}
+	adapterVersion, err := reader.stringRef(strings, "adapter version")
+	if err != nil {
+		return FactObject{}, nil, err
+	}
+	analysisConfigID, err := readIdentity(&reader, strings, "analysis config ID")
+	if err != nil {
+		return FactObject{}, nil, err
+	}
+	externalCount, err := reader.count("external references", maxBinaryExternalReferences)
+	if err != nil {
+		return FactObject{}, nil, err
+	}
+	for index := 0; index < externalCount; index++ {
+		if _, err := readIdentity(&reader, strings, fmt.Sprintf("external reference %d", index)); err != nil {
+			return FactObject{}, nil, err
+		}
+	}
+
+	nodeSection, err := reader.bytes("node section", maxBinarySectionSize)
+	if err != nil {
+		return FactObject{}, nil, err
+	}
+	if _, err := reader.bytes("edge section", maxBinarySectionSize); err != nil {
+		return FactObject{}, nil, err
+	}
+	if _, err := reader.bytes("unresolved section", maxBinarySectionSize); err != nil {
+		return FactObject{}, nil, err
+	}
+	if reader.position != len(data) {
+		return FactObject{}, nil, fmt.Errorf("Lexicon binary object has %d trailing bytes", len(data)-reader.position)
+	}
+	nodes, err := decodeCompactNodes(nodeSection, strings, owner)
+	if err != nil {
+		return FactObject{}, nil, err
+	}
+	return FactObject{
+		Version:          int(version),
+		Language:         language,
+		Owner:            owner,
+		SourceContentID:  sourceContentID,
+		AdapterVersion:   adapterVersion,
+		SchemaVersion:    int(schemaVersion),
+		AnalysisConfigID: analysisConfigID,
+	}, nodes, nil
+}
+
+func decodeBinaryNodeFactsV1(data []byte) (FactObject, []nodeRecord, error) {
+	reader := binaryObjectReader{data: data, position: len(legacyBinaryObjectMagic)}
 	version, err := reader.uvarint("object version")
 	if err != nil {
 		return FactObject{}, nil, err

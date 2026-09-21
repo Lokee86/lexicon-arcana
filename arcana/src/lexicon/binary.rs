@@ -1,17 +1,20 @@
 use super::LexiconSnapshotError;
 use super::object::{EdgeRecord, FactObject, FactRecord, NodeRecord, SpanRecord, UnresolvedRecord};
 
-const MAGIC: &[u8; 8] = b"LXOBJ\0\x01\0";
+const MAGIC_V1: &[u8; 8] = b"LXOBJ\0\x01\0";
 const MAX_STRINGS: u64 = 4_000_000;
 const MAX_RECORDS: u64 = 20_000_000;
 const MAX_STRING_SIZE: u64 = 32 * 1024 * 1024;
 const MAX_SECTION_SIZE: u64 = 512 * 1024 * 1024;
 
 pub(super) fn is_binary_object(bytes: &[u8]) -> bool {
-    bytes.starts_with(MAGIC)
+    bytes.starts_with(MAGIC_V1) || bytes.starts_with(super::binary_v2::MAGIC)
 }
 
 pub(super) fn parse_binary_object(bytes: &[u8]) -> Result<FactObject, LexiconSnapshotError> {
+    if bytes.starts_with(super::binary_v2::MAGIC) {
+        return super::binary_v2::parse_binary_object(bytes);
+    }
     let mut reader = Reader::new(bytes);
     reader.expect_magic()?;
     let version = reader.uvarint("object version")?;
@@ -126,10 +129,10 @@ impl<'a> Reader<'a> {
     }
 
     fn expect_magic(&mut self) -> Result<(), LexiconSnapshotError> {
-        if !self.bytes.starts_with(MAGIC) {
+        if !self.bytes.starts_with(MAGIC_V1) {
             return Err(binary_error("invalid object magic"));
         }
-        self.position = MAGIC.len();
+        self.position = MAGIC_V1.len();
         Ok(())
     }
 

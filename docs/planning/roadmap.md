@@ -32,8 +32,8 @@ The product family should ship and operate as two deterministic analysis tools w
 2. **Complete:** remove or reclassify stale Grimoire-only documentation, governance, and evaluation entry points.
 3. **Complete for current analysis tooling:** update Warlock and Reliquary to consume direct Lexicon/Arcana boundaries; broader Warlock runtime integration remains separately planned.
 4. **Complete:** rename the canonical repository identity to `Lokee86/lexicon-arcana`.
-5. **Next — Lexicon durable-store compaction:** redesign the immutable CAS object encoding to reduce representation overhead without dropping semantic facts.
-6. **Next — Python adapter memory:** reduce the Python semantic-analysis graph and resolution/sort working set after the durable-store work, preserving emitted-fact and snapshot semantics.
+5. **Complete — Lexicon durable-store compaction:** binary v2 preserves the full semantic fact set while reducing the current Hermes fact-object corpus from **220,393,540 bytes to 125,836,351 bytes (42.9%)**.
+6. **Next — Python adapter memory:** reduce the Python semantic-analysis graph and resolution/sort working set now that durable-store representation overhead is materially reduced, preserving emitted-fact and snapshot semantics.
 7. Continue judged repository-analysis experiments on larger and more varied corpora.
 
 ## Near-term priorities
@@ -55,7 +55,7 @@ The product family should ship and operate as two deterministic analysis tools w
 
 ### Lexicon performance/storage sequence
 
-#### 1. Durable CAS format compaction — next
+#### 1. Durable CAS format compaction — complete
 
 **Owner:** Lexicon object store.
 
@@ -74,7 +74,13 @@ Implementation plan:
 - reduce cross-record and cross-object string duplication, then evaluate general compression only after structural encoding is compact;
 - benchmark object build, load, traversal, and total durable bytes against the existing format.
 
-Acceptance gate: preserve the full semantic fact set and deterministic snapshot behavior. Storage reduction must come from representation improvements, not deleting useful facts.
+Acceptance gate: **met**. Binary v2 keeps binary v1 and legacy JSON read compatibility, preserves the JSON-level semantic fact set, and uses only representation changes: raw SHA-256 identities, local node ordinals, bounded external references, stable kind/relation codes with lossless fallback, exact repeated-field factoring, and deterministic front-coded string tables.
+
+Measured results:
+- 200-node synthetic fixture: **29,969 bytes v1 → 17,932 bytes v2 (40.2% smaller)**;
+- current Hermes snapshot, 6,697 referenced objects: **220,393,540 bytes → 125,836,351 bytes (42.9% smaller)**;
+- 500-node codec benchmark on the current development machine (100 iterations): typed v2 encode about **0.62 ms/op**, full v2 decode about **1.40 ms/op**, node-only decode about **0.56 ms/op**;
+- no semantic-fact pruning or snapshot-contract change.
 
 #### 2. Python semantic-analysis memory — immediately after CAS compaction
 

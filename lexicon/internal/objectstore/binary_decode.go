@@ -1,14 +1,15 @@
 package objectstore
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"unicode/utf8"
 )
 
-func decodeBinaryObject(data []byte) (FactObject, error) {
-	reader := binaryObjectReader{data: data}
-	if !reader.magic() {
+func decodeBinaryObjectV1(data []byte) (FactObject, error) {
+	reader := binaryObjectReader{data: data, position: len(legacyBinaryObjectMagic)}
+	if len(data) < len(legacyBinaryObjectMagic) || !bytes.Equal(data[:len(legacyBinaryObjectMagic)], legacyBinaryObjectMagic[:]) {
 		return FactObject{}, fmt.Errorf("invalid Lexicon binary object magic")
 	}
 	version, err := reader.uvarint("object version")

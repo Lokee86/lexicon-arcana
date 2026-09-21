@@ -32,7 +32,8 @@ Those concerns belong to the owning application or consumer documentation.
 | File | Contract |
 | --- | --- |
 | [facts-v1.md](facts-v1.md) | Adapter JSONL header and records, stable IDs, ownership, source spans, relation semantics, unresolved evidence, incremental removals, and sorting |
-| [objects-v1.md](objects-v1.md) | Deterministic binary per-file/shared fact-object encoding, object identity, safety checks, and legacy reader compatibility |
+| [objects-v2.md](objects-v2.md) | Current deterministic binary per-file/shared fact-object encoding with compact identities/references and v1/JSON reader compatibility |
+| [objects-v1.md](objects-v1.md) | Legacy binary v1 fact-object encoding retained as a reader compatibility contract |
 | [snapshots-v1.md](snapshots-v1.md) | Immutable snapshot manifests, object references, publication order, recovery, and consumer consistency |
 | [runtime-evidence-v1.md](runtime-evidence-v1.md) | Optional run-specific observations and reconciliation with one static snapshot |
 

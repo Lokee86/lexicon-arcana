@@ -6,7 +6,8 @@ import (
 	"fmt"
 )
 
-var binaryObjectMagic = [8]byte{'L', 'X', 'O', 'B', 'J', 0, 1, 0}
+var binaryObjectMagic = [8]byte{'L', 'X', 'O', 'B', 'J', 0, 2, 0}
+var legacyBinaryObjectMagic = [8]byte{'L', 'X', 'O', 'B', 'J', 0, 1, 0}
 
 const (
 	maxBinaryStrings     = 4_000_000
@@ -129,7 +130,7 @@ type binaryObjectReader struct {
 }
 
 func (reader *binaryObjectReader) magic() bool {
-	if len(reader.data) < len(binaryObjectMagic) || !bytes.Equal(reader.data[:len(binaryObjectMagic)], binaryObjectMagic[:]) {
+	if len(reader.data) < len(binaryObjectMagic) || (!bytes.Equal(reader.data[:len(binaryObjectMagic)], binaryObjectMagic[:]) && !bytes.Equal(reader.data[:len(binaryObjectMagic)], legacyBinaryObjectMagic[:])) {
 		return false
 	}
 	reader.position = len(binaryObjectMagic)
@@ -234,5 +235,5 @@ func (reader *binaryObjectReader) span(strings []string) (*sourceSpan, error) {
 }
 
 func isBinaryObject(data []byte) bool {
-	return len(data) >= len(binaryObjectMagic) && bytes.Equal(data[:len(binaryObjectMagic)], binaryObjectMagic[:])
+	return len(data) >= len(binaryObjectMagic) && (bytes.Equal(data[:len(binaryObjectMagic)], binaryObjectMagic[:]) || bytes.Equal(data[:len(binaryObjectMagic)], legacyBinaryObjectMagic[:]))
 }

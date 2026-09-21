@@ -100,7 +100,7 @@ The planner treats correctness as the priority. Structural changes, invalid prio
 - one immutable object per owned source file; and
 - an optional shared object for unowned synthetic language facts.
 
-New objects use the deterministic binary format in `spec/objects-v1.md`. Object identity is content-addressed. Existing bytes under an object ID are immutable.
+New objects use the deterministic binary v2 format in `spec/objects-v2.md`; binary v1 and legacy JSON remain readable. Object identity is content-addressed. Existing bytes under an object ID are immutable.
 
 A snapshot manifest references every object required for one complete repository analysis state. `CURRENT` is replaced atomically only after all referenced objects and the manifest are durable.
 

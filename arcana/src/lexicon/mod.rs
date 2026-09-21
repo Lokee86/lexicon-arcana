@@ -7,6 +7,8 @@ use std::io;
 use crate::repository::{FactFileError, RepositoryFacts};
 
 mod binary;
+mod binary_v2;
+mod binary_v2_reader;
 mod format;
 #[cfg(test)]
 mod format_tests;

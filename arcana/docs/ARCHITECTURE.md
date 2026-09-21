@@ -58,7 +58,7 @@ Evidence: [`lib.rs`](../src/lib.rs), [`repository/mod.rs`](../src/repository/mod
 
 ### Lexicon ingestion
 
-`lexicon` consumes an immutable Lexicon store. It resolves `CURRENT`, verifies the content-addressed snapshot manifest and every referenced object, checks versions and cross-object metadata, decodes binary v1 or legacy canonical JSON objects, normalizes repository paths, and assembles one complete `RepositoryFacts` value. It does not invoke adapters.
+`lexicon` consumes an immutable Lexicon store. It resolves `CURRENT`, verifies the content-addressed snapshot manifest and every referenced object, checks versions and cross-object metadata, decodes binary v2, binary v1, or legacy canonical JSON objects, normalizes repository paths, and assembles one complete `RepositoryFacts` value. It does not invoke adapters.
 
 Lexicon SHA-256 node identities remain the external identities recorded in the catalogue. Ingestion compacts them to `NodeKey`, rejects compact-key collisions, and records file/shared object identities for later change detection. A language-level shared-object identity change is distinct from added, changed, and removed file-object paths.
 

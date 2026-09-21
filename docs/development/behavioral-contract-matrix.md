@@ -16,6 +16,7 @@ The matrix protects independently usable component boundaries, immutable publica
 | --- | --- |
 | Lexicon owns language parsing and normalized semantic facts | Lexicon adapter, contract, scan, and publication tests |
 | Lexicon snapshots are immutable, content-addressed, and crash-safe | Lexicon object-store, pending-publication, recovery, and transaction tests |
+| Fact-object binary encoding is deterministic, semantic-preserving, and backward-readable across v2, v1, and legacy JSON | `lexicon/internal/objectstore/binary_codec_test.go`, `binary_golden_test.go`, `nodes_test.go`, and Arcana `lexicon::binary_tests` |
 | Lexicon consumers are bounded and cannot corrupt a valid publication | `lexicon/internal/consumer/runner_test.go` and scan/publication tests |
 | Arcana consumes verified Lexicon state rather than duplicating language parsers | Arcana Lexicon-ingestion and repository tests |
 | Arcana preserves the consumed Lexicon snapshot identity | repository manifest and snapshot tests |

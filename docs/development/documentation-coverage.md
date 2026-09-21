@@ -28,6 +28,7 @@ Current coverage contains two independently usable analysis products plus shared
 | Contract | Implementation owner | Canonical current owner |
 | --- | --- | --- |
 | Lexicon facts, immutable objects, snapshot manifests, and consumer definitions | `lexicon/spec/`, `lexicon/internal/objectstore/`, `lexicon/internal/consumer/` | [Lexicon architecture](../../lexicon/docs/ARCHITECTURE.md), [Lexicon application](../../lexicon/docs/APPLICATION.md) |
+| Lexicon fact-object binary v2 and compatibility rules | `lexicon/internal/objectstore/`, `lexicon/spec/objects-v2.md` | [Fact-object v2](../../lexicon/spec/objects-v2.md), [Lexicon application](../../lexicon/docs/APPLICATION.md) |
 | `arcana.query.v1` | `arcana/src/protocol/` | [Arcana application](../../arcana/docs/APPLICATION.md), [Arcana architecture](../../arcana/docs/ARCHITECTURE.md) |
 | Arcana repository, graph, snapshot, and overlay formats | `arcana/src/repository/`, `arcana/src/storage/`, `arcana/src/snapshot/` | [Repository snapshots](../../arcana/docs/repository-snapshots.md), [Arcana architecture](../../arcana/docs/ARCHITECTURE.md) |
 | Optional Arcana semantic graph index | `arcana/src/vector/` | [Arcana vector index](../../arcana/docs/vector-index.md) |

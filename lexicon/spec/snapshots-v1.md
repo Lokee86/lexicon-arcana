@@ -18,7 +18,7 @@ Lexicon snapshots expose one complete, immutable analysis state. The mutable sou
 
 ## Fact objects
 
-A fact object contains all records owned by one source file, or the shared synthetic records for one language. New objects use the deterministic binary format defined in [`objects-v1.md`](objects-v1.md). `owner` and `source_content_id` are absent for a shared language object. Record ownership follows `facts-v1.md`: explicit `owner`, span path, file-node path, then the owning source node for edge and unresolved records.
+A fact object contains all records owned by one source file, or the shared synthetic records for one language. New objects use the deterministic binary format defined in [`objects-v2.md`](objects-v2.md); readers retain [`objects-v1.md`](objects-v1.md) and legacy JSON compatibility. `owner` and `source_content_id` are absent for a shared language object. Record ownership follows `facts-v1.md`: explicit `owner`, span path, file-node path, then the owning source node for edge and unresolved records.
 
 The object ID is SHA-256 over:
 

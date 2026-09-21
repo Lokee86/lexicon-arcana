@@ -2,7 +2,7 @@ package objectstore
 
 import "bytes"
 
-func encodeBinaryObject(object FactObject) ([]byte, error) {
+func encodeBinaryObjectV1(object FactObject) ([]byte, error) {
 	var records typedRecords
 	if object.typed != nil {
 		records = *object.typed

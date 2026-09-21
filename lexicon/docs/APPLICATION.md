@@ -6,6 +6,8 @@ Parent index: [Lexicon Documentation](README.md)
 
 This document defines Lexicon's executable behavior, command surface, runtime model, private state, publication transactions, consumers, recovery, garbage collection, export, and watch operation.
 
+Fact-object persistence uses deterministic binary v2 (`LXOBJ\0\2\0`) for new writes. Readers retain compatibility with binary v1 and legacy JSON objects; see [fact-object v2](../spec/objects-v2.md).
+
 ## Overview
 
 Lexicon coordinates language adapters and publishes immutable normalized snapshots under one writer lock. It preserves component ownership by keeping language semantics inside adapters and graph behavior outside Lexicon.
@@ -100,7 +102,7 @@ lexicon version
 
 The state commit is always amended and remains a parentless root commit, so only one commit is reachable. Reflogs are expired after replacement. The repository is an implementation detail used to answer one question: what source content changed since Lexicon last successfully published a snapshot?
 
-Each snapshot manifest records the internal state commit, adapter and schema versions, configuration identity, source-content identity, and fact-object identity for every relevant file. Shared synthetic facts are stored in a separate language object. Objects and snapshot manifests are immutable; identical content reuses the existing object. Fact objects use Lexicon's deterministic binary v1 codec with a shared string table and independently length-prefixed node, edge, and unresolved sections. JSONL is reconstructed only by `lexicon export`; snapshot consumers can skip unused binary sections and attributes.
+Each snapshot manifest records the internal state commit, adapter and schema versions, configuration identity, source-content identity, and fact-object identity for every relevant file. Shared synthetic facts are stored in a separate language object. Objects and snapshot manifests are immutable; identical content reuses the existing object. New fact objects use Lexicon's deterministic binary v2 codec with compact SHA-256 identities, object-local node ordinals, a bounded external-reference table, and independently length-prefixed node, edge, and unresolved sections. Readers retain binary v1 and legacy JSON compatibility. JSONL is reconstructed only by `lexicon export`; snapshot consumers can skip unused binary sections and attributes.
 
 `CURRENT` contains the complete snapshot ID and is replaced atomically only after the internal state commit and every referenced object are durable. Consumers should resolve `CURRENT`, load the corresponding manifest, and then open its objects. They never need to observe the mutable mirror or adapter JSONL transport files.
 

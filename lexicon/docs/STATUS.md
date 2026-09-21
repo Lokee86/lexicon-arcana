@@ -25,7 +25,7 @@ Implemented:
 - private source mirroring and Git-backed change detection;
 - non-Git correctness through source content identities and snapshot comparison;
 - immutable per-file and shared-language fact objects;
-- deterministic binary object encoding with legacy JSON-object reads;
+- deterministic binary v2 object encoding with binary v1 and legacy JSON-object reads;
 - atomic snapshot manifests and `CURRENT` publication;
 - durable `PENDING` recovery and single-writer locking;
 - deterministic JSONL export;

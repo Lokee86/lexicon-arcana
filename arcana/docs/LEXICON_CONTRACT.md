@@ -10,7 +10,7 @@ This document defines Arcana's exact ingestion boundary for immutable Lexicon sn
 
 Arcana verifies Lexicon state and converts supported normalized facts into repository graph input without invoking adapters or inventing missing language semantics.
 
-Arcana consumes Lexicon snapshot contract v1 and compacts its durable identities into a packed repository graph. Binary v1 fact objects are the normal snapshot transport: Arcana verifies their exact content hashes, decodes their node, edge, and unresolved sections into typed records, and does not reconstruct JSONL. Legacy canonical JSON fact objects and the complete JSONL importer remain available for migration and diagnostics.
+Arcana consumes Lexicon snapshot contract v1 and compacts its durable identities into a packed repository graph. Binary v2 fact objects are the normal snapshot transport; binary v1 and legacy JSON remain readable during migration: Arcana verifies their exact content hashes, decodes their node, edge, and unresolved sections into typed records, and does not reconstruct JSONL. Legacy canonical JSON fact objects and the complete JSONL importer remain available for migration and diagnostics.
 
 ## Identity boundary
 
