@@ -97,11 +97,32 @@ class PythonAdapterTest(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
 
-    def _run(self, output: Path) -> list[dict[str, object]]:
+    def _run(
+        self,
+        output: Path,
+        *,
+        workers: int = 1,
+        shards: int = 1,
+        merge_fan_in: int = 2,
+    ) -> list[dict[str, object]]:
         environment = os.environ.copy()
         environment["PYTHONPATH"] = str(ADAPTER_ROOT)
         result = subprocess.run(
-            [sys.executable, "-m", "lexicon_python", "--repo", str(self.repo), "--output", str(output)],
+            [
+                sys.executable,
+                "-m",
+                "lexicon_python",
+                "--repo",
+                str(self.repo),
+                "--output",
+                str(output),
+                "--workers",
+                str(workers),
+                "--shards",
+                str(shards),
+                "--merge-fan-in",
+                str(merge_fan_in),
+            ],
             cwd=REPO_ROOT,
             env=environment,
             check=True,
@@ -110,6 +131,21 @@ class PythonAdapterTest(unittest.TestCase):
         )
         self.assertEqual(result.stderr, "")
         return [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
+
+    def test_partitioned_execution_matches_serial_output(self) -> None:
+        self._write(
+            "parallel_lambda.py",
+            "from pkg.known import Worker\n\n"
+            "def build():\n"
+            "    callback = lambda: Worker().run()\n"
+            "    return callback()\n",
+        )
+        serial_path = self.repo / "serial-facts.jsonl"
+        parallel_path = self.repo / "parallel-facts.jsonl"
+        serial = self._run(serial_path, workers=1, shards=1, merge_fan_in=2)
+        parallel = self._run(parallel_path, workers=3, shards=8, merge_fan_in=4)
+        self.assertEqual(parallel, serial)
+        self.assertEqual(parallel_path.read_bytes(), serial_path.read_bytes())
 
     def test_declarations_imports_inheritance_and_exclusions(self) -> None:
         records = self._run(self.repo / "facts.jsonl")
@@ -540,6 +576,31 @@ class PythonAdapterTest(unittest.TestCase):
         self.assertIn(
             (nodes["imported_value.use_value"], nodes["pkg.known.Worker.run"]),
             calls,
+        )
+
+    def test_transitive_reexports_resolve_with_dependency_worklist(self) -> None:
+        self._write("a.py", "from b import target\n")
+        self._write("b.py", "from c import target\n")
+        self._write("c.py", "from leaf import target\n")
+        self._write("leaf.py", "def target():\n    return 1\n")
+        self._write(
+            "use_reexport.py",
+            "from a import target\n\ndef run():\n    return target()\n",
+        )
+        records = self._run(self.repo / "facts.jsonl")
+        nodes = {
+            record["qualified_name"]: record["id"]
+            for record in records
+            if record["record"] == "node" and "qualified_name" in record
+        }
+        self.assertTrue(
+            any(
+                record["record"] == "edge"
+                and record["relation"] == "calls"
+                and record["source"] == nodes["use_reexport.run"]
+                and record["target"] == nodes["leaf.target"]
+                for record in records
+            )
         )
 
     def test_nested_lexical_callables_resolve(self) -> None:

@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"sort"
 	"strconv"
+
+	languageRegistry "github.com/Lokee86/lexicon/internal/languages"
 )
 
 const (
@@ -33,7 +35,7 @@ func (s *Scanner) executionPlan(plan analysisPlan) (ExecutionPlan, error) {
 		Language:      plan.Language,
 		LogicalShards: 1, ActiveWorkers: 1, MergeFanIn: 2, ReservedWeight: 1,
 	}
-	if plan.Language != "go" {
+	if !languageRegistry.SupportsPartitionedExecution(plan.Language) {
 		return result, nil
 	}
 	paths, bytes, err := s.analysisInventory(plan)

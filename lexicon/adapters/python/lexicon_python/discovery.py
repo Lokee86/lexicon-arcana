@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import io
 import os
 import tokenize
 from pathlib import Path, PurePosixPath
@@ -47,45 +48,59 @@ def _scan_paths(root: Path) -> tuple[list[Path], list[Path]]:
 
 def _read_source(path: Path) -> tuple[str, bytes]:
     data = path.read_bytes()
-    with tokenize.open(path) as handle:
-        return handle.read(), data
+    encoding, _ = tokenize.detect_encoding(io.BytesIO(data).readline)
+    with io.TextIOWrapper(io.BytesIO(data), encoding=encoding, newline=None) as handle:
+        source = handle.read()
+    return source, data
 
 
-def discover(repo: Path) -> RepositorySnapshot:
+def inventory(repo: Path) -> tuple[Path, str, list[Path], list[Path]]:
     root = repo.expanduser().resolve()
     if not root.is_dir():
         raise NotADirectoryError(f"repository is not a directory: {repo}")
-    repository = root.name
     directories, python_files = _scan_paths(root)
-    contexts: list[FileContext] = []
-    for path in python_files:
-        relative = _posix_relative(root, path)
-        module_name = _module_name(repository, relative)
-        data = path.read_bytes()
-        try:
-            source, _ = _read_source(path)
-            tree: ast.AST | None = ast.parse(source, filename=relative)
-            parse_error = None
-        except (OSError, SyntaxError, UnicodeDecodeError, tokenize.TokenError) as error:
-            source = ""
-            tree = None
-            parse_error = type(error).__name__
-        contexts.append(
-            FileContext(
-                root=root,
-                path=path,
-                relative_path=relative,
-                module_name=module_name,
-                source=source,
-                lines=source.splitlines(),
-                tree=tree,
-                file_id="",
-                module_id="",
-                data=data,
-                parse_error=parse_error,
-            )
-        )
+    return root, root.name, directories, python_files
+
+
+def load_context(root: Path, repository: str, path: Path) -> FileContext:
+    relative = _posix_relative(root, path)
+    module_name = _module_name(repository, relative)
+    data = path.read_bytes()
+    try:
+        encoding, _ = tokenize.detect_encoding(io.BytesIO(data).readline)
+        with io.TextIOWrapper(io.BytesIO(data), encoding=encoding, newline=None) as handle:
+            source = handle.read()
+        tree: ast.AST | None = ast.parse(source, filename=relative)
+        parse_error = None
+    except (SyntaxError, UnicodeDecodeError, tokenize.TokenError) as error:
+        source = ""
+        tree = None
+        parse_error = type(error).__name__
+    return FileContext(
+        root=root,
+        path=path,
+        relative_path=relative,
+        module_name=module_name,
+        source=source,
+        lines=source.splitlines(),
+        tree=tree,
+        file_id="",
+        module_id="",
+        data=data,
+        parse_error=parse_error,
+    )
+
+
+def discover(repo: Path) -> RepositorySnapshot:
+    root, repository, directories, python_files = inventory(repo)
+    contexts = [load_context(root, repository, path) for path in python_files]
     return RepositorySnapshot(root, repository, directories, contexts)
 
 
-__all__ = ["discover", "_name_from_dotted", "_posix_relative"]
+__all__ = [
+    "discover",
+    "inventory",
+    "load_context",
+    "_name_from_dotted",
+    "_posix_relative",
+]

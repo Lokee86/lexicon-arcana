@@ -161,14 +161,14 @@ This fallback is part of the correctness design, not an error condition.
 
 Full scans may run independent language plans concurrently. A weighted scheduler limits their combined reserved CPU weight to the process-wide `GOMAXPROCS` budget.
 
-The Go adapter has a second level of parallelism:
+Adapters that advertise the partitioned-execution capability have a second level of parallelism:
 
-1. Lexicon inventories Go source count and bytes.
+1. Lexicon inventories adapter-owned source count and bytes.
 2. It selects a repository-size-dependent logical shard count.
 3. It chooses a bounded active worker count.
-4. Typed call and dataflow work executes in shard-local scanners.
+4. Adapter-local semantic work executes in shard-local scanners.
 5. Results merge through a deterministic fan-in reduction tree.
-6. Repository-wide SSA/VTA resolution runs after the typed shard merge.
+6. Repository-wide resolution runs after the local shard merge.
 
 Logical shards are work partitions, not simultaneous workers. The planner may create many logical shards while activating only a bounded number of workers. `LEXICON_MAX_WORKERS` can lower the active-worker ceiling.
 

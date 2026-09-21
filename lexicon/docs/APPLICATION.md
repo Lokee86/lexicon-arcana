@@ -24,7 +24,7 @@ When `--repo` is omitted, initialized commands walk upward from the current dire
 
 A scan may execute independent language plans concurrently. A weighted scheduler limits their combined reserved work to the process-wide `GOMAXPROCS` CPU budget.
 
-The Go adapter also receives repository-size-dependent logical shard, active worker, and merge fan-in values. Typed call and dataflow work executes in shard-local scanners, merges through a deterministic reduction tree, and is followed by repository-wide SSA/VTA resolution. Logical shard count is independent from active worker count. `LEXICON_MAX_WORKERS` may lower the worker ceiling for constrained machines or CI.
+Adapters advertising partitioned execution receive repository-size-dependent logical shard, active worker, and merge fan-in values. Adapter-local semantic work may execute in shard-local scanners, merge through a deterministic reduction tree, and then run repository-wide resolution. Logical shard count is independent from active worker count. `LEXICON_MAX_WORKERS` may lower the worker ceiling for constrained machines or CI.
 
 Concurrency must not change output. Identical source, adapter versions, schema, and analysis configuration must produce byte-identical facts regardless of valid worker count or merge shape.
 

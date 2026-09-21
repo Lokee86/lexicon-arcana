@@ -98,7 +98,7 @@ class ExpressionFlow:
                 return TypeShape(runtime_reasons=receiver.runtime_reasons)
             return result
         if isinstance(expression, ast.Lambda):
-            lambda_id = self.facts.lambda_ids.get(id(expression))
+            lambda_id = self.facts.lambda_ids.get((module_name, expression.lineno, expression.col_offset))
             return TypeShape(callables=frozenset({lambda_id})) if lambda_id else _EMPTY
         if isinstance(expression, ast.Subscript):
             container = self.expression_shape(

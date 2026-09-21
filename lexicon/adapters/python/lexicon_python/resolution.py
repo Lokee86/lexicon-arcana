@@ -12,21 +12,29 @@ def _import_span(facts: Facts, node_id: str) -> dict[str, object] | None:
     return facts.nodes.get(node_id, {}).get("span")
 
 
-def _context_for_call(call: CallInfo, contexts: list[FileContext]) -> FileContext | None:
-    return next((context for context in contexts if context.module_name == call.module_name), None)
+def _context_index(contexts: list[FileContext]) -> dict[str, FileContext]:
+    result: dict[str, FileContext] = {}
+    for context in contexts:
+        # Historical lookup returned the first matching context.
+        result.setdefault(context.module_name, context)
+    return result
 
 
-def _call_span(call: CallInfo, contexts: list[FileContext]) -> dict[str, object] | None:
-    context = _context_for_call(call, contexts)
+def _call_span(
+    call: CallInfo,
+    contexts: dict[str, FileContext],
+) -> dict[str, object] | None:
+    context = contexts.get(call.module_name)
     return span(call.expression_node, context.relative_path, context.lines) if context else None
 
 
-def _call_expression(call: CallInfo, contexts: list[FileContext]) -> str:
-    context = _context_for_call(call, contexts)
+def _call_expression(call: CallInfo, contexts: dict[str, FileContext]) -> str:
+    context = contexts.get(call.module_name)
     return expression_text(call.expression_node, context.source if context else "")
 
 
 def resolve_facts(facts: Facts, contexts: list[FileContext]) -> None:
+    context_by_module = _context_index(contexts)
     bindings = BindingResolver(facts)
     import_results = bindings.resolve_imports()
     for info, (target_id, reason) in zip(facts.imports, import_results):
@@ -69,7 +77,7 @@ def resolve_facts(facts: Facts, contexts: list[FileContext]) -> None:
     callgraph = CallGraphResolver(facts, bindings)
     for call in facts.calls:
         target_ids, reason = callgraph.resolve_call(call)
-        call_span = _call_span(call, contexts)
+        call_span = _call_span(call, context_by_module)
         if len(target_ids) == 1:
             facts.add_edge(call.owner_id, target_ids[0], "calls", record_span=call_span)
         elif target_ids:
@@ -85,7 +93,7 @@ def resolve_facts(facts: Facts, contexts: list[FileContext]) -> None:
             facts.add_unresolved(
                 call.owner_id,
                 "calls",
-                _call_expression(call, contexts),
+                _call_expression(call, context_by_module),
                 reason,
                 record_span=call_span,
                 candidate_name=dotted(call.callee),
@@ -93,11 +101,22 @@ def resolve_facts(facts: Facts, contexts: list[FileContext]) -> None:
 
 
 def _emit_overrides(facts: Facts, bindings: BindingResolver) -> None:
+    ancestor_cache: dict[tuple[str, str], tuple[str, ...]] = {}
     for function in facts.functions.values():
         if not function.class_qname:
             continue
         method_name = function.qname.rsplit(".", 1)[-1]
-        for ancestor in _ancestor_qnames(facts, bindings, function.module_name, function.class_qname):
+        cache_key = (function.module_name, function.class_qname)
+        ancestors = ancestor_cache.get(cache_key)
+        if ancestors is None:
+            ancestors = _ancestor_qnames(
+                facts,
+                bindings,
+                function.module_name,
+                function.class_qname,
+            )
+            ancestor_cache[cache_key] = ancestors
+        for ancestor in ancestors:
             target = facts.symbols.get(f"{ancestor}.{method_name}")
             if target and facts.nodes.get(target, {}).get("kind") == "method" and target != function.node_id:
                 facts.add_edge(function.node_id, target, "overrides")

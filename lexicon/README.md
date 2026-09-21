@@ -110,7 +110,7 @@ Contract governance and compatibility rules are in [spec/README.md](spec/README.
 
 ## Concurrency and determinism
 
-Independent language adapters may execute concurrently under a weighted process-wide CPU budget. The Go adapter additionally partitions typed call and dataflow work into logical shards, processes those shards with a bounded worker pool, and merges shard-local facts through a deterministic reduction tree before the repository-wide SSA/VTA pass.
+Independent language adapters may execute concurrently under a weighted process-wide CPU budget. Adapters advertising partitioned execution may additionally inventory source, partition safe local work into logical shards, and merge shard-local facts through a deterministic reduction tree before repository-wide resolution.
 
 Logical shard count is separate from active worker count. Large repositories may have many logical partitions without launching an equivalent number of processes or goroutines. `LEXICON_MAX_WORKERS` can lower the worker ceiling for a machine or CI environment. Output must remain byte-identical across worker counts and merge shapes.
 

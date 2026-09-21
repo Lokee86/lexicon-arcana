@@ -167,7 +167,7 @@ class DeclarationFlow:
             None,
         )
         self.facts.scope_parents[identifier] = self.owner_id
-        self.facts.lambda_ids[id(node)] = identifier
+        self.facts.lambda_ids[(self.context.module_name, node.lineno, node.col_offset)] = identifier
         self.facts.add_edge(
             self.owner_id,
             identifier,

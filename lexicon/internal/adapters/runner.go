@@ -149,7 +149,7 @@ func adapterArguments(request Request) []string {
 	for _, path := range request.RemovedFiles {
 		arguments = append(arguments, "--removed-file", filepath.ToSlash(path))
 	}
-	if request.Language == "go" {
+	if languageRegistry.SupportsPartitionedExecution(request.Language) {
 		if request.Workers > 0 {
 			arguments = append(arguments, "--workers", fmt.Sprint(request.Workers))
 		}

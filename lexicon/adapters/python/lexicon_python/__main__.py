@@ -14,8 +14,11 @@ def main() -> int:
     parser.add_argument("--output", required=True, type=Path, help="JSONL output path (use - for stdout)")
     parser.add_argument("--changed-file", action="append", dest="changed_files")
     parser.add_argument("--removed-file", action="append", dest="removed_files")
+    parser.add_argument("--workers", type=int, default=1, help="generic execution-plan worker budget")
+    parser.add_argument("--shards", type=int, default=1, help="generic execution-plan shard count")
+    parser.add_argument("--merge-fan-in", type=int, default=2, dest="merge_fan_in", help="generic execution-plan merge fan-in")
     args = parser.parse_args()
-    write_facts(args.repo, args.output, args.changed_files, args.removed_files)
+    write_facts(args.repo, args.output, args.changed_files, args.removed_files, args.workers, args.shards, args.merge_fan_in)
     return 0
 
 

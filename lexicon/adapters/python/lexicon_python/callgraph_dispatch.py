@@ -113,13 +113,30 @@ class DispatchFlow:
     def _descendant_ids(self, class_qname: str) -> frozenset[str]:
         if class_qname in self._descendant_cache:
             return self._descendant_cache[class_qname]
+        if self._children_by_base is None:
+            children: dict[str, list[str]] = {}
+            for candidate_qname in self.facts.classes:
+                for base_qname in self._base_qnames(candidate_qname):
+                    children.setdefault(base_qname, []).append(candidate_qname)
+            self._children_by_base = {
+                base_qname: tuple(candidate_qnames)
+                for base_qname, candidate_qnames in children.items()
+            }
+
         descendants: set[str] = set()
-        for candidate_qname, candidate in self.facts.classes.items():
-            if candidate_qname == class_qname:
+        seen: set[str] = set()
+        pending = list(self._children_by_base.get(class_qname, ()))
+        while pending:
+            candidate_qname = pending.pop()
+            if candidate_qname in seen:
                 continue
-            if class_qname in self._base_qnames(candidate_qname):
-                descendants.add(candidate.node_id)
-                descendants.update(self._descendant_ids(candidate_qname))
+            seen.add(candidate_qname)
+            candidate = self.facts.classes.get(candidate_qname)
+            if candidate is None:
+                continue
+            descendants.add(candidate.node_id)
+            pending.extend(self._children_by_base.get(candidate_qname, ()))
+
         result = frozenset(descendants)
         self._descendant_cache[class_qname] = result
         return result

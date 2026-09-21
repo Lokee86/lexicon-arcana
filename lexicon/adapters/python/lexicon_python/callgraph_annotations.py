@@ -127,9 +127,10 @@ class AnnotationFlow:
                                 next_seen,
                             )
                         )
-        for assignment in self.facts.local_assignments:
-            if assignment.class_qname != class_qname or assignment.name not in {f"self.{field_name}", f"cls.{field_name}"}:
-                continue
+        for assignment in self._indexes.field_assignments.get(
+            (class_qname, field_name),
+            (),
+        ):
             candidate = self.annotation_shape(
                 assignment.annotation,
                 assignment.module_name,

@@ -131,7 +131,8 @@ class Facts:
     inheritances: list[InheritanceInfo] = field(default_factory=list)
     functions: dict[str, FunctionInfo] = field(default_factory=dict)
     classes: dict[str, ClassInfo] = field(default_factory=dict)
-    lambda_ids: dict[int, str] = field(default_factory=dict)
+    # Stable source coordinates, not process-local AST identities.
+    lambda_ids: dict[tuple[str, int, int], str] = field(default_factory=dict)
     calls: list[CallInfo] = field(default_factory=list)
     local_assignments: list[LocalAssignmentInfo] = field(default_factory=list)
     loop_bindings: list[LoopBindingInfo] = field(default_factory=list)

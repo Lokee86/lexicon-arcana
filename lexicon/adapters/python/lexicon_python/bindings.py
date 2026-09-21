@@ -41,13 +41,24 @@ def _common_prefix_length(left: list[str], right: list[str]) -> int:
 class BindingResolver:
     def __init__(self, facts: Facts) -> None:
         self.facts = facts
+        self._modules_by_suffix = self._index_module_suffixes()
+        self._module_resolution_cache: dict[tuple[str, str], str | None] = {}
+        self._reference_cache: dict[
+            tuple[str, str | None, str | None, str | None],
+            tuple[str | None, str],
+        ] = {}
+
+    def _index_module_suffixes(self) -> dict[str, tuple[str, ...]]:
+        matches: dict[str, list[str]] = {}
+        for name in self.facts.modules:
+            parts = name.split(".")
+            for index in range(len(parts)):
+                suffix = ".".join(parts[index:])
+                matches.setdefault(suffix, []).append(name)
+        return {suffix: tuple(names) for suffix, names in matches.items()}
 
     def module_matches(self, requested: str) -> list[str]:
-        return [
-            name
-            for name in self.facts.modules
-            if name == requested or name.endswith(f".{requested}")
-        ]
+        return list(self._modules_by_suffix.get(requested, ()))
 
     def nearest_module(self, matches: list[str], source_module: str) -> str | None:
         if not matches:
@@ -62,10 +73,17 @@ class BindingResolver:
         return best[0] if len(best) == 1 else None
 
     def resolve_module_name(self, requested: str, source_module: str) -> str | None:
+        key = (requested, source_module)
+        if key in self._module_resolution_cache:
+            return self._module_resolution_cache[key]
         matches = self.module_matches(requested)
-        if requested in matches:
-            return requested
-        return self.nearest_module(matches, source_module)
+        result = (
+            requested
+            if requested in matches
+            else self.nearest_module(matches, source_module)
+        )
+        self._module_resolution_cache[key] = result
+        return result
 
     def resolve_import(self, info: ImportInfo) -> tuple[str | None, str]:
         if info.star:
@@ -100,29 +118,85 @@ class BindingResolver:
         return None, "external-target"
 
     def resolve_imports(self) -> list[tuple[str | None, str]]:
-        results: list[tuple[str | None, str]] = [(None, "unresolved")] * len(self.facts.imports)
-        for _ in range(max(2, len(self.facts.imports) + 1)):
-            changed = False
-            for index, info in enumerate(self.facts.imports):
-                result = self.resolve_import(info)
-                results[index] = result
-                if not info.binding:
-                    continue
-                scope_key = (info.owner_id, info.binding)
-                if self.facts.scope_bindings.get(scope_key) != result:
-                    self.facts.scope_bindings[scope_key] = result
-                    changed = True
-                module_id = self.facts.modules.get(info.module_name)
-                if info.owner_id == module_id:
-                    module_key = (info.module_name, info.binding)
-                    if self.facts.module_bindings.get(module_key) != result:
-                        self.facts.module_bindings[module_key] = result
-                        changed = True
-            if not changed:
-                break
+        imports = self.facts.imports
+        results: list[tuple[str | None, str]] = [
+            (None, "unresolved")
+        ] * len(imports)
+        if not imports:
+            return results
+
+        # Re-export resolution is a fixed-point problem, but only module-level
+        # bindings can affect another import. Build the reverse dependency
+        # graph once and revisit only imports whose candidate binding changed.
+        dependents: dict[tuple[str, str], list[int]] = {}
+        for index, info in enumerate(imports):
+            if not info.target_name:
+                continue
+            requested_module = resolve_relative_module(info)
+            for candidate_module in self.module_matches(requested_module):
+                dependents.setdefault(
+                    (candidate_module, info.target_name),
+                    [],
+                ).append(index)
+
+        queue = list(range(len(imports)))
+        queued = [True] * len(imports)
+        cursor = 0
+        while cursor < len(queue):
+            index = queue[cursor]
+            cursor += 1
+            queued[index] = False
+            info = imports[index]
+            result = self.resolve_import(info)
+            results[index] = result
+            if not info.binding:
+                continue
+
+            scope_key = (info.owner_id, info.binding)
+            if self.facts.scope_bindings.get(scope_key) != result:
+                self.facts.scope_bindings[scope_key] = result
+
+            module_id = self.facts.modules.get(info.module_name)
+            if info.owner_id != module_id:
+                continue
+
+            module_key = (info.module_name, info.binding)
+            if self.facts.module_bindings.get(module_key) == result:
+                continue
+            self.facts.module_bindings[module_key] = result
+
+            for dependent in dependents.get(module_key, ()):
+                if not queued[dependent]:
+                    queue.append(dependent)
+                    queued[dependent] = True
+
+        # Import resolution is the only phase that mutates the binding maps.
+        # Drop any speculative reference results if this resolver was queried
+        # before those maps reached their fixed point.
+        self._reference_cache.clear()
         return results
 
     def resolve_reference(
+        self,
+        module_name: str,
+        class_qname: str | None,
+        reference: str | None,
+        scope_id: str | None = None,
+    ) -> tuple[str | None, str]:
+        key = (module_name, class_qname, reference, scope_id)
+        cached = self._reference_cache.get(key)
+        if cached is not None:
+            return cached
+        result = self._resolve_reference_uncached(
+            module_name,
+            class_qname,
+            reference,
+            scope_id,
+        )
+        self._reference_cache[key] = result
+        return result
+
+    def _resolve_reference_uncached(
         self,
         module_name: str,
         class_qname: str | None,

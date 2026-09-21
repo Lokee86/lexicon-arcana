@@ -35,10 +35,12 @@ class ScopeFlow:
         assignments = sorted(
             (
                 assignment
-                for assignment in self.facts.local_assignments
-                if assignment.scope_id == scope_id
-                and assignment.name == name
-                and (before is None or _precedes(assignment.assignment_node, before))
+                for assignment in self._indexes.assignments_by_scope_name.get(
+                    (scope_id, name),
+                    (),
+                )
+                if before is None
+                or _precedes(assignment.assignment_node, before)
             ),
             key=lambda assignment: _position(assignment.assignment_node),
         )
@@ -64,13 +66,12 @@ class ScopeFlow:
         loops = sorted(
             (
                 binding
-                for binding in self.facts.loop_bindings
-                if binding.scope_id == scope_id
-                and binding.name == name
-                and (
-                    before is None
-                    or _position(binding.loop_node) <= _position(before)
+                for binding in self._indexes.loop_bindings_by_scope_name.get(
+                    (scope_id, name),
+                    (),
                 )
+                if before is None
+                or _position(binding.loop_node) <= _position(before)
             ),
             key=lambda binding: _position(binding.loop_node),
         )
@@ -130,32 +131,40 @@ class ScopeFlow:
         seen: set[tuple[str, str]],
     ) -> TypeShape:
         module_scope = self.facts.modules.get(module_name)
-        owners = {owner for owner in (scope_id, module_scope) if owner is not None}
+        owners = tuple(
+            owner for owner in (scope_id, module_scope) if owner is not None
+        )
         shape = _EMPTY
-        for info in self.facts.imports:
-            if (
-                info.owner_id not in owners
-                or info.binding != name
-                or not info.target_name
+        for owner in owners:
+            for info in self._indexes.imports_by_owner_binding.get(
+                (owner, name),
+                (),
             ):
-                continue
-            requested_module = resolve_relative_module(info)
-            target_module = self.bindings.resolve_module_name(
-                requested_module, info.module_name
-            )
-            target_scope = self.facts.modules.get(target_module or "")
-            if not target_module or not target_scope:
-                continue
-            shape = shape.merge(
-                self._local_shape(
-                    info.target_name,
-                    target_module,
-                    None,
-                    target_scope,
-                    None,
-                    {*seen, ("imported-value", f"{target_module}:{info.target_name}")},
+                if not info.target_name:
+                    continue
+                requested_module = resolve_relative_module(info)
+                target_module = self.bindings.resolve_module_name(
+                    requested_module, info.module_name
                 )
-            )
+                target_scope = self.facts.modules.get(target_module or "")
+                if not target_module or not target_scope:
+                    continue
+                shape = shape.merge(
+                    self._local_shape(
+                        info.target_name,
+                        target_module,
+                        None,
+                        target_scope,
+                        None,
+                        {
+                            *seen,
+                            (
+                                "imported-value",
+                                f"{target_module}:{info.target_name}",
+                            ),
+                        },
+                    )
+                )
         return shape
 
     def _enclosing_value_scope(self, scope_id: str, module_name: str) -> str | None:

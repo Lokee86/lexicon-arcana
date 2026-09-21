@@ -7,10 +7,11 @@ import (
 )
 
 type Definition struct {
-	Language    string
-	Directory   string
-	Extensions  []string
-	ConfigFiles []string
+	Language             string
+	Directory            string
+	Extensions           []string
+	ConfigFiles          []string
+	PartitionedExecution bool
 }
 
 const genericLanguagePrefix = "generic-"
@@ -18,12 +19,12 @@ const genericLanguagePrefix = "generic-"
 var definitions = []Definition{
 	{Language: "c-family", Directory: "c-family", Extensions: []string{".c", ".cc", ".cp", ".cpp", ".cxx", ".c++", ".h", ".hh", ".hpp", ".hxx", ".h++", ".inc", ".inl", ".ipp", ".tpp"}, ConfigFiles: []string{"compile_commands.json", "CMakeLists.txt"}},
 	{Language: "gdscript", Directory: "gdscript", Extensions: []string{".gd"}, ConfigFiles: []string{"project.godot"}},
-	{Language: "go", Directory: "go", Extensions: []string{".go"}, ConfigFiles: []string{"go.mod", "go.sum"}},
+	{Language: "go", Directory: "go", Extensions: []string{".go"}, ConfigFiles: []string{"go.mod", "go.sum"}, PartitionedExecution: true},
 	{Language: "csharp", Directory: "csharp", Extensions: []string{".cs"}, ConfigFiles: []string{".sln", ".csproj", "Directory.Build.props", "Directory.Build.targets", "global.json"}},
 	{Language: "java", Directory: "java", Extensions: []string{".java"}, ConfigFiles: []string{"pom.xml", "build.gradle", "settings.gradle", "gradlew", "gradlew.bat", "mvnw", "mvnw.cmd"}},
 	{Language: "kotlin", Directory: "kotlin", Extensions: []string{".kt", ".kts"}, ConfigFiles: []string{"build.gradle.kts", "settings.gradle.kts"}},
 	{Language: "lotusscript", Directory: "lotusscript", Extensions: []string{".ls", ".lsa", ".lsdb", ".lss"}},
-	{Language: "python", Directory: "python", Extensions: []string{".py"}, ConfigFiles: []string{"pyproject.toml", "setup.cfg", "requirements.txt"}},
+	{Language: "python", Directory: "python", Extensions: []string{".py"}, ConfigFiles: []string{"pyproject.toml", "setup.cfg", "requirements.txt"}, PartitionedExecution: true},
 	{Language: "ruby", Directory: "ruby", Extensions: []string{".rb", ".gemspec"}, ConfigFiles: []string{"Gemfile", "Gemfile.lock"}},
 	{Language: "rust", Directory: "rust", Extensions: []string{".rs"}, ConfigFiles: []string{"Cargo.toml", "Cargo.lock"}},
 	{Language: "typescript", Directory: "typescript", Extensions: []string{".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".svelte"}, ConfigFiles: []string{"package.json", "package-lock.json", "tsconfig.json", "jsconfig.json"}},
@@ -60,6 +61,11 @@ func Lookup(language string) (Definition, bool) {
 		return Definition{Language: language, Directory: "generic", Extensions: []string{GenericExtension(language)}}, true
 	}
 	return Definition{}, false
+}
+
+func SupportsPartitionedExecution(language string) bool {
+	definition, ok := Lookup(language)
+	return ok && definition.PartitionedExecution
 }
 
 func Supported() []string {

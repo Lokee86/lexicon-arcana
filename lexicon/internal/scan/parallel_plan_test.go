@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestExecutionPlanScalesGoSemanticShards(t *testing.T) {
+func TestExecutionPlanScalesPartitionedAdapters(t *testing.T) {
 	previousGOMAXPROCS := runtime.GOMAXPROCS(4)
 	t.Cleanup(func() { runtime.GOMAXPROCS(previousGOMAXPROCS) })
 
@@ -18,14 +18,14 @@ func TestExecutionPlanScalesGoSemanticShards(t *testing.T) {
 		t.Fatal(err)
 	}
 	for index := 0; index < 160; index++ {
-		path := filepath.Join(sourceRoot, fmt.Sprintf("file_%03d.go", index))
+		path := filepath.Join(sourceRoot, fmt.Sprintf("file_%03d.py", index))
 		if err := os.WriteFile(path, []byte("package sample\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
 	t.Setenv("LEXICON_MAX_WORKERS", "3")
 	scanner := &Scanner{StateRoot: stateRoot}
-	plan, err := scanner.executionPlan(analysisPlan{Language: "go", Full: true})
+	plan, err := scanner.executionPlan(analysisPlan{Language: "python", Full: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestLogicalShardCountScalesToEnterpriseRepositories(t *testing.T) {
 
 func TestExecutionPlanKeepsUnsupportedAdaptersSingleWorker(t *testing.T) {
 	scanner := &Scanner{StateRoot: filepath.Join(t.TempDir(), "missing-state")}
-	plan, err := scanner.executionPlan(analysisPlan{Language: "python", Full: true})
+	plan, err := scanner.executionPlan(analysisPlan{Language: "ruby", Full: true})
 	if err != nil {
 		t.Fatal(err)
 	}

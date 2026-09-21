@@ -9,6 +9,7 @@ from .callgraph_annotations import AnnotationFlow
 from .callgraph_callbacks import CallbackFlow
 from .callgraph_dispatch import DispatchFlow
 from .callgraph_expression import ExpressionFlow
+from .callgraph_indexes import build_callgraph_indexes
 from .callgraph_scope import ScopeFlow
 from .callgraph_shapes import TypeShape
 from .model import CallInfo, Facts
@@ -33,9 +34,11 @@ class CallGraphResolver(
         self._runtime_base_cache: dict[str, frozenset[str]] = {}
         self._mro_cache: dict[str, tuple[str, ...]] = {}
         self._descendant_cache: dict[str, frozenset[str]] = {}
+        self._children_by_base: dict[str, tuple[str, ...]] | None = None
         self._decorator_argument_shapes: dict[tuple[str, str], TypeShape] = {}
         self._effective_targets: dict[str, frozenset[str]] = {}
         self._direct_callers: dict[str, tuple[CallInfo, ...]] = {}
+        self._indexes = build_callgraph_indexes(facts)
         self._index_decorators()
         self._return_cache.clear()
         self._parameter_cache.clear()
@@ -137,7 +140,7 @@ class CallGraphResolver(
                 return set(), inherited_reason or "missing-target"
             return set(), reason if reason != "missing-target" else "dynamic-target"
         if isinstance(callee, ast.Lambda):
-            lambda_id = self.facts.lambda_ids.get(id(callee))
+            lambda_id = self.facts.lambda_ids.get((module_name, callee.lineno, callee.col_offset))
             return ({lambda_id}, "") if lambda_id else (set(), "dynamic-target")
         if isinstance(callee, (ast.Call, ast.Subscript, ast.IfExp)):
             returned = self.expression_shape(callee, module_name, class_qname, scope_id, before, seen)

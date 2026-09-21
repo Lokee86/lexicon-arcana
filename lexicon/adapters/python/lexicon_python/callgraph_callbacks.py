@@ -229,11 +229,14 @@ class CallbackFlow:
         info = self.facts.functions.get(call.scope_id or "")
         if info and name in info.parameters:
             return True
+        if call.scope_id is None:
+            return False
         return any(
-            assignment.scope_id == call.scope_id
-            and assignment.name == name
-            and _precedes(assignment.assignment_node, call.expression_node)
-            for assignment in self.facts.local_assignments
+            _precedes(assignment.assignment_node, call.expression_node)
+            for assignment in self._indexes.assignments_by_scope_name.get(
+                (call.scope_id, name),
+                (),
+            )
         )
 
     def _argument_for_parameter(
