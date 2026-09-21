@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 import sys
+from collections.abc import Iterable, Iterator
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 from .contract import LANGUAGE, SCHEMA_VERSION
 from .model import Facts
@@ -44,6 +45,15 @@ def emit_records(
     changed_files: list[str] | None = None,
     removed_files: list[str] | None = None,
 ) -> list[dict[str, Any]]:
+    return list(iter_records(facts, adapter_version, changed_files, removed_files))
+
+
+def iter_records(
+    facts: Facts,
+    adapter_version: str,
+    changed_files: list[str] | None = None,
+    removed_files: list[str] | None = None,
+) -> Iterator[dict[str, Any]]:
     incremental = changed_files is not None or removed_files is not None
     selected = {_normalize(path) for path in changed_files or []}
     header = {
@@ -58,14 +68,19 @@ def emit_records(
         header["changed_files"] = sorted(selected)
         header["removed_files"] = sorted(_normalize(path) for path in removed_files or [])
         header["shared_complete"] = True
+    yield header
+
     nodes = sorted(facts.nodes.values(), key=_record_sort_key)
     owners = {record["id"]: _direct_owner(record) for record in nodes}
-    facts_records = [*nodes]
-    facts_records.extend(sorted(facts.edges.values(), key=_record_sort_key))
-    facts_records.extend(sorted(facts.unresolved.values(), key=_record_sort_key))
-    if incremental:
-        facts_records = [record for record in facts_records if _include(record, owners, selected)]
-    return [header, *facts_records]
+    for record in nodes:
+        if not incremental or _include(record, owners, selected):
+            yield record
+    for record in sorted(facts.edges.values(), key=_record_sort_key):
+        if not incremental or _include(record, owners, selected):
+            yield record
+    for record in sorted(facts.unresolved.values(), key=_record_sort_key):
+        if not incremental or _include(record, owners, selected):
+            yield record
 
 
 def _normalize(path: str) -> str:
@@ -94,11 +109,19 @@ def _include(record: dict[str, Any], owners: dict[str, str], selected: set[str])
     return not owner or owner in selected
 
 
-def write_records(records: list[dict[str, Any]], output: Path) -> None:
-    lines = [json.dumps(record, ensure_ascii=False, sort_keys=True, separators=(",", ":")) for record in records]
+def write_records(records: Iterable[dict[str, Any]], output: Path) -> None:
     if str(output) == "-":
-        sys.stdout.write("\n".join(lines) + "\n")
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="strict", newline="\n")
+        _write_stream(records, sys.stdout)
         return
     destination = output.expanduser()
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    with destination.open("w", encoding="utf-8", newline="\n") as stream:
+        _write_stream(records, stream)
+
+
+def _write_stream(records: Iterable[dict[str, Any]], stream: TextIO) -> None:
+    for record in records:
+        stream.write(json.dumps(record, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+        stream.write("\n")

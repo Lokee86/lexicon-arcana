@@ -1,8 +1,10 @@
 package adapters
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -27,6 +29,10 @@ type Analyzer interface {
 	Run(context.Context, Request) error
 }
 
+type StreamingAnalyzer interface {
+	RunStream(context.Context, Request, func(io.Reader) error) error
+}
+
 type Runner struct {
 	Root string
 }
@@ -45,6 +51,46 @@ func (r Runner) Run(ctx context.Context, request Request) error {
 	}
 	if info, err := os.Stat(request.Output); err != nil || info.Size() == 0 {
 		return fmt.Errorf("%s adapter produced no output", request.Language)
+	}
+	return nil
+}
+
+func (r Runner) RunStream(ctx context.Context, request Request, consume func(io.Reader) error) error {
+	if !languageRegistry.SupportsStreamingOutput(request.Language) {
+		if err := r.Run(ctx, request); err != nil {
+			return err
+		}
+		file, err := os.Open(request.Output)
+		if err != nil {
+			return fmt.Errorf("open %s adapter output: %w", request.Language, err)
+		}
+		defer file.Close()
+		return consume(file)
+	}
+	request.Output = "-"
+	command, err := r.command(ctx, request)
+	if err != nil {
+		return err
+	}
+	stdout, err := command.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("open %s adapter output: %w", request.Language, err)
+	}
+	var stderr bytes.Buffer
+	command.Stderr = &stderr
+	if err := command.Start(); err != nil {
+		return fmt.Errorf("start %s adapter: %w", request.Language, err)
+	}
+	consumeErr := consume(stdout)
+	if consumeErr != nil && command.Process != nil {
+		_ = command.Process.Kill()
+	}
+	waitErr := command.Wait()
+	if consumeErr != nil {
+		return fmt.Errorf("read %s adapter output: %w", request.Language, consumeErr)
+	}
+	if waitErr != nil {
+		return fmt.Errorf("%s adapter failed: %w\n%s", request.Language, waitErr, strings.TrimSpace(stderr.String()))
 	}
 	return nil
 }

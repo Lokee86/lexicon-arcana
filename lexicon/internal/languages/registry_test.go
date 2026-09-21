@@ -41,6 +41,17 @@ func TestGenericFallbackUsesExtensionIdentity(t *testing.T) {
 	}
 }
 
+func TestStreamingOutputIsExplicit(t *testing.T) {
+	if !SupportsStreamingOutput("python") {
+		t.Fatal("python adapter should support streaming output")
+	}
+	for _, language := range []string{"go", "gdscript", "generic-scala"} {
+		if SupportsStreamingOutput(language) {
+			t.Fatalf("%s unexpectedly supports streaming output", language)
+		}
+	}
+}
+
 func TestGenericFallbackExcludesNonSourceFiles(t *testing.T) {
 	for _, path := range []string{"README.md", "config.json", "settings.yaml", "data.csv", "image.png"} {
 		if got := ForPath(path); got != nil {

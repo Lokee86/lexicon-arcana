@@ -3,6 +3,7 @@ package scan
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/Lokee86/lexicon/internal/adapters"
 	"github.com/Lokee86/lexicon/internal/config"
+	languageRegistry "github.com/Lokee86/lexicon/internal/languages"
 	"github.com/Lokee86/lexicon/internal/objectstore"
 	analysisscope "github.com/Lokee86/lexicon/internal/scope"
 )
@@ -108,7 +110,8 @@ func (s *Scanner) analyzePlan(
 	if err != nil {
 		return objectstore.Manifest{}, err
 	}
-	if err := s.Analyzer.Run(ctx, request); err != nil {
+	analysis, err := s.runAnalysis(ctx, request)
+	if err != nil {
 		if plan.Full {
 			return objectstore.Manifest{}, err
 		}
@@ -117,11 +120,6 @@ func (s *Scanner) analyzePlan(
 			return objectstore.Manifest{}, retryErr
 		}
 		return s.applyFullAnalysis(manifest, analysis, sourceRoot)
-	}
-
-	analysis, err := objectstore.ReadAnalysis(adapterOutput, plan.Language)
-	if err != nil {
-		return objectstore.Manifest{}, err
 	}
 	if plan.Full {
 		return s.applyFullAnalysis(manifest, analysis, sourceRoot)
@@ -218,6 +216,29 @@ func (s *Scanner) analysisRequest(plan analysisPlan, sourceRoot, temporary, outp
 	}, nil
 }
 
+func (s *Scanner) runAnalysis(ctx context.Context, request adapters.Request) (*objectstore.Analysis, error) {
+	if streaming, ok := s.Analyzer.(adapters.StreamingAnalyzer); ok && languageRegistry.SupportsStreamingOutput(request.Language) {
+		var analysis *objectstore.Analysis
+		err := streaming.RunStream(ctx, request, func(reader io.Reader) error {
+			var readErr error
+			analysis, readErr = objectstore.ReadAnalysisReader(
+				reader,
+				request.Language,
+				request.Language+" adapter stream",
+			)
+			return readErr
+		})
+		if err != nil {
+			return nil, err
+		}
+		return analysis, nil
+	}
+	if err := s.Analyzer.Run(ctx, request); err != nil {
+		return nil, err
+	}
+	return objectstore.ReadAnalysis(request.Output, request.Language)
+}
+
 func (s *Scanner) retryFull(
 	ctx context.Context,
 	request adapters.Request,
@@ -229,14 +250,11 @@ func (s *Scanner) retryFull(
 	request.Repository = sourceRoot
 	request.ChangedFiles = nil
 	request.RemovedFiles = nil
-	if err := s.Analyzer.Run(ctx, request); err != nil {
+	analysis, err := s.runAnalysis(ctx, request)
+	if err != nil {
 		if scopedErr != nil {
 			return nil, fmt.Errorf("scoped %s analysis failed: %v; full retry failed: %w", request.Language, scopedErr, err)
 		}
-		return nil, err
-	}
-	analysis, err := objectstore.ReadAnalysis(request.Output, request.Language)
-	if err != nil {
 		return nil, err
 	}
 	if analysis.IsIncremental() {

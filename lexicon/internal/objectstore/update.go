@@ -54,10 +54,7 @@ func (s Store) BuildSharedLanguage(
 	if analysis.IsIncremental() {
 		return LanguageEntry{}, fmt.Errorf("synthetic analysis must be full")
 	}
-	records := typedRecords{}
-	for _, record := range analysis.records {
-		records.append(record.typed)
-	}
+	records := analysis.allTypedRecords()
 	entry := languageMetadata(analysis.Header, analysisConfigID, adapterFingerprint)
 	entry.Files = []FileEntry{}
 	sharedObjectID, err := s.writeSharedObject(entry, records)

@@ -81,9 +81,9 @@ func runInit(ctx context.Context, arguments []string, stdout, stderr io.Writer) 
 	}
 	var report scan.Report
 	if flagWasSet(flags, "languages") {
-		selection, err := parseLanguageSelection(*languageText)
-		if err != nil {
-			return err
+		selection, selectionErr := parseLanguageSelection(*languageText)
+		if selectionErr != nil {
+			return selectionErr
 		}
 		_, report, err = scan.InitializeWithLanguages(ctx, root, adapters, selection, stdout)
 	} else {

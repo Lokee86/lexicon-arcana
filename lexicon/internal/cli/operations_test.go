@@ -89,6 +89,27 @@ func TestConsumerAddListAndRemoveCommands(t *testing.T) {
 	}
 }
 
+func TestInitWithLanguagesPropagatesInitializationFailure(t *testing.T) {
+	repository := t.TempDir()
+	if err := os.WriteFile(filepath.Join(repository, "main.py"), []byte("print('hello')\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	adapterRoot := t.TempDir()
+
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{
+		"init", "--repo", repository,
+		"--adapters", adapterRoot,
+		"--languages", "python",
+	}, &stdout, &stderr)
+	if code == 0 {
+		t.Fatalf("init unexpectedly succeeded: stdout=%q stderr=%q", stdout.String(), stderr.String())
+	}
+	if strings.Contains(stdout.String(), "snapshot:") {
+		t.Fatalf("failed init reported a snapshot: %q", stdout.String())
+	}
+}
+
 func TestLanguagesListReportsConfiguredSelection(t *testing.T) {
 	repository := t.TempDir()
 	adapterRoot := filepath.Join(repository, "adapters")

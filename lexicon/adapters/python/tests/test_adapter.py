@@ -147,6 +147,33 @@ class PythonAdapterTest(unittest.TestCase):
         self.assertEqual(parallel, serial)
         self.assertEqual(parallel_path.read_bytes(), serial_path.read_bytes())
 
+    def test_stdout_output_matches_file_output(self) -> None:
+        self._write("unicode_λ.py", "def λ():\n    return '雪'\n")
+        output = self.repo / "facts.jsonl"
+        expected = self._run(output)
+        environment = os.environ.copy()
+        environment["PYTHONPATH"] = str(ADAPTER_ROOT)
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "lexicon_python",
+                "--repo",
+                str(self.repo),
+                "--output",
+                "-",
+            ],
+            cwd=REPO_ROOT,
+            env=environment,
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+        self.assertEqual(result.stderr, "")
+        streamed = [json.loads(line) for line in result.stdout.splitlines()]
+        self.assertEqual(streamed, expected)
+
     def test_declarations_imports_inheritance_and_exclusions(self) -> None:
         records = self._run(self.repo / "facts.jsonl")
         nodes = [record for record in records if record["record"] == "node"]

@@ -187,6 +187,20 @@ func (records *typedRecords) append(record typedRecord) {
 	}
 }
 
+func (records *typedRecords) appendAll(other typedRecords) {
+	records.nodes = append(records.nodes, other.nodes...)
+	records.edges = append(records.edges, other.edges...)
+	records.unresolved = append(records.unresolved, other.unresolved...)
+}
+
+func (records typedRecords) clone() typedRecords {
+	return typedRecords{
+		nodes:      append([]nodeRecord(nil), records.nodes...),
+		edges:      append([]edgeRecord(nil), records.edges...),
+		unresolved: append([]unresolvedRecord(nil), records.unresolved...),
+	}
+}
+
 func (records typedRecords) len() int {
 	return len(records.nodes) + len(records.edges) + len(records.unresolved)
 }

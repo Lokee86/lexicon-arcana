@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -66,6 +67,58 @@ func parseOutput(path string) (Header, []parsedRecord, error) {
 		return Header{}, nil, err
 	}
 	return header, records, nil
+}
+
+func parsePartitionedOutput(reader io.Reader, source string) (Header, *analysisPartitions, error) {
+	scanner := bufio.NewScanner(reader)
+	scanner.Buffer(make([]byte, 64*1024), 32*1024*1024)
+	if !scanner.Scan() {
+		return Header{}, nil, fmt.Errorf("adapter output is empty: %s", source)
+	}
+	var header Header
+	if err := json.Unmarshal(scanner.Bytes(), &header); err != nil {
+		return Header{}, nil, fmt.Errorf("decode adapter header: %w", err)
+	}
+
+	partitions := &analysisPartitions{groups: make(map[string]typedRecords)}
+	owners := make(map[string]string)
+	relationshipsStarted := false
+	for scanner.Scan() {
+		line := bytes.TrimSpace(scanner.Bytes())
+		if len(line) == 0 {
+			continue
+		}
+		typed, err := parseTypedRecord(line)
+		if err != nil {
+			return Header{}, nil, fmt.Errorf("decode adapter record: %w", err)
+		}
+		if typed.kind == recordNode {
+			if relationshipsStarted {
+				return Header{}, nil, fmt.Errorf("adapter output is not canonical: node record follows relationship records")
+			}
+			ownership := typed.ownership()
+			if identity := typed.nodeID(); identity != "" {
+				if owner := directOwner(ownership); owner != "" {
+					owners[identity] = owner
+				}
+			}
+		} else {
+			relationshipsStarted = true
+		}
+
+		owner := recordOwner(typed.ownership(), owners)
+		if owner == "" {
+			partitions.shared.append(typed)
+			continue
+		}
+		group := partitions.groups[owner]
+		group.append(typed)
+		partitions.groups[owner] = group
+	}
+	if err := scanner.Err(); err != nil {
+		return Header{}, nil, err
+	}
+	return header, partitions, nil
 }
 
 func ValidateOutput(path, language string) error {
