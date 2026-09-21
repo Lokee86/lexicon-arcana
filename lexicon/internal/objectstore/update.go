@@ -30,13 +30,9 @@ func (s Store) BuildFullLanguage(
 	groups, shared := analysis.groups(allowedOwners)
 	entry := languageMetadata(analysis.Header, analysisConfigID, adapterFingerprint)
 	paths := sortedMapKeys(files)
-	entry.Files = make([]FileEntry, 0, len(paths))
-	for _, path := range paths {
-		file, err := s.writeFileObject(entry, path, files[path], groups[path])
-		if err != nil {
-			return LanguageEntry{}, err
-		}
-		entry.Files = append(entry.Files, file)
+	entry.Files, err = s.writeFileObjects(entry, paths, files, groups)
+	if err != nil {
+		return LanguageEntry{}, err
 	}
 	entry.SharedObjectID, err = s.writeSharedObject(entry, shared)
 	if err != nil {

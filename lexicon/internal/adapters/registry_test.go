@@ -115,6 +115,39 @@ func TestFingerprintIgnoresGeneratedCacheVCSAndStateDirectories(t *testing.T) {
 	}
 }
 
+func TestFingerprintIgnoresTestOnlyFiles(t *testing.T) {
+	root := t.TempDir()
+	writeAdapterFile(t, root, "python", "lexicon_python/adapter.py", "value = 1\n")
+	writeAdapterFile(t, root, "python", "tests/test_adapter.py", "one\n")
+	writeAdapterFile(t, root, "python", "lexicon_python/helper_test.py", "one\n")
+	writeAdapterFile(t, root, "python", "lexicon_python/test_helper.py", "one\n")
+
+	first, err := Fingerprint(root, "python")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	writeAdapterFile(t, root, "python", "tests/test_adapter.py", "two\n")
+	writeAdapterFile(t, root, "python", "lexicon_python/helper_test.py", "two\n")
+	writeAdapterFile(t, root, "python", "lexicon_python/test_helper.py", "two\n")
+	second, err := Fingerprint(root, "python")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second != first {
+		t.Fatal("fingerprint changed after test-only files changed")
+	}
+
+	writeAdapterFile(t, root, "python", "lexicon_python/adapter.py", "value = 2\n")
+	third, err := Fingerprint(root, "python")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if third == first {
+		t.Fatal("fingerprint did not change after runtime adapter source changed")
+	}
+}
+
 func TestFingerprintIncludesSchemaAndConfigVersions(t *testing.T) {
 	root := t.TempDir()
 	writeAdapterFile(t, root, "ruby", "adapter.rb", "puts 'ok'\n")

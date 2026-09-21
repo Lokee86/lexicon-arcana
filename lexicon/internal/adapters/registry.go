@@ -27,7 +27,7 @@ var ignoredFingerprintDirectories = map[string]struct{}{
 	".ritual": {}, ".venv": {}, ".warlock": {}, ".worktrees": {},
 	".workingtrees": {}, "__pycache__": {}, "bin": {}, "build": {},
 	"coverage": {}, "dist": {}, "log": {}, "node_modules": {}, "obj": {},
-	"target": {}, "tmp": {}, "vendor": {}, "venv": {},
+	"target": {}, "test": {}, "testdata": {}, "tests": {}, "tmp": {}, "vendor": {}, "venv": {},
 }
 
 func Definitions() []Definition {
@@ -82,6 +82,9 @@ func adapterFiles(root string) ([]string, error) {
 			}
 			return nil
 		}
+		if ignoredFingerprintFile(entry.Name()) {
+			return nil
+		}
 		relative, err := filepath.Rel(root, path)
 		if err != nil {
 			return err
@@ -94,6 +97,14 @@ func adapterFiles(root string) ([]string, error) {
 	}
 	sort.Strings(paths)
 	return paths, nil
+}
+
+func ignoredFingerprintFile(name string) bool {
+	lower := strings.ToLower(name)
+	return strings.HasSuffix(lower, "_test.go") ||
+		(strings.HasSuffix(lower, ".py") && (strings.HasPrefix(lower, "test_") || strings.HasSuffix(lower, "_test.py"))) ||
+		strings.HasSuffix(lower, ".test.ts") || strings.HasSuffix(lower, ".test.tsx") ||
+		strings.HasSuffix(lower, ".spec.ts") || strings.HasSuffix(lower, ".spec.tsx")
 }
 
 func writeFingerprintField(hash interface{ Write([]byte) (int, error) }, value string) {
