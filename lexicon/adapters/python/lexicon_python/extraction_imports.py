@@ -29,7 +29,7 @@ class ImportFlow:
         star: bool,
     ) -> None:
         self.import_index += 1
-        statement_span = span(statement, self.context.relative_path, self.context.lines)
+        statement_span = span(statement, self.context.relative_path, self.context.source)
         expression = expression_text(statement, self.context.source)
         if target_name and target_name != "*":
             expression = f"{expression} [{target_name}]"
@@ -52,7 +52,6 @@ class ImportFlow:
                 module_name=self.context.module_name,
                 owner_id=self.owner_id,
                 node_id=identifier,
-                statement=statement,
                 expression=expression,
                 binding=binding,
                 target_module=target_module,

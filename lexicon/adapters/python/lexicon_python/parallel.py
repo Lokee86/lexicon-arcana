@@ -7,21 +7,21 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Iterable
 
-from .contract import content_id
+from .contract import clear_source_cache, content_id
 from .discovery import _name_from_dotted, _posix_relative, inventory, load_context
 from .extraction import DeclarationVisitor
 from .model import Facts, FileContext, RepositorySnapshot
 from .semantic_facts import emit_semantic_facts
 
 
-@dataclass
+@dataclass(slots=True)
 class ExtractionFragment:
     index: int
     contexts: list[FileContext]
     facts: Facts
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class FileRequest:
     shard_index: int
     file_index: int
@@ -66,6 +66,7 @@ def extract_repository(
     merged = _reduce_fragments(shard_fragments, merge_fan_in)
     snapshot = RepositorySnapshot(root, repository, directories, merged.contexts)
     _add_repository_structure(merged.facts, snapshot)
+    snapshot.contexts.clear()
     return snapshot, merged.facts
 
 
@@ -100,11 +101,24 @@ def _extract_file(request: FileRequest) -> tuple[int, int, FileContext, Facts]:
     )
     facts = Facts(repository=request.repository)
     _prepare_context(facts, context)
+    # Source bytes are only needed for the durable content identity. Do not
+    # pickle/retain them with the worker result.
+    context.data = b""
     if context.tree is not None:
         DeclarationVisitor(facts, context).visit(context.tree)
         # Semantic capability/error-flow facts are file-local. Emit them in
         # the same worker so cold scans do not walk every AST again serially.
         emit_semantic_facts(facts, [context])
+
+    # Repository-wide resolution retains only selected AST nodes in Facts.
+    # The full parsed root/source are no longer needed after file-local
+    # semantic extraction, so do not send them through worker IPC.
+    context.tree = None
+    context.source = ""
+    # expression_text caches encoded source views for locality within one file.
+    # A worker handles many files, so release that duplicate representation
+    # before returning the file result.
+    clear_source_cache()
     return request.shard_index, request.file_index, context, facts
 
 
@@ -241,6 +255,7 @@ def _merge_fragment(
     source: ExtractionFragment,
 ) -> None:
     destination.contexts.extend(source.contexts)
+    source.contexts.clear()
     _merge_facts(destination.facts, source.facts)
 
 
@@ -251,7 +266,6 @@ def _merge_facts(destination: Facts, source: Facts) -> None:
         "unresolved",
         "modules",
         "symbols",
-        "symbol_kinds",
         "node_qnames",
         "functions",
         "classes",
@@ -260,7 +274,10 @@ def _merge_facts(destination: Facts, source: Facts) -> None:
         "scope_bindings",
         "scope_parents",
     ):
-        getattr(destination, name).update(getattr(source, name))
+        destination_values = getattr(destination, name)
+        source_values = getattr(source, name)
+        destination_values.update(source_values)
+        source_values.clear()
     for name in (
         "imports",
         "inheritances",
@@ -268,5 +285,11 @@ def _merge_facts(destination: Facts, source: Facts) -> None:
         "local_assignments",
         "loop_bindings",
     ):
-        getattr(destination, name).extend(getattr(source, name))
-    destination.dataflow_edges.update(source.dataflow_edges)
+        destination_values = getattr(destination, name)
+        source_values = getattr(source, name)
+        destination_values.extend(source_values)
+        source_values.clear()
+    # Dataflow deduplication is file-local during extraction. No later
+    # repository-wide phase calls add_dataflow_edge, so retaining a merged copy
+    # only duplicates durable edge state.
+    source.dataflow_edges.clear()

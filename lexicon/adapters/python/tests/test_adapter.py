@@ -403,6 +403,45 @@ class PythonAdapterTest(unittest.TestCase):
         self.assertIn((nodes["pkg.flow.Builder.create"], builder), calls)
         self.assertIn((nodes["pkg.flow.use"], builder_run), calls)
 
+    def test_class_field_inference_uses_only_direct_class_body_assignments(self) -> None:
+        self._write(
+            "class_fields.py",
+            "from pkg.known import Worker\n\n"
+            "class Direct:\n"
+            "    worker = Worker()\n"
+            "    def use(self):\n"
+            "        return self.worker.run()\n\n"
+            "class Conditional:\n"
+            "    if enabled:\n"
+            "        worker = Worker()\n"
+            "    def use(self):\n"
+            "        return self.worker.run()\n",
+        )
+        records = self._run(self.repo / "facts.jsonl")
+        nodes = {
+            record["qualified_name"]: record["id"]
+            for record in records
+            if record["record"] == "node" and "qualified_name" in record
+        }
+        calls = {
+            (record["source"], record["target"])
+            for record in records
+            if record["record"] == "edge"
+            and record["relation"] in {"calls", "possible-calls"}
+        }
+        worker_run = nodes["pkg.known.Worker.run"]
+        self.assertIn((nodes["class_fields.Direct.use"], worker_run), calls)
+        self.assertNotIn((nodes["class_fields.Conditional.use"], worker_run), calls)
+        self.assertTrue(
+            any(
+                record["record"] == "unresolved"
+                and record["source"] == nodes["class_fields.Conditional.use"]
+                and record["relation"] == "calls"
+                and record["expression"] == "self.worker.run()"
+                for record in records
+            )
+        )
+
     def test_annotated_base_types_include_overrides_as_possible_calls(self) -> None:
         self._write(
             "dispatch.py",

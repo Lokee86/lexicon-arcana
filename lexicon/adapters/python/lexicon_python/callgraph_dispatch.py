@@ -42,7 +42,7 @@ class DispatchFlow:
         if info is None:
             return frozenset()
         reasons: set[str] = set()
-        for base in info.node.bases:
+        for base in info.bases:
             target_id, reason = self.bindings.resolve_reference(
                 info.module_name, class_qname, dotted(base), None
             )
@@ -61,7 +61,7 @@ class DispatchFlow:
         info = self.facts.classes.get(class_qname)
         bases: list[str] = []
         if info:
-            for base in info.node.bases:
+            for base in info.bases:
                 target_id, _ = self.bindings.resolve_reference(
                     info.module_name, class_qname, dotted(base), None
                 )
@@ -157,4 +157,5 @@ class DispatchFlow:
         return _EMPTY
 
     def _kind(self, identifier: str) -> str | None:
-        return self.facts.nodes.get(identifier, {}).get("kind")
+        record = self.facts.nodes.get(identifier)
+        return record.kind if record is not None else None

@@ -89,7 +89,7 @@ Implemented partitioned-execution behavior currently includes the Go adapter:
 - shard-local nodes, edges, callsites, semantic identities, and unresolved state;
 - deterministic fan-in merge;
 - final repository-wide SSA/VTA pass;
-Python now consumes the generic partitioned-execution contract with bounded process workers, deterministic file-local extraction, logical shard reduction, and repository-wide semantic resolution after merge. Go retains its language-specific typed SSA/VTA reconciliation. Deterministic output is required across worker counts, logical shard counts, and merge configurations.
+Python now consumes the generic partitioned-execution contract with bounded process workers, deterministic file-local extraction, logical shard reduction, and repository-wide semantic resolution after merge. Go retains its language-specific typed SSA/VTA reconciliation. Deterministic output is required across worker counts, logical shard counts, and merge configurations. Python's merged semantic state uses compact retained AST fragments and compact durable fact records so full source and file AST state is not kept through repository-wide resolution or emission.
 
 ## Go multi-module repositories
 

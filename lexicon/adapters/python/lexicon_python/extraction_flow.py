@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 
+from .contract import expression_text, span
 from .model import CallInfo, LocalAssignmentInfo, LoopBindingInfo
 from .extraction_targets import target_bindings, target_name
 
@@ -33,6 +34,11 @@ class LocalFlow:
                 value=value,
                 annotation=annotation,
                 branch_dependent=self.control_flow_depth > 0,
+                direct_class_field=(
+                    node is self.direct_class_statement
+                    and isinstance(node, (ast.Assign, ast.AnnAssign))
+                    and isinstance(target, ast.Name)
+                ),
             )
         )
 
@@ -184,6 +190,15 @@ class LocalFlow:
     def visit_DictComp(self, node: ast.DictComp) -> None:
         self._visit_comprehension(node, [node.key, node.value])
 
+    def visit_Expr(self, node: ast.Expr) -> None:
+        if not isinstance(node.value, ast.Call):
+            self.visit(node.value)
+            return
+        previous = self.bare_expression_call
+        self.bare_expression_call = node.value
+        self.visit(node.value)
+        self.bare_expression_call = previous
+
     def visit_Call(self, node: ast.Call) -> None:
         self.facts.calls.append(
             CallInfo(
@@ -193,6 +208,10 @@ class LocalFlow:
                 scope_id=self.scope_id,
                 expression_node=node,
                 callee=node.func,
+                expression=expression_text(node, self.context.source),
+                record_span=span(node, self.context.relative_path, self.context.source),
+                bare_expression=self.bare_expression_call is node,
+                outcome_eligible=self.semantic_outcomes_enabled,
             )
         )
         self.generic_visit(node)

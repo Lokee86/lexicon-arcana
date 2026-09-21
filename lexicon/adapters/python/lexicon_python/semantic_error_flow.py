@@ -88,7 +88,7 @@ def _emit_flow(
     handler_id = node_id("protocol", handler_identity)
     evidence_location = f"{evidence.lineno}:{evidence.col_offset}"
     flow_identity = f"{handler_identity}/flow-{flow}:{evidence_location}"
-    flow_span = span(evidence, context.relative_path, context.lines)
+    flow_span = span(evidence, context.relative_path, context.source)
     flow_id = facts.add_node(
         "protocol",
         f"error-flow:{flow}",

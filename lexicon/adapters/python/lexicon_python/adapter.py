@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
+from .contract import clear_source_cache
 from .dependencies import add_dependency_facts
 from .emission import emit_records, iter_records, write_records
 from .model import Facts
@@ -21,9 +22,14 @@ def _analyze(
     merge_fan_in: int,
 ) -> Facts:
     snapshot, facts = extract_repository(repo, workers, shards, merge_fan_in)
-    resolve_facts(facts, snapshot.contexts)
-    emit_outcome_facts(facts, snapshot.contexts)
+    resolve_facts(facts)
+    emit_outcome_facts(facts)
     add_dependency_facts(facts, snapshot)
+
+    # Nodes/edges/unresolved are now complete. Drop AST-bearing resolution
+    # indexes and source representations before canonical emission/sorting.
+    facts.release_analysis_state()
+    clear_source_cache()
     return facts
 
 

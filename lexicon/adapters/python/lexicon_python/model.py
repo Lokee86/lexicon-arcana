@@ -3,20 +3,19 @@
 from __future__ import annotations
 
 import ast
-import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from .contract import node_id
+from .fact_records import EdgeFact, NodeFact, UnresolvedFact
 
 
-@dataclass
+@dataclass(slots=True)
 class ImportInfo:
     module_name: str
     owner_id: str
     node_id: str
-    statement: ast.AST
     expression: str
     binding: str | None
     target_module: str | None = None
@@ -26,37 +25,40 @@ class ImportInfo:
     is_package: bool = False
 
 
-@dataclass
+@dataclass(slots=True)
 class InheritanceInfo:
     source_id: str
     module_name: str
     class_qname: str
     base: ast.expr
-    source: str
-    path: str
-    lines: list[str]
+    expression: str
+    record_span: dict[str, Any] | None
 
 
-@dataclass
+@dataclass(slots=True)
 class FunctionInfo:
     module_name: str
     qname: str
     node_id: str
     class_qname: str | None
-    node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda
+    arguments: ast.arguments
+    decorators: tuple[ast.expr, ...]
+    return_expressions: tuple[ast.expr, ...]
     parameters: dict[str, ast.expr | None]
     return_annotation: ast.expr | None
+    is_lambda: bool
+    is_async: bool
 
 
-@dataclass
+@dataclass(slots=True)
 class ClassInfo:
     module_name: str
     qname: str
     node_id: str
-    node: ast.ClassDef
+    bases: tuple[ast.expr, ...]
 
 
-@dataclass
+@dataclass(slots=True)
 class CallInfo:
     module_name: str
     owner_id: str
@@ -64,9 +66,13 @@ class CallInfo:
     scope_id: str | None
     expression_node: ast.Call
     callee: ast.AST
+    expression: str
+    record_span: dict[str, Any] | None
+    bare_expression: bool
+    outcome_eligible: bool
 
 
-@dataclass
+@dataclass(slots=True)
 class LocalAssignmentInfo:
     module_name: str
     scope_id: str
@@ -76,13 +82,14 @@ class LocalAssignmentInfo:
     value: ast.expr | None
     annotation: ast.expr | None
     branch_dependent: bool
+    direct_class_field: bool = False
 
     @property
     def constructor(self) -> ast.Call | None:
         return self.value if isinstance(self.value, ast.Call) else None
 
 
-@dataclass
+@dataclass(slots=True)
 class LoopBindingInfo:
     module_name: str
     scope_id: str
@@ -94,14 +101,13 @@ class LoopBindingInfo:
     element_index: int | None = None
 
 
-@dataclass
+@dataclass(slots=True)
 class FileContext:
     root: Path
     path: Path
     relative_path: str
     module_name: str
     source: str
-    lines: list[str]
     tree: ast.AST | None
     file_id: str
     module_id: str
@@ -109,7 +115,7 @@ class FileContext:
     parse_error: str | None = None
 
 
-@dataclass
+@dataclass(slots=True)
 class RepositorySnapshot:
     root: Path
     repository: str
@@ -117,15 +123,14 @@ class RepositorySnapshot:
     contexts: list[FileContext]
 
 
-@dataclass
+@dataclass(slots=True)
 class Facts:
     repository: str
-    nodes: dict[str, dict[str, Any]] = field(default_factory=dict)
-    edges: dict[str, dict[str, Any]] = field(default_factory=dict)
-    unresolved: dict[str, dict[str, Any]] = field(default_factory=dict)
+    nodes: dict[str, NodeFact] = field(default_factory=dict)
+    edges: dict[EdgeFact, None] = field(default_factory=dict)
+    unresolved: dict[UnresolvedFact, None] = field(default_factory=dict)
     modules: dict[str, str] = field(default_factory=dict)
     symbols: dict[str, str] = field(default_factory=dict)
-    symbol_kinds: dict[str, str] = field(default_factory=dict)
     node_qnames: dict[str, str] = field(default_factory=dict)
     imports: list[ImportInfo] = field(default_factory=list)
     inheritances: list[InheritanceInfo] = field(default_factory=list)
@@ -154,21 +159,16 @@ class Facts:
         file_content_id: str | None = None,
     ) -> str:
         identifier = node_id(kind, identity if identity is not None else qualified_name)
-        record: dict[str, Any] = {
-            "record": "node",
-            "id": identifier,
-            "kind": kind,
-            "name": name,
-            "path": path,
-            "qualified_name": qualified_name,
-        }
-        if file_content_id is not None:
-            record["content_id"] = file_content_id
-        if attributes:
-            record["attributes"] = attributes
-        if record_span is not None:
-            record["span"] = record_span
-        self.nodes[identifier] = record
+        self.nodes[identifier] = NodeFact.create(
+            identifier,
+            kind,
+            name,
+            path,
+            qualified_name,
+            file_content_id,
+            attributes,
+            record_span,
+        )
         self.node_qnames[identifier] = qualified_name
         return identifier
 
@@ -181,18 +181,16 @@ class Facts:
         record_span: dict[str, Any] | None = None,
         attributes: dict[str, Any] | None = None,
     ) -> None:
-        record: dict[str, Any] = {
-            "record": "edge",
-            "relation": relation,
-            "source": source,
-            "target": target,
-        }
-        if attributes:
-            record["attributes"] = attributes
-        if record_span is not None:
-            record["span"] = record_span
-        key = json.dumps(record, sort_keys=True, separators=(",", ":"))
-        self.edges[key] = record
+        self.edges.setdefault(
+            EdgeFact.create(
+                source,
+                target,
+                relation,
+                record_span,
+                attributes,
+            ),
+            None,
+        )
 
     def add_dataflow_edge(
         self,
@@ -218,16 +216,38 @@ class Facts:
         record_span: dict[str, Any] | None = None,
         candidate_name: str | None = None,
     ) -> None:
-        record: dict[str, Any] = {
-            "record": "unresolved",
-            "relation": relation,
-            "source": source,
-            "expression": expression,
-            "reason": reason,
-        }
-        if candidate_name:
-            record["candidate_name"] = candidate_name
-        if record_span is not None:
-            record["span"] = record_span
-        key = json.dumps(record, sort_keys=True, separators=(",", ":"))
-        self.unresolved[key] = record
+        self.unresolved.setdefault(
+            UnresolvedFact.create(
+                source,
+                relation,
+                expression,
+                reason,
+                record_span,
+                candidate_name,
+            ),
+            None,
+        )
+
+    def release_analysis_state(self) -> None:
+        """Release extraction/resolution state after durable facts are complete."""
+        for mapping in (
+            self.modules,
+            self.symbols,
+            self.node_qnames,
+            self.functions,
+            self.classes,
+            self.lambda_ids,
+            self.module_bindings,
+            self.scope_bindings,
+            self.scope_parents,
+        ):
+            mapping.clear()
+        for items in (
+            self.imports,
+            self.inheritances,
+            self.calls,
+            self.local_assignments,
+            self.loop_bindings,
+        ):
+            items.clear()
+        self.dataflow_edges.clear()

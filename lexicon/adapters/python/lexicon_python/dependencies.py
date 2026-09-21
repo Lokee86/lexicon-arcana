@@ -121,7 +121,7 @@ def _read_requirements(root: Path) -> list[tuple[str, str, str]]:
 
 
 def add_dependency_facts(facts: Facts, snapshot: RepositorySnapshot) -> None:
-    repository_id = next(identifier for identifier, record in facts.nodes.items() if record.get("kind") == "repository")
+    repository_id = next(identifier for identifier, record in facts.nodes.items() if record.kind == "repository")
     manifest, had_project_dependencies = _read_project_dependencies(snapshot.root)
     if not had_project_dependencies:
         manifest.extend(_read_requirements(snapshot.root))

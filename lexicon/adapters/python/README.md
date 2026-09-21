@@ -2,6 +2,8 @@
 
 A self-contained Python package that emits Lexicon facts v1 JSONL using only the Python standard library and `ast`.
 
+Cold scans use bounded process workers for file-local extraction, then perform repository-wide resolution over compact retained state. Full source text and file AST roots are released before repository-wide merge when no longer needed; durable nodes, edges, and unresolved records remain compact internally and are materialized as facts-v1 dictionaries only during deterministic emission.
+
 ## Usage
 
 From the repository root:

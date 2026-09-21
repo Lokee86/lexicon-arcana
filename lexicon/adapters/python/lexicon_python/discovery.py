@@ -82,7 +82,6 @@ def load_context(root: Path, repository: str, path: Path) -> FileContext:
         relative_path=relative,
         module_name=module_name,
         source=source,
-        lines=source.splitlines(),
         tree=tree,
         file_id="",
         module_id="",

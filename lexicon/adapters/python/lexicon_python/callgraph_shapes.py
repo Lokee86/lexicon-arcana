@@ -39,7 +39,7 @@ _SEMANTIC_DECORATORS = {
 }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class TypeShape:
     direct: frozenset[str] = frozenset()
     elements: frozenset[str] = frozenset()
@@ -115,33 +115,3 @@ def _elements_from_shapes(shapes: list[TypeShape]) -> TypeShape:
             for reason in (*shape.call_reasons, *shape.element_call_reasons)
         ),
     )
-
-
-def _return_expressions(
-    node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda,
-) -> list[ast.expr]:
-    if isinstance(node, ast.Lambda):
-        return [node.body]
-    expressions: list[ast.expr] = []
-
-    class Visitor(ast.NodeVisitor):
-        def visit_Return(self, return_node: ast.Return) -> None:
-            if return_node.value is not None:
-                expressions.append(return_node.value)
-
-        def visit_FunctionDef(self, nested: ast.FunctionDef) -> None:
-            if nested is node:
-                self.generic_visit(nested)
-
-        def visit_AsyncFunctionDef(self, nested: ast.AsyncFunctionDef) -> None:
-            if nested is node:
-                self.generic_visit(nested)
-
-        def visit_Lambda(self, nested: ast.Lambda) -> None:
-            return
-
-        def visit_ClassDef(self, nested: ast.ClassDef) -> None:
-            return
-
-    Visitor().visit(node)
-    return expressions

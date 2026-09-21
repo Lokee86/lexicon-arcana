@@ -15,7 +15,6 @@ from .callgraph_shapes import (
     TypeShape,
     _elements_from_shapes,
     _merge_shapes,
-    _return_expressions,
 )
 
 
@@ -82,7 +81,7 @@ class AnnotationFlow:
             info.node_id,
         )
         if shape == _EMPTY:
-            for expression in _return_expressions(info.node):
+            for expression in info.return_expressions:
                 shape = shape.merge(
                     self.expression_shape(
                         expression,
@@ -109,24 +108,30 @@ class AnnotationFlow:
         if info is None:
             return _EMPTY
         shape = _EMPTY
-        for statement in info.node.body:
-            if isinstance(statement, ast.AnnAssign) and isinstance(statement.target, ast.Name) and statement.target.id == field_name:
+        for assignment in self._indexes.direct_class_fields.get(
+            (class_qname, field_name),
+            (),
+        ):
+            if isinstance(assignment.assignment_node, ast.AnnAssign):
                 shape = shape.merge(
-                    self.annotation_shape(statement.annotation, info.module_name, class_qname, None)
+                    self.annotation_shape(
+                        assignment.annotation,
+                        assignment.module_name,
+                        assignment.class_qname,
+                        None,
+                    )
                 )
-            if isinstance(statement, ast.Assign):
-                for target in statement.targets:
-                    if isinstance(target, ast.Name) and target.id == field_name:
-                        shape = shape.merge(
-                            self.expression_shape(
-                                statement.value,
-                                info.module_name,
-                                class_qname,
-                                info.node_id,
-                                statement,
-                                next_seen,
-                            )
-                        )
+            elif isinstance(assignment.assignment_node, ast.Assign):
+                shape = shape.merge(
+                    self.expression_shape(
+                        assignment.value,
+                        assignment.module_name,
+                        assignment.class_qname,
+                        assignment.scope_id,
+                        assignment.assignment_node,
+                        next_seen,
+                    )
+                )
         for assignment in self._indexes.field_assignments.get(
             (class_qname, field_name),
             (),

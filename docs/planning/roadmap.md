@@ -33,7 +33,7 @@ The product family should ship and operate as two deterministic analysis tools w
 3. **Complete for current analysis tooling:** update Warlock and Reliquary to consume direct Lexicon/Arcana boundaries; broader Warlock runtime integration remains separately planned.
 4. **Complete:** rename the canonical repository identity to `Lokee86/lexicon-arcana`.
 5. **Complete — Lexicon durable-store compaction:** binary v2 preserves the full semantic fact set while reducing the current Hermes fact-object corpus from **220,393,540 bytes to 125,836,351 bytes (42.9%)**.
-6. **Next — Python adapter memory:** reduce the Python semantic-analysis graph and resolution/sort working set now that durable-store representation overhead is materially reduced, preserving emitted-fact and snapshot semantics.
+6. **Complete — Python adapter memory:** compact Python semantic-analysis ownership and durable in-memory records while preserving emitted-fact and snapshot semantics.
 7. Continue judged repository-analysis experiments on larger and more varied corpora.
 
 ## Near-term priorities
@@ -50,7 +50,7 @@ The product family should ship and operate as two deterministic analysis tools w
 - Improve adapter correctness and unresolved-evidence quality before adding speculative cross-language inference.
 - Measure initialization and incremental scan cost on substantially larger repositories.
 - Compact the durable CAS representation before considering semantic-fact pruning.
-- Reduce Python semantic-analysis peak memory after the transport layer has been removed as a confounding cost.
+- Keep Python semantic-analysis memory bounded around compact retained state; the current Hermes benchmark is 3.612 GiB peak RSS at full semantic coverage.
 - Keep immutable publication and bounded external-consumer behavior as hard contracts.
 
 ### Lexicon performance/storage sequence
@@ -82,7 +82,7 @@ Measured results:
 - 500-node codec benchmark on the current development machine (100 iterations): typed v2 encode about **0.62 ms/op**, full v2 decode about **1.40 ms/op**, node-only decode about **0.56 ms/op**;
 - no semantic-fact pruning or snapshot-contract change.
 
-#### 2. Python semantic-analysis memory — immediately after CAS compaction
+#### 2. Python semantic-analysis memory — complete
 
 **Owner:** Lexicon Python adapter.
 
@@ -96,7 +96,21 @@ Implementation plan:
 - avoid full-size sorting/materialization copies where deterministic ordering can be produced more cheaply;
 - remeasure peak memory, cold-scan wall time, and emitted-fact/snapshot equivalence on Hermes and larger corpora.
 
-Acceptance gate: preserve adapter semantics and deterministic publication while materially reducing peak memory; emitted facts must remain equivalent unless a separate, explicitly justified semantic change is roadmapped.
+Acceptance gate: **met**. The adapter preserves emitted facts and deterministic publication while reducing retained analysis state and durable-record overhead without pruning semantic coverage.
+
+Implemented changes:
+- bound/release source-byte caches and remove per-file line-string copies;
+- release source bytes, source text, full file AST roots, and merged shard containers when later phases no longer need them;
+- retain only function/class AST fragments needed by repository-wide resolution;
+- remove duplicate repository-wide indexes and keep dataflow deduplication file-local;
+- store durable nodes, edges, unresolved facts, and spans as compact slotted records/tuples, materializing JSON dictionaries only at emission.
+
+Measured on Hermes (**6,694 Python files / 84.3 MB**) with **16 active workers / 256 logical shards / merge fan-in 8**:
+- measured baseline: **6.10 GiB peak RSS, 285.5 s**;
+- final result: **3.612 GiB peak RSS, 134.574 s**;
+- about **41% lower peak memory** and **53% lower wall time**;
+- the optimized and frozen baseline adapters emit the exact same **1,058,412,847-byte / 2,972,095-line** Hermes JSONL stream with SHA-256 `6f3744688d376e5473bbe6e5f333d63afebc2f0c9a1b95630840ae8eacd6a3a4`;
+- existing Python adapter and Go scan integration tests preserve emitted semantic behavior.
 
 ## Arcana work
 

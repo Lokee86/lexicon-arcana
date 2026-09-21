@@ -9,33 +9,44 @@ from pathlib import Path
 from typing import Any, TextIO
 
 from .contract import LANGUAGE, SCHEMA_VERSION
+from .fact_records import EdgeFact, NodeFact, SpanRecord, UnresolvedFact
 from .model import Facts
 
 
-def _span_key(record: dict[str, Any]) -> tuple[Any, ...]:
-    value = record.get("span") or {}
+def _span_sort_key(value: SpanRecord | None) -> tuple[Any, ...]:
+    if value is None:
+        return ("", 0, 0, 0, 0)
+    return value
+
+
+def _node_sort_key(record: NodeFact) -> tuple[Any, ...]:
     return (
-        value.get("path", ""),
-        value.get("start_line", 0),
-        value.get("start_column", 0),
-        value.get("end_line", 0),
-        value.get("end_column", 0),
+        0,
+        record.identifier,
+        record.kind,
+        record.path,
+        record.qualified_name,
     )
 
 
-def _record_sort_key(record: dict[str, Any]) -> tuple[Any, ...]:
-    kind = record["record"]
-    if kind == "node":
-        return (0, record["id"], record["kind"], record["path"], record["qualified_name"])
-    if kind == "edge":
-        return (1, record["source"], record["target"], record["relation"], *_span_key(record))
+def _edge_sort_key(record: EdgeFact) -> tuple[Any, ...]:
+    return (
+        1,
+        record.source,
+        record.target,
+        record.relation,
+        *_span_sort_key(record.span),
+    )
+
+
+def _unresolved_sort_key(record: UnresolvedFact) -> tuple[Any, ...]:
     return (
         2,
-        record["source"],
-        record["relation"],
-        record["expression"],
-        record["reason"],
-        *_span_key(record),
+        record.source,
+        record.relation,
+        record.expression,
+        record.reason,
+        *_span_sort_key(record.span),
     )
 
 
@@ -70,15 +81,28 @@ def iter_records(
         header["shared_complete"] = True
     yield header
 
-    nodes = sorted(facts.nodes.values(), key=_record_sort_key)
-    owners = {record["id"]: _direct_owner(record) for record in nodes}
-    for record in nodes:
+    nodes = sorted(facts.nodes.values(), key=_node_sort_key)
+    owners = (
+        {record.identifier: record.direct_owner() for record in nodes}
+        if incremental
+        else {}
+    )
+    for fact in nodes:
+        record = fact.to_record()
         if not incremental or _include(record, owners, selected):
             yield record
-    for record in sorted(facts.edges.values(), key=_record_sort_key):
+    del nodes
+
+    edges = sorted(facts.edges, key=_edge_sort_key)
+    for fact in edges:
+        record = fact.to_record()
         if not incremental or _include(record, owners, selected):
             yield record
-    for record in sorted(facts.unresolved.values(), key=_record_sort_key):
+    del edges
+
+    unresolved = sorted(facts.unresolved, key=_unresolved_sort_key)
+    for fact in unresolved:
+        record = fact.to_record()
         if not incremental or _include(record, owners, selected):
             yield record
 
@@ -100,7 +124,11 @@ def _direct_owner(record: dict[str, Any]) -> str:
     return ""
 
 
-def _include(record: dict[str, Any], owners: dict[str, str], selected: set[str]) -> bool:
+def _include(
+    record: dict[str, Any],
+    owners: dict[str, str],
+    selected: set[str],
+) -> bool:
     owner = _direct_owner(record)
     if not owner:
         source = record.get("source")
@@ -123,5 +151,12 @@ def write_records(records: Iterable[dict[str, Any]], output: Path) -> None:
 
 def _write_stream(records: Iterable[dict[str, Any]], stream: TextIO) -> None:
     for record in records:
-        stream.write(json.dumps(record, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+        stream.write(
+            json.dumps(
+                record,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+        )
         stream.write("\n")

@@ -4,37 +4,16 @@ from __future__ import annotations
 
 from .bindings import BindingResolver, dotted, resolve_relative_module
 from .callgraph import CallGraphResolver
-from .contract import expression_text, span
-from .model import CallInfo, Facts, FileContext
+from .fact_records import span_to_dict
+from .model import Facts
 
 
 def _import_span(facts: Facts, node_id: str) -> dict[str, object] | None:
-    return facts.nodes.get(node_id, {}).get("span")
+    record = facts.nodes.get(node_id)
+    return span_to_dict(record.span) if record is not None else None
 
 
-def _context_index(contexts: list[FileContext]) -> dict[str, FileContext]:
-    result: dict[str, FileContext] = {}
-    for context in contexts:
-        # Historical lookup returned the first matching context.
-        result.setdefault(context.module_name, context)
-    return result
-
-
-def _call_span(
-    call: CallInfo,
-    contexts: dict[str, FileContext],
-) -> dict[str, object] | None:
-    context = contexts.get(call.module_name)
-    return span(call.expression_node, context.relative_path, context.lines) if context else None
-
-
-def _call_expression(call: CallInfo, contexts: dict[str, FileContext]) -> str:
-    context = contexts.get(call.module_name)
-    return expression_text(call.expression_node, context.source if context else "")
-
-
-def resolve_facts(facts: Facts, contexts: list[FileContext]) -> None:
-    context_by_module = _context_index(contexts)
+def resolve_facts(facts: Facts) -> None:
     bindings = BindingResolver(facts)
     import_results = bindings.resolve_imports()
     for info, (target_id, reason) in zip(facts.imports, import_results):
@@ -58,15 +37,15 @@ def resolve_facts(facts: Facts, contexts: list[FileContext]) -> None:
             inheritance.class_qname,
             target_name,
         )
-        base_span = span(inheritance.base, inheritance.path, inheritance.lines)
+        base_span = inheritance.record_span
         if target_id:
-            relation = "implements" if facts.nodes.get(target_id, {}).get("kind") in {"interface", "trait"} else "extends"
+            relation = "implements" if facts.nodes[target_id].kind in {"interface", "trait"} else "extends"
             facts.add_edge(inheritance.source_id, target_id, relation, record_span=base_span)
         else:
             facts.add_unresolved(
                 inheritance.source_id,
                 "extends",
-                expression_text(inheritance.base, inheritance.source),
+                inheritance.expression,
                 reason,
                 record_span=base_span,
                 candidate_name=target_name,
@@ -77,7 +56,7 @@ def resolve_facts(facts: Facts, contexts: list[FileContext]) -> None:
     callgraph = CallGraphResolver(facts, bindings)
     for call in facts.calls:
         target_ids, reason = callgraph.resolve_call(call)
-        call_span = _call_span(call, context_by_module)
+        call_span = call.record_span
         if len(target_ids) == 1:
             facts.add_edge(call.owner_id, target_ids[0], "calls", record_span=call_span)
         elif target_ids:
@@ -93,7 +72,7 @@ def resolve_facts(facts: Facts, contexts: list[FileContext]) -> None:
             facts.add_unresolved(
                 call.owner_id,
                 "calls",
-                _call_expression(call, context_by_module),
+                call.expression,
                 reason,
                 record_span=call_span,
                 candidate_name=dotted(call.callee),
@@ -118,7 +97,7 @@ def _emit_overrides(facts: Facts, bindings: BindingResolver) -> None:
             ancestor_cache[cache_key] = ancestors
         for ancestor in ancestors:
             target = facts.symbols.get(f"{ancestor}.{method_name}")
-            if target and facts.nodes.get(target, {}).get("kind") == "method" and target != function.node_id:
+            if target and facts.nodes[target].kind == "method" and target != function.node_id:
                 facts.add_edge(function.node_id, target, "overrides")
 
 
@@ -137,7 +116,7 @@ def _ancestor_qnames(
     if info is None:
         return ()
     result: list[str] = []
-    for base in info.node.bases:
+    for base in info.bases:
         target_id, _ = bindings.resolve_reference(module_name, class_qname, dotted(base))
         target_qname = facts.node_qnames.get(target_id) if target_id else None
         if not target_qname:

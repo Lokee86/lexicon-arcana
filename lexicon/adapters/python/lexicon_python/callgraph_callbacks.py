@@ -12,7 +12,6 @@ from .callgraph_shapes import (
     TypeShape,
     _position,
     _precedes,
-    _return_expressions,
 )
 from .model import CallInfo, FunctionInfo
 
@@ -60,11 +59,7 @@ class CallbackFlow:
         parameter_name: str,
         seen: set[tuple[str, str]],
     ) -> TypeShape:
-        node = info.node
-        if isinstance(node, ast.Lambda):
-            arguments = node.args
-        else:
-            arguments = node.args
+        arguments = info.arguments
         positional = [*arguments.posonlyargs, *arguments.args]
         defaults_by_name: dict[str, ast.expr] = {}
         if arguments.defaults:
@@ -92,11 +87,11 @@ class CallbackFlow:
         parameter_name: str,
         seen: set[tuple[str, str]],
     ) -> TypeShape:
-        if isinstance(info.node, ast.Lambda):
+        if info.is_lambda:
             return _EMPTY
         shape = _EMPTY
         module_scope = self.facts.modules.get(info.module_name)
-        for decorator in info.node.decorator_list:
+        for decorator in info.decorators:
             if not isinstance(decorator, ast.Call):
                 continue
             reference = dotted(decorator.func) or ""
@@ -139,10 +134,10 @@ class CallbackFlow:
 
     def _index_decorators(self) -> None:
         for info in sorted(self.facts.functions.values(), key=lambda item: item.qname):
-            if isinstance(info.node, ast.Lambda) or not info.node.decorator_list:
+            if info.is_lambda or not info.decorators:
                 continue
             current = frozenset({info.node_id})
-            for decorator in reversed(info.node.decorator_list):
+            for decorator in reversed(info.decorators):
                 reference = dotted(decorator)
                 if reference is None or reference.rsplit(".", 1)[-1] in _SEMANTIC_DECORATORS:
                     continue
@@ -180,7 +175,7 @@ class CallbackFlow:
         info: FunctionInfo,
         parameter_name: str,
     ) -> bool:
-        expressions = _return_expressions(info.node)
+        expressions = info.return_expressions
         return bool(expressions) and all(
             isinstance(expression, ast.Name) and expression.id == parameter_name
             for expression in expressions
