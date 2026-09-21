@@ -32,7 +32,9 @@ The product family should ship and operate as two deterministic analysis tools w
 2. **Complete:** remove or reclassify stale Grimoire-only documentation, governance, and evaluation entry points.
 3. **Complete for current analysis tooling:** update Warlock and Reliquary to consume direct Lexicon/Arcana boundaries; broader Warlock runtime integration remains separately planned.
 4. **Complete:** rename the canonical repository identity to `Lokee86/lexicon-arcana`.
-5. Continue judged repository-analysis experiments on larger and more varied corpora.
+5. **Next — Lexicon durable-store compaction:** redesign the immutable CAS object encoding to reduce representation overhead without dropping semantic facts.
+6. **Next — Python adapter memory:** reduce the Python semantic-analysis graph and resolution/sort working set after the durable-store work, preserving emitted-fact and snapshot semantics.
+7. Continue judged repository-analysis experiments on larger and more varied corpora.
 
 ## Near-term priorities
 
@@ -47,7 +49,48 @@ The product family should ship and operate as two deterministic analysis tools w
 - Continue semantic-fact coverage where judged consumers need richer language semantics.
 - Improve adapter correctness and unresolved-evidence quality before adding speculative cross-language inference.
 - Measure initialization and incremental scan cost on substantially larger repositories.
+- Compact the durable CAS representation before considering semantic-fact pruning.
+- Reduce Python semantic-analysis peak memory after the transport layer has been removed as a confounding cost.
 - Keep immutable publication and bounded external-consumer behavior as hard contracts.
+
+### Lexicon performance/storage sequence
+
+#### 1. Durable CAS format compaction — next
+
+**Owner:** Lexicon object store.
+
+Hermes baseline from the current binary object format:
+
+- durable fact objects: about **220.4 MB**;
+- per-object string tables: about **158.5 MB / 71.9%**;
+- encoded node, edge, and unresolved sections combined: about **61.8 MB**.
+
+Implementation plan:
+
+- encode SHA-256 identities as binary digests rather than textual `sha256:` strings;
+- replace local semantic-node string references with compact object-local ordinals and a bounded external-reference table;
+- encode bounded node kinds and edge relations as compact enum/varint values;
+- factor repeated owner/path/qualified-name identity where object structure already supplies it;
+- reduce cross-record and cross-object string duplication, then evaluate general compression only after structural encoding is compact;
+- benchmark object build, load, traversal, and total durable bytes against the existing format.
+
+Acceptance gate: preserve the full semantic fact set and deterministic snapshot behavior. Storage reduction must come from representation improvements, not deleting useful facts.
+
+#### 2. Python semantic-analysis memory — immediately after CAS compaction
+
+**Owner:** Lexicon Python adapter.
+
+The monolithic JSONL handoff is already removed by `a4a88ba` (`Stream Python analysis into Lexicon`). The validated Hermes cold run completed in about **6m14.6s** with no temporary JSONL, but Python semantic analysis still reached roughly **5–6 GB** peak working memory.
+
+Implementation plan:
+
+- profile retained bytes across nodes, edges, unresolved facts, resolution indexes, merge intermediates, duplicated strings, and section sorting;
+- compact high-cardinality semantic records and indexes rather than reducing fact coverage;
+- release shard/intermediate state as soon as global resolution no longer requires it;
+- avoid full-size sorting/materialization copies where deterministic ordering can be produced more cheaply;
+- remeasure peak memory, cold-scan wall time, and emitted-fact/snapshot equivalence on Hermes and larger corpora.
+
+Acceptance gate: preserve adapter semantics and deterministic publication while materially reducing peak memory; emitted facts must remain equivalent unless a separate, explicitly justified semantic change is roadmapped.
 
 ## Arcana work
 
