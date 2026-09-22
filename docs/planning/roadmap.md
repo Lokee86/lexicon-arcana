@@ -112,6 +112,34 @@ Measured on Hermes (**6,694 Python files / 84.3 MB**) with **16 active workers /
 - the optimized and frozen baseline adapters emit the exact same **1,058,412,847-byte / 2,972,095-line** Hermes JSONL stream with SHA-256 `6f3744688d376e5473bbe6e5f333d63afebc2f0c9a1b95630840ae8eacd6a3a4`;
 - existing Python adapter and Go scan integration tests preserve emitted semantic behavior.
 
+#### 3. Cross-adapter scan sanity audit — complete for locally executable adapters
+
+**Owner:** Lexicon language adapters.
+
+A September 21, 2026 local scaling pass checked the remaining adapter implementations after the Python scan fixes. The goal was to distinguish compiler/runtime cost from avoidable scan, merge, output-materialization, or resolution pathologies.
+
+Representative isolated results on the current development machine:
+
+- C-family / LevelDB: **1.82 s** for 133 source/header files and a **19.6 MB** fact stream;
+- GDScript / Space Rocks client: **6.60 s** warm for 537 files and a **46.3 MB** fact stream;
+- Kotlin / Detekt: **2.58 s** warm for 1,157 files and a **67.6 MB** fact stream;
+- Ruby / Space Rocks API: **3.14 s** warm for 121 files;
+- TypeScript/Svelte / Lexicanter: approximately **11.5 s** for the current working implementation and a roughly **42 MB** fact stream;
+- Go / the Lexicon tree: **21.1 s** for 349 indexed files, of which **11.28 s** was package loading and **6.03 s** was SSA/VTA; shard-local typed resolution was **0.44 s**;
+- Rust / Arcana: **8.17 s** for 127 Rust files;
+- generic fallback: **0.50 s** for a synthetic 1,000-file PowerShell corpus.
+
+No locally executable adapter reproduced Python's former multi-minute scan/merge pathology. C# was the material outlier. Profiling on Dapper showed the cost inside repeated Roslyn semantic passes rather than discovery: declarations, calls, and dataflow dominated. Replacing full canonical-JSON serialization as the edge/unresolved deduplication key reduced one profiled Dapper files-mode run from **18.6 s to 14.9 s** while preserving byte-identical output; the larger Polly files-mode corpus remained about **27 s**, showing that Roslyn semantic work is still the main cost.
+
+Java was not timed in this pass because the current host has no JDK available to the adapter. Its implementation uses one compiler-backed batch and streams compiler evidence rather than spawning per-file compiler work, but it still needs a measured current-host baseline when a JDK/runtime is available.
+
+Follow-up:
+
+- profile and optimize C# semantic passes before adding generic file sharding; preserve Roslyn project/type semantics and deterministic output;
+- keep large-output materialization under review across non-streaming adapters and add streaming only where measurements justify the complexity;
+- add a current Java corpus timing when a JDK or packaged Java runtime is available;
+- retain adapter-specific timing/output-size checks when substantially larger corpora are added.
+
 ## Arcana work
 
 - Continue graph correctness, compatibility, overlay, compaction, and query-protocol validation.

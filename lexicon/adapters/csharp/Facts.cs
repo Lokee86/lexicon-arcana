@@ -109,13 +109,57 @@ internal sealed class FactStore
     internal void AddEdge(EdgeRecord record)
     {
         ArgumentNullException.ThrowIfNull(record);
-        edges.TryAdd(Jsonl.SerializeLine(record), record);
+        edges.TryAdd(EdgeKey(record), record);
     }
 
     internal void AddUnresolved(UnresolvedRecord record)
     {
         ArgumentNullException.ThrowIfNull(record);
-        unresolved.TryAdd(Jsonl.SerializeLine(record), record);
+        unresolved.TryAdd(UnresolvedKey(record), record);
+    }
+
+    private static string EdgeKey(EdgeRecord record)
+    {
+        return string.Join("\0",
+            record.Source,
+            record.Target,
+            record.Relation,
+            NormalizeOwner(record.Owner) ?? string.Empty,
+            SpanKey(record.Span),
+            AttributesKey(record.Attributes));
+    }
+
+    private static string UnresolvedKey(UnresolvedRecord record)
+    {
+        return string.Join("\0",
+            record.Source,
+            record.Relation,
+            record.Expression,
+            record.Reason,
+            record.CandidateName ?? string.Empty,
+            record.CandidateNamespace ?? string.Empty,
+            NormalizeOwner(record.Owner) ?? string.Empty,
+            SpanKey(record.Span),
+            AttributesKey(record.Attributes));
+    }
+
+    private static string SpanKey(SpanRecord? span)
+    {
+        return span is null
+            ? string.Empty
+            : string.Join("\0",
+                span.Path,
+                span.StartLine.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                span.StartColumn.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                span.EndLine.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                span.EndColumn.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    private static string AttributesKey(IReadOnlyDictionary<string, object?>? attributes)
+    {
+        return attributes is null || attributes.Count == 0
+            ? string.Empty
+            : Jsonl.SerializeLine(attributes);
     }
 
     internal string EmitJsonl(HeaderRecord header)
