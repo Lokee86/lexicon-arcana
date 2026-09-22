@@ -9,11 +9,34 @@ import {
 } from "./call-shared";
 import type { FactStore, PendingCall } from "./model";
 
+export type DispatchIndex = Map<string, string[]>;
+
+export function buildDispatchIndex(facts: FactStore): DispatchIndex {
+  const index: DispatchIndex = new Map();
+  for (const [target, declarations] of facts.idDeclarations) {
+    if (facts.nodes.get(target)?.kind !== "method") continue;
+    const names = new Set<string>();
+    for (const declaration of declarations) {
+      if (ts.isMethodDeclaration(declaration)) {
+        names.add(declaration.name.getText(declaration.getSourceFile()));
+      }
+    }
+    for (const name of names) {
+      const targets = index.get(name) ?? [];
+      targets.push(target);
+      index.set(name, targets);
+    }
+  }
+  for (const targets of index.values()) targets.sort();
+  return index;
+}
+
 export function resolveCallTargets(
   facts: FactStore,
   checker: ts.TypeChecker,
   call: PendingCall,
   parameterTargets: ParameterTargets,
+  dispatchIndex: DispatchIndex,
 ): Set<string> {
   const targets = new Set<string>();
   if (call.kind === "jsx") {
@@ -45,7 +68,7 @@ export function resolveCallTargets(
   addImportedBindingTargets(facts, call, targets, call.kind === "constructor");
   if (targets.size === 0) addDefaultImportTarget(facts, checker, call, targets, parameterTargets);
   normalizeConstructorTargets(facts, call, targets);
-  return expandDispatchTargets(facts, checker, call, targets);
+  return expandDispatchTargets(facts, checker, call, targets, dispatchIndex);
 }
 
 function addImportedBindingTargets(
@@ -105,6 +128,7 @@ function expandDispatchTargets(
   checker: ts.TypeChecker,
   call: PendingCall,
   targets: Set<string>,
+  dispatchIndex: DispatchIndex,
 ): Set<string> {
   if (call.kind !== "call") return targets;
   const callee = unwrapExpression((call.expression as ts.CallExpression).expression);
@@ -119,10 +143,9 @@ function expandDispatchTargets(
   const receiverType = checker.getTypeAtLocation(access.expression);
   if ((receiverType.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) !== 0) return targets;
   const implementations = new Set<string>();
-  for (const [target, declarations] of facts.idDeclarations) {
-    if (facts.nodes.get(target)?.kind !== "method") continue;
-    for (const declaration of declarations) {
-      if (!ts.isMethodDeclaration(declaration) || declaration.name.getText(declaration.getSourceFile()) !== methodName) continue;
+  for (const target of dispatchIndex.get(methodName) ?? []) {
+    for (const declaration of facts.idDeclarations.get(target) ?? []) {
+      if (!ts.isMethodDeclaration(declaration)) continue;
       if ((ts.getModifiers(declaration) ?? []).some((modifier) => modifier.kind === ts.SyntaxKind.StaticKeyword)) continue;
       const owner = declaration.parent;
       if (!ts.isClassDeclaration(owner) || !owner.name) continue;

@@ -48,12 +48,16 @@ function includeRecord(record: Fact, owners: Map<string, string>, selected: Set<
 }
 
 export function writeJsonl(records: Fact[], outputPath: string): void {
-  const lines = records.map(jsonLine).join("\n") + "\n";
   if (outputPath === "-") {
-    process.stdout.write(lines);
+    for (const record of records) process.stdout.write(jsonLine(record) + "\n");
     return;
   }
   const destination = path.resolve(outputPath);
   fs.mkdirSync(path.dirname(destination), { recursive: true });
-  fs.writeFileSync(destination, lines, { encoding: "utf8" });
+  const file = fs.openSync(destination, "w");
+  try {
+    for (const record of records) fs.writeSync(file, jsonLine(record) + "\n", undefined, "utf8");
+  } finally {
+    fs.closeSync(file);
+  }
 }
