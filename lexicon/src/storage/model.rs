@@ -57,3 +57,16 @@ pub enum RecoveryOutcome {
     Discarded,
     Published(String),
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceFile {
+    pub path: String,
+    pub content: Vec<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IncrementalScope {
+    pub full_required: bool,
+    pub emit: Vec<String>,
+    pub context: Vec<String>,
+}

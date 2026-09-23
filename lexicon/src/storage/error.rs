@@ -8,6 +8,7 @@ pub enum StorageError {
     Io(io::Error),
     InvalidId(String),
     InvalidObject(&'static str),
+    Materialization(String),
     Verification(String),
     Collision(String),
     Busy,
@@ -27,6 +28,9 @@ impl fmt::Display for StorageError {
             Self::Io(error) => write!(formatter, "Lexicon storage I/O error: {error}"),
             Self::InvalidId(id) => write!(formatter, "invalid Lexicon content ID {id:?}"),
             Self::InvalidObject(field) => write!(formatter, "invalid Lexicon object field {field}"),
+            Self::Materialization(message) => {
+                write!(formatter, "Lexicon materialization failed: {message}")
+            }
             Self::Verification(id) => write!(formatter, "Lexicon content {id} failed verification"),
             Self::Collision(path) => {
                 write!(formatter, "content-addressed object collision at {path}")

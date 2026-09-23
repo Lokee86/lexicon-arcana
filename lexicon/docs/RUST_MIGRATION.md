@@ -20,7 +20,7 @@ The reference implementation is pinned at commit
 
 ## Completed foundation
 
-The first four migration slices are implemented:
+The first five migration slices are implemented:
 
 - the Go parity oracle is pinned and representative contract, snapshot, incremental, recovery, and full-scan migration vectors are recorded;
 - existing Go binary v1/v2 goldens and publication/export/scan tests remain authoritative instead of being duplicated;
@@ -29,9 +29,10 @@ The first four migration slices are implemented:
 - the Rust facts fixture round-trips byte-identically;
 - Rust immutable storage now writes binary v2 byte-identically to the Go golden, reads binary v2, binary v1, and legacy JSON objects, preserves object-ID and snapshot-ID hash domains, preserves Go `nil` versus empty snapshot slices, and supports node-only reads without materializing relationship sections;
 - the Rust storage tests consume the Go binary golden constants directly, and Arcana's independent Lexicon compatibility tests remain green;
-- Rust publication now preserves the existing `objects/`, `snapshots/`, `CURRENT`, `PENDING`, and `LOCK` layout, atomic replacement and immutable-write behavior, content verification, pending-publication bytes, single-writer locking, and the existing discard-versus-republish recovery decisions.
+- Rust publication now preserves the existing `objects/`, `snapshots/`, `CURRENT`, `PENDING`, and `LOCK` layout, atomic replacement and immutable-write behavior, content verification, pending-publication bytes, single-writer locking, and the existing discard-versus-republish recovery decisions;
+- Rust now materializes deterministic full, shared, and incremental language entries from typed facts and explicit source bytes, preserves unchanged object/shared-fact reuse, provides sorted manifest language mutation, computes dependency/context closure and direct-change full-analysis triggers, and detects unsafe new relationship topology before scoped replacement. The facts validator also accepts the existing synthetic repository-root node convention `path: "."` used by current Go adapters.
 
-No Rust scan planning, language-materialization/update pipeline, adapter execution, interstack synthesis, CLI replacement, or Warlock integration is implemented yet.
+No Rust scan planning/orchestration, repository mirroring/change detection, adapter execution, interstack synthesis, CLI replacement, or Warlock integration is implemented yet.
 
 ## Parity rule
 
@@ -59,7 +60,7 @@ The existing Go tests remain required while they own untranslated behavior.
 
 ## Next slice
 
-The next planned slice is language materialization and manifest mutation: deterministic owner grouping, per-file/shared object creation, full and incremental language replacement, manifest lookup/update, and the dependency/topology evidence required by scan planning. Adapter execution and repository orchestration remain outside that slice.
+The next planned slice is scan planning and transaction composition: deterministic language-plan selection from prior snapshot/config/adapter drift, full-versus-incremental decisions using the newly ported dependency/topology evidence, disabled-language pruning, manifest assembly, and the pending/publication transaction handoff. Repository mirroring, Git/source change discovery, and adapter process execution remain separate boundaries until the planner contract is stable.
 
 ## Related docs
 

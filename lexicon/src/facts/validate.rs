@@ -158,7 +158,9 @@ fn record_fields(record: &FactRecord) -> Result<(), ValidationError> {
             if node.kind.is_empty() || node.name.is_empty() || node.qualified_name.is_empty() {
                 return Err(ValidationError::InvalidHeader("node"));
             }
-            path::repository_path(&node.path, true)?;
+            if !(node.kind == "repository" && node.path == ".") {
+                path::repository_path(&node.path, true)?;
+            }
         }
         FactRecord::Edge(edge) => {
             identity(&edge.source)?;

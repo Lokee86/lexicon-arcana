@@ -26,6 +26,7 @@ impl Drop for TestDirectory {
     }
 }
 
+#[allow(dead_code)]
 pub fn manifest(state_commit: &str) -> SnapshotManifest {
     SnapshotManifest {
         version: 99,

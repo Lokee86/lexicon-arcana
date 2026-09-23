@@ -15,7 +15,7 @@ Current coverage contains two independently usable analysis products plus shared
 | Boundary | Implementation | Canonical current owner |
 | --- | --- | --- |
 | Lexicon application and publication lifecycle | `lexicon/cmd/lexicon/`, `lexicon/internal/`; Rust publication/recovery parity in `lexicon/src/storage/` | [Lexicon documentation](../../lexicon/docs/README.md), [Lexicon Rust migration](../../lexicon/docs/RUST_MIGRATION.md) |
-| Lexicon Rust migration foundation and parity oracle | `lexicon/src/`, `lexicon/evaluation/rust_migration/` | [Lexicon Rust migration](../../lexicon/docs/RUST_MIGRATION.md) |
+| Lexicon Rust migration foundation, storage/publication, materialization, dependency/topology parity, and oracle | `lexicon/src/`, `lexicon/evaluation/rust_migration/` | [Lexicon Rust migration](../../lexicon/docs/RUST_MIGRATION.md) |
 | Lexicon language semantics | `lexicon/adapters/`, `lexicon/spec/` | [Lexicon architecture](../../lexicon/docs/ARCHITECTURE.md), [Lexicon contracts](../../lexicon/spec/README.md) |
 | Arcana application and graph lifecycle | `arcana/src/` | [Arcana documentation](../../arcana/docs/README.md) |
 | Lexicon → Arcana ingestion | `arcana/src/lexicon/`, `arcana/src/repository/` | [Lexicon contract](../../arcana/docs/LEXICON_CONTRACT.md) |
