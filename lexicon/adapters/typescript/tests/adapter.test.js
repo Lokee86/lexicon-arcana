@@ -148,6 +148,24 @@ function makeFixture() {
       "export function reexportConsumer(): void { reExportedArrow(); }",
       "",
     ].join("\n"),
+    "packages/left/tsconfig.json": JSON.stringify({
+      compilerOptions: { paths: { "@pkg/*": ["./src/*"] } },
+    }),
+    "packages/left/src/helper.ts": "export function packageHelper(): void {}\n",
+    "packages/left/src/consumer.ts": [
+      'import { packageHelper } from "@pkg/helper";',
+      "export function leftConsumer(): void { packageHelper(); }",
+      "",
+    ].join("\n"),
+    "packages/right/tsconfig.json": JSON.stringify({
+      compilerOptions: { paths: { "@pkg/*": ["./src/*"] } },
+    }),
+    "packages/right/src/helper.ts": "export function packageHelper(): void {}\n",
+    "packages/right/src/consumer.ts": [
+      'import { packageHelper } from "@pkg/helper";',
+      "export function rightConsumer(): void { packageHelper(); }",
+      "",
+    ].join("\n"),
     "src/default-component.tsx": [
       "export function InnerComponent(): null { return null; }",
       "export const AssignedComponent = Object.assign(InnerComponent, {});",
@@ -287,6 +305,16 @@ test("resolves exact and wildcard tsconfig aliases without guessing missing or a
   assert.ok(edges.some((record) => record.source === consumer.id && record.target === aliasTarget.id && record.relation === "extends"));
   assert.ok(unresolved.some((record) => record.source === child.id && record.reason === "missing-target" && record.candidate_name === "@/missing:Missing"));
   assert.ok(unresolved.some((record) => record.source === child.id && record.reason === "ambiguous-target" && record.candidate_name === "@ambiguous:Ambiguous"));
+
+  const leftHelper = nodes.find((record) => record.qualified_name === "packages/left/src/helper.packageHelper");
+  const rightHelper = nodes.find((record) => record.qualified_name === "packages/right/src/helper.packageHelper");
+  const leftConsumer = nodes.find((record) => record.qualified_name === "packages/left/src/consumer.leftConsumer");
+  const rightConsumer = nodes.find((record) => record.qualified_name === "packages/right/src/consumer.rightConsumer");
+  assert.ok(leftHelper && rightHelper && leftConsumer && rightConsumer);
+  assert.ok(edges.some((record) => record.source === leftConsumer.id && record.target === leftHelper.id && record.relation === "calls"));
+  assert.ok(edges.some((record) => record.source === rightConsumer.id && record.target === rightHelper.id && record.relation === "calls"));
+  assert.ok(!edges.some((record) => record.source === leftConsumer.id && record.target === rightHelper.id && record.relation === "calls"));
+  assert.ok(!edges.some((record) => record.source === rightConsumer.id && record.target === leftHelper.id && record.relation === "calls"));
 });
 
 test("resolves heritage through named barrel re-exports", () => {

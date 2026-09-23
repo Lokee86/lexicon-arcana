@@ -24,6 +24,7 @@ export type RepositoryFiles = { directories: string[]; files: string[] };
 export type PathMapping = {
   baseUrl: string;
   pattern: string;
+  scope: string;
   targets: string[];
 };
 
@@ -71,25 +72,47 @@ export function createTypeScriptProgram(root: string, files: string[]): TypeScri
 }
 
 export function readPathMappings(root: string): PathMapping[] {
-  const configPath = ["tsconfig.json", "jsconfig.json"]
-    .map((name) => path.join(root, name))
-    .find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile());
-  if (!configPath) return [];
-
-  const parsed = ts.parseConfigFileTextToJson(configPath, fs.readFileSync(configPath, "utf8"));
-  const compilerOptions = parsed.config?.compilerOptions;
-  const paths = compilerOptions?.paths;
-  if (!paths || typeof paths !== "object" || Array.isArray(paths)) return [];
-  const configDirectory = path.dirname(configPath);
-  const baseUrl = normalizeRelative(root, path.resolve(configDirectory, typeof compilerOptions.baseUrl === "string" ? compilerOptions.baseUrl : "."));
   const mappings: PathMapping[] = [];
-  for (const [pattern, rawTargets] of Object.entries(paths as Record<string, unknown>)) {
-    const wildcardCount = (pattern.match(/\*/g) ?? []).length;
-    if (wildcardCount > 1 || !Array.isArray(rawTargets)) continue;
-    const targets = rawTargets.filter((target): target is string => typeof target === "string" && (target.match(/\*/g) ?? []).length <= 1);
-    if (targets.length > 0) mappings.push({ baseUrl, pattern, targets });
+  for (const configPath of projectConfigPaths(root)) {
+    const parsed = ts.parseConfigFileTextToJson(configPath, fs.readFileSync(configPath, "utf8"));
+    const compilerOptions = parsed.config?.compilerOptions;
+    const paths = compilerOptions?.paths;
+    if (!paths || typeof paths !== "object" || Array.isArray(paths)) continue;
+    const configDirectory = path.dirname(configPath);
+    const scope = normalizeRelative(root, configDirectory);
+    const baseUrl = normalizeRelative(
+      root,
+      path.resolve(configDirectory, typeof compilerOptions.baseUrl === "string" ? compilerOptions.baseUrl : "."),
+    );
+    for (const [pattern, rawTargets] of Object.entries(paths as Record<string, unknown>)) {
+      const wildcardCount = (pattern.match(/\*/g) ?? []).length;
+      if (wildcardCount > 1 || !Array.isArray(rawTargets)) continue;
+      const targets = rawTargets.filter(
+        (target): target is string => typeof target === "string" && (target.match(/\*/g) ?? []).length <= 1,
+      );
+      if (targets.length > 0) mappings.push({ baseUrl, pattern, scope, targets });
+    }
   }
-  return mappings;
+  return mappings.sort((left, right) =>
+    left.scope.localeCompare(right.scope)
+    || left.pattern.localeCompare(right.pattern)
+    || left.baseUrl.localeCompare(right.baseUrl));
+}
+
+function projectConfigPaths(root: string): string[] {
+  const configs: string[] = [];
+  const walk = (directory: string): void => {
+    const entries = fs.readdirSync(directory, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name));
+    const names = new Set(entries.filter((entry) => entry.isFile()).map((entry) => entry.name));
+    if (names.has("tsconfig.json")) configs.push(path.join(directory, "tsconfig.json"));
+    else if (names.has("jsconfig.json")) configs.push(path.join(directory, "jsconfig.json"));
+    for (const entry of entries) {
+      if (!entry.isDirectory() || EXCLUDED_DIRECTORIES.has(entry.name)) continue;
+      walk(path.join(directory, entry.name));
+    }
+  };
+  walk(root);
+  return configs;
 }
 
 export function scanRepository(root: string): RepositoryFiles {

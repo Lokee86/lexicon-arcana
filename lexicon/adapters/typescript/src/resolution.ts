@@ -18,7 +18,7 @@ export function resolveImports(facts: FactStore, pathMappings: PathMapping[] = [
     facts.bindings.set(info.moduleKey, moduleBindings);
     for (const item of info.names) {
       const target = resolveImportTarget(facts, info.moduleKey, info.source, item, pathMappings);
-      const reason = moduleResolutionReason(facts, info.source, pathMappings);
+      const reason = moduleResolutionReason(facts, info.moduleKey, info.source, pathMappings);
       moduleBindings.set(item.local, { targetId: target, external: !target && reason === "external-target" });
       if (target) facts.addEdge(info.ownerId, target, "imports", spanForNodeId(facts, info.nodeId));
       else facts.addUnresolved(
@@ -53,7 +53,7 @@ function resolveReexportBindings(facts: FactStore, pathMappings: PathMapping[]):
       reexport.ownerId,
       "imports",
       reexport.expression,
-      moduleResolutionReason(facts, reexport.source, pathMappings),
+      moduleResolutionReason(facts, reexport.moduleKey, reexport.source, pathMappings),
       reexport.span,
       reexport.source,
     );
@@ -237,14 +237,14 @@ function resolveModuleKey(
   source: string,
   pathMappings: PathMapping[],
 ): string | null {
-  if (!isRelative(source)) return resolvePathMappedModule(facts, source, pathMappings);
+  if (!isRelative(source)) return resolvePathMappedModule(facts, importer, source, pathMappings);
   const base = moduleKeyFor(path.posix.normalize(path.posix.join(path.posix.dirname(importer), source)));
   for (const candidate of [base, `${base}/index`]) if (facts.modules.has(candidate)) return candidate;
   return null;
 }
 
-function resolvePathMappedModule(facts: FactStore, source: string, pathMappings: PathMapping[]): string | null {
-  const matches = matchingMappings(source, pathMappings);
+function resolvePathMappedModule(facts: FactStore, importer: string, source: string, pathMappings: PathMapping[]): string | null {
+  const matches = matchingMappings(importer, source, pathMappings);
   if (matches.length === 0) {
     const direct = moduleKeyFor(source);
     return facts.modules.has(direct) ? direct : null;
@@ -274,8 +274,9 @@ function mappedCandidates(facts: FactStore, source: string, mappings: PathMappin
   return candidates;
 }
 
-function matchingMappings(source: string, pathMappings: PathMapping[]): PathMapping[] {
+function matchingMappings(importer: string, source: string, pathMappings: PathMapping[]): PathMapping[] {
   const matches = pathMappings.filter((mapping) => {
+    if (!mappingAppliesToImporter(mapping, importer)) return false;
     const wildcard = mapping.pattern.indexOf("*");
     if (wildcard < 0) return mapping.pattern === source;
     const prefix = mapping.pattern.slice(0, wildcard);
@@ -284,20 +285,33 @@ function matchingMappings(source: string, pathMappings: PathMapping[]): PathMapp
       && source.endsWith(suffix)
       && source.length >= prefix.length + suffix.length;
   });
-  const exact = matches.filter((mapping) => !mapping.pattern.includes("*"));
-  if (exact.length > 0) return exact;
   if (matches.length === 0) return [];
-  const specificity = Math.max(...matches.map((mapping) => mapping.pattern.length - 1));
-  return matches.filter((mapping) => mapping.pattern.length - 1 === specificity);
+  const scopeSpecificity = Math.max(...matches.map((mapping) => mappingScopeDepth(mapping.scope)));
+  const scoped = matches.filter((mapping) => mappingScopeDepth(mapping.scope) === scopeSpecificity);
+  const exact = scoped.filter((mapping) => !mapping.pattern.includes("*"));
+  if (exact.length > 0) return exact;
+  const specificity = Math.max(...scoped.map((mapping) => mapping.pattern.length - 1));
+  return scoped.filter((mapping) => mapping.pattern.length - 1 === specificity);
+}
+
+function mappingAppliesToImporter(mapping: PathMapping, importer: string): boolean {
+  return mapping.scope === "."
+    || importer === mapping.scope
+    || importer.startsWith(`${mapping.scope}/`);
+}
+
+function mappingScopeDepth(scope: string): number {
+  return scope === "." ? 0 : scope.split("/").length;
 }
 
 function moduleResolutionReason(
   facts: FactStore,
+  importer: string,
   source: string,
   pathMappings: PathMapping[],
 ): "missing-target" | "ambiguous-target" | "external-target" {
   if (isRelative(source)) return "missing-target";
-  const matches = matchingMappings(source, pathMappings);
+  const matches = matchingMappings(importer, source, pathMappings);
   if (matches.length === 0) return "external-target";
   return mappedCandidates(facts, source, matches).size > 1 ? "ambiguous-target" : "missing-target";
 }
