@@ -24,7 +24,7 @@ Grimoire retirement is complete. Active build/test/install/release targets Lexic
 
 ## Planned behavior
 
-The product family should ship and operate as two deterministic analysis tools with a small shared distribution surface, direct consumer boundaries, preserved benchmark evidence, and no hidden dependency on retired Grimoire code or state.
+The product family should ship and operate as deterministic analysis libraries with direct consumer boundaries, preserved benchmark evidence, and no hidden dependency on retired Grimoire code or state. Arcana is already Rust-native. Lexicon's next major implementation phase is a parity-first Go-to-Rust translation whose primary consumer is Warlock through a typed in-process library API. Standalone executables remain useful distribution adapters, but they are no longer the first-class integration target.
 
 ## Implementation sequence
 
@@ -34,12 +34,14 @@ The product family should ship and operate as two deterministic analysis tools w
 4. **Complete:** rename the canonical repository identity to `Lokee86/lexicon-arcana`.
 5. **Complete — Lexicon durable-store compaction:** binary v2 preserves the full semantic fact set while reducing the current Hermes fact-object corpus from **220,393,540 bytes to 125,836,351 bytes (42.9%)**.
 6. **Complete — Python adapter memory:** compact Python semantic-analysis ownership and durable in-memory records while preserving emitted-fact and snapshot semantics.
-7. Continue judged repository-analysis experiments on larger and more varied corpora.
+7. **Lexicon Rust migration:** translate the Go implementation into a Rust library while preserving semantic facts, adapter behavior, immutable snapshot/publication contracts, compatibility fixtures, and measured performance/storage expectations. Integrate the library directly into Warlock before treating a replacement CLI as a completion criterion.
+8. **Arcana in-process integration:** expose and stabilize the typed Rust library surface Warlock needs so normal graph operations do not require spawning the Arcana executable or reconstructing `arcana.query.v1` inside the desktop process. Preserve the protocol for standalone/external consumers.
+9. Continue judged repository-analysis experiments on larger and more varied corpora.
 
 ## Near-term priorities
 
 - Keep active build, release, CI, policy, and documentation surfaces free of dependencies on retired Grimoire runtime/state.
-- Wire the future Warlock runtime integration to direct Lexicon/Arcana surfaces and installed-state conventions rather than recreating an umbrella layer.
+- Make direct Rust library integration the preferred Warlock boundary: Arcana exposes its existing Rust core directly, and Lexicon is translated to Rust parity-first before a replacement CLI becomes a priority.
 - Preserve the clean distinction between the installed production skill and frozen benchmark prompt experiments.
 - Add stable machine-readable diagnostics/exit classes where current component behavior remains pre-release.
 - Expand judged corpora across languages, repository sizes, and task classes.
@@ -191,7 +193,7 @@ Grimoire retirement is complete:
 
 ## Open decisions
 
-Open decisions are the downstream Warlock runtime integration shape and which larger-repository tasks justify additional Lexicon/Arcana capabilities.
+The Warlock integration direction is now decided: direct Rust library integration is the preferred local boundary, with protocol/CLI surfaces retained for standalone and external consumers. Remaining open decisions are the exact Lexicon Rust crate/API shape, migration packaging, and which larger-repository tasks justify additional Lexicon/Arcana capabilities.
 
 ## Related docs
 
