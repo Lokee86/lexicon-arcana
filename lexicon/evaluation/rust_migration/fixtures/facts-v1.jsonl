@@ -1,0 +1,5 @@
+{"adapter_version":"reference","language":"python","mode":"full","record":"lexicon","repository":"fixture","schema_version":1}
+{"id":"sha256:6b2f08e8ebc406ac9d48188548a577c02f83e3fdd212a78796725a0e6d5192b1","kind":"function","name":"run","owner":"main.py","path":"main.py","qualified_name":"demo.run","record":"node","span":{"end_column":8,"end_line":2,"path":"main.py","start_column":1,"start_line":2}}
+{"content_id":"sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad","id":"sha256:e774b7aef4d62e1f9c5f1b1a045d104fd913fb25b96924be36e27b4b51d63e1f","kind":"file","name":"main.py","owner":"main.py","path":"main.py","qualified_name":"main.py","record":"node"}
+{"owner":"main.py","record":"edge","relation":"contains","source":"sha256:e774b7aef4d62e1f9c5f1b1a045d104fd913fb25b96924be36e27b4b51d63e1f","target":"sha256:6b2f08e8ebc406ac9d48188548a577c02f83e3fdd212a78796725a0e6d5192b1"}
+{"candidate_name":"dynamic","expression":"dynamic()","owner":"main.py","reason":"dynamic-target","record":"unresolved","relation":"calls","source":"sha256:6b2f08e8ebc406ac9d48188548a577c02f83e3fdd212a78796725a0e6d5192b1"}

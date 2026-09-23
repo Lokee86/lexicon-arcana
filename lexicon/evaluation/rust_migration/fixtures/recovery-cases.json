@@ -1,0 +1,26 @@
+{
+  "cases": [
+    {
+      "name": "pending-without-state-advance",
+      "state_advanced": false,
+      "requires_state_commit": true,
+      "expected": "discard-and-recompute"
+    },
+    {
+      "name": "pending-after-state-advance",
+      "state_advanced": true,
+      "requires_state_commit": true,
+      "expected": "attach-new-head-and-publish"
+    },
+    {
+      "name": "pending-without-required-state-change",
+      "state_advanced": false,
+      "requires_state_commit": false,
+      "expected": "publish-pending-directly"
+    }
+  ],
+  "reference_tests": [
+    "internal/scan/transaction_test.go::TestRecoverPendingPublicationWithoutStateCommit",
+    "internal/scan/transaction_test.go::TestRecoverPendingPublicationAfterStateCommit"
+  ]
+}

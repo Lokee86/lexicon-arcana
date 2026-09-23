@@ -1,0 +1,13 @@
+{
+  "scenario": "initial Python repository analysis",
+  "source": {
+    "main.py": "value = 1\n"
+  },
+  "expected": {
+    "languages": ["python"],
+    "mode": "full",
+    "publishes_snapshot": true,
+    "current_pointer_present": true
+  },
+  "reference_test": "internal/scan/scanner_test.go::TestScanUsesInternalDiffAndAffectedLanguage"
+}

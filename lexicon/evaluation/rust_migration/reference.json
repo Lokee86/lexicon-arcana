@@ -1,0 +1,43 @@
+{
+  "reference_commit": "758af9daf6e71fc0a7ebb837875efe366f6403fd",
+  "reference_name": "Go Lexicon parity oracle",
+  "artifact_kinds": {
+    "bytes": "must match byte-for-byte",
+    "json": "must be structurally identical JSON",
+    "jsonl": "must contain identical canonical JSONL bytes"
+  },
+  "existing_oracles": [
+    "internal/objectstore/binary_golden_test.go",
+    "internal/objectstore/store_test.go",
+    "internal/scan/incremental_test.go",
+    "internal/scan/transaction_test.go",
+    "internal/objectstore/export_test.go"
+  ],
+  "captured_fixtures": [
+    {
+      "name": "facts-v1-contract",
+      "kind": "jsonl",
+      "path": "facts-v1.jsonl"
+    },
+    {
+      "name": "snapshot-v1-manifest",
+      "kind": "json",
+      "path": "snapshot-v1.json"
+    },
+    {
+      "name": "incremental-plan",
+      "kind": "json",
+      "path": "incremental-plan.json"
+    },
+    {
+      "name": "recovery-cases",
+      "kind": "json",
+      "path": "recovery-cases.json"
+    },
+    {
+      "name": "full-scan-case",
+      "kind": "json",
+      "path": "full-scan-case.json"
+    }
+  ]
+}

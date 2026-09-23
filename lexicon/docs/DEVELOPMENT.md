@@ -46,10 +46,22 @@ bin/lexicon init --repo /path/to/repository --adapters ./adapters
 
 ### Application
 
+Go remains the reference application during the parity-first Rust migration:
+
 ```text
 go test ./...
 go test -race ./...
 ```
+
+The Rust library foundation is verified independently:
+
+```text
+cargo fmt -- --check
+cargo test
+cargo clippy --all-targets -- -D warnings
+```
+
+Migration parity fixtures and the pinned Go oracle are documented in [RUST_MIGRATION.md](RUST_MIGRATION.md).
 
 ### C and C++ adapter
 

@@ -1,0 +1,20 @@
+{
+  "scenario": "single local Python edit after a valid snapshot",
+  "source_before": {
+    "a.py": "value = 1\n",
+    "b.py": "other = 1\n"
+  },
+  "source_after": {
+    "a.py": "value = 2\n",
+    "b.py": "other = 1\n"
+  },
+  "expected": {
+    "language": "python",
+    "mode": "incremental",
+    "changed_files": ["a.py"],
+    "removed_files": [],
+    "scoped_files": ["a.py"],
+    "reuse_files": ["b.py"]
+  },
+  "reference_test": "internal/scan/incremental_test.go::TestScanRequestsOnlyImpactedFilesAfterInitialSnapshot"
+}

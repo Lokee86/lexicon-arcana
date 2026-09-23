@@ -15,6 +15,7 @@ The matrix protects independently usable component boundaries, immutable publica
 | Contract | Primary verification owner |
 | --- | --- |
 | Lexicon owns language parsing and normalized semantic facts | Lexicon adapter, contract, scan, and publication tests |
+| Rust migration preserves facts-v1 identities, validation, ordering, and canonical JSONL against the pinned Go oracle | `lexicon/tests/facts_contract.rs`, `lexicon/src/identity.rs` tests, and `lexicon/evaluation/rust_migration/compare.py` |
 | Lexicon snapshots are immutable, content-addressed, and crash-safe | Lexicon object-store, pending-publication, recovery, and transaction tests |
 | Fact-object binary encoding is deterministic, semantic-preserving, and backward-readable across v2, v1, and legacy JSON | `lexicon/internal/objectstore/binary_codec_test.go`, `binary_golden_test.go`, `nodes_test.go`, and Arcana `lexicon::binary_tests` |
 | Lexicon consumers are bounded and cannot corrupt a valid publication | `lexicon/internal/consumer/runner_test.go` and scan/publication tests |
@@ -47,6 +48,7 @@ python scripts/check_docs.py
 | Matrix concern | Primary implementation or artifact | Protecting tests/gates |
 | --- | --- | --- |
 | Lexicon semantics/publication | `lexicon/adapters/`, `lexicon/internal/scan/`, `lexicon/internal/objectstore/` | Lexicon complete test matrix |
+| Lexicon Rust migration parity | `lexicon/src/`, `lexicon/evaluation/rust_migration/` | Rust fmt/test/clippy plus migration comparator |
 | Arcana graph publication/traversal | `arcana/src/repository/`, `arcana/src/storage/`, `arcana/src/snapshot/`, `arcana/src/protocol/` | Arcana Cargo test suite |
 | Documentation/change impact | `.standards/docs_policy/`, `scripts/check_docs.py` | documentation-standard workflow |
 | Architecture invariants | `tools/pitlord/` | Pitlord validation/check |

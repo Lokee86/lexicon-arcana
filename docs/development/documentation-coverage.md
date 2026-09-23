@@ -15,6 +15,7 @@ Current coverage contains two independently usable analysis products plus shared
 | Boundary | Implementation | Canonical current owner |
 | --- | --- | --- |
 | Lexicon application and publication lifecycle | `lexicon/cmd/lexicon/`, `lexicon/internal/` | [Lexicon documentation](../../lexicon/docs/README.md) |
+| Lexicon Rust migration foundation and parity oracle | `lexicon/src/`, `lexicon/evaluation/rust_migration/` | [Lexicon Rust migration](../../lexicon/docs/RUST_MIGRATION.md) |
 | Lexicon language semantics | `lexicon/adapters/`, `lexicon/spec/` | [Lexicon architecture](../../lexicon/docs/ARCHITECTURE.md), [Lexicon contracts](../../lexicon/spec/README.md) |
 | Arcana application and graph lifecycle | `arcana/src/` | [Arcana documentation](../../arcana/docs/README.md) |
 | Lexicon → Arcana ingestion | `arcana/src/lexicon/`, `arcana/src/repository/` | [Lexicon contract](../../arcana/docs/LEXICON_CONTRACT.md) |
@@ -27,7 +28,7 @@ Current coverage contains two independently usable analysis products plus shared
 
 | Contract | Implementation owner | Canonical current owner |
 | --- | --- | --- |
-| Lexicon facts, immutable objects, snapshot manifests, and consumer definitions | `lexicon/spec/`, `lexicon/internal/objectstore/`, `lexicon/internal/consumer/` | [Lexicon architecture](../../lexicon/docs/ARCHITECTURE.md), [Lexicon application](../../lexicon/docs/APPLICATION.md) |
+| Lexicon facts, immutable objects, snapshot manifests, and consumer definitions | `lexicon/spec/`, `lexicon/internal/objectstore/`, `lexicon/internal/consumer/`; facts-v1 Rust migration types/validation in `lexicon/src/facts/` | [Lexicon architecture](../../lexicon/docs/ARCHITECTURE.md), [Lexicon application](../../lexicon/docs/APPLICATION.md), [Lexicon Rust migration](../../lexicon/docs/RUST_MIGRATION.md) |
 | Lexicon fact-object binary v2 and compatibility rules | `lexicon/internal/objectstore/`, `lexicon/spec/objects-v2.md` | [Fact-object v2](../../lexicon/spec/objects-v2.md), [Lexicon application](../../lexicon/docs/APPLICATION.md) |
 | `arcana.query.v1` | `arcana/src/protocol/` | [Arcana application](../../arcana/docs/APPLICATION.md), [Arcana architecture](../../arcana/docs/ARCHITECTURE.md) |
 | Arcana repository, graph, snapshot, and overlay formats | `arcana/src/repository/`, `arcana/src/storage/`, `arcana/src/snapshot/` | [Repository snapshots](../../arcana/docs/repository-snapshots.md), [Arcana architecture](../../arcana/docs/ARCHITECTURE.md) |
