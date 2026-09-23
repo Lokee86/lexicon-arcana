@@ -13,8 +13,9 @@ pub use facts::{
 };
 pub use identity::{InvalidSha256Id, content_id, node_id, validate_sha256_id};
 pub use storage::{
-    FactObject, FileEntry, LanguageEntry, SnapshotManifest, StorageError, decode_node_facts,
-    decode_object, encode_object, object_id, snapshot_bytes, snapshot_id,
+    FactObject, FileEntry, LanguageEntry, PendingPublication, RecoveryOutcome, SnapshotManifest,
+    StorageError, Store, StoreLock, decode_node_facts, decode_object, encode_object, object_id,
+    snapshot_bytes, snapshot_id,
 };
 
 pub const PROJECT_NAME: &str = "Lexicon";

@@ -41,3 +41,19 @@ pub struct SnapshotManifest {
     pub state_commit: String,
     pub languages: Option<Vec<LanguageEntry>>,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PendingPublication {
+    pub version: u64,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub base_state_commit: String,
+    pub commit_required: bool,
+    pub manifest: SnapshotManifest,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RecoveryOutcome {
+    NoPending,
+    Discarded,
+    Published(String),
+}

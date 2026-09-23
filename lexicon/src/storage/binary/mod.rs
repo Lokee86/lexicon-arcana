@@ -62,3 +62,7 @@ pub fn decode_node_facts(
     }
     Ok((object, nodes))
 }
+
+pub(crate) fn is_binary_object(bytes: &[u8]) -> bool {
+    bytes.starts_with(MAGIC_V1) || bytes.starts_with(MAGIC_V2)
+}

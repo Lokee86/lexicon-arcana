@@ -13,5 +13,9 @@ pub fn snapshot_bytes(manifest: &SnapshotManifest) -> Result<Vec<u8>, StorageErr
 }
 
 pub fn snapshot_id(manifest: &SnapshotManifest) -> Result<String, StorageError> {
-    Ok(domain_id(SNAPSHOT_DOMAIN, &snapshot_bytes(manifest)?))
+    Ok(snapshot_id_bytes(&snapshot_bytes(manifest)?))
+}
+
+pub(crate) fn snapshot_id_bytes(bytes: &[u8]) -> String {
+    domain_id(SNAPSHOT_DOMAIN, bytes)
 }

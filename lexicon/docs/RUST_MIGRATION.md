@@ -20,7 +20,7 @@ The reference implementation is pinned at commit
 
 ## Completed foundation
 
-The first three migration slices are implemented:
+The first four migration slices are implemented:
 
 - the Go parity oracle is pinned and representative contract, snapshot, incremental, recovery, and full-scan migration vectors are recorded;
 - existing Go binary v1/v2 goldens and publication/export/scan tests remain authoritative instead of being duplicated;
@@ -28,9 +28,10 @@ The first three migration slices are implemented:
 - Rust owns facts-v1 header/record types, canonical JSONL parsing and emission, record ordering, path/span checks, incremental ownership checks, SHA-256 identity validation, stable node identity generation, and source-content identities;
 - the Rust facts fixture round-trips byte-identically;
 - Rust immutable storage now writes binary v2 byte-identically to the Go golden, reads binary v2, binary v1, and legacy JSON objects, preserves object-ID and snapshot-ID hash domains, preserves Go `nil` versus empty snapshot slices, and supports node-only reads without materializing relationship sections;
-- the Rust storage tests consume the Go binary golden constants directly, and Arcana's independent Lexicon compatibility tests remain green.
+- the Rust storage tests consume the Go binary golden constants directly, and Arcana's independent Lexicon compatibility tests remain green;
+- Rust publication now preserves the existing `objects/`, `snapshots/`, `CURRENT`, `PENDING`, and `LOCK` layout, atomic replacement and immutable-write behavior, content verification, pending-publication bytes, single-writer locking, and the existing discard-versus-republish recovery decisions.
 
-No Rust snapshot publication (`CURRENT`/`PENDING`), scan planning, adapter execution, interstack synthesis, CLI replacement, or Warlock integration is implemented yet.
+No Rust scan planning, language-materialization/update pipeline, adapter execution, interstack synthesis, CLI replacement, or Warlock integration is implemented yet.
 
 ## Parity rule
 
@@ -58,7 +59,7 @@ The existing Go tests remain required while they own untranslated behavior.
 
 ## Next slice
 
-The next planned slice is snapshot publication and recovery: immutable snapshot/object file placement, `CURRENT`, `PENDING`, single-writer locking, atomic publication ordering, recovery after interrupted publication, and content verification. The Rust implementation must continue to preserve the existing on-disk layout and failure semantics.
+The next planned slice is language materialization and manifest mutation: deterministic owner grouping, per-file/shared object creation, full and incremental language replacement, manifest lookup/update, and the dependency/topology evidence required by scan planning. Adapter execution and repository orchestration remain outside that slice.
 
 ## Related docs
 

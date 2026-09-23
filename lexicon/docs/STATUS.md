@@ -25,9 +25,10 @@ Implemented on the active Rust-migration branch:
 - binary v2 Rust writer parity against the Go golden bytes;
 - binary v2, binary v1, and legacy JSON object reads;
 - object and snapshot hash-domain parity, including Go `nil` versus empty snapshot slice encoding;
-- node-only binary reads that skip edge/unresolved materialization while still validating object framing.
+- node-only binary reads that skip edge/unresolved materialization while still validating object framing;
+- Rust content-addressed object/snapshot placement, immutable writes, atomic `CURRENT`/`PENDING` replacement, single-writer `LOCK`, pending-publication parsing/clearing, and interrupted-publication recovery decisions.
 
-The Go application remains authoritative for on-disk publication/recovery, scanning, adapters, interstack synthesis, CLI behavior, and operations until later migration slices reach parity. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
+The Go application remains authoritative for scan planning/orchestration, language materialization and incremental manifest mutation, adapters, interstack synthesis, CLI behavior, and operations until later migration slices reach parity. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
 
 ## Application
 

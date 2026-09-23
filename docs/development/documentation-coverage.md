@@ -14,7 +14,7 @@ Current coverage contains two independently usable analysis products plus shared
 
 | Boundary | Implementation | Canonical current owner |
 | --- | --- | --- |
-| Lexicon application and publication lifecycle | `lexicon/cmd/lexicon/`, `lexicon/internal/` | [Lexicon documentation](../../lexicon/docs/README.md) |
+| Lexicon application and publication lifecycle | `lexicon/cmd/lexicon/`, `lexicon/internal/`; Rust publication/recovery parity in `lexicon/src/storage/` | [Lexicon documentation](../../lexicon/docs/README.md), [Lexicon Rust migration](../../lexicon/docs/RUST_MIGRATION.md) |
 | Lexicon Rust migration foundation and parity oracle | `lexicon/src/`, `lexicon/evaluation/rust_migration/` | [Lexicon Rust migration](../../lexicon/docs/RUST_MIGRATION.md) |
 | Lexicon language semantics | `lexicon/adapters/`, `lexicon/spec/` | [Lexicon architecture](../../lexicon/docs/ARCHITECTURE.md), [Lexicon contracts](../../lexicon/spec/README.md) |
 | Arcana application and graph lifecycle | `arcana/src/` | [Arcana documentation](../../arcana/docs/README.md) |
@@ -40,7 +40,7 @@ Current coverage contains two independently usable analysis products plus shared
 
 | Flow | Canonical current owner |
 | --- | --- |
-| Lexicon analysis, immutable publication, recovery, and incremental scan | [Lexicon architecture](../../lexicon/docs/ARCHITECTURE.md) |
+| Lexicon analysis, immutable publication, recovery, and incremental scan | [Lexicon architecture](../../lexicon/docs/ARCHITECTURE.md), [Lexicon Rust migration](../../lexicon/docs/RUST_MIGRATION.md) |
 | Arcana verified ingestion, graph publication, overlays, and compaction | [Arcana architecture](../../arcana/docs/ARCHITECTURE.md), [Repository snapshots](../../arcana/docs/repository-snapshots.md) |
 | Combined build, protocol verification, packaging, and installation | [Release workflow](release-workflow.md) |
 | Higher-level agent/task/context orchestration | Warlock or another consumer; not owned by this repository |
