@@ -21,9 +21,13 @@ Implemented on the active Rust-migration branch:
 - pinned Go parity oracle and migration fixture registry under `evaluation/rust_migration/`;
 - Rust `lexicon` library crate foundation;
 - facts-v1 typed records, canonical JSONL parsing/emission, validation, ordering, path/span checks, incremental ownership checks, stable node IDs, and content IDs;
-- byte-identical Rust round-trip of the reference facts-v1 fixture.
+- byte-identical Rust round-trip of the reference facts-v1 fixture;
+- binary v2 Rust writer parity against the Go golden bytes;
+- binary v2, binary v1, and legacy JSON object reads;
+- object and snapshot hash-domain parity, including Go `nil` versus empty snapshot slice encoding;
+- node-only binary reads that skip edge/unresolved materialization while still validating object framing.
 
-The Go application remains authoritative for storage, publication, scanning, adapters, interstack synthesis, CLI behavior, and operations until later migration slices reach parity. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
+The Go application remains authoritative for on-disk publication/recovery, scanning, adapters, interstack synthesis, CLI behavior, and operations until later migration slices reach parity. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
 
 ## Application
 

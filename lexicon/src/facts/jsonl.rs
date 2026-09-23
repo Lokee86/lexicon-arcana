@@ -57,6 +57,13 @@ impl FactStream {
 fn parse_record(line: &str, line_number: usize) -> Result<FactRecord, ValidationError> {
     let value: Value = serde_json::from_str(line)
         .map_err(|error| ValidationError::RecordJson(line_number, error.to_string()))?;
+    record_from_value(value, line_number)
+}
+
+pub(crate) fn record_from_value(
+    value: Value,
+    line_number: usize,
+) -> Result<FactRecord, ValidationError> {
     let kind = value
         .get("record")
         .and_then(Value::as_str)

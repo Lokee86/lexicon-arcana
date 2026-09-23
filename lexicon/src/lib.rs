@@ -5,12 +5,17 @@
 
 pub mod facts;
 pub mod identity;
+pub mod storage;
 
 pub use facts::{
     EdgeRecord, FactHeader, FactRecord, FactStream, NodeRecord, SourceSpan, UnresolvedRecord,
     ValidationError,
 };
 pub use identity::{InvalidSha256Id, content_id, node_id, validate_sha256_id};
+pub use storage::{
+    FactObject, FileEntry, LanguageEntry, SnapshotManifest, StorageError, decode_node_facts,
+    decode_object, encode_object, object_id, snapshot_bytes, snapshot_id,
+};
 
 pub const PROJECT_NAME: &str = "Lexicon";
 pub const PROJECT_VERSION: &str = env!("CARGO_PKG_VERSION");
