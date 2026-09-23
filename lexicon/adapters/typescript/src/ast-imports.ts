@@ -84,7 +84,7 @@ export function recordExportDeclaration(node: ts.ExportDeclaration, ownerId: str
   const recordSpan = spanFor(node, context.sourceFile, context.relativePath);
   const source = isStaticModuleSpecifier(node.moduleSpecifier) ? node.moduleSpecifier.text : null;
   const names = node.exportClause && ts.isNamedExports(node.exportClause)
-    ? node.exportClause.elements.map((element) => element.propertyName?.text ?? element.name.text)
+    ? node.exportClause.elements.map((element) => element.name.text)
     : ["*"];
   addExportRecord(node, ownerId, context, facts, names.join(","), false);
   if (source) {

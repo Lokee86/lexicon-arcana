@@ -235,6 +235,22 @@ function visitVariableList(list: ts.VariableDeclarationList, ownerId: string, sc
       if (hasModifier(list.parent, ts.SyntaxKind.ExportKeyword)) recordExportedDeclaration(ownerId, list.parent, name, id, context, facts);
       continue;
     }
+    const preservedCallback = declaration.initializer ? callbackPreservingFunction(declaration.initializer) : undefined;
+    if (preservedCallback && declaration.initializer && ts.isCallExpression(declaration.initializer)) {
+      const id = visitFunctionExpression(preservedCallback, ownerId, scope, context, facts, name);
+      facts.registerDeclaration(declaration, id);
+      facts.registerDeclaration(declaration.name, id);
+      if (hasModifier(list.parent, ts.SyntaxKind.ExportKeyword)) recordExportedDeclaration(ownerId, list.parent, name, id, context, facts);
+
+      // The wrapper invocation belongs to the enclosing scope, while the callback
+      // body belongs to the named function above. Avoid visiting the first
+      // argument twice or creating a second anonymous lambda for the same body.
+      recordCall(declaration.initializer, "call", ownerId, scope, context, facts);
+      for (const argument of declaration.initializer.arguments.slice(1)) {
+        if (ts.isExpression(argument)) visit(argument, ownerId, scope, context, facts);
+      }
+      continue;
+    }
     const callableArguments = declaration.initializer ? transparentCallableArguments(declaration.initializer) : [];
     if (callableArguments.length > 0) {
       const id = addSymbol("function", name, scope, declaration, ownerId, context, facts);
@@ -249,10 +265,18 @@ function visitVariableList(list: ts.VariableDeclarationList, ownerId: string, sc
   }
 }
 
+function callbackPreservingFunction(expression: ts.Expression): ts.FunctionExpression | ts.ArrowFunction | undefined {
+  if (!ts.isCallExpression(expression)) return undefined;
+  const name = expression.expression.getText(expression.getSourceFile()).split(".").at(-1);
+  if (name !== "useCallback") return undefined;
+  const first = expression.arguments[0];
+  return first && (ts.isArrowFunction(first) || ts.isFunctionExpression(first)) ? first : undefined;
+}
+
 function transparentCallableArguments(expression: ts.Expression): ts.Expression[] {
   if (!ts.isCallExpression(expression)) return [];
   const name = expression.expression.getText(expression.getSourceFile()).split(".").at(-1);
-  if (!name || !new Set(["forwardRef", "memo", "assign"]).has(name)) return [];
+  if (!name || !new Set(["forwardRef", "memo", "assign", "useCallback"]).has(name)) return [];
   const first = expression.arguments[0];
   return first && ts.isExpression(first) ? [first] : [];
 }

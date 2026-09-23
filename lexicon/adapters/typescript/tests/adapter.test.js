@@ -120,6 +120,34 @@ function makeFixture() {
       "export function taggedCaller(): string { return tag`value`; }",
       "",
     ].join("\n"),
+    "src/function-forms.tsx": [
+      'import { importedHelper } from "./call-targets";',
+      "function useCallback<T extends (...args: any[]) => any>(callback: T, _deps: unknown[]): T { return callback; }",
+      "export function namedFunction(): void { importedHelper(); }",
+      "const functionExpression = function (): void { namedFunction(); };",
+      "const arrowFunction = (): void => { functionExpression(); };",
+      "export const exportedArrow = (): void => { arrowFunction(); };",
+      "export function FunctionComponent() { exportedArrow(); return <div />; }",
+      "export const ArrowComponent = () => <FunctionComponent />;",
+      "export function useControls() {",
+      "  const refreshCurrentModel = useCallback(async () => { importedHelper(); }, []);",
+      "  const selectModel = useCallback(() => { refreshCurrentModel(); exportedArrow(); }, [refreshCurrentModel]);",
+      "  return { refreshCurrentModel, selectModel };",
+      "}",
+      "export function Consumer() {",
+      "  const { refreshCurrentModel, selectModel } = useControls();",
+      "  refreshCurrentModel();",
+      "  selectModel();",
+      "  return <ArrowComponent />;",
+      "}",
+      "",
+    ].join("\n"),
+    "src/function-barrel.ts": 'export { exportedArrow as reExportedArrow } from "./function-forms";\n',
+    "src/function-consumer.ts": [
+      'import { reExportedArrow } from "./function-barrel";',
+      "export function reexportConsumer(): void { reExportedArrow(); }",
+      "",
+    ].join("\n"),
     "src/default-component.tsx": [
       "export function InnerComponent(): null { return null; }",
       "export const AssignedComponent = Object.assign(InnerComponent, {});",
@@ -299,6 +327,70 @@ test("emits conservative direct function and constructor call facts", () => {
   assert.ok(unresolved.some((record) => record.source === caller.id && record.relation === "calls" && record.reason === "missing-target" && record.candidate_name === "MissingHelper"));
   assert.ok(unresolved.some((record) => record.source === caller.id && record.relation === "calls" && record.reason === "dynamic-target" && record.expression === "worker.run()"));
   assert.ok(!unresolved.some((record) => record.source === caller.id && ["overloaded", "callable"].includes(record.candidate_name)));
+});
+
+test("models TypeScript function forms and callback-preserving wrappers", () => {
+  const repo = makeFixture();
+  const records = runAdapter(repo, path.join(repo, "facts.jsonl"));
+  const nodes = recordsOf(records, "node");
+  const edges = recordsOf(records, "edge");
+  const node = (qualifiedName) => nodes.find((record) => record.qualified_name === qualifiedName);
+
+  const importedHelper = node("src/call-targets.importedHelper");
+  const namedFunction = node("src/function-forms.namedFunction");
+  const functionExpression = node("src/function-forms.functionExpression");
+  const arrowFunction = node("src/function-forms.arrowFunction");
+  const exportedArrow = node("src/function-forms.exportedArrow");
+  const functionComponent = node("src/function-forms.FunctionComponent");
+  const arrowComponent = node("src/function-forms.ArrowComponent");
+  const useControls = node("src/function-forms.useControls");
+  const refreshCurrentModel = node("src/function-forms.useControls.refreshCurrentModel");
+  const selectModel = node("src/function-forms.useControls.selectModel");
+  const consumer = node("src/function-forms.Consumer");
+  const reexportConsumer = node("src/function-consumer.reexportConsumer");
+
+  for (const value of [
+    importedHelper,
+    namedFunction,
+    functionExpression,
+    arrowFunction,
+    exportedArrow,
+    functionComponent,
+    arrowComponent,
+    useControls,
+    refreshCurrentModel,
+    selectModel,
+    consumer,
+    reexportConsumer,
+  ]) assert.ok(value);
+  for (const value of [
+    namedFunction,
+    functionExpression,
+    arrowFunction,
+    exportedArrow,
+    functionComponent,
+    arrowComponent,
+    useControls,
+    refreshCurrentModel,
+    selectModel,
+    consumer,
+    reexportConsumer,
+  ]) assert.equal(value.kind, "function");
+
+  assert.ok(edges.some((record) => record.source === namedFunction.id && record.target === importedHelper.id && record.relation === "calls"));
+  assert.ok(edges.some((record) => record.source === functionExpression.id && record.target === namedFunction.id && record.relation === "calls"));
+  assert.ok(edges.some((record) => record.source === arrowFunction.id && record.target === functionExpression.id && record.relation === "calls"));
+  assert.ok(edges.some((record) => record.source === exportedArrow.id && record.target === arrowFunction.id && record.relation === "calls"));
+  assert.ok(edges.some((record) => record.source === functionComponent.id && record.target === exportedArrow.id && record.relation === "calls"));
+  assert.ok(edges.some((record) => record.source === arrowComponent.id && record.target === functionComponent.id && record.relation === "calls"));
+  assert.ok(edges.some((record) => record.source === refreshCurrentModel.id && record.target === importedHelper.id && record.relation === "calls"));
+  assert.ok(edges.some((record) => record.source === selectModel.id && record.target === refreshCurrentModel.id && record.relation === "calls"));
+  assert.ok(edges.some((record) => record.source === selectModel.id && record.target === exportedArrow.id && record.relation === "calls"));
+  assert.ok(edges.some((record) => record.source === consumer.id && record.target === useControls.id && record.relation === "calls"));
+  assert.ok(edges.some((record) => record.source === consumer.id && record.target === refreshCurrentModel.id && record.relation === "calls"));
+  assert.ok(edges.some((record) => record.source === consumer.id && record.target === selectModel.id && record.relation === "calls"));
+  assert.ok(edges.some((record) => record.source === reexportConsumer.id && record.target === exportedArrow.id && record.relation === "calls"));
+  assert.ok(nodes.some((record) => record.kind === "export" && record.name === "reExportedArrow"));
 });
 
 test("resolves compiler-backed methods, dispatch, callbacks, JSX, wrappers, and tagged templates", () => {
