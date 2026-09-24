@@ -1,0 +1,165 @@
+use std::path::{Path, PathBuf};
+
+use crate::{
+    AdapterHost, Change, RecoveryOutcome, SnapshotManifest, SourceMirror, StateRepository,
+    StorageError, Store,
+};
+
+use super::engine_support::{adapter_fingerprints, languages_in_tree};
+use super::{PlanningInput, ScanExecutionError, execute_analysis_plans, plan_scan};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScanReport {
+    pub changed: Vec<Change>,
+    pub languages: Vec<String>,
+    pub snapshot_id: String,
+}
+
+pub struct ScanEngine {
+    repository: PathBuf,
+    git: StateRepository,
+    mirror: SourceMirror,
+    store: Store,
+    host: AdapterHost,
+    enabled_languages: Vec<String>,
+}
+
+impl ScanEngine {
+    pub fn new(
+        repository: impl Into<PathBuf>,
+        git: StateRepository,
+        store: Store,
+        host: AdapterHost,
+        enabled_languages: Vec<String>,
+    ) -> Self {
+        let mirror = SourceMirror::new(git.root().join("source"));
+        Self {
+            repository: repository.into(),
+            git,
+            mirror,
+            store,
+            host,
+            enabled_languages,
+        }
+    }
+
+    pub fn scan(&self) -> Result<ScanReport, ScanExecutionError> {
+        self.scan_with(|mirror, repository| mirror.sync_all(repository))
+    }
+
+    pub fn scan_paths(&self, paths: &[PathBuf]) -> Result<ScanReport, ScanExecutionError> {
+        self.scan_with(|mirror, repository| mirror.sync_paths(repository, paths))
+    }
+
+    pub fn store(&self) -> &Store {
+        &self.store
+    }
+
+    pub fn state_repository(&self) -> &StateRepository {
+        &self.git
+    }
+
+    fn scan_with(
+        &self,
+        synchronize: impl FnOnce(&SourceMirror, &Path) -> Result<(), crate::RepositoryError>,
+    ) -> Result<ScanReport, ScanExecutionError> {
+        let _guard = self.store.lock()?;
+        let head = self.git.head_option()?;
+        match self.store.recover_pending(head.as_deref())? {
+            RecoveryOutcome::NoPending
+            | RecoveryOutcome::Discarded
+            | RecoveryOutcome::Published(_) => {}
+        }
+        self.git.reset_index()?;
+
+        let (current_id, manifest) = self.load_manifest()?;
+        synchronize(&self.mirror, &self.repository)?;
+        self.git.stage_source()?;
+        let changes = self.git.source_changes()?;
+
+        let present_languages = languages_in_tree(self.mirror.root())?;
+        let fingerprints = adapter_fingerprints(&self.host, &manifest)?;
+        let input = PlanningInput {
+            changes: changes.clone(),
+            present_languages,
+            enabled_languages: self.enabled_languages.clone(),
+            adapter_fingerprints: Some(fingerprints),
+        };
+        let plan = plan_scan(&self.store, &manifest, &input)?;
+
+        if !plan.needs_work()
+            && changes.is_empty()
+            && let Some(id) = current_id
+        {
+            self.verify_current_state(&plan.manifest)?;
+            return Ok(ScanReport {
+                changed: Vec::new(),
+                languages: Vec::new(),
+                snapshot_id: id,
+            });
+        }
+
+        let languages = plan.languages();
+        let temporary = self.store.root().join("tmp");
+        let manifest = execute_analysis_plans(
+            &self.store,
+            &self.host,
+            self.mirror.root(),
+            &temporary,
+            plan.manifest,
+            &plan.analyses,
+        )?;
+        let snapshot_id = self.commit_manifest(manifest)?;
+        Ok(ScanReport {
+            changed: changes,
+            languages,
+            snapshot_id,
+        })
+    }
+
+    fn load_manifest(&self) -> Result<(Option<String>, SnapshotManifest), ScanExecutionError> {
+        match self.store.current() {
+            Ok((id, manifest)) => {
+                self.verify_current_state(&manifest)?;
+                Ok((Some(id), manifest))
+            }
+            Err(StorageError::NoCurrentSnapshot) => Ok((
+                None,
+                SnapshotManifest {
+                    version: crate::storage::SNAPSHOT_VERSION,
+                    state_commit: String::new(),
+                    languages: Some(Vec::new()),
+                },
+            )),
+            Err(error) => Err(error.into()),
+        }
+    }
+
+    fn verify_current_state(&self, manifest: &SnapshotManifest) -> Result<(), ScanExecutionError> {
+        let head = self.git.head_option()?;
+        match head {
+            Some(head) if manifest.state_commit != head => Err(ScanExecutionError::new(format!(
+                "Lexicon snapshot state {} does not match private state {}",
+                manifest.state_commit, head
+            ))),
+            None if !manifest.state_commit.is_empty() => Err(ScanExecutionError::new(
+                "Lexicon snapshot references private state but the state repository has no commit",
+            )),
+            _ => Ok(()),
+        }
+    }
+
+    fn commit_manifest(&self, manifest: SnapshotManifest) -> Result<String, ScanExecutionError> {
+        self.git.stage_all()?;
+        let base = self.git.head_option()?.unwrap_or_default();
+        let commit_required = !self.git.has_head() || self.git.has_staged_changes();
+        let transaction = self
+            .store
+            .begin_scan_publication(&manifest, &base, commit_required)?;
+        self.git.commit_state()?;
+        let head = self.git.head()?;
+        self.store
+            .finish_scan_publication(transaction, &head)
+            .map_err(ScanExecutionError::from)
+    }
+}

@@ -10,6 +10,7 @@ pub mod identity;
 pub mod languages;
 pub mod repository;
 pub mod scan;
+pub mod scope;
 pub mod storage;
 
 pub use adapters::{
@@ -31,9 +32,12 @@ pub use repository::{
     ignored_directory, prepare_state_directory,
 };
 pub use scan::{
-    AnalysisPlan, Change, LanguageResult, PlanningInput, PublicationTransaction, ScanPlan,
-    assemble_manifest, plan_scan,
+    AnalysisPlan, Change, ExecutionBudget, ExecutionPlan, LanguageResult, PlanningInput,
+    PublicationTransaction, ScanEngine, ScanExecutionError, ScanPlan, ScanReport,
+    assemble_manifest, execute_analysis_plans, execution_plan, execution_plan_with_limits,
+    logical_shard_count, plan_scan,
 };
+pub use scope::build_analysis_scope;
 pub use storage::{
     Analysis, FactObject, FileEntry, IncrementalScope, LanguageEntry, PendingPublication,
     RecoveryOutcome, SnapshotManifest, SourceFile, StorageError, Store, StoreLock,

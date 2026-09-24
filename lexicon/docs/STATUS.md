@@ -30,9 +30,10 @@ Implemented on the active Rust-migration branch:
 - typed Rust full/shared/incremental language materialization from explicit source bytes, deterministic owner grouping, unchanged-object/shared-fact reuse, sorted manifest language mutation, dependency/context closure, direct-change fallback checks, and new-topology fallback checks;
 - Rust language registry and scan planning for enabled-language pruning, source/snapshot drift, adapter-fingerprint drift, structural/full fallback, scoped incremental selection, deterministic result assembly, and publication transaction handoff;
 - Rust configuration and repository state for analysis identity, enabled-language normalization, adapter-root discovery, permanent exclusions and `.lexiconignore`, state-directory preparation, source mirroring, normalized Git source changes, and the one-commit private-state lifecycle;
-- Rust adapter host for typed requests, language capability metadata, deterministic adapter fingerprints, packaged/development process selection, partitioning arguments, streaming output, TypeScript preparation, and native in-process adapter registration.
+- Rust adapter host for typed requests, language capability metadata, deterministic adapter fingerprints, packaged/development process selection, partitioning arguments, streaming output, TypeScript preparation, and native in-process adapter registration;
+- Rust scoped-analysis construction, execution-resource planning, weighted concurrent plan execution, full-fallback behavior, deterministic materialization/merge, and base repository scan orchestration through private-state and snapshot publication.
 
-The Go application remains authoritative for execution-resource scheduling and end-to-end scan orchestration, interstack synthesis, CLI behavior, and operations until later migration slices reach parity. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
+The Go application remains authoritative for interstack synthesis, legacy-library migration compatibility, post-publication consumers, CLI/watch behavior, diagnostics/GC/export operations, and other application surfaces until later migration slices reach parity. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
 
 ## Application
 

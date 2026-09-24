@@ -1,3 +1,5 @@
+pub mod scan_adapter;
+
 use lexicon::SnapshotManifest;
 use std::fs;
 use std::path::PathBuf;
