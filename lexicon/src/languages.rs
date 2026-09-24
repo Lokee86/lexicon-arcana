@@ -1,66 +1,10 @@
+mod definition;
+
 use std::path::Path;
 
-const DEFINITIONS: &[(&str, &[&str], &[&str])] = &[
-    (
-        "c-family",
-        &[
-            ".c", ".cc", ".cp", ".cpp", ".cxx", ".c++", ".h", ".hh", ".hpp", ".hxx", ".h++",
-            ".inc", ".inl", ".ipp", ".tpp",
-        ],
-        &["compile_commands.json", "CMakeLists.txt"],
-    ),
-    ("gdscript", &[".gd"], &["project.godot"]),
-    ("go", &[".go"], &["go.mod", "go.sum"]),
-    (
-        "csharp",
-        &[".cs"],
-        &[
-            ".sln",
-            ".csproj",
-            "Directory.Build.props",
-            "Directory.Build.targets",
-            "global.json",
-        ],
-    ),
-    (
-        "java",
-        &[".java"],
-        &[
-            "pom.xml",
-            "build.gradle",
-            "settings.gradle",
-            "gradlew",
-            "gradlew.bat",
-            "mvnw",
-            "mvnw.cmd",
-        ],
-    ),
-    (
-        "kotlin",
-        &[".kt", ".kts"],
-        &["build.gradle.kts", "settings.gradle.kts"],
-    ),
-    ("lotusscript", &[".ls", ".lsa", ".lsdb", ".lss"], &[]),
-    (
-        "python",
-        &[".py"],
-        &["pyproject.toml", "setup.cfg", "requirements.txt"],
-    ),
-    ("ruby", &[".rb", ".gemspec"], &["Gemfile", "Gemfile.lock"]),
-    ("rust", &[".rs"], &["Cargo.toml", "Cargo.lock"]),
-    (
-        "typescript",
-        &[
-            ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".svelte",
-        ],
-        &[
-            "package.json",
-            "package-lock.json",
-            "tsconfig.json",
-            "jsconfig.json",
-        ],
-    ),
-];
+pub use definition::LanguageDefinition;
+
+use definition::{static_definitions, static_lookup};
 
 const GENERIC_EXTENSIONS: &[&str] = &[
     ".asm", ".bash", ".bat", ".clj", ".cljs", ".cmd", ".cr", ".dart", ".elm", ".erl", ".ex",
@@ -70,6 +14,24 @@ const GENERIC_EXTENSIONS: &[&str] = &[
     ".vbs", ".vim", ".zig",
 ];
 
+pub fn definitions() -> Vec<LanguageDefinition> {
+    static_definitions().collect()
+}
+
+pub fn lookup(language: &str) -> Option<LanguageDefinition> {
+    if let Some(definition) = static_lookup(language) {
+        return Some(definition);
+    }
+    generic_extension(language).map(|extension| LanguageDefinition {
+        language: language.to_owned(),
+        directory: "generic".to_owned(),
+        extensions: vec![extension],
+        config_files: Vec::new(),
+        partitioned_execution: false,
+        streaming_output: false,
+    })
+}
+
 pub fn for_path(path: &str) -> Vec<String> {
     let path = Path::new(path);
     let name = path
@@ -78,13 +40,14 @@ pub fn for_path(path: &str) -> Vec<String> {
         .unwrap_or_default();
     let extension = extension(path);
     let mut result = Vec::new();
-    for (language, extensions, config_files) in DEFINITIONS {
-        if extensions.contains(&extension.as_str())
-            || config_files
+    for definition in static_definitions().filter(|definition| definition.language != "generic") {
+        if definition.extensions.contains(&extension)
+            || definition
+                .config_files
                 .iter()
-                .any(|config| *config == name || (config.starts_with('.') && *config == extension))
+                .any(|config| config == name || (config.starts_with('.') && *config == extension))
         {
-            result.push((*language).to_owned());
+            result.push(definition.language);
         }
     }
     if result.is_empty() && GENERIC_EXTENSIONS.contains(&extension.as_str()) {
@@ -96,31 +59,27 @@ pub fn for_path(path: &str) -> Vec<String> {
 
 pub fn owns_source(language: &str, path: &str) -> bool {
     let extension = extension(Path::new(path));
-    if let Some(generic) = generic_extension(language) {
-        return generic == extension;
-    }
-    DEFINITIONS
-        .iter()
-        .find(|(candidate, _, _)| *candidate == language)
-        .is_some_and(|(_, extensions, _)| extensions.contains(&extension.as_str()))
+    lookup(language).is_some_and(|definition| definition.extensions.contains(&extension))
 }
 
 pub fn supported_languages() -> Vec<String> {
-    let mut values: Vec<String> = DEFINITIONS
-        .iter()
-        .map(|(language, _, _)| (*language).to_owned())
+    let mut values: Vec<String> = static_definitions()
+        .map(|definition| definition.language)
         .collect();
-    values.push("generic".to_owned());
     values.sort();
     values
 }
 
 pub fn supported(language: &str) -> bool {
-    language == "generic"
-        || is_generic(language)
-        || DEFINITIONS
-            .iter()
-            .any(|(candidate, _, _)| *candidate == language)
+    lookup(language).is_some()
+}
+
+pub fn supports_partitioned_execution(language: &str) -> bool {
+    lookup(language).is_some_and(|definition| definition.partitioned_execution)
+}
+
+pub fn supports_streaming_output(language: &str) -> bool {
+    lookup(language).is_some_and(|definition| definition.streaming_output)
 }
 
 pub fn language_enabled(language: &str, enabled: &[String]) -> bool {

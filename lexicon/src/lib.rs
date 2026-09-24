@@ -3,6 +3,7 @@
 //! The Go implementation pinned by the Rust migration oracle remains the
 //! behavioral reference until each migration slice reaches parity.
 
+pub mod adapters;
 pub mod config;
 pub mod facts;
 pub mod identity;
@@ -11,6 +12,10 @@ pub mod repository;
 pub mod scan;
 pub mod storage;
 
+pub use adapters::{
+    ADAPTER_SCHEMA_VERSION, AdapterCommand, AdapterError, AdapterHost, AdapterRequest,
+    NativeAdapter, adapter_fingerprint, adapter_fingerprint_with_versions, command_spec,
+};
 pub use config::{
     ANALYSIS_CONFIG_ID, CONFIG_VERSION, Config, config_path, find_adapter_root,
     find_adapter_root_from, load_config, normalize_enabled_languages, save_config,

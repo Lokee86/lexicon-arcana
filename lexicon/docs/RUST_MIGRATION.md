@@ -20,7 +20,7 @@ The reference implementation is pinned at commit
 
 ## Completed foundation
 
-The first seven migration slices are implemented:
+The first eight migration slices are implemented:
 
 - the Go parity oracle is pinned and representative contract, snapshot, incremental, recovery, and full-scan migration vectors are recorded;
 - existing Go binary v1/v2 goldens and publication/export/scan tests remain authoritative instead of being duplicated;
@@ -32,9 +32,10 @@ The first seven migration slices are implemented:
 - Rust publication now preserves the existing `objects/`, `snapshots/`, `CURRENT`, `PENDING`, and `LOCK` layout, atomic replacement and immutable-write behavior, content verification, pending-publication bytes, single-writer locking, and the existing discard-versus-republish recovery decisions;
 - Rust now materializes deterministic full, shared, and incremental language entries from typed facts and explicit source bytes, preserves unchanged object/shared-fact reuse, provides sorted manifest language mutation, computes dependency/context closure and direct-change full-analysis triggers, and detects unsafe new relationship topology before scoped replacement. The facts validator also accepts the existing synthetic repository-root node convention `path: "."` used by current Go adapters;
 - Rust now owns the deterministic language registry and scan-plan composition used after source changes are known: enabled-language pruning, source/snapshot drift, optional adapter-fingerprint drift, modified-source scoped planning, structural-change full fallback, deterministic result assembly, and the `PENDING` → external state commit → snapshot publication handoff. A temporary Go oracle test confirmed the Rust plan decisions for modified source, modified config, added source, renamed source, and explicit drift;
-- Rust now owns configuration normalization and analysis identity, adapter-root discovery, permanent repository exclusions and `.lexiconignore` semantics, repository-local state-directory preparation, full/scoped source mirroring, normalized source-change records, and the existing one-replaceable-commit Git-backed private state lifecycle. Focused parity tests cover Go's ignored-parent semantics, CRLF-preserving `.gitignore` updates, mirror reconciliation, rename detection, and one reachable private-state commit.
+- Rust now owns configuration normalization and analysis identity, adapter-root discovery, permanent repository exclusions and `.lexiconignore` semantics, repository-local state-directory preparation, full/scoped source mirroring, normalized source-change records, and the existing one-replaceable-commit Git-backed private state lifecycle. Focused parity tests cover Go's ignored-parent semantics, CRLF-preserving `.gitignore` updates, mirror reconciliation, rename detection, and one reachable private-state commit;
+- Rust now owns the adapter host contract: typed adapter requests, the production language capability registry, deterministic adapter fingerprints, packaged/development process command selection, partitioning arguments, Python streaming output, TypeScript build preparation, and a `NativeAdapter` seam for in-process frontends. Existing language frontends remain unchanged. A Go-derived fingerprint vector and command/registry tests pin the compatibility boundary.
 
-No Rust adapter execution, execution-resource scheduling, interstack synthesis, CLI replacement, or Warlock integration is implemented yet.
+No Rust execution-resource scheduling, scoped-analysis repository construction, end-to-end scan orchestration, interstack synthesis, CLI replacement, or Warlock integration is implemented yet.
 
 ## Parity rule
 
@@ -62,7 +63,7 @@ The existing Go tests remain required while they own untranslated behavior.
 
 ## Next slice
 
-The next planned slice is the adapter host: Rust ownership of adapter requests, capability metadata, deterministic fingerprints, process/native execution boundaries, streaming-output support, and the production adapter registry while continuing to invoke existing language frontends unchanged. Repository orchestration should only be composed after that execution seam reaches parity.
+The next planned slice is scan execution composition: port scoped-analysis repository construction and execution-resource planning, then compose repository synchronization/change discovery, scan planning, adapter execution, materialization, fallback-to-full behavior, and publication into a library-level scan transaction. Interstack remains a separate derived-analysis slice.
 
 ## Related docs
 
