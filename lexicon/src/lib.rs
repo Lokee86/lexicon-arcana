@@ -6,6 +6,7 @@
 pub mod adapters;
 pub mod api;
 pub mod config;
+pub mod consumer;
 pub mod facts;
 pub mod identity;
 pub mod interstack;
@@ -19,11 +20,14 @@ pub use adapters::{
     ADAPTER_SCHEMA_VERSION, AdapterCommand, AdapterError, AdapterHost, AdapterRequest,
     NativeAdapter, adapter_fingerprint, adapter_fingerprint_with_versions, command_spec,
 };
-pub use api::{Lexicon, LexiconError};
+pub use api::{DoctorCheck, DoctorReport, Lexicon, LexiconError, StatusReport, doctor};
 pub use config::{
     ANALYSIS_CONFIG_ID, CONFIG_VERSION, Config, config_path, find_adapter_root,
     find_adapter_root_from, load_config, normalize_enabled_languages, save_config,
     save_config_with_languages, state_root, update_enabled_languages,
+};
+pub use consumer::{
+    CONSUMER_VERSION, ConsumerDefinition, list_consumer_paths, load_consumer_definition,
 };
 pub use facts::{
     EdgeRecord, FactHeader, FactRecord, FactStream, NodeRecord, SourceSpan, UnresolvedRecord,

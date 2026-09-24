@@ -39,8 +39,9 @@ The migration foundation and Interstack synthesis slice are implemented:
 - Rust now owns legacy `repo/library/<language>.jsonl` migration during scan recovery. A dedicated legacy parser preserves the Go reader's permissive historical semantics without weakening modern fact validation; committed legacy libraries can seed a missing snapshot or recover a snapshot/private-state mismatch, corrupt legacy data falls back to source rebuild when no current snapshot exists, and the legacy directory is removed and committed away after migration. Focused tests cover all three paths, including the Go fixture's non-SHA legacy node identity.
 - Rust now exposes a public `Lexicon` library handle with `open`, host-injected open, initialization with preserved or explicit language selection, host-injected initialization for future in-process integrations, repository/state/adapter accessors, and bounded scan entry points. Initialization retains Go's full-reanalysis behavior rather than degrading into an ordinary incremental/no-op scan, and the constructor owns configuration, private-state setup, recovery, mirror population, Interstack synthesis, and initial publication behind the existing writer lock.
 - Rust storage now reconstructs complete deterministic facts-v1 JSONL exports from `CURRENT` or an explicit snapshot, verifies every referenced object before atomically replacing any destination, and preserves legacy stored-record tolerance without weakening normal fact validation. Rust also owns retention/pin-aware GC planning, dry-run/live execution, plan validation, `CURRENT` race rejection, and a lock-owning `Lexicon::garbage_collect` façade.
+- Rust now exposes structured status and doctor diagnostics rather than CLI-formatted text. Status reports the current snapshot, detected/enabled languages, and registered consumers. Doctor verifies configuration, private Git state, all snapshot objects, adapter directories, runtime executables, and consumer definitions/commands while aggregating failures without executing consumers. The consumer definition schema and Go-compatible timeout decoding now have a dedicated Rust owner, while consumer execution remains untranslated.
 
-No Rust status/doctor diagnostics, post-publication consumer execution, CLI replacement, watch surface, or Warlock integration is implemented yet.
+No Rust post-publication consumer execution, CLI replacement, watch surface, or Warlock integration is implemented yet.
 
 ## Parity rule
 
@@ -68,7 +69,7 @@ The existing Go tests remain required while they own untranslated behavior.
 
 ## Next slice
 
-The next planned slice is status/doctor diagnostics, followed by post-publication consumers needed before Warlock can switch to the Rust library. CLI/watch remain thin hosts after the in-process library surface is complete. The replacement `lexicon` executable should live in a separate binary crate that depends on the library. In addition to the existing operational commands, its planned direct lookup surface includes `find`, `show`, `refs`, and `calls` so Lexicon can answer bounded semantic code-location/reference questions without requiring Arcana; multi-hop graph analysis remains Arcana's responsibility.
+The next planned slice is post-publication consumer execution, followed by the remaining watch/CLI host work needed before Warlock can switch to the Rust library. CLI/watch remain thin hosts after the in-process library surface is complete. The replacement `lexicon` executable should live in a separate binary crate that depends on the library. In addition to the existing operational commands, its planned direct lookup surface includes `find`, `show`, `refs`, and `calls` so Lexicon can answer bounded semantic code-location/reference questions without requiring Arcana; multi-hop graph analysis remains Arcana's responsibility.
 
 ## Related docs
 

@@ -37,8 +37,11 @@ Implemented on the active Rust-migration branch:
 - a public Rust `Lexicon` handle for open/initialize, explicit language selection, host injection, repository/state access, and bounded scans; initialization preserves the Go full-analysis lifecycle.
 - deterministic Rust snapshot export back to facts-v1 JSONL, with full object verification and atomic destination replacement.
 - retention- and consumer-pin-aware Rust garbage collection with deterministic planning, dry-run execution, validation, and `CURRENT` race protection.
+- structured Rust status reporting for snapshot, language selection, and registered consumer state.
+- structured Rust doctor diagnostics covering configuration, private state, snapshot/object integrity, adapter/runtime availability, and consumer definition/command validation without executing consumers.
+- Rust ownership of the consumer definition schema and Go-compatible timeout decoding; execution remains Go-owned.
 
-The Go application remains authoritative for post-publication consumers, CLI/watch behavior, status/doctor diagnostics, and other application surfaces until later migration slices reach parity. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
+The Go application remains authoritative for post-publication consumer execution, CLI/watch behavior, and other application surfaces until later migration slices reach parity. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
 
 ## Application
 
