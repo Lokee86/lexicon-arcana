@@ -17,6 +17,7 @@ path = "src/lib.rs"
 ctrlc = "3"
 humantime = "2"
 lexicon = { path = "../lexicon" }
+serde_json = "1"
 
 [lints.rust]
 unsafe_code = "forbid"

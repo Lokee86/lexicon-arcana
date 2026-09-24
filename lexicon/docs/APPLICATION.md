@@ -16,7 +16,7 @@ Lexicon keeps the most recently observed relevant repository state. It does not 
 
 ## Runtime model
 
-Lexicon is primarily a one-shot CLI. `init`, `scan`, `rebuild`, `languages set`, `export`, `gc`, `consumer`, `status`, and `doctor` perform bounded operations and exit.
+Lexicon is primarily a one-shot CLI. `init`, `scan`, `rebuild`, `languages set`, `export`, `gc`, `consumer`, `status`, `doctor`, `find`, `show`, `refs`, and `calls` perform bounded operations and exit.
 
 `lexicon demon` is an optional watch mode. It remains active only to translate filesystem events and periodic reconciliation into the same locked scan transaction used by `lexicon scan`. Snapshot consumers do not depend on the watch process and can read any published snapshot after Lexicon exits.
 
@@ -64,6 +64,10 @@ lexicon consumer list [--repo PATH]
 lexicon consumer add [--repo PATH] --name NAME --command PATH [--arg VALUE]... [--timeout DURATION]
 lexicon consumer remove [--repo PATH] --name NAME
 lexicon consumer run [--repo PATH] --name NAME [--snapshot ID]
+lexicon find QUERY [--repo PATH] [--snapshot ID] [--limit N]
+lexicon show SELECTOR [--repo PATH] [--snapshot ID]
+lexicon refs SELECTOR [--repo PATH] [--snapshot ID] [--limit N]
+lexicon calls SELECTOR [--repo PATH] [--snapshot ID] [--limit N]
 lexicon version
 ```
 
@@ -78,6 +82,8 @@ lexicon version
 `lexicon status` reports the repository, current snapshot, detected and enabled languages, and consumers. `lexicon doctor` verifies configuration, private Git state, immutable objects, adapter paths, runtime requirements, and consumer commands.
 
 `lexicon export` reconstructs verified standalone JSONL libraries. `lexicon gc` deletes only unreachable snapshots and objects while preserving retention and consumer pins. Consumer commands manage and invoke deterministic post-publication hooks.
+
+`lexicon find` performs bounded deterministic matching over node names, qualified names, paths, and kinds. `lexicon show` resolves an exact node ID, qualified name, name, or path and rejects ambiguous selectors. `lexicon refs` reports direct incoming/outgoing relationships plus unresolved outgoing evidence; `lexicon calls` restricts that one-hop view to `calls`, `possible-calls`, and `calls-endpoint` without merging their semantics. `find` and `show` use the binary object's node-only reader so they do not decode edge/unresolved sections; `refs` and `calls` load relationship evidence. These commands do not provide traversal, reachability, impact analysis, or ranking beyond bounded local matching; those remain Arcana responsibilities.
 
 ## Private state repository
 

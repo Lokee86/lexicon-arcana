@@ -44,6 +44,10 @@ grimoire lexicon <command> ...
 | `export` | Reconstruct verified standalone JSONL libraries from an immutable snapshot. |
 | `gc` | Remove unreachable snapshots and objects while preserving retention and consumer pins. |
 | `consumer list|add|remove|run` | Manage deterministic post-publication consumers such as Arcana. |
+| `find` | Find snapshot nodes by name, qualified name, path, or kind. |
+| `show` | Show one exact snapshot node, rejecting ambiguous selectors. |
+| `refs` | Show bounded direct incoming/outgoing relationships and unresolved evidence. |
+| `calls` | Show bounded definite, possible, endpoint, and unresolved call evidence without graph traversal. |
 | `version` | Report build identity. |
 
 The exact flags and operational semantics are maintained in [`lexicon/docs/APPLICATION.md`](../../lexicon/docs/APPLICATION.md).

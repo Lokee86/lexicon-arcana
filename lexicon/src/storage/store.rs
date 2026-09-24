@@ -35,17 +35,16 @@ impl Store {
     }
 
     pub fn load_object(&self, id: &str) -> Result<FactObject, StorageError> {
-        validate_storage_id(id)?;
-        let bytes = fs::read(self.object_path(id))?;
-        let canonical = if is_binary_object(&bytes) {
-            bytes.as_slice()
-        } else {
-            trim_ascii(&bytes)
-        };
-        if object_id(canonical) != id {
-            return Err(StorageError::Verification(id.to_owned()));
-        }
-        decode_object(canonical)
+        let bytes = self.load_verified_object_bytes(id)?;
+        decode_object(&bytes)
+    }
+
+    pub fn load_node_facts(
+        &self,
+        id: &str,
+    ) -> Result<(FactObject, Vec<crate::NodeRecord>), StorageError> {
+        let bytes = self.load_verified_object_bytes(id)?;
+        super::decode_node_facts(&bytes)
     }
 
     pub fn publish(&self, manifest: &SnapshotManifest) -> Result<String, StorageError> {
@@ -106,6 +105,20 @@ impl Store {
 
     pub(crate) fn pending_path(&self) -> PathBuf {
         self.root.join("PENDING")
+    }
+
+    fn load_verified_object_bytes(&self, id: &str) -> Result<Vec<u8>, StorageError> {
+        validate_storage_id(id)?;
+        let bytes = fs::read(self.object_path(id))?;
+        let canonical = if is_binary_object(&bytes) {
+            bytes
+        } else {
+            trim_ascii(&bytes).to_vec()
+        };
+        if object_id(&canonical) != id {
+            return Err(StorageError::Verification(id.to_owned()));
+        }
+        Ok(canonical)
     }
 }
 

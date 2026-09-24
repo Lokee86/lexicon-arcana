@@ -1,6 +1,7 @@
 mod args;
 mod commands_consumer;
 mod commands_diagnostics;
+mod commands_lookup;
 mod commands_scan;
 mod commands_storage;
 mod format;
@@ -25,6 +26,10 @@ pub fn run(arguments: Vec<String>, stdout: &mut dyn Write, stderr: &mut dyn Writ
         "consumer" => commands_consumer::consumer(tail, stdout),
         "status" => commands_diagnostics::status(tail, stdout),
         "doctor" => commands_diagnostics::doctor(tail, stdout),
+        "find" => commands_lookup::find(tail, stdout),
+        "show" => commands_lookup::show(tail, stdout),
+        "refs" => commands_lookup::refs(tail, stdout),
+        "calls" => commands_lookup::calls(tail, stdout),
         "version" => version(stdout),
         "help" | "-h" | "--help" => {
             usage(stdout);
@@ -53,7 +58,7 @@ fn version(output: &mut dyn Write) -> Result<(), String> {
 fn usage(output: &mut dyn Write) {
     let _ = writeln!(
         output,
-        "Usage: lexicon <init|scan|demon|rebuild|export|gc|languages|consumer|status|doctor|version> [options]"
+        "Usage: lexicon <init|scan|demon|rebuild|export|gc|languages|consumer|status|doctor|find|show|refs|calls|version> [options]"
     );
 }
 

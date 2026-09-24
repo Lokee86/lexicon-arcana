@@ -42,6 +42,7 @@ Implemented on the active Rust-migration branch:
 - Rust ownership of the consumer definition schema, Go-compatible timeout decoding, registry mutations, ordered execution, timeout/process environment handling, deterministic success-state pins, and post-scan notification hooks.
 - a reusable Rust watch surface with native recursive notifications, repository ignore-policy filtering/reload, debounce batching, reconciliation, structured notices, and cancellation.
 - a separate Rust `lexicon-cli` crate providing the replacement `lexicon` executable over the library, including the existing operational Go command surface, repository discovery, option parsing, signal handling, and formatting.
+- bounded Rust snapshot lookup for deterministic node discovery, exact node resolution, direct references, and direct call evidence; `find`/`show` use node-only object decoding while `refs`/`calls` preserve resolved and unresolved relationship semantics.
 
 The Go application remains the migration parity oracle; the active replacement executable and reusable integration surface are Rust-owned. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
 

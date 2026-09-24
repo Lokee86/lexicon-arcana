@@ -43,6 +43,7 @@ The migration foundation and Interstack synthesis slice are implemented:
 - Rust now owns the complete consumer definition/registry/execution lifecycle: Go-compatible definition and timeout parsing, atomic add/remove and success-state publication, ordered all-consumer execution with aggregated failures, named execution, bounded process timeouts, repository/state/snapshot environment injection, working-directory and captured-output behavior, and per-consumer success pins. Public `Lexicon` scans notify consumers only after a successful scan/no-op snapshot resolution; initialization retains the Go behavior of not notifying consumers.
 - Rust now owns the reusable watch surface. `Lexicon::watch` uses recursive native filesystem notifications, the existing repository ignore policy, `.lexiconignore` reload/full-reconciliation semantics, source/directory/destructive-event filtering, debounce batching, periodic reconciliation, structured scan/watcher notices, and an explicit cancellation token. Signal handling and console formatting remain host responsibilities.
 - the separate Rust `lexicon-cli` crate now provides the replacement `lexicon` executable as a thin host over the library. It ports the existing Go command surface (`init`, `scan`, `demon`, `rebuild`, `export`, `gc`, `languages`, `consumer`, `status`, `doctor`, `version`), repository discovery, option parsing, signal handling, and output formatting. The root build workflow now packages this Rust binary; Go CLI tests remain the behavioral oracle during migration.
+- Rust now exposes a bounded snapshot lookup API and matching CLI surface: `find` for deterministic node discovery, `show` for exact node resolution, `refs` for direct one-hop relationships plus unresolved evidence, and `calls` for definite/possible/endpoint call evidence. Node-only lookup uses the binary node-section reader; relationship queries load full evidence. Traversal/reachability/impact analysis remains Arcana-owned.
 
 No Warlock in-process integration is implemented yet.
 
@@ -72,7 +73,7 @@ The existing Go tests remain required while they own untranslated behavior.
 
 ## Next slice
 
-The next planned slice is Warlock's in-process integration against the Rust `lexicon` library. The CLI remains a separate host rather than an integration boundary. The planned direct lookup surface (`find`, `show`, `refs`, and `calls`) remains a follow-up library/CLI enhancement so Lexicon can answer bounded semantic code-location/reference questions without requiring Arcana; multi-hop graph analysis remains Arcana's responsibility.
+The next planned slice is Warlock's in-process integration against the Rust `lexicon` library. The CLI remains a separate host rather than an integration boundary; bounded direct lookup is now available from the same library API. Multi-hop graph analysis remains Arcana's responsibility.
 
 ## Related docs
 

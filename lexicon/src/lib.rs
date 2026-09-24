@@ -11,6 +11,7 @@ pub mod facts;
 pub mod identity;
 pub mod interstack;
 pub mod languages;
+pub mod lookup;
 pub mod repository;
 pub mod scan;
 pub mod scope;
@@ -38,6 +39,10 @@ pub use facts::{
     ValidationError,
 };
 pub use identity::{InvalidSha256Id, content_id, node_id, validate_sha256_id};
+pub use lookup::{
+    LookupDirection, LookupEdge, LookupError, LookupNode, LookupReference, LookupUnresolved,
+    SnapshotLookup,
+};
 pub use repository::{
     IGNORE_FILE_NAME, IgnorePolicy, RepositoryError, SourceMirror, StateRepository,
     ignored_directory, prepare_state_directory,

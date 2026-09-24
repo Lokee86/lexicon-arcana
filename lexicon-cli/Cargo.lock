@@ -303,6 +303,7 @@ dependencies = [
  "ctrlc",
  "humantime",
  "lexicon",
+ "serde_json",
 ]
 
 [[package]]

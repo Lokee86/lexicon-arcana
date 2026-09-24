@@ -54,7 +54,7 @@ The product family should ship and operate as deterministic analysis libraries w
 - Compact the durable CAS representation before considering semantic-fact pruning.
 - Keep Python semantic-analysis memory bounded around compact retained state; the current Hermes benchmark is 3.612 GiB peak RSS at full semantic coverage.
 - Keep immutable publication and bounded external-consumer behavior as hard contracts.
-- Build the replacement `lexicon` CLI as a separate thin crate over the Rust library. Preserve the existing operational commands and add a direct semantic lookup surface for fast code discovery without requiring Arcana: `find` for symbols/facts, `show` for a node, `refs` for direct references, and `calls` for direct call relationships. Keep graph traversal/reachability/impact analysis in Arcana.
+- **Complete — Rust CLI + direct lookup:** the separate `lexicon-cli` crate preserves the operational command surface and now exposes bounded semantic discovery without requiring Arcana: `find` for symbols/facts, `show` for a node, `refs` for direct references, and `calls` for direct call relationships. Graph traversal/reachability/impact analysis remains Arcana-owned.
 
 ### Lexicon performance/storage sequence
 

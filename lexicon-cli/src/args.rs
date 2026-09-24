@@ -2,6 +2,7 @@ pub struct Parser<'a> {
     arguments: &'a [String],
     index: usize,
     inline_value: Option<&'a str>,
+    option: bool,
 }
 
 impl<'a> Parser<'a> {
@@ -10,6 +11,7 @@ impl<'a> Parser<'a> {
             arguments,
             index: 0,
             inline_value: None,
+            option: false,
         }
     }
 
@@ -17,6 +19,7 @@ impl<'a> Parser<'a> {
         self.inline_value = None;
         let raw = self.arguments.get(self.index)?.as_str();
         self.index += 1;
+        self.option = raw.starts_with('-') && raw != "-";
         let option = raw
             .strip_prefix("--")
             .or_else(|| raw.strip_prefix('-'))
@@ -27,6 +30,10 @@ impl<'a> Parser<'a> {
         } else {
             Some(option)
         }
+    }
+
+    pub fn is_option(&self) -> bool {
+        self.option
     }
 
     pub fn value(&mut self, flag: &str) -> Result<&'a str, String> {
