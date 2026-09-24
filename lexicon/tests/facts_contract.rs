@@ -42,6 +42,83 @@ fn rejects_noncanonical_repository_paths() {
 }
 
 #[test]
+fn accepts_synthetic_root_node_paths_for_non_file_nodes() {
+    let namespace = node_id("kotlin", "namespace", "dev.detekt");
+    let directory = node_id("gdscript", "directory", ".");
+    for (language, id, kind, name, qualified_name) in [
+        ("kotlin", namespace, "namespace", "detekt", "dev.detekt"),
+        ("gdscript", directory, "directory", "source", "."),
+    ] {
+        let input = format!(
+            "{{\"adapter_version\":\"reference\",\"language\":\"{language}\",\"mode\":\"full\",\"record\":\"lexicon\",\"repository\":\"fixture\",\"schema_version\":1}}\n{{\"id\":\"{id}\",\"kind\":\"{kind}\",\"name\":\"{name}\",\"path\":\".\",\"qualified_name\":\"{qualified_name}\",\"record\":\"node\"}}\n"
+        );
+        FactStream::parse(&input).expect("synthetic root node path should validate");
+    }
+}
+
+#[test]
+fn accepts_anonymous_nodes_with_stable_qualified_names() {
+    let export = node_id("typescript", "export", "main.ts::export:1:1:");
+    let input = format!(
+        "{{\"adapter_version\":\"reference\",\"language\":\"typescript\",\"mode\":\"full\",\"record\":\"lexicon\",\"repository\":\"fixture\",\"schema_version\":1}}\n{{\"id\":\"{export}\",\"kind\":\"export\",\"name\":\"\",\"path\":\"main.ts\",\"qualified_name\":\"main.ts::export:1:1:\",\"record\":\"node\"}}\n"
+    );
+    FactStream::parse(&input).expect("anonymous node should validate");
+}
+
+#[test]
+fn accepts_unresolved_records_with_empty_expressions() {
+    let source = node_id("ruby", "function", "demo.run");
+    let input = format!(
+        "{{\"adapter_version\":\"reference\",\"language\":\"ruby\",\"mode\":\"full\",\"record\":\"lexicon\",\"repository\":\"fixture\",\"schema_version\":1}}\n{{\"id\":\"{source}\",\"kind\":\"function\",\"name\":\"run\",\"path\":\"main.rb\",\"qualified_name\":\"demo.run\",\"record\":\"node\"}}\n{{\"expression\":\"\",\"reason\":\"dynamic-target\",\"record\":\"unresolved\",\"relation\":\"calls\",\"source\":\"{source}\"}}\n"
+    );
+    FactStream::parse(&input).expect("empty unresolved expression should validate");
+}
+
+#[test]
+fn accepts_present_but_empty_record_strings_for_go_parity() {
+    let source = node_id("typescript", "symbol", "anonymous");
+    let target = node_id("typescript", "symbol", "target");
+    let mut nodes = [
+        format!(
+            "{{\"id\":\"{source}\",\"kind\":\"\",\"name\":\"\",\"path\":\"main.ts\",\"qualified_name\":\"\",\"record\":\"node\"}}"
+        ),
+        format!(
+            "{{\"id\":\"{target}\",\"kind\":\"symbol\",\"name\":\"target\",\"path\":\"main.ts\",\"qualified_name\":\"target\",\"record\":\"node\"}}"
+        ),
+    ];
+    nodes.sort();
+    let input = format!(
+        "{{\"adapter_version\":\"reference\",\"language\":\"typescript\",\"mode\":\"full\",\"record\":\"lexicon\",\"repository\":\"fixture\",\"schema_version\":1}}\n{}\n{}\n{{\"record\":\"edge\",\"relation\":\"\",\"source\":\"{source}\",\"target\":\"{target}\"}}\n{{\"expression\":\"\",\"reason\":\"\",\"record\":\"unresolved\",\"relation\":\"\",\"source\":\"{source}\"}}\n",
+        nodes[0], nodes[1]
+    );
+    FactStream::parse(&input).expect("present string fields may be empty");
+}
+
+#[test]
+fn rejects_owned_nodes_at_synthetic_root_path() {
+    let function = node_id("python", "function", "demo.run");
+    let input = format!(
+        "{{\"adapter_version\":\"reference\",\"language\":\"python\",\"mode\":\"full\",\"record\":\"lexicon\",\"repository\":\"fixture\",\"schema_version\":1}}\n{{\"id\":\"{function}\",\"kind\":\"function\",\"name\":\"run\",\"owner\":\"main.py\",\"path\":\".\",\"qualified_name\":\"demo.run\",\"record\":\"node\"}}\n"
+    );
+    assert!(matches!(
+        FactStream::parse(&input),
+        Err(ValidationError::InvalidPath(path)) if path == "."
+    ));
+}
+
+#[test]
+fn still_rejects_root_path_as_file_ownership() {
+    let function = node_id("python", "function", "demo.run");
+    let input = format!(
+        "{{\"adapter_version\":\"reference\",\"language\":\"python\",\"mode\":\"full\",\"record\":\"lexicon\",\"repository\":\"fixture\",\"schema_version\":1}}\n{{\"id\":\"{function}\",\"kind\":\"function\",\"name\":\"run\",\"owner\":\".\",\"path\":\"main.py\",\"qualified_name\":\"demo.run\",\"record\":\"node\"}}\n"
+    );
+    assert!(matches!(
+        FactStream::parse(&input),
+        Err(ValidationError::InvalidPath(path)) if path == "."
+    ));
+}
+
+#[test]
 fn incremental_stream_requires_changed_owner_scope() {
     let function = node_id("python", "function", "demo.run");
     let input = format!(

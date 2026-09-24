@@ -156,25 +156,20 @@ fn record_fields(record: &FactRecord) -> Result<(), ValidationError> {
             if let Some(content_id) = &node.content_id {
                 identity(content_id)?;
             }
-            if node.kind.is_empty() || node.name.is_empty() || node.qualified_name.is_empty() {
-                return Err(ValidationError::InvalidHeader("node"));
-            }
-            if !(node.kind == "repository" && node.path == ".") {
+            if node.path == "." {
+                if node.owner.is_some() || node.span.is_some() || node.kind == "file" {
+                    return Err(ValidationError::InvalidPath(node.path.clone()));
+                }
+            } else {
                 path::repository_path(&node.path, true)?;
             }
         }
         FactRecord::Edge(edge) => {
             identity(&edge.source)?;
             identity(&edge.target)?;
-            if edge.relation.is_empty() {
-                return Err(ValidationError::InvalidHeader("edge.relation"));
-            }
         }
         FactRecord::Unresolved(value) => {
             identity(&value.source)?;
-            if value.relation.is_empty() || value.expression.is_empty() || value.reason.is_empty() {
-                return Err(ValidationError::InvalidHeader("unresolved"));
-            }
         }
     }
     Ok(())
