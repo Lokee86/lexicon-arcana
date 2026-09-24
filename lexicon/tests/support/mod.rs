@@ -1,3 +1,4 @@
+pub mod interstack;
 pub mod scan_adapter;
 
 use lexicon::SnapshotManifest;

@@ -91,6 +91,50 @@ fn repository_scan_runs_full_noop_then_incremental_transaction() {
     assert!(current.language("python").is_some());
 }
 
+#[test]
+fn interstack_drift_forces_refresh_without_ordinary_adapter_work() {
+    let root = TestDirectory::new("scan-engine-interstack-drift");
+    let repository = root.path.join("repository");
+    let state_root = root.path.join("state");
+    let store_root = root.path.join("store");
+    let adapter_root = root.path.join("adapters");
+
+    write(&repository, "a.py", "value = 1\n");
+    write(&adapter_root, "python/adapter.py", "version = 1\n");
+
+    let git = StateRepository::ensure(&state_root).unwrap();
+    let adapter = Arc::new(FixtureAdapter::new());
+    let mut host = AdapterHost::new(&adapter_root);
+    host.register_native("python", adapter.clone());
+    let engine = ScanEngine::new(&repository, git, Store::new(&store_root), host, Vec::new());
+
+    let first = engine.scan().unwrap();
+    let (_, mut stale_manifest) = engine.store().current().unwrap();
+    let mut stale_interstack = stale_manifest
+        .language(lexicon::interstack::LANGUAGE)
+        .expect("interstack entry")
+        .clone();
+    stale_interstack.adapter_fingerprint = format!("sha256:{}", "0".repeat(64));
+    stale_manifest = stale_manifest.with_language(stale_interstack);
+    let stale_snapshot = engine.store().publish(&stale_manifest).unwrap();
+    assert_ne!(stale_snapshot, first.snapshot_id);
+
+    let refreshed = engine.scan().unwrap();
+    assert!(refreshed.changed.is_empty());
+    assert!(refreshed.languages.is_empty());
+    assert_ne!(refreshed.snapshot_id, stale_snapshot);
+    assert_eq!(*adapter.scoped_requests.lock().unwrap(), vec![false]);
+
+    let (_, current) = engine.store().current().unwrap();
+    assert_eq!(
+        current
+            .language(lexicon::interstack::LANGUAGE)
+            .unwrap()
+            .adapter_fingerprint,
+        lexicon::interstack::adapter_fingerprint()
+    );
+}
+
 fn write(root: &std::path::Path, relative: &str, data: &str) {
     let path = root.join(relative.replace('/', std::path::MAIN_SEPARATOR_STR));
     fs::create_dir_all(path.parent().unwrap()).unwrap();

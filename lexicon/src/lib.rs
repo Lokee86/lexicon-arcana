@@ -7,6 +7,7 @@ pub mod adapters;
 pub mod config;
 pub mod facts;
 pub mod identity;
+pub mod interstack;
 pub mod languages;
 pub mod repository;
 pub mod scan;

@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use crate::{
     AdapterHost, Change, RecoveryOutcome, SnapshotManifest, SourceMirror, StateRepository,
     StorageError, Store,
+    interstack::{interstack_drifted, refresh_interstack},
 };
 
 use super::engine_support::{adapter_fingerprints, languages_in_tree};
@@ -87,8 +88,10 @@ impl ScanEngine {
         };
         let plan = plan_scan(&self.store, &manifest, &input)?;
 
+        let interstack_drift = interstack_drifted(&plan.manifest);
         if !plan.needs_work()
             && changes.is_empty()
+            && !interstack_drift
             && let Some(id) = current_id
         {
             self.verify_current_state(&plan.manifest)?;
@@ -109,6 +112,7 @@ impl ScanEngine {
             plan.manifest,
             &plan.analyses,
         )?;
+        let (manifest, _) = refresh_interstack(&self.store, self.mirror.root(), manifest)?;
         let snapshot_id = self.commit_manifest(manifest)?;
         Ok(ScanReport {
             changed: changes,

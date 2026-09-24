@@ -90,6 +90,7 @@ pub(crate) fn stream(stream: &FactStream) -> Result<(), ValidationError> {
         };
         if let Some(source) = source
             && !nodes.contains_key(source)
+            && stream.header.language != "interstack"
         {
             return Err(ValidationError::UnknownSource(source.to_owned()));
         }

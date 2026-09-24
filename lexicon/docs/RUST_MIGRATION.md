@@ -20,7 +20,7 @@ The reference implementation is pinned at commit
 
 ## Completed foundation
 
-The first nine migration slices are implemented:
+The migration foundation and Interstack synthesis slice are implemented:
 
 - the Go parity oracle is pinned and representative contract, snapshot, incremental, recovery, and full-scan migration vectors are recorded;
 - existing Go binary v1/v2 goldens and publication/export/scan tests remain authoritative instead of being duplicated;
@@ -35,8 +35,9 @@ The first nine migration slices are implemented:
 - Rust now owns configuration normalization and analysis identity, adapter-root discovery, permanent repository exclusions and `.lexiconignore` semantics, repository-local state-directory preparation, full/scoped source mirroring, normalized source-change records, and the existing one-replaceable-commit Git-backed private state lifecycle. Focused parity tests cover Go's ignored-parent semantics, CRLF-preserving `.gitignore` updates, mirror reconciliation, rename detection, and one reachable private-state commit;
 - Rust now owns the adapter host contract: typed adapter requests, the production language capability registry, deterministic adapter fingerprints, packaged/development process command selection, partitioning arguments, Python streaming output, TypeScript build preparation, and a `NativeAdapter` seam for in-process frontends. Existing language frontends remain unchanged. A Go-derived fingerprint vector and command/registry tests pin the compatibility boundary;
 - Rust now owns scoped-analysis repository construction, Go-package/Rust-crate semantic-unit expansion, logical shard/worker/merge planning, weighted execution budgeting, concurrent plan execution, scoped-to-full retry, topology fallback, materialization, deterministic manifest merge, and the base repository scan transaction from mirror/diff/plan through `PENDING`, private-state commit, and snapshot publication. Repository-level tests cover initial full scan, stable no-op reuse, incremental source update, and scoped failure fallback.
+- Rust now owns Interstack synthesis as a derived shared language over the ordinary manifest. The Rust resolver ports the Go HTTP, packet/message, configuration, process/CLI, `arcana.query.v1` protocol, and filesystem-state boundary detection; preserves `@interstack` identities and unresolved references; uses the Go `0.2.0` fingerprint contract; refreshes after ordinary analyses; removes Interstack when no ordinary languages remain; and lets Interstack drift force an otherwise no-op scan. Focused parity tests cover cross-language HTTP/message/config linking, Go handler-provider binding, nested Rails namespaces, parser-token rejection, process/CLI/protocol/state boundaries, shared-language materialization, and scan-engine drift refresh. Interstack facts explicitly permit relationship sources owned by ordinary language objects while normal facts continue rejecting unknown sources.
 
-No Rust interstack synthesis, legacy-library migration compatibility, post-publication consumer execution, CLI replacement, watch/operations surface, or Warlock integration is implemented yet.
+No Rust legacy-library migration compatibility, post-publication consumer execution, CLI replacement, watch/operations surface, or Warlock integration is implemented yet.
 
 ## Parity rule
 
@@ -64,7 +65,7 @@ The existing Go tests remain required while they own untranslated behavior.
 
 ## Next slice
 
-The next planned slice is interstack synthesis as a derived analysis over the base language manifest, followed by the remaining compatibility/operational surfaces needed before Warlock can switch to the Rust library: legacy-library migration handling, public open/initialize APIs, diagnostics/GC/export, and post-publication consumers. CLI/watch remain thin hosts after the in-process library surface is complete. The replacement `lexicon` executable should live in a separate binary crate that depends on the library. In addition to the existing operational commands, its planned direct lookup surface includes `find`, `show`, `refs`, and `calls` so Lexicon can answer bounded semantic code-location/reference questions without requiring Arcana; multi-hop graph analysis remains Arcana's responsibility.
+The next planned slice is legacy-library migration compatibility and the public open/initialize library surface, followed by diagnostics/GC/export and post-publication consumers needed before Warlock can switch to the Rust library. CLI/watch remain thin hosts after the in-process library surface is complete. The replacement `lexicon` executable should live in a separate binary crate that depends on the library. In addition to the existing operational commands, its planned direct lookup surface includes `find`, `show`, `refs`, and `calls` so Lexicon can answer bounded semantic code-location/reference questions without requiring Arcana; multi-hop graph analysis remains Arcana's responsibility.
 
 ## Related docs
 
