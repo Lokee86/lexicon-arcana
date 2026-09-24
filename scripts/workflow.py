@@ -138,18 +138,25 @@ def build(
     for name in LEGAL_FILES:
         copy_file(ROOT / name, output / name)
 
-    cargo = cargo_command() if "arcana" in selected else ""
+    cargo = cargo_command()
     release_env = build_env.copy()
+    release_env["LEXICON_VERSION"] = version
     release_env["ARCANA_RELEASE_VERSION"] = version
 
     if "lexicon" in selected:
-        lexicon_ldflags = f"-X github.com/Lokee86/lexicon/internal/cli.version={version}"
         run(
-            ["go", "build", "-p", str(jobs), "-trimpath", "-buildvcs=false", "-ldflags", lexicon_ldflags,
-             "-o", str(bin_dir / executable_name("lexicon")), "./cmd/lexicon"],
-            ROOT / "lexicon", build_env,
+            [
+                cargo, "build", "--jobs", str(jobs), "--release", "--locked",
+                "--manifest-path", str(ROOT / "lexicon-cli" / "Cargo.toml"),
+            ],
+            ROOT,
+            release_env,
         )
-        package_lexicon_adapters(output, cargo_command(), jobs, build_env)
+        copy_file(
+            ROOT / "lexicon-cli" / "target" / "release" / executable_name("lexicon"),
+            bin_dir / executable_name("lexicon"),
+        )
+        package_lexicon_adapters(output, cargo, jobs, build_env)
 
     if "arcana" in selected:
         run(
@@ -306,11 +313,16 @@ def test(jobs: int = 1) -> None:
         ROOT,
         environment,
     )
-    run([
-        cargo, "test", "--jobs", str(jobs), "--all-targets", "--locked",
-        "--manifest-path", str(ROOT / "arcana" / "Cargo.toml"),
-        "--", "--test-threads", str(jobs),
-    ], ROOT, environment)
+    for manifest in (
+        ROOT / "lexicon" / "Cargo.toml",
+        ROOT / "lexicon-cli" / "Cargo.toml",
+        ROOT / "arcana" / "Cargo.toml",
+    ):
+        run([
+            cargo, "test", "--jobs", str(jobs), "--all-targets", "--locked",
+            "--manifest-path", str(manifest),
+            "--", "--test-threads", str(jobs),
+        ], ROOT, environment)
 
 
 def resolve_install_components(components: Sequence[str]) -> list[str]:

@@ -12,7 +12,7 @@ The migration keeps the existing Go implementation as the behavioral reference u
 
 ## Current migration boundary
 
-The existing Go implementation remains the executable application and behavioral authority for all functionality not yet ported.
+The existing Go implementation remains the behavioral parity oracle during migration. The Rust `lexicon` library and separate `lexicon-cli` crate now own the replacement executable surface.
 
 The reference implementation is pinned at commit
 `758af9daf6e71fc0a7ebb837875efe366f6403fd`. Migration fixtures and the differential harness live under
@@ -42,8 +42,9 @@ The migration foundation and Interstack synthesis slice are implemented:
 - Rust now exposes structured status and doctor diagnostics rather than CLI-formatted text. Status reports the current snapshot, detected/enabled languages, and registered consumers. Doctor verifies configuration, private Git state, all snapshot objects, adapter directories, runtime executables, and consumer definitions/commands while aggregating failures without executing consumers.
 - Rust now owns the complete consumer definition/registry/execution lifecycle: Go-compatible definition and timeout parsing, atomic add/remove and success-state publication, ordered all-consumer execution with aggregated failures, named execution, bounded process timeouts, repository/state/snapshot environment injection, working-directory and captured-output behavior, and per-consumer success pins. Public `Lexicon` scans notify consumers only after a successful scan/no-op snapshot resolution; initialization retains the Go behavior of not notifying consumers.
 - Rust now owns the reusable watch surface. `Lexicon::watch` uses recursive native filesystem notifications, the existing repository ignore policy, `.lexiconignore` reload/full-reconciliation semantics, source/directory/destructive-event filtering, debounce batching, periodic reconciliation, structured scan/watcher notices, and an explicit cancellation token. Signal handling and console formatting remain host responsibilities.
+- the separate Rust `lexicon-cli` crate now provides the replacement `lexicon` executable as a thin host over the library. It ports the existing Go command surface (`init`, `scan`, `demon`, `rebuild`, `export`, `gc`, `languages`, `consumer`, `status`, `doctor`, `version`), repository discovery, option parsing, signal handling, and output formatting. The root build workflow now packages this Rust binary; Go CLI tests remain the behavioral oracle during migration.
 
-No Rust CLI replacement or Warlock integration is implemented yet.
+No Warlock in-process integration is implemented yet.
 
 ## Parity rule
 
@@ -71,7 +72,7 @@ The existing Go tests remain required while they own untranslated behavior.
 
 ## Next slice
 
-The next planned slice is the separate `lexicon-cli` host. It should depend on the Rust library rather than own analysis/storage semantics, after which Warlock can switch to the in-process library. CLI/watch remain thin hosts after the in-process library surface is complete. The replacement `lexicon` executable should live in a separate binary crate that depends on the library. In addition to the existing operational commands, its planned direct lookup surface includes `find`, `show`, `refs`, and `calls` so Lexicon can answer bounded semantic code-location/reference questions without requiring Arcana; multi-hop graph analysis remains Arcana's responsibility.
+The next planned slice is Warlock's in-process integration against the Rust `lexicon` library. The CLI remains a separate host rather than an integration boundary. The planned direct lookup surface (`find`, `show`, `refs`, and `calls`) remains a follow-up library/CLI enhancement so Lexicon can answer bounded semantic code-location/reference questions without requiring Arcana; multi-hop graph analysis remains Arcana's responsibility.
 
 ## Related docs
 

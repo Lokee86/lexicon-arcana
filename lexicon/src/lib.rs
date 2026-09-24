@@ -21,7 +21,7 @@ pub use adapters::{
     ADAPTER_SCHEMA_VERSION, AdapterCommand, AdapterError, AdapterHost, AdapterRequest,
     NativeAdapter, adapter_fingerprint, adapter_fingerprint_with_versions, command_spec,
 };
-pub use api::{DoctorCheck, DoctorReport, Lexicon, LexiconError, StatusReport, doctor};
+pub use api::{DoctorCheck, DoctorReport, Lexicon, LexiconError, StatusReport, doctor, status};
 pub use config::{
     ANALYSIS_CONFIG_ID, CONFIG_VERSION, Config, config_path, find_adapter_root,
     find_adapter_root_from, load_config, normalize_enabled_languages, save_config,

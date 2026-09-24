@@ -9,4 +9,4 @@ mod status;
 pub use doctor::{DoctorCheck, DoctorReport, doctor};
 pub use error::LexiconError;
 pub use handle::Lexicon;
-pub use status::StatusReport;
+pub use status::{StatusReport, status};

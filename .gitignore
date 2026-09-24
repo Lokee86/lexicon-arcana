@@ -19,5 +19,6 @@ coverage.out
 /build/
 /build-*/
 /dist/
+/lexicon-cli/target/
 __pycache__/
 *.pyc

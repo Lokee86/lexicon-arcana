@@ -41,8 +41,9 @@ Implemented on the active Rust-migration branch:
 - structured Rust doctor diagnostics covering configuration, private state, snapshot/object integrity, adapter/runtime availability, and consumer definition/command validation without executing consumers.
 - Rust ownership of the consumer definition schema, Go-compatible timeout decoding, registry mutations, ordered execution, timeout/process environment handling, deterministic success-state pins, and post-scan notification hooks.
 - a reusable Rust watch surface with native recursive notifications, repository ignore-policy filtering/reload, debounce batching, reconciliation, structured notices, and cancellation.
+- a separate Rust `lexicon-cli` crate providing the replacement `lexicon` executable over the library, including the existing operational Go command surface, repository discovery, option parsing, signal handling, and formatting.
 
-The Go application remains authoritative for the CLI host and other remaining application presentation surfaces until later migration slices reach parity. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
+The Go application remains the migration parity oracle; the active replacement executable and reusable integration surface are Rust-owned. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
 
 ## Application
 

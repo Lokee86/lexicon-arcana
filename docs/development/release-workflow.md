@@ -10,7 +10,7 @@ Define the build, test, packaging, installation, verification, and GitHub releas
 
 The root workflow composes two independently owned products:
 
-- Lexicon: Go application plus runtime language adapters;
+- Lexicon: Rust library and CLI plus runtime language adapters;
 - Arcana: Rust application and `arcana.query.v1` protocol.
 
 Grimoire, its MCP/discovery runtime, its skill, and Lodestone are not active release inputs. Historical Grimoire source and benchmark evidence may remain in the repository during retirement, but the release workflow does not build or package them.
@@ -59,10 +59,12 @@ Only `lexicon` and `arcana` are valid active components.
 
 1. the repository Pitlord policy;
 2. documentation validation;
-3. Lexicon Go tests;
+3. Lexicon Go parity-oracle tests;
 4. Java and Kotlin adapter Go tests;
 5. the C# adapter Python test;
-6. Arcana Rust tests.
+6. Lexicon Rust library tests;
+7. Lexicon Rust CLI tests;
+8. Arcana Rust tests.
 
 The retired root Grimoire Go module is no longer part of the active test matrix.
 
@@ -91,7 +93,7 @@ build/
       SKILL.md
 ```
 
-Lexicon receives the requested release version through Go linker flags. Arcana receives it through `ARCANA_RELEASE_VERSION`; standalone Cargo builds fall back to the package version in `Cargo.toml`.
+Lexicon CLI receives the requested release version through `LEXICON_VERSION`. Arcana receives it through `ARCANA_RELEASE_VERSION`; standalone CLI builds report `dev` when no Lexicon release version is injected.
 
 After Arcana is built, the workflow creates a minimal temporary snapshot and requires compatible `arcana.query.v1` capability negotiation. A protocol-incompatible Arcana binary therefore fails the build.
 

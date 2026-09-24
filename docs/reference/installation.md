@@ -12,7 +12,7 @@ The supported shared distribution installs Lexicon and Arcana directly. It conta
 
 ## Prerequisites
 
-Release installation requires Python 3.12 or newer, a writable binary directory, and permission to add that directory to `PATH`. Source builds additionally require Go 1.26.5, Rust 1.90 or newer, and Node.js 22 for the TypeScript adapter.
+Release installation requires Python 3.12 or newer, a writable binary directory, and permission to add that directory to `PATH`. Source builds additionally require Rust 1.90 or newer, Go 1.26.5 for the remaining Go-based runtime adapters and parity tests, and Node.js 22 for the TypeScript adapter.
 
 ## Release installation
 
@@ -114,10 +114,12 @@ The workflow defaults to one worker across Go and Cargo. Use `--jobs N` only whe
 Lexicon:
 
 ```bash
-cd lexicon
-go build -o ../bin/lexicon ./cmd/lexicon
-go test ./...
+cargo build --release --locked --manifest-path lexicon-cli/Cargo.toml
+cargo test --all-targets --locked --manifest-path lexicon/Cargo.toml
+cargo test --all-targets --locked --manifest-path lexicon-cli/Cargo.toml
 ```
+
+The Go Lexicon application remains in-tree as the migration parity oracle; Go is also still required to build several packaged runtime adapters.
 
 Arcana:
 

@@ -94,6 +94,9 @@ class WorkflowSmokeTests(unittest.TestCase):
         protocol.assert_called_once()
         versions.assert_called_once_with(mock.ANY, "benchmark-test", ["lexicon", "arcana"])
         commands = [call.args[0] for call in run.call_args_list]
+        joined = [" ".join(str(part) for part in command) for command in commands]
+        self.assertTrue(any("lexicon-cli" in command and "cargo" in command for command in joined))
+        self.assertFalse(any("./cmd/lexicon" in command for command in commands))
         self.assertFalse(any("./cmd/grimoire" in command for command in commands))
         self.assertFalse(any(workflow.executable_name("grimoire") in command for command in commands))
 
@@ -108,14 +111,16 @@ class WorkflowSmokeTests(unittest.TestCase):
                 mock.patch.object(workflow, "run", side_effect=record):
             workflow.test()
 
-        self.assertEqual(len(calls), 8)
+        self.assertEqual(len(calls), 10)
         self.assertEqual(calls[0][0], ["pitlord", "validate", "--policy", "tools/pitlord/policy.json"])
         self.assertEqual(calls[2][0], [str(workflow.sys.executable), "scripts/check_docs.py"])
         self.assertEqual(calls[3][1], workflow.ROOT / "lexicon")
         self.assertEqual(calls[4][1], workflow.ROOT / "lexicon" / "adapters" / "java")
         self.assertEqual(calls[5][1], workflow.ROOT / "lexicon" / "adapters" / "kotlin")
         self.assertEqual(calls[6][0], [str(workflow.sys.executable), "lexicon/adapters/csharp/tests/test_adapter.py"])
-        self.assertIn("arcana", " ".join(calls[7][0]))
+        self.assertIn("lexicon/Cargo.toml", " ".join(calls[7][0]).replace("\\", "/"))
+        self.assertIn("lexicon-cli/Cargo.toml", " ".join(calls[8][0]).replace("\\", "/"))
+        self.assertIn("arcana/Cargo.toml", " ".join(calls[9][0]).replace("\\", "/"))
         for _, _, environment in calls:
             self.assertEqual(environment["GOMAXPROCS"], "1")
             self.assertEqual(environment["CARGO_BUILD_JOBS"], "1")

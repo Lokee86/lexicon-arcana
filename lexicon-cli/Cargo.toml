@@ -1,0 +1,22 @@
+[package]
+name = "lexicon-cli"
+version = "0.1.0"
+edition = "2024"
+description = "Command-line host for the Lexicon library"
+publish = false
+
+[[bin]]
+name = "lexicon"
+path = "src/main.rs"
+
+[lib]
+name = "lexicon_cli"
+path = "src/lib.rs"
+
+[dependencies]
+ctrlc = "3"
+humantime = "2"
+lexicon = { path = "../lexicon" }
+
+[lints.rust]
+unsafe_code = "forbid"
