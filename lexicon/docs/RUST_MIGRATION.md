@@ -20,7 +20,7 @@ The reference implementation is pinned at commit
 
 ## Completed foundation
 
-The first six migration slices are implemented:
+The first seven migration slices are implemented:
 
 - the Go parity oracle is pinned and representative contract, snapshot, incremental, recovery, and full-scan migration vectors are recorded;
 - existing Go binary v1/v2 goldens and publication/export/scan tests remain authoritative instead of being duplicated;
@@ -31,9 +31,10 @@ The first six migration slices are implemented:
 - the Rust storage tests consume the Go binary golden constants directly, and Arcana's independent Lexicon compatibility tests remain green;
 - Rust publication now preserves the existing `objects/`, `snapshots/`, `CURRENT`, `PENDING`, and `LOCK` layout, atomic replacement and immutable-write behavior, content verification, pending-publication bytes, single-writer locking, and the existing discard-versus-republish recovery decisions;
 - Rust now materializes deterministic full, shared, and incremental language entries from typed facts and explicit source bytes, preserves unchanged object/shared-fact reuse, provides sorted manifest language mutation, computes dependency/context closure and direct-change full-analysis triggers, and detects unsafe new relationship topology before scoped replacement. The facts validator also accepts the existing synthetic repository-root node convention `path: "."` used by current Go adapters;
-- Rust now owns the deterministic language registry and scan-plan composition used after source changes are known: enabled-language pruning, source/snapshot drift, optional adapter-fingerprint drift, modified-source scoped planning, structural-change full fallback, deterministic result assembly, and the `PENDING` → external state commit → snapshot publication handoff. A temporary Go oracle test confirmed the Rust plan decisions for modified source, modified config, added source, renamed source, and explicit drift.
+- Rust now owns the deterministic language registry and scan-plan composition used after source changes are known: enabled-language pruning, source/snapshot drift, optional adapter-fingerprint drift, modified-source scoped planning, structural-change full fallback, deterministic result assembly, and the `PENDING` → external state commit → snapshot publication handoff. A temporary Go oracle test confirmed the Rust plan decisions for modified source, modified config, added source, renamed source, and explicit drift;
+- Rust now owns configuration normalization and analysis identity, adapter-root discovery, permanent repository exclusions and `.lexiconignore` semantics, repository-local state-directory preparation, full/scoped source mirroring, normalized source-change records, and the existing one-replaceable-commit Git-backed private state lifecycle. Focused parity tests cover Go's ignored-parent semantics, CRLF-preserving `.gitignore` updates, mirror reconciliation, rename detection, and one reachable private-state commit.
 
-No Rust repository mirroring/change detection, adapter execution, execution-resource scheduling, interstack synthesis, CLI replacement, or Warlock integration is implemented yet.
+No Rust adapter execution, execution-resource scheduling, interstack synthesis, CLI replacement, or Warlock integration is implemented yet.
 
 ## Parity rule
 
@@ -61,7 +62,7 @@ The existing Go tests remain required while they own untranslated behavior.
 
 ## Next slice
 
-The next planned slice is repository/config state: Rust ownership of configuration normalization and analysis identity, ignored-source discovery, private source mirroring, normalized source-change records, and the state-head interface needed by recovery/transactions. The migration should preserve the existing Git-backed private state mechanism first rather than replacing it. Adapter execution remains a separate subsequent slice.
+The next planned slice is the adapter host: Rust ownership of adapter requests, capability metadata, deterministic fingerprints, process/native execution boundaries, streaming-output support, and the production adapter registry while continuing to invoke existing language frontends unchanged. Repository orchestration should only be composed after that execution seam reaches parity.
 
 ## Related docs
 

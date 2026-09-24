@@ -28,9 +28,10 @@ Implemented on the active Rust-migration branch:
 - node-only binary reads that skip edge/unresolved materialization while still validating object framing;
 - Rust content-addressed object/snapshot placement, immutable writes, atomic `CURRENT`/`PENDING` replacement, single-writer `LOCK`, pending-publication parsing/clearing, and interrupted-publication recovery decisions;
 - typed Rust full/shared/incremental language materialization from explicit source bytes, deterministic owner grouping, unchanged-object/shared-fact reuse, sorted manifest language mutation, dependency/context closure, direct-change fallback checks, and new-topology fallback checks;
-- Rust language registry and scan planning for enabled-language pruning, source/snapshot drift, adapter-fingerprint drift, structural/full fallback, scoped incremental selection, deterministic result assembly, and publication transaction handoff.
+- Rust language registry and scan planning for enabled-language pruning, source/snapshot drift, adapter-fingerprint drift, structural/full fallback, scoped incremental selection, deterministic result assembly, and publication transaction handoff;
+- Rust configuration and repository state for analysis identity, enabled-language normalization, adapter-root discovery, permanent exclusions and `.lexiconignore`, state-directory preparation, source mirroring, normalized Git source changes, and the one-commit private-state lifecycle.
 
-The Go application remains authoritative for repository mirroring/private-state change discovery, adapter execution and resource scheduling, interstack synthesis, CLI behavior, and operations until later migration slices reach parity. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
+The Go application remains authoritative for adapter execution and resource scheduling, interstack synthesis, CLI behavior, and operations until later migration slices reach parity. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
 
 ## Application
 

@@ -105,6 +105,16 @@ pub fn owns_source(language: &str, path: &str) -> bool {
         .is_some_and(|(_, extensions, _)| extensions.contains(&extension.as_str()))
 }
 
+pub fn supported_languages() -> Vec<String> {
+    let mut values: Vec<String> = DEFINITIONS
+        .iter()
+        .map(|(language, _, _)| (*language).to_owned())
+        .collect();
+    values.push("generic".to_owned());
+    values.sort();
+    values
+}
+
 pub fn supported(language: &str) -> bool {
     language == "generic"
         || is_generic(language)
