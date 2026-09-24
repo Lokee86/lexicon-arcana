@@ -64,7 +64,7 @@ The existing Go tests remain required while they own untranslated behavior.
 
 ## Next slice
 
-The next planned slice is interstack synthesis as a derived analysis over the base language manifest, followed by the remaining compatibility/operational surfaces needed before Warlock can switch to the Rust library: legacy-library migration handling, public open/initialize APIs, diagnostics/GC/export, and post-publication consumers. CLI/watch remain thin hosts after the in-process library surface is complete.
+The next planned slice is interstack synthesis as a derived analysis over the base language manifest, followed by the remaining compatibility/operational surfaces needed before Warlock can switch to the Rust library: legacy-library migration handling, public open/initialize APIs, diagnostics/GC/export, and post-publication consumers. CLI/watch remain thin hosts after the in-process library surface is complete. The replacement `lexicon` executable should live in a separate binary crate that depends on the library. In addition to the existing operational commands, its planned direct lookup surface includes `find`, `show`, `refs`, and `calls` so Lexicon can answer bounded semantic code-location/reference questions without requiring Arcana; multi-hop graph analysis remains Arcana's responsibility.
 
 ## Related docs
 

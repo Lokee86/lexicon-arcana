@@ -34,7 +34,7 @@ The product family should ship and operate as deterministic analysis libraries w
 4. **Complete:** rename the canonical repository identity to `Lokee86/lexicon-arcana`.
 5. **Complete — Lexicon durable-store compaction:** binary v2 preserves the full semantic fact set while reducing the current Hermes fact-object corpus from **220,393,540 bytes to 125,836,351 bytes (42.9%)**.
 6. **Complete — Python adapter memory:** compact Python semantic-analysis ownership and durable in-memory records while preserving emitted-fact and snapshot semantics.
-7. **Lexicon Rust migration:** translate the Go implementation into a Rust library while preserving semantic facts, adapter behavior, immutable snapshot/publication contracts, compatibility fixtures, and measured performance/storage expectations. Integrate the library directly into Warlock before treating a replacement CLI as a completion criterion.
+7. **Lexicon Rust migration:** translate the Go implementation into a Rust library while preserving semantic facts, adapter behavior, immutable snapshot/publication contracts, compatibility fixtures, and measured performance/storage expectations. Integrate the library directly into Warlock before treating a replacement CLI as a completion criterion. Keep the Rust CLI in a separate thin binary crate that depends on the library rather than placing application mechanics in the library crate.
 8. **Arcana in-process integration:** expose and stabilize the typed Rust library surface Warlock needs so normal graph operations do not require spawning the Arcana executable or reconstructing `arcana.query.v1` inside the desktop process. Preserve the protocol for standalone/external consumers.
 9. Continue judged repository-analysis experiments on larger and more varied corpora.
 
@@ -54,6 +54,7 @@ The product family should ship and operate as deterministic analysis libraries w
 - Compact the durable CAS representation before considering semantic-fact pruning.
 - Keep Python semantic-analysis memory bounded around compact retained state; the current Hermes benchmark is 3.612 GiB peak RSS at full semantic coverage.
 - Keep immutable publication and bounded external-consumer behavior as hard contracts.
+- Build the replacement `lexicon` CLI as a separate thin crate over the Rust library. Preserve the existing operational commands and add a direct semantic lookup surface for fast code discovery without requiring Arcana: `find` for symbols/facts, `show` for a node, `refs` for direct references, and `calls` for direct call relationships. Keep graph traversal/reachability/impact analysis in Arcana.
 
 ### Lexicon performance/storage sequence
 
