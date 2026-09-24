@@ -42,9 +42,10 @@ pub use scan::{
 };
 pub use scope::build_analysis_scope;
 pub use storage::{
-    Analysis, FactObject, FileEntry, IncrementalScope, LanguageEntry, PendingPublication,
-    RecoveryOutcome, SnapshotManifest, SourceFile, StorageError, Store, StoreLock,
-    decode_node_facts, decode_object, encode_object, object_id, snapshot_bytes, snapshot_id,
+    Analysis, FactObject, FileEntry, GcOptions, GcPlan, GcResult, IncrementalScope, LanguageEntry,
+    PendingPublication, RecoveryOutcome, SnapshotManifest, SourceFile, StorageError, Store,
+    StoreLock, decode_node_facts, decode_object, encode_object, object_id, snapshot_bytes,
+    snapshot_id,
 };
 
 pub const PROJECT_NAME: &str = "Lexicon";

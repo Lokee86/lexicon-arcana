@@ -2,7 +2,7 @@ mod support;
 
 use std::sync::Arc;
 
-use lexicon::{AdapterHost, Lexicon, load_config};
+use lexicon::{AdapterHost, GcOptions, Lexicon, load_config};
 
 use support::TestDirectory;
 use support::scan_adapter::{FixtureAdapter, write};
@@ -34,6 +34,15 @@ fn initialize_open_and_scan_use_public_library_handle() {
     assert_eq!(opened.repository(), fixture.repository.as_path());
     assert_eq!(opened.adapter_root(), fixture.adapter_root.as_path());
     assert_eq!(opened.store().current().unwrap().0, report.snapshot_id);
+
+    let export = fixture.repository.join("export");
+    opened.export("CURRENT", &export, &[]).unwrap();
+    assert!(export.join("python.jsonl").exists());
+
+    let gc = opened
+        .garbage_collect(GcOptions { keep_snapshots: 1 }, true)
+        .unwrap();
+    assert!(gc.dry_run);
 }
 
 #[test]

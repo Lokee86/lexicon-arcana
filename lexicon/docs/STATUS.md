@@ -35,8 +35,10 @@ Implemented on the active Rust-migration branch:
 - Rust Interstack synthesis and drift refresh, including HTTP, message, configuration, process/CLI, protocol, and filesystem-state boundary relationships.
 - committed legacy JSONL library migration into immutable snapshot objects, with permissive historical parsing isolated from current fact validation.
 - a public Rust `Lexicon` handle for open/initialize, explicit language selection, host injection, repository/state access, and bounded scans; initialization preserves the Go full-analysis lifecycle.
+- deterministic Rust snapshot export back to facts-v1 JSONL, with full object verification and atomic destination replacement.
+- retention- and consumer-pin-aware Rust garbage collection with deterministic planning, dry-run execution, validation, and `CURRENT` race protection.
 
-The Go application remains authoritative for post-publication consumers, CLI/watch behavior, diagnostics/GC/export operations, and other application surfaces until later migration slices reach parity. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
+The Go application remains authoritative for post-publication consumers, CLI/watch behavior, status/doctor diagnostics, and other application surfaces until later migration slices reach parity. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
 
 ## Application
 

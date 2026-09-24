@@ -33,24 +33,37 @@ impl FactStream {
 
     pub fn canonical_jsonl(&self) -> Result<Vec<u8>, ValidationError> {
         self.validate()?;
+        self.jsonl_unchecked()
+    }
+
+    pub fn sort_records(&mut self) {
+        self.records.sort_by(order::compare);
+    }
+
+    pub(crate) fn sort_records_for_export(&mut self) -> Result<(), ValidationError> {
+        let records = std::mem::take(&mut self.records);
+        let mut encoded = records
+            .into_iter()
+            .map(|record| tagged_record_bytes(&record).map(|value| (record, value)))
+            .collect::<Result<Vec<_>, _>>()?;
+        encoded.sort_by(|(left, left_value), (right, right_value)| {
+            order::compare(left, right).then_with(|| left_value.cmp(right_value))
+        });
+        self.records = encoded.into_iter().map(|(record, _)| record).collect();
+        Ok(())
+    }
+
+    pub(crate) fn jsonl_unchecked(&self) -> Result<Vec<u8>, ValidationError> {
         let mut output = Vec::new();
         write_value(&mut output, &self.header)?;
         for record in &self.records {
             output.push(b'\n');
-            let value = match record {
-                FactRecord::Node(value) => tagged_value("node", value)?,
-                FactRecord::Edge(value) => tagged_value("edge", value)?,
-                FactRecord::Unresolved(value) => tagged_value("unresolved", value)?,
-            };
+            let value = tagged_record_value(record)?;
             serde_json::to_writer(&mut output, &value)
                 .map_err(|error| ValidationError::Json(error.to_string()))?;
         }
         output.push(b'\n');
         Ok(output)
-    }
-
-    pub fn sort_records(&mut self) {
-        self.records.sort_by(order::compare);
     }
 }
 
@@ -87,6 +100,19 @@ fn without_record(mut value: Value) -> Value {
         map.remove("record");
     }
     value
+}
+
+fn tagged_record_value(record: &FactRecord) -> Result<Value, ValidationError> {
+    match record {
+        FactRecord::Node(value) => tagged_value("node", value),
+        FactRecord::Edge(value) => tagged_value("edge", value),
+        FactRecord::Unresolved(value) => tagged_value("unresolved", value),
+    }
+}
+
+fn tagged_record_bytes(record: &FactRecord) -> Result<Vec<u8>, ValidationError> {
+    let value = tagged_record_value(record)?;
+    serde_json::to_vec(&value).map_err(|error| ValidationError::Json(error.to_string()))
 }
 
 fn tagged_value<T: serde::Serialize>(record: &str, value: &T) -> Result<Value, ValidationError> {

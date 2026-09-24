@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    AdapterHost, ScanEngine, ScanReport, StateRepository, Store, load_config, save_config,
-    save_config_with_languages, state_root,
+    AdapterHost, GcOptions, GcResult, ScanEngine, ScanReport, StateRepository, Store, load_config,
+    save_config, save_config_with_languages, state_root,
 };
 
 use super::LexiconError;
@@ -129,6 +129,30 @@ impl Lexicon {
 
     pub fn scan_paths(&self, paths: &[PathBuf]) -> Result<ScanReport, LexiconError> {
         self.engine.scan_paths(paths).map_err(Into::into)
+    }
+
+    pub fn export(
+        &self,
+        snapshot: &str,
+        destination: impl AsRef<Path>,
+        languages: &[String],
+    ) -> Result<(), LexiconError> {
+        self.engine
+            .store()
+            .export(snapshot, destination.as_ref(), languages)
+            .map_err(Into::into)
+    }
+
+    pub fn garbage_collect(
+        &self,
+        options: GcOptions,
+        dry_run: bool,
+    ) -> Result<GcResult, LexiconError> {
+        let _guard = self.engine.store().lock()?;
+        self.engine
+            .store()
+            .garbage_collect(options, dry_run)
+            .map_err(Into::into)
     }
 
     pub fn store(&self) -> &Store {
