@@ -18,7 +18,7 @@ fn watch_performs_startup_scan_and_honors_stop_token() {
 
     let adapter = Arc::new(FixtureAdapter::new(false));
     let mut host = AdapterHost::new(&adapter_root);
-    host.register_native("python", adapter);
+    host.register("python", adapter);
     let (lexicon, initialized) = Lexicon::initialize_with_host(&repository, host).unwrap();
 
     let stop = WatchStop::default();

@@ -28,7 +28,7 @@ impl FactStream {
     }
 
     pub fn validate(&self) -> Result<(), ValidationError> {
-        validate::stream(self)
+        validate::parts(&self.header, &self.records)
     }
 
     pub fn canonical_jsonl(&self) -> Result<Vec<u8>, ValidationError> {
@@ -41,16 +41,7 @@ impl FactStream {
     }
 
     pub(crate) fn sort_records_for_export(&mut self) -> Result<(), ValidationError> {
-        let records = std::mem::take(&mut self.records);
-        let mut encoded = records
-            .into_iter()
-            .map(|record| tagged_record_bytes(&record).map(|value| (record, value)))
-            .collect::<Result<Vec<_>, _>>()?;
-        encoded.sort_by(|(left, left_value), (right, right_value)| {
-            order::compare(left, right).then_with(|| left_value.cmp(right_value))
-        });
-        self.records = encoded.into_iter().map(|(record, _)| record).collect();
-        Ok(())
+        sort_records(&mut self.records)
     }
 
     pub(crate) fn jsonl_unchecked(&self) -> Result<Vec<u8>, ValidationError> {
@@ -108,6 +99,19 @@ fn tagged_record_value(record: &FactRecord) -> Result<Value, ValidationError> {
         FactRecord::Edge(value) => tagged_value("edge", value),
         FactRecord::Unresolved(value) => tagged_value("unresolved", value),
     }
+}
+
+pub(crate) fn sort_records(records: &mut Vec<FactRecord>) -> Result<(), ValidationError> {
+    let values = std::mem::take(records);
+    let mut encoded = values
+        .into_iter()
+        .map(|record| tagged_record_bytes(&record).map(|value| (record, value)))
+        .collect::<Result<Vec<_>, _>>()?;
+    encoded.sort_by(|(left, left_value), (right, right_value)| {
+        order::compare(left, right).then_with(|| left_value.cmp(right_value))
+    });
+    *records = encoded.into_iter().map(|(record, _)| record).collect();
+    Ok(())
 }
 
 fn tagged_record_bytes(record: &FactRecord) -> Result<Vec<u8>, ValidationError> {

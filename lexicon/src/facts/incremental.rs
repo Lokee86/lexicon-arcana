@@ -1,22 +1,20 @@
-use super::FactStream;
-use super::model::FactRecord;
+use super::model::{FactHeader, FactRecord};
 use super::validate::ValidationError;
 use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) fn validate(
-    stream: &FactStream,
+    header: &FactHeader,
+    records: &[FactRecord],
     node_owners: &BTreeMap<String, String>,
 ) -> Result<(), ValidationError> {
-    let changed: BTreeSet<&str> = stream
-        .header
+    let changed: BTreeSet<&str> = header
         .changed_files
         .as_deref()
         .unwrap_or_default()
         .iter()
         .map(String::as_str)
         .collect();
-    let removed: BTreeSet<&str> = stream
-        .header
+    let removed: BTreeSet<&str> = header
         .removed_files
         .as_deref()
         .unwrap_or_default()
@@ -24,7 +22,7 @@ pub(crate) fn validate(
         .map(String::as_str)
         .collect();
 
-    for record in &stream.records {
+    for record in records {
         let owner = direct_owner(record).or_else(|| match record {
             FactRecord::Edge(edge) => node_owners.get(&edge.source).map(String::as_str),
             FactRecord::Unresolved(value) => node_owners.get(&value.source).map(String::as_str),

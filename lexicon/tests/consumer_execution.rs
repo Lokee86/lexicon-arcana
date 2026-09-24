@@ -130,7 +130,7 @@ fn public_scan_notifies_consumers_but_initialize_does_not() {
 
     let adapter = Arc::new(FixtureAdapter::new(false));
     let mut host = AdapterHost::new(&adapter_root);
-    host.register_native("python", adapter);
+    host.register("python", adapter);
 
     let (lexicon, initialized) = Lexicon::initialize_with_host(&repository, host).unwrap();
     assert!(!repository.join("scan-consumer").exists());

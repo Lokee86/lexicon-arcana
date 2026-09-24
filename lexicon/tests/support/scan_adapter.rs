@@ -1,10 +1,12 @@
 #![allow(dead_code)]
 
 use std::fs;
-use std::io::Write;
 use std::sync::Mutex;
 
-use lexicon::{AdapterError, AdapterRequest, AnalysisPlan, NativeAdapter, SnapshotManifest};
+use lexicon::{
+    AdapterError, AdapterRequest, Analysis, AnalysisPlan, FactHeader, LanguageAdapter,
+    SnapshotManifest,
+};
 
 pub struct FixtureAdapter {
     pub requests: Mutex<Vec<bool>>,
@@ -20,8 +22,8 @@ impl FixtureAdapter {
     }
 }
 
-impl NativeAdapter for FixtureAdapter {
-    fn run(&self, request: &AdapterRequest, output: &mut dyn Write) -> Result<(), AdapterError> {
+impl LanguageAdapter for FixtureAdapter {
+    fn analyze(&self, request: &AdapterRequest) -> Result<Analysis, AdapterError> {
         let scoped = !request.changed_files.is_empty();
         self.requests.lock().unwrap().push(scoped);
         if scoped && self.fail_scoped {
@@ -29,16 +31,12 @@ impl NativeAdapter for FixtureAdapter {
                 "scoped repository is incomplete",
             )));
         }
-        if scoped {
-            writeln!(
-                output,
-                "{}",
-                incremental_header(&request.language, &request.changed_files)
-            )
+        let header = if scoped {
+            incremental_header(&request.language, &request.changed_files)
         } else {
-            writeln!(output, "{}", full_header(&request.language))
-        }
-        .map_err(AdapterError::from)
+            full_header(&request.language)
+        };
+        Ok(Analysis::new(header, Vec::new()))
     }
 }
 
@@ -100,15 +98,30 @@ pub fn write(root: &std::path::Path, relative: &str, data: &str) {
     fs::write(path, data).unwrap();
 }
 
-fn full_header(language: &str) -> String {
-    format!(
-        "{{\"adapter_version\":\"test\",\"language\":\"{language}\",\"record\":\"lexicon\",\"repository\":\"repo\",\"schema_version\":1}}"
-    )
+fn full_header(language: &str) -> FactHeader {
+    FactHeader {
+        adapter_version: "test".into(),
+        changed_files: None,
+        language: language.into(),
+        mode: None,
+        record: "lexicon".into(),
+        removed_files: None,
+        repository: "repo".into(),
+        schema_version: 1,
+        shared_complete: None,
+    }
 }
 
-fn incremental_header(language: &str, changed: &[String]) -> String {
-    format!(
-        "{{\"adapter_version\":\"test\",\"changed_files\":{},\"language\":\"{language}\",\"mode\":\"incremental\",\"record\":\"lexicon\",\"removed_files\":[],\"repository\":\"repo\",\"schema_version\":1,\"shared_complete\":true}}",
-        serde_json::to_string(changed).unwrap()
-    )
+fn incremental_header(language: &str, changed: &[String]) -> FactHeader {
+    FactHeader {
+        adapter_version: "test".into(),
+        changed_files: Some(changed.to_vec()),
+        language: language.into(),
+        mode: Some("incremental".into()),
+        record: "lexicon".into(),
+        removed_files: Some(Vec::new()),
+        repository: "repo".into(),
+        schema_version: 1,
+        shared_complete: Some(true),
+    }
 }

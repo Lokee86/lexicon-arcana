@@ -22,7 +22,7 @@ fn full_then_incremental_execution_materializes_and_reuses_objects() {
 
     let adapter = Arc::new(FixtureAdapter::new(false));
     let mut host = AdapterHost::new(&adapter_root);
-    host.register_native("python", adapter.clone());
+    host.register("python", adapter.clone());
 
     let full = execute_analysis_plans(
         &store,
@@ -33,6 +33,7 @@ fn full_then_incremental_execution_materializes_and_reuses_objects() {
         &[full_plan()],
     )
     .unwrap();
+    assert!(!temporary.join("python.jsonl").exists());
     let python = full.language("python").unwrap();
     assert_eq!(
         paths(python),
@@ -53,6 +54,7 @@ fn full_then_incremental_execution_materializes_and_reuses_objects() {
         &[incremental_plan()],
     )
     .unwrap();
+    assert!(!temporary.join("python.jsonl").exists());
     let python = incremental.language("python").unwrap();
     assert_eq!(file_object(python, "pyproject.toml"), before_config);
     assert_ne!(
@@ -73,7 +75,7 @@ fn scoped_adapter_failure_retries_full_analysis() {
 
     let adapter = Arc::new(FixtureAdapter::new(true));
     let mut host = AdapterHost::new(&adapter_root);
-    host.register_native("python", adapter.clone());
+    host.register("python", adapter.clone());
 
     let initial = execute_analysis_plans(
         &store,

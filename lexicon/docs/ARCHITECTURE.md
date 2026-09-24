@@ -8,7 +8,7 @@ This document defines Lexicon's implemented ownership, analysis lifecycle, immut
 
 ## Overview
 
-Lexicon transforms repository source into versioned language-neutral facts through independently executable adapters, content-addressed objects, immutable snapshots, and deterministic post-publication consumer handoff.
+Lexicon transforms repository source into versioned language-neutral facts through language adapters, content-addressed objects, immutable snapshots, and deterministic post-publication consumer handoff.
 
 Lexicon is an on-demand repository analysis application with an optional watch mode. It owns language extraction, normalized facts, incremental analysis decisions, immutable fact storage, and atomic snapshot publication.
 
@@ -52,8 +52,8 @@ cmd/lexicon
             -> internal/consumer
         -> internal/watch
 
-adapters/<language>
-    -> facts-v1 JSONL
+language adapters
+    -> versioned typed fact contract
 
 .lexicon/
     -> immutable objects and manifests
@@ -72,9 +72,9 @@ adapters/<language>
 
 ### Adapter orchestration
 
-`internal/adapters` locates and invokes the self-contained language adapters. Adapters receive a repository root, output path, optional changed and removed file scopes, and optional parallel-execution parameters. They emit one deterministic facts-v1 JSONL stream.
+The Rust `src/adapters` boundary owns a versioned `LanguageAdapter` contract. Adapters receive a typed request containing the repository root, optional changed and removed file scopes, and optional parallel-execution parameters, then return typed `Analysis` facts directly. The host validates the adapter-contract and fact-schema versions, canonicalizes record ordering, then validates fact invariants and emitted language before materialization. There is no adapter output path, subprocess fallback, or JSONL handoff in the Rust scan path.
 
-Adapters do not write Lexicon snapshots directly and do not contain consumer-specific graph or retrieval policy.
+Adapters do not write Lexicon snapshots directly and do not contain consumer-specific graph or retrieval policy. The older Go process adapter layer remains only as migration-oracle source while those language implementations are translated.
 
 ### Cross-stack resolution
 
@@ -95,7 +95,7 @@ The planner treats correctness as the priority. Structural changes, invalid prio
 
 ### Object storage
 
-`internal/objectstore` parses validated adapter output and partitions records into:
+The storage layer consumes validated typed adapter analysis and partitions records into:
 
 - one immutable object per owned source file; and
 - an optional shared object for unowned synthetic language facts.
@@ -120,7 +120,7 @@ A normal scan performs this sequence:
 4. calculate changed, added, deleted, renamed, and configuration paths;
 5. determine affected languages and safe complete or scoped plans;
 6. execute adapters under the resource scheduler;
-7. validate and parse each facts-v1 stream once;
+7. validate each adapter's typed analysis against the current adapter and facts contracts;
 8. build replacement owned objects and reuse unaffected manifest entries;
 9. derive the synthetic repository-wide `interstack` library from the candidate language facts;
 10. write missing immutable objects;
@@ -145,13 +145,13 @@ The scoped repository includes:
 - complete packages for Go;
 - complete crates for Rust.
 
-A scoped stream may replace only facts owned by its declared changed files. Partial shared facts cannot replace the previous complete shared object.
+A scoped analysis may replace only facts owned by its declared changed files. Partial shared facts cannot replace the previous complete shared object.
 
 Lexicon retries with complete-language analysis when:
 
 - a direct edit previously owned cross-file or unresolved relationships;
 - the scoped result introduces relationship or unresolved topology that cannot be proven safe;
-- an adapter emits the wrong stream mode;
+- an adapter emits the wrong analysis mode;
 - scoped execution fails;
 - additions, deletions, renames, copies, configuration changes, or invalid prior state make ownership uncertain.
 
@@ -194,7 +194,7 @@ Consumers resolve `CURRENT` once and then read immutable data. They observe eith
 
 The public compatibility surfaces are the versioned contracts under `spec/`, the CLI behavior documented in `docs/APPLICATION.md`, and the consumer definition format.
 
-Internal package structure, temporary adapter JSONL paths, private mirror implementation, scheduling heuristics, and binary storage implementation details outside the versioned object contract may change without becoming public application APIs.
+Internal package structure, private mirror implementation, scheduling heuristics, and binary storage implementation details outside the versioned object contract may change without becoming public application APIs. The adapter boundary is explicitly versioned so its typed contract can evolve without treating transport details as public API.
 
 ## Code map
 

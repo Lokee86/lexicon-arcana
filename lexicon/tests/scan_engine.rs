@@ -1,11 +1,11 @@
 mod support;
 
 use std::fs;
-use std::io::Write;
 use std::sync::{Arc, Mutex};
 
 use lexicon::{
-    AdapterError, AdapterHost, AdapterRequest, NativeAdapter, ScanEngine, StateRepository, Store,
+    AdapterError, AdapterHost, AdapterRequest, Analysis, FactHeader, LanguageAdapter, ScanEngine,
+    StateRepository, Store,
 };
 
 use support::TestDirectory;
@@ -22,25 +22,36 @@ impl FixtureAdapter {
     }
 }
 
-impl NativeAdapter for FixtureAdapter {
-    fn run(&self, request: &AdapterRequest, output: &mut dyn Write) -> Result<(), AdapterError> {
+impl LanguageAdapter for FixtureAdapter {
+    fn analyze(&self, request: &AdapterRequest) -> Result<Analysis, AdapterError> {
         let scoped = !request.changed_files.is_empty();
         self.scoped_requests.lock().unwrap().push(scoped);
-        if scoped {
-            writeln!(
-                output,
-                "{{\"adapter_version\":\"test\",\"changed_files\":{},\"language\":\"{}\",\"mode\":\"incremental\",\"record\":\"lexicon\",\"removed_files\":[],\"repository\":\"repo\",\"schema_version\":1,\"shared_complete\":true}}",
-                serde_json::to_string(&request.changed_files).unwrap(),
-                request.language,
-            )
+        let header = if scoped {
+            FactHeader {
+                adapter_version: "test".into(),
+                changed_files: Some(request.changed_files.clone()),
+                language: request.language.clone(),
+                mode: Some("incremental".into()),
+                record: "lexicon".into(),
+                removed_files: Some(Vec::new()),
+                repository: "repo".into(),
+                schema_version: 1,
+                shared_complete: Some(true),
+            }
         } else {
-            writeln!(
-                output,
-                "{{\"adapter_version\":\"test\",\"language\":\"{}\",\"record\":\"lexicon\",\"repository\":\"repo\",\"schema_version\":1}}",
-                request.language,
-            )
-        }
-        .map_err(AdapterError::from)
+            FactHeader {
+                adapter_version: "test".into(),
+                changed_files: None,
+                language: request.language.clone(),
+                mode: None,
+                record: "lexicon".into(),
+                removed_files: None,
+                repository: "repo".into(),
+                schema_version: 1,
+                shared_complete: None,
+            }
+        };
+        Ok(Analysis::new(header, Vec::new()))
     }
 }
 
@@ -59,7 +70,7 @@ fn repository_scan_runs_full_noop_then_incremental_transaction() {
     let git = StateRepository::ensure(&state_root).unwrap();
     let adapter = Arc::new(FixtureAdapter::new());
     let mut host = AdapterHost::new(&adapter_root);
-    host.register_native("python", adapter.clone());
+    host.register("python", adapter.clone());
     let engine = ScanEngine::new(&repository, git, Store::new(&store_root), host, Vec::new());
 
     let first = engine.scan().unwrap();
@@ -105,7 +116,7 @@ fn interstack_drift_forces_refresh_without_ordinary_adapter_work() {
     let git = StateRepository::ensure(&state_root).unwrap();
     let adapter = Arc::new(FixtureAdapter::new());
     let mut host = AdapterHost::new(&adapter_root);
-    host.register_native("python", adapter.clone());
+    host.register("python", adapter.clone());
     let engine = ScanEngine::new(&repository, git, Store::new(&store_root), host, Vec::new());
 
     let first = engine.scan().unwrap();

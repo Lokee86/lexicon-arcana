@@ -103,7 +103,7 @@ impl Fixture {
         };
         let adapter = Arc::new(FixtureAdapter::new(false));
         let mut host = AdapterHost::new(&self.adapter_root);
-        host.register_native("python", adapter.clone());
+        host.register("python", adapter.clone());
         (
             ScanEngine::new(
                 &self.repository,

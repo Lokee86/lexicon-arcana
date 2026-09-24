@@ -1,65 +1,9 @@
 use std::path::{Path, PathBuf};
 
-const RUNTIME_REQUIREMENTS: &[(&str, &[&[&str]])] = &[
-    ("c-family", &[&["go"]]),
-    ("go", &[&["go"]]),
-    ("gdscript", &[&["go"]]),
-    ("generic", &[&["go"]]),
-    ("java", &[&["go"]]),
-    ("kotlin", &[&["go"]]),
-    ("lotusscript", &[&["go"]]),
-    ("csharp", &[&["dotnet"]]),
-    ("python", &[&["python", "python3"]]),
-    ("ruby", &[&["ruby"]]),
-    ("rust", &[&["cargo"]]),
-    ("typescript", &[&["node"], &["npm", "npm.cmd"]]),
-];
-
-pub(super) fn check_runtime(adapter_root: &Path, language: &str) -> Result<(), String> {
-    if packaged_runtime_available(adapter_root, language) {
-        return Ok(());
-    }
-    let Some((_, configured)) = RUNTIME_REQUIREMENTS
-        .iter()
-        .find(|(candidate, _)| *candidate == language)
-    else {
-        return Err(format!(
-            "no runtime definition for detected language {language:?}"
-        ));
-    };
-
-    let node_only = language == "typescript"
-        && adapter_root
-            .join("typescript")
-            .join("dist")
-            .join("cli.js")
-            .is_file();
-    let requirements: &[&[&str]] = if node_only { &[&["node"]] } else { configured };
-    for candidates in requirements {
-        if !candidates
-            .iter()
-            .any(|candidate| find_executable(candidate).is_some())
-        {
-            return Err(format!(
-                "required executable not found: {}",
-                candidates.join(" or ")
-            ));
-        }
-    }
-    Ok(())
-}
-
 pub(super) fn check_command(command: &str) -> Result<(), String> {
     find_executable(command)
         .map(|_| ())
         .ok_or_else(|| format!("required executable not found: {command}"))
-}
-
-fn packaged_runtime_available(adapter_root: &Path, language: &str) -> bool {
-    let base = adapter_root
-        .join(language)
-        .join(format!("lexicon-{language}"));
-    base.is_file() || base.with_extension("exe").is_file()
 }
 
 fn find_executable(command: &str) -> Option<PathBuf> {

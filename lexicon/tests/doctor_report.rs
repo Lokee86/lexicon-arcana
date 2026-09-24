@@ -13,7 +13,7 @@ use support::TestDirectory;
 #[test]
 fn doctor_reports_passing_repository_checks_without_running_consumers() {
     let fixture = DoctorFixture::new("doctor-pass", &["go"]);
-    fixture.create_packaged_runtime("go");
+    fixture.create_adapter_directory("go");
     fixture.write_consumer(
         "arcana.json",
         json!({
@@ -34,7 +34,6 @@ fn doctor_reports_passing_repository_checks_without_running_consumers() {
         "CURRENT snapshot and referenced objects",
         "configured adapter root",
         "adapter directory: go",
-        "runtime executable: go",
         "consumer definition: arcana.json",
         "consumer command: arcana.json",
     ] {
@@ -48,35 +47,37 @@ fn doctor_maps_generic_libraries_and_skips_interstack() {
         "doctor-synthetic",
         &["generic-sh", "generic-sql", "interstack", "go"],
     );
-    fixture.create_packaged_runtime("generic");
-    fixture.create_packaged_runtime("go");
+    fixture.create_adapter_directory("generic");
+    fixture.create_adapter_directory("go");
 
     let report = doctor(&fixture.repository).unwrap();
     assert!(passed(&report, "adapter directory: generic"));
-    assert!(passed(&report, "runtime executable: generic"));
     assert!(passed(&report, "adapter directory: go"));
     assert!(!has_label(&report, "adapter directory: generic-sh"));
     assert!(!has_label(&report, "adapter directory: interstack"));
 }
 
 #[test]
-fn doctor_accepts_packaged_java_kotlin_and_csharp_runtimes() {
-    let fixture = DoctorFixture::new("doctor-packaged-runtimes", &["java", "kotlin", "csharp"]);
+fn doctor_checks_adapter_directories_without_runtime_requirements() {
+    let fixture = DoctorFixture::new("doctor-native-adapters", &["java", "kotlin", "csharp"]);
     for language in ["java", "kotlin", "csharp"] {
-        fixture.create_packaged_runtime(language);
+        fixture.create_adapter_directory(language);
     }
 
     let report = doctor(&fixture.repository).unwrap();
     for language in ["java", "kotlin", "csharp"] {
         assert!(passed(&report, &format!("adapter directory: {language}")));
-        assert!(passed(&report, &format!("runtime executable: {language}")));
+        assert!(!has_label(
+            &report,
+            &format!("runtime executable: {language}")
+        ));
     }
 }
 
 #[test]
 fn doctor_aggregates_snapshot_adapter_and_consumer_failures() {
     let fixture = DoctorFixture::new("doctor-failures", &["java"]);
-    fixture.create_packaged_runtime("java");
+    fixture.create_adapter_directory("java");
     let (_, manifest) = fixture.store.current().unwrap();
     let object = manifest.languages.as_ref().unwrap()[0]
         .files
@@ -107,7 +108,6 @@ fn doctor_aggregates_snapshot_adapter_and_consumer_failures() {
         );
     }
     assert!(passed(&report, "adapter directory: java"));
-    assert!(passed(&report, "runtime executable: java"));
     assert!(passed(&report, "consumer definition: missing.json"));
 }
 
@@ -150,15 +150,8 @@ impl DoctorFixture {
         }
     }
 
-    fn create_packaged_runtime(&self, language: &str) {
-        let directory = self.adapters.join(language);
-        fs::create_dir_all(&directory).unwrap();
-        let suffix = if cfg!(windows) { ".exe" } else { "" };
-        fs::write(
-            directory.join(format!("lexicon-{language}{suffix}")),
-            b"fixture",
-        )
-        .unwrap();
+    fn create_adapter_directory(&self, language: &str) {
+        fs::create_dir_all(self.adapters.join(language)).unwrap();
     }
 
     fn write_consumer(&self, name: &str, value: serde_json::Value) {

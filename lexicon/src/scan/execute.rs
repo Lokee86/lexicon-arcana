@@ -79,8 +79,6 @@ fn execute_plan(
         });
     }
 
-    let output = temporary_root.join(format!("{}.jsonl", plan.language));
-    let _ = fs::remove_file(&output);
     let repository = if plan.full {
         source_root.to_path_buf()
     } else {
@@ -91,7 +89,7 @@ fn execute_plan(
             &plan.context_files,
         )?
     };
-    let request = request_for_plan(plan, execution, repository, output);
+    let request = request_for_plan(plan, execution, repository);
 
     let entry = if plan.full {
         let analysis = run_analysis(host, &request)?;

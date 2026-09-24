@@ -1,4 +1,4 @@
-use crate::{FactHeader, FactRecord, FactStream, StorageError};
+use crate::{FactHeader, FactRecord, FactStream, StorageError, ValidationError};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -14,12 +14,24 @@ pub(crate) struct RecordGroups {
 }
 
 impl Analysis {
+    pub fn new(header: FactHeader, records: Vec<FactRecord>) -> Self {
+        Self { header, records }
+    }
+
     pub fn parse(input: &str) -> Result<Self, StorageError> {
         let stream = FactStream::parse(input)?;
         Ok(Self {
             header: stream.header,
             records: stream.records,
         })
+    }
+
+    pub fn canonicalize(&mut self) -> Result<(), ValidationError> {
+        crate::facts::sort_records(&mut self.records)
+    }
+
+    pub fn validate(&self) -> Result<(), ValidationError> {
+        crate::facts::validate_parts(&self.header, &self.records)
     }
 
     pub fn is_incremental(&self) -> bool {

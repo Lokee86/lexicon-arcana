@@ -6,7 +6,6 @@ use super::LexiconError;
 use super::doctor_checks::{
     inspect_consumers, manifest_languages, verify_snapshot, verify_state_repository,
 };
-use super::doctor_runtime::check_runtime;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DoctorCheck {
@@ -97,10 +96,8 @@ pub fn doctor(repository: impl AsRef<Path>) -> Result<DoctorReport, LexiconError
             "detected language adapter directories",
             "snapshot unavailable",
         );
-        report.fail("required runtime executables", "snapshot unavailable");
     } else if languages.is_empty() {
         report.pass("detected language adapter directories");
-        report.pass("required runtime executables");
     } else {
         inspect_languages(
             &mut report,
@@ -136,14 +133,6 @@ fn inspect_languages(
                     format!("adapter directory is missing: {}", directory.display()),
                 );
             }
-        }
-
-        let runtime = adapter_root
-            .ok_or_else(|| "configured adapter root is unavailable".to_owned())
-            .and_then(|root| check_runtime(root, &language));
-        match runtime {
-            Ok(()) => report.pass(format!("runtime executable: {language}")),
-            Err(error) => report.fail(format!("runtime executable: {language}"), error),
         }
     }
 }

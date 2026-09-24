@@ -20,8 +20,8 @@ fn rebuild_without_languages_rebuilds_all_selected_source_languages() {
     let python = Arc::new(FixtureAdapter::new(false));
     let ruby = Arc::new(FixtureAdapter::new(false));
     let mut host = AdapterHost::new(&adapters);
-    host.register_native("python", python.clone());
-    host.register_native("ruby", ruby.clone());
+    host.register("python", python.clone());
+    host.register("ruby", ruby.clone());
 
     let (lexicon, _) = Lexicon::initialize_with_host(&repository, host).unwrap();
     python.requests.lock().unwrap().clear();
@@ -47,8 +47,8 @@ fn rebuild_rejects_disabled_explicit_language() {
     let python = Arc::new(FixtureAdapter::new(false));
     let ruby = Arc::new(FixtureAdapter::new(false));
     let mut host = AdapterHost::new(&adapters);
-    host.register_native("python", python);
-    host.register_native("ruby", ruby);
+    host.register("python", python);
+    host.register("ruby", ruby);
 
     let enabled = vec!["python".to_owned()];
     let (lexicon, _) =

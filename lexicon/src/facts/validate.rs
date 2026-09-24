@@ -1,6 +1,5 @@
-use super::FactStream;
 use super::incremental;
-use super::model::FactRecord;
+use super::model::{FactHeader, FactRecord};
 use super::order;
 use super::path;
 use crate::FACT_SCHEMA_VERSION;
@@ -55,12 +54,15 @@ impl fmt::Display for ValidationError {
 
 impl std::error::Error for ValidationError {}
 
-pub(crate) fn stream(stream: &FactStream) -> Result<(), ValidationError> {
-    header(stream)?;
+pub(crate) fn parts(
+    header_value: &FactHeader,
+    records: &[FactRecord],
+) -> Result<(), ValidationError> {
+    header(header_value)?;
     let mut nodes = BTreeMap::new();
     let mut owners = BTreeMap::new();
 
-    for record in &stream.records {
+    for record in records {
         record_fields(record)?;
         if let FactRecord::Node(node) = record {
             if let Some(existing) = nodes.insert(node.id.clone(), node)
@@ -74,15 +76,14 @@ pub(crate) fn stream(stream: &FactStream) -> Result<(), ValidationError> {
         }
     }
 
-    if stream
-        .records
+    if records
         .windows(2)
         .any(|pair| order::compare(&pair[0], &pair[1]).is_gt())
     {
         return Err(ValidationError::NonCanonicalOrder);
     }
 
-    for record in &stream.records {
+    for record in records {
         let source = match record {
             FactRecord::Edge(edge) => Some(edge.source.as_str()),
             FactRecord::Unresolved(value) => Some(value.source.as_str()),
@@ -90,20 +91,19 @@ pub(crate) fn stream(stream: &FactStream) -> Result<(), ValidationError> {
         };
         if let Some(source) = source
             && !nodes.contains_key(source)
-            && stream.header.language != "interstack"
+            && header_value.language != "interstack"
         {
             return Err(ValidationError::UnknownSource(source.to_owned()));
         }
     }
 
-    if stream.header.mode.as_deref() == Some("incremental") {
-        incremental::validate(stream, &owners)?;
+    if header_value.mode.as_deref() == Some("incremental") {
+        incremental::validate(header_value, records, &owners)?;
     }
     Ok(())
 }
 
-fn header(stream: &FactStream) -> Result<(), ValidationError> {
-    let header = &stream.header;
+fn header(header: &FactHeader) -> Result<(), ValidationError> {
     if header.record != "lexicon" {
         return Err(ValidationError::InvalidHeader("record"));
     }

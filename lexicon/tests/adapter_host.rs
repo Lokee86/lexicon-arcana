@@ -1,11 +1,11 @@
 mod support;
 
 use std::fs;
-use std::io::Write;
 use std::sync::Arc;
 
 use lexicon::{
-    AdapterError, AdapterHost, AdapterRequest, NativeAdapter, adapter_fingerprint,
+    ADAPTER_CONTRACT_VERSION, AdapterContract, AdapterError, AdapterHost, AdapterRequest, Analysis,
+    FactHeader, FactRecord, LanguageAdapter, NodeRecord, adapter_fingerprint,
     adapter_fingerprint_with_versions,
 };
 
@@ -13,40 +13,149 @@ use support::TestDirectory;
 
 struct EchoAdapter;
 
-impl NativeAdapter for EchoAdapter {
-    fn run(&self, request: &AdapterRequest, output: &mut dyn Write) -> Result<(), AdapterError> {
-        writeln!(output, "{{\"language\":\"{}\"}}", request.language).map_err(AdapterError::from)
+impl LanguageAdapter for EchoAdapter {
+    fn analyze(&self, request: &AdapterRequest) -> Result<Analysis, AdapterError> {
+        Ok(Analysis::new(
+            FactHeader {
+                adapter_version: "test".into(),
+                changed_files: None,
+                language: request.language.clone(),
+                mode: None,
+                record: "lexicon".into(),
+                removed_files: None,
+                repository: "repo".into(),
+                schema_version: lexicon::FACT_SCHEMA_VERSION,
+                shared_complete: None,
+            },
+            Vec::new(),
+        ))
+    }
+}
+
+struct UnsortedAdapter;
+
+impl LanguageAdapter for UnsortedAdapter {
+    fn analyze(&self, request: &AdapterRequest) -> Result<Analysis, AdapterError> {
+        let high = format!("sha256:{}", "f".repeat(64));
+        let low = format!("sha256:{}", "0".repeat(64));
+        Ok(Analysis::new(
+            FactHeader {
+                adapter_version: "test".into(),
+                changed_files: None,
+                language: request.language.clone(),
+                mode: None,
+                record: "lexicon".into(),
+                removed_files: None,
+                repository: "repo".into(),
+                schema_version: lexicon::FACT_SCHEMA_VERSION,
+                shared_complete: None,
+            },
+            vec![
+                FactRecord::Node(NodeRecord {
+                    attributes: None,
+                    content_id: None,
+                    id: high,
+                    kind: "module".into(),
+                    name: "high".into(),
+                    owner: None,
+                    path: "b.py".into(),
+                    qualified_name: "high".into(),
+                    span: None,
+                }),
+                FactRecord::Node(NodeRecord {
+                    attributes: None,
+                    content_id: None,
+                    id: low,
+                    kind: "module".into(),
+                    name: "low".into(),
+                    owner: None,
+                    path: "a.py".into(),
+                    qualified_name: "low".into(),
+                    span: None,
+                }),
+            ],
+        ))
+    }
+}
+
+struct FutureAdapter;
+
+impl LanguageAdapter for FutureAdapter {
+    fn contract(&self) -> AdapterContract {
+        AdapterContract {
+            version: ADAPTER_CONTRACT_VERSION + 1,
+            fact_schema_version: lexicon::FACT_SCHEMA_VERSION,
+        }
+    }
+
+    fn analyze(&self, request: &AdapterRequest) -> Result<Analysis, AdapterError> {
+        EchoAdapter.analyze(request)
     }
 }
 
 #[test]
-fn native_adapter_supports_file_and_stream_execution() {
+fn registered_adapter_returns_typed_analysis_directly() {
     let root = TestDirectory::new("native-adapter");
     let mut host = AdapterHost::new(root.path.join("adapters"));
-    host.register_native("python", Arc::new(EchoAdapter));
+    host.register("python", Arc::new(EchoAdapter));
 
     let request = AdapterRequest {
         language: "python".into(),
         repository: root.path.join("repo"),
-        output: root.path.join("out").join("facts.jsonl"),
         ..Default::default()
     };
-    host.run(&request).unwrap();
-    assert_eq!(
-        fs::read_to_string(&request.output).unwrap(),
-        "{\"language\":\"python\"}\n"
-    );
+    let analysis = host.analyze(&request).unwrap();
+    assert_eq!(analysis.header.language, "python");
+    assert!(analysis.records.is_empty());
+}
 
-    let streamed = host
-        .run_stream(&request, |reader| {
-            let mut text = String::new();
-            reader
-                .read_to_string(&mut text)
-                .map_err(AdapterError::from)?;
-            Ok(text)
+#[test]
+fn host_canonicalizes_typed_facts_before_validation() {
+    let root = TestDirectory::new("adapter-canonicalize");
+    let mut host = AdapterHost::new(root.path.join("adapters"));
+    host.register("python", Arc::new(UnsortedAdapter));
+    let analysis = host
+        .analyze(&AdapterRequest {
+            language: "python".into(),
+            repository: root.path.join("repo"),
+            ..Default::default()
         })
         .unwrap();
-    assert_eq!(streamed, "{\"language\":\"python\"}\n");
+    let ids = analysis
+        .records
+        .iter()
+        .filter_map(|record| match record {
+            FactRecord::Node(node) => Some(node.id.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert!(ids[0] < ids[1]);
+}
+
+#[test]
+fn host_rejects_missing_and_unsupported_contracts() {
+    let root = TestDirectory::new("adapter-contract");
+    let mut host = AdapterHost::new(root.path.join("adapters"));
+
+    let request = AdapterRequest {
+        language: "python".into(),
+        repository: root.path.join("repo"),
+        ..Default::default()
+    };
+    assert!(
+        host.analyze(&request)
+            .unwrap_err()
+            .to_string()
+            .contains("no adapter registered")
+    );
+
+    host.register("python", Arc::new(FutureAdapter));
+    assert!(
+        host.analyze(&request)
+            .unwrap_err()
+            .to_string()
+            .contains("contract version")
+    );
 }
 
 #[test]
@@ -81,7 +190,7 @@ fn fingerprint_matches_go_oracle_and_ignores_test_state_files() {
 }
 
 #[test]
-fn fingerprint_includes_schema_and_config_versions_and_rejects_missing_adapters() {
+fn fingerprint_includes_contract_and_config_versions_and_rejects_missing_adapters() {
     let root = TestDirectory::new("adapter-fingerprint-version");
     write(&root.path, "ruby/adapter.rb", "puts 'ok'\n");
 

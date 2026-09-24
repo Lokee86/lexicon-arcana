@@ -30,7 +30,7 @@ Implemented on the active Rust-migration branch:
 - typed Rust full/shared/incremental language materialization from explicit source bytes, deterministic owner grouping, unchanged-object/shared-fact reuse, sorted manifest language mutation, dependency/context closure, direct-change fallback checks, and new-topology fallback checks;
 - Rust language registry and scan planning for enabled-language pruning, source/snapshot drift, adapter-fingerprint drift, structural/full fallback, scoped incremental selection, deterministic result assembly, and publication transaction handoff;
 - Rust configuration and repository state for analysis identity, enabled-language normalization, adapter-root discovery, permanent exclusions and `.lexiconignore`, state-directory preparation, source mirroring, normalized Git source changes, and the one-commit private-state lifecycle;
-- Rust adapter host for typed requests, language capability metadata, deterministic adapter fingerprints, packaged/development process selection, partitioning arguments, streaming output, TypeScript preparation, and native in-process adapter registration;
+- versioned Rust `LanguageAdapter` contract with typed requests and typed `Analysis` return values, contract/schema validation and canonical record ordering at the host boundary, deterministic adapter fingerprints, partitioning parameters, and native registration; the Rust scan path has no subprocess adapter fallback or adapter JSONL handoff;
 - Rust scoped-analysis construction, execution-resource planning, weighted concurrent plan execution, full-fallback behavior, deterministic materialization/merge, and base repository scan orchestration through private-state and snapshot publication.
 - Rust Interstack synthesis and drift refresh, including HTTP, message, configuration, process/CLI, protocol, and filesystem-state boundary relationships.
 - committed legacy JSONL library migration into immutable snapshot objects, with permissive historical parsing isolated from current fact validation.
@@ -38,7 +38,7 @@ Implemented on the active Rust-migration branch:
 - deterministic Rust snapshot export back to facts-v1 JSONL, with full object verification and atomic destination replacement.
 - retention- and consumer-pin-aware Rust garbage collection with deterministic planning, dry-run execution, validation, and `CURRENT` race protection.
 - structured Rust status reporting for snapshot, language selection, and registered consumer state.
-- structured Rust doctor diagnostics covering configuration, private state, snapshot/object integrity, adapter/runtime availability, and consumer definition/command validation without executing consumers.
+- structured Rust doctor diagnostics covering configuration, private state, snapshot/object integrity, adapter-directory availability, and consumer definition/command validation without executing consumers.
 - Rust ownership of the consumer definition schema, Go-compatible timeout decoding, registry mutations, ordered execution, timeout/process environment handling, deterministic success-state pins, and post-scan notification hooks.
 - a reusable Rust watch surface with native recursive notifications, repository ignore-policy filtering/reload, debounce batching, reconciliation, structured notices, and cancellation.
 - a separate Rust `lexicon-cli` crate providing the replacement `lexicon` executable over the library, including the existing operational Go command surface, repository discovery, option parsing, signal handling, and formatting.

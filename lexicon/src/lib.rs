@@ -19,8 +19,8 @@ pub mod storage;
 pub mod watch;
 
 pub use adapters::{
-    ADAPTER_SCHEMA_VERSION, AdapterCommand, AdapterError, AdapterHost, AdapterRequest,
-    NativeAdapter, adapter_fingerprint, adapter_fingerprint_with_versions, command_spec,
+    ADAPTER_CONTRACT_VERSION, AdapterContract, AdapterError, AdapterHost, AdapterRequest,
+    LanguageAdapter, adapter_fingerprint, adapter_fingerprint_with_versions,
 };
 pub use api::{DoctorCheck, DoctorReport, Lexicon, LexiconError, StatusReport, doctor, status};
 pub use config::{

@@ -28,7 +28,6 @@ pub fn lookup(language: &str) -> Option<LanguageDefinition> {
         extensions: vec![extension],
         config_files: Vec::new(),
         partitioned_execution: false,
-        streaming_output: false,
     })
 }
 
@@ -76,10 +75,6 @@ pub fn supported(language: &str) -> bool {
 
 pub fn supports_partitioned_execution(language: &str) -> bool {
     lookup(language).is_some_and(|definition| definition.partitioned_execution)
-}
-
-pub fn supports_streaming_output(language: &str) -> bool {
-    lookup(language).is_some_and(|definition| definition.streaming_output)
 }
 
 pub fn language_enabled(language: &str, enabled: &[String]) -> bool {

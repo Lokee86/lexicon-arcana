@@ -100,7 +100,7 @@ impl Fixture {
 
     fn host(&self, adapter: Arc<FixtureAdapter>) -> AdapterHost {
         let mut host = AdapterHost::new(&self.adapter_root);
-        host.register_native("python", adapter);
+        host.register("python", adapter);
         host
     }
 }

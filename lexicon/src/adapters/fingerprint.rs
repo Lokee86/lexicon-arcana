@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use crate::config::CONFIG_VERSION;
 use crate::languages::lookup;
 
-use super::{ADAPTER_SCHEMA_VERSION, AdapterError};
+use super::{ADAPTER_CONTRACT_VERSION, AdapterError};
 
 const IGNORED_DIRECTORIES: &[&str] = &[
     ".arcana",
@@ -47,7 +47,7 @@ pub fn adapter_fingerprint(root: &Path, language: &str) -> Result<String, Adapte
     adapter_fingerprint_with_versions(
         root,
         language,
-        ADAPTER_SCHEMA_VERSION,
+        ADAPTER_CONTRACT_VERSION,
         CONFIG_VERSION as u32,
     )
 }

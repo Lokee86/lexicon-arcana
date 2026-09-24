@@ -5,7 +5,6 @@ pub struct LanguageDefinition {
     pub extensions: Vec<String>,
     pub config_files: Vec<String>,
     pub partitioned_execution: bool,
-    pub streaming_output: bool,
 }
 
 struct StaticDefinition {
@@ -14,7 +13,6 @@ struct StaticDefinition {
     extensions: &'static [&'static str],
     config_files: &'static [&'static str],
     partitioned_execution: bool,
-    streaming_output: bool,
 }
 
 const DEFINITIONS: &[StaticDefinition] = &[
@@ -27,17 +25,9 @@ const DEFINITIONS: &[StaticDefinition] = &[
         ],
         &["compile_commands.json", "CMakeLists.txt"],
         false,
-        false,
     ),
-    def(
-        "gdscript",
-        "gdscript",
-        &[".gd"],
-        &["project.godot"],
-        false,
-        false,
-    ),
-    def("go", "go", &[".go"], &["go.mod", "go.sum"], true, false),
+    def("gdscript", "gdscript", &[".gd"], &["project.godot"], false),
+    def("go", "go", &[".go"], &["go.mod", "go.sum"], true),
     def(
         "csharp",
         "csharp",
@@ -49,7 +39,6 @@ const DEFINITIONS: &[StaticDefinition] = &[
             "Directory.Build.targets",
             "global.json",
         ],
-        false,
         false,
     ),
     def(
@@ -66,14 +55,12 @@ const DEFINITIONS: &[StaticDefinition] = &[
             "mvnw.cmd",
         ],
         false,
-        false,
     ),
     def(
         "kotlin",
         "kotlin",
         &[".kt", ".kts"],
         &["build.gradle.kts", "settings.gradle.kts"],
-        false,
         false,
     ),
     def(
@@ -82,14 +69,12 @@ const DEFINITIONS: &[StaticDefinition] = &[
         &[".ls", ".lsa", ".lsdb", ".lss"],
         &[],
         false,
-        false,
     ),
     def(
         "python",
         "python",
         &[".py"],
         &["pyproject.toml", "setup.cfg", "requirements.txt"],
-        true,
         true,
     ),
     def(
@@ -98,14 +83,12 @@ const DEFINITIONS: &[StaticDefinition] = &[
         &[".rb", ".gemspec"],
         &["Gemfile", "Gemfile.lock"],
         false,
-        false,
     ),
     def(
         "rust",
         "rust",
         &[".rs"],
         &["Cargo.toml", "Cargo.lock"],
-        false,
         false,
     ),
     def(
@@ -121,9 +104,8 @@ const DEFINITIONS: &[StaticDefinition] = &[
             "jsconfig.json",
         ],
         false,
-        false,
     ),
-    def("generic", "generic", &[], &[], false, false),
+    def("generic", "generic", &[], &[], false),
 ];
 
 const fn def(
@@ -132,7 +114,6 @@ const fn def(
     extensions: &'static [&'static str],
     config_files: &'static [&'static str],
     partitioned_execution: bool,
-    streaming_output: bool,
 ) -> StaticDefinition {
     StaticDefinition {
         language,
@@ -140,7 +121,6 @@ const fn def(
         extensions,
         config_files,
         partitioned_execution,
-        streaming_output,
     }
 }
 
@@ -170,6 +150,5 @@ fn owned(value: &StaticDefinition) -> LanguageDefinition {
             .map(|value| (*value).to_owned())
             .collect(),
         partitioned_execution: value.partitioned_execution,
-        streaming_output: value.streaming_output,
     }
 }
