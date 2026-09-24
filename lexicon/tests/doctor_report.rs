@@ -60,8 +60,23 @@ fn doctor_maps_generic_libraries_and_skips_interstack() {
 }
 
 #[test]
-fn doctor_aggregates_snapshot_adapter_runtime_and_consumer_failures() {
+fn doctor_accepts_packaged_java_kotlin_and_csharp_runtimes() {
+    let fixture = DoctorFixture::new("doctor-packaged-runtimes", &["java", "kotlin", "csharp"]);
+    for language in ["java", "kotlin", "csharp"] {
+        fixture.create_packaged_runtime(language);
+    }
+
+    let report = doctor(&fixture.repository).unwrap();
+    for language in ["java", "kotlin", "csharp"] {
+        assert!(passed(&report, &format!("adapter directory: {language}")));
+        assert!(passed(&report, &format!("runtime executable: {language}")));
+    }
+}
+
+#[test]
+fn doctor_aggregates_snapshot_adapter_and_consumer_failures() {
     let fixture = DoctorFixture::new("doctor-failures", &["java"]);
+    fixture.create_packaged_runtime("java");
     let (_, manifest) = fixture.store.current().unwrap();
     let object = manifest.languages.as_ref().unwrap()[0]
         .files
@@ -81,8 +96,6 @@ fn doctor_aggregates_snapshot_adapter_runtime_and_consumer_failures() {
     assert!(!report.is_healthy());
     for label in [
         "CURRENT snapshot and referenced objects",
-        "adapter directory: java",
-        "runtime executable: java",
         "consumer definition: bad.json",
         "consumer command: bad.json",
         "consumer command: missing.json",
@@ -93,6 +106,8 @@ fn doctor_aggregates_snapshot_adapter_runtime_and_consumer_failures() {
             report.checks
         );
     }
+    assert!(passed(&report, "adapter directory: java"));
+    assert!(passed(&report, "runtime executable: java"));
     assert!(passed(&report, "consumer definition: missing.json"));
 }
 

@@ -5,7 +5,10 @@ const RUNTIME_REQUIREMENTS: &[(&str, &[&[&str]])] = &[
     ("go", &[&["go"]]),
     ("gdscript", &[&["go"]]),
     ("generic", &[&["go"]]),
+    ("java", &[&["go"]]),
+    ("kotlin", &[&["go"]]),
     ("lotusscript", &[&["go"]]),
+    ("csharp", &[&["dotnet"]]),
     ("python", &[&["python", "python3"]]),
     ("ruby", &[&["ruby"]]),
     ("rust", &[&["cargo"]]),
@@ -53,12 +56,6 @@ pub(super) fn check_command(command: &str) -> Result<(), String> {
 }
 
 fn packaged_runtime_available(adapter_root: &Path, language: &str) -> bool {
-    if !matches!(
-        language,
-        "c-family" | "go" | "gdscript" | "generic" | "lotusscript" | "rust"
-    ) {
-        return false;
-    }
     let base = adapter_root
         .join(language)
         .join(format!("lexicon-{language}"));
