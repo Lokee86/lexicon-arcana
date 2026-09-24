@@ -50,7 +50,7 @@ pub fn plan_scan(
     })
 }
 
-fn prune_disabled_languages(
+pub(super) fn prune_disabled_languages(
     mut manifest: SnapshotManifest,
     enabled: &[String],
 ) -> (SnapshotManifest, bool) {

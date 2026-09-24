@@ -124,7 +124,9 @@ impl ScanEngine {
         })
     }
 
-    fn load_manifest(&self) -> Result<(Option<String>, SnapshotManifest), ScanExecutionError> {
+    pub(super) fn load_manifest(
+        &self,
+    ) -> Result<(Option<String>, SnapshotManifest), ScanExecutionError> {
         match self.store.current() {
             Ok((id, manifest)) => {
                 if let Some(head) = self.git.head_option()?

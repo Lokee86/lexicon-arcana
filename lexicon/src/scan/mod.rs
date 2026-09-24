@@ -12,6 +12,7 @@ mod legacy_parse;
 mod legacy_wire;
 mod model;
 mod planner;
+mod rebuild;
 mod sources;
 mod transaction;
 

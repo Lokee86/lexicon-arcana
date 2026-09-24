@@ -37,6 +37,22 @@ impl Lexicon {
         Ok(report)
     }
 
+    pub fn rebuild(&self, languages: &[String]) -> Result<ScanReport, LexiconError> {
+        let report = self.engine.rebuild(languages)?;
+        self.notify_consumers(&report, None)?;
+        Ok(report)
+    }
+
+    pub fn rebuild_with_consumer_output(
+        &self,
+        languages: &[String],
+        output: &mut dyn Write,
+    ) -> Result<ScanReport, LexiconError> {
+        let report = self.engine.rebuild(languages)?;
+        self.notify_consumers(&report, Some(output))?;
+        Ok(report)
+    }
+
     fn notify_consumers(
         &self,
         report: &ScanReport,
