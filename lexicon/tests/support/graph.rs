@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use lexicon::{
     Analysis, EdgeRecord, FactHeader, FactObject, FactRecord, FileEntry, LanguageEntry, NodeRecord,
     SnapshotManifest, Store, UnresolvedRecord,

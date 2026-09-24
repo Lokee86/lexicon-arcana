@@ -48,7 +48,7 @@ python scripts/check_docs.py
 | Matrix concern | Primary implementation or artifact | Protecting tests/gates |
 | --- | --- | --- |
 | Lexicon semantics/publication | `lexicon/adapters/`, `lexicon/internal/scan/`, `lexicon/internal/objectstore/` | Lexicon complete test matrix |
-| Lexicon Rust migration parity | `lexicon/src/`, `lexicon/evaluation/rust_migration/` | Rust fmt/test/clippy, facts/storage/publication/recovery/materialization/dependency/topology parity tests, Arcana Lexicon compatibility tests, and migration comparator |
+| Lexicon Rust migration parity | `lexicon/src/`, `lexicon/evaluation/rust_migration/` | Rust fmt/test/clippy, facts/storage/publication/recovery/materialization/dependency/topology/scan-planning parity tests, Arcana Lexicon compatibility tests, Go planner oracle, and migration comparator |
 | Arcana graph publication/traversal | `arcana/src/repository/`, `arcana/src/storage/`, `arcana/src/snapshot/`, `arcana/src/protocol/` | Arcana Cargo test suite |
 | Documentation/change impact | `.standards/docs_policy/`, `scripts/check_docs.py` | documentation-standard workflow |
 | Architecture invariants | `tools/pitlord/` | Pitlord validation/check |
