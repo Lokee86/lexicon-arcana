@@ -41,8 +41,9 @@ The migration foundation and Interstack synthesis slice are implemented:
 - Rust storage now reconstructs complete deterministic facts-v1 JSONL exports from `CURRENT` or an explicit snapshot, verifies every referenced object before atomically replacing any destination, and preserves legacy stored-record tolerance without weakening normal fact validation. Rust also owns retention/pin-aware GC planning, dry-run/live execution, plan validation, `CURRENT` race rejection, and a lock-owning `Lexicon::garbage_collect` façade.
 - Rust now exposes structured status and doctor diagnostics rather than CLI-formatted text. Status reports the current snapshot, detected/enabled languages, and registered consumers. Doctor verifies configuration, private Git state, all snapshot objects, adapter directories, runtime executables, and consumer definitions/commands while aggregating failures without executing consumers.
 - Rust now owns the complete consumer definition/registry/execution lifecycle: Go-compatible definition and timeout parsing, atomic add/remove and success-state publication, ordered all-consumer execution with aggregated failures, named execution, bounded process timeouts, repository/state/snapshot environment injection, working-directory and captured-output behavior, and per-consumer success pins. Public `Lexicon` scans notify consumers only after a successful scan/no-op snapshot resolution; initialization retains the Go behavior of not notifying consumers.
+- Rust now owns the reusable watch surface. `Lexicon::watch` uses recursive native filesystem notifications, the existing repository ignore policy, `.lexiconignore` reload/full-reconciliation semantics, source/directory/destructive-event filtering, debounce batching, periodic reconciliation, structured scan/watcher notices, and an explicit cancellation token. Signal handling and console formatting remain host responsibilities.
 
-No Rust CLI replacement, watch surface, or Warlock integration is implemented yet.
+No Rust CLI replacement or Warlock integration is implemented yet.
 
 ## Parity rule
 
@@ -70,7 +71,7 @@ The existing Go tests remain required while they own untranslated behavior.
 
 ## Next slice
 
-The next planned slice is the remaining watch/CLI host work needed before Warlock can switch to the Rust library. CLI/watch remain thin hosts after the in-process library surface is complete. The replacement `lexicon` executable should live in a separate binary crate that depends on the library. In addition to the existing operational commands, its planned direct lookup surface includes `find`, `show`, `refs`, and `calls` so Lexicon can answer bounded semantic code-location/reference questions without requiring Arcana; multi-hop graph analysis remains Arcana's responsibility.
+The next planned slice is the separate `lexicon-cli` host. It should depend on the Rust library rather than own analysis/storage semantics, after which Warlock can switch to the in-process library. CLI/watch remain thin hosts after the in-process library surface is complete. The replacement `lexicon` executable should live in a separate binary crate that depends on the library. In addition to the existing operational commands, its planned direct lookup surface includes `find`, `show`, `refs`, and `calls` so Lexicon can answer bounded semantic code-location/reference questions without requiring Arcana; multi-hop graph analysis remains Arcana's responsibility.
 
 ## Related docs
 

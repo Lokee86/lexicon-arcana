@@ -15,6 +15,7 @@ pub mod repository;
 pub mod scan;
 pub mod scope;
 pub mod storage;
+pub mod watch;
 
 pub use adapters::{
     ADAPTER_SCHEMA_VERSION, AdapterCommand, AdapterError, AdapterHost, AdapterRequest,
@@ -54,6 +55,8 @@ pub use storage::{
     StoreLock, decode_node_facts, decode_object, encode_object, object_id, snapshot_bytes,
     snapshot_id,
 };
+
+pub use watch::{WatchNotice, WatchOptions, WatchSource, WatchStop};
 
 pub const PROJECT_NAME: &str = "Lexicon";
 pub const PROJECT_VERSION: &str = env!("CARGO_PKG_VERSION");
