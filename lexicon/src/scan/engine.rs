@@ -18,12 +18,12 @@ pub struct ScanReport {
 }
 
 pub struct ScanEngine {
-    repository: PathBuf,
-    git: StateRepository,
-    mirror: SourceMirror,
-    store: Store,
-    host: AdapterHost,
-    enabled_languages: Vec<String>,
+    pub(super) repository: PathBuf,
+    pub(super) git: StateRepository,
+    pub(super) mirror: SourceMirror,
+    pub(super) store: Store,
+    pub(super) host: AdapterHost,
+    pub(super) enabled_languages: Vec<String>,
 }
 
 impl ScanEngine {
@@ -181,7 +181,10 @@ impl ScanEngine {
         }
     }
 
-    fn commit_manifest(&self, manifest: SnapshotManifest) -> Result<String, ScanExecutionError> {
+    pub(super) fn commit_manifest(
+        &self,
+        manifest: SnapshotManifest,
+    ) -> Result<String, ScanExecutionError> {
         self.git.stage_all()?;
         let base = self.git.head_option()?.unwrap_or_default();
         let commit_required = !self.git.has_head() || self.git.has_staged_changes();

@@ -10,7 +10,7 @@ This document records Lexicon's current implemented capabilities, adapter covera
 
 Status claims distinguish implemented behavior, measured evidence, and explicit non-claims. Future possibilities remain outside this document until implementation exists.
 
-Status date: September 23, 2026.
+Status date: September 24, 2026.
 
 This document describes the implementation in the current source tree. Dated validation reports record evidence from specific runs and should not be treated as permanent performance guarantees.
 
@@ -32,8 +32,11 @@ Implemented on the active Rust-migration branch:
 - Rust configuration and repository state for analysis identity, enabled-language normalization, adapter-root discovery, permanent exclusions and `.lexiconignore`, state-directory preparation, source mirroring, normalized Git source changes, and the one-commit private-state lifecycle;
 - Rust adapter host for typed requests, language capability metadata, deterministic adapter fingerprints, packaged/development process selection, partitioning arguments, streaming output, TypeScript preparation, and native in-process adapter registration;
 - Rust scoped-analysis construction, execution-resource planning, weighted concurrent plan execution, full-fallback behavior, deterministic materialization/merge, and base repository scan orchestration through private-state and snapshot publication.
+- Rust Interstack synthesis and drift refresh, including HTTP, message, configuration, process/CLI, protocol, and filesystem-state boundary relationships.
+- committed legacy JSONL library migration into immutable snapshot objects, with permissive historical parsing isolated from current fact validation.
+- a public Rust `Lexicon` handle for open/initialize, explicit language selection, host injection, repository/state access, and bounded scans; initialization preserves the Go full-analysis lifecycle.
 
-The Go application remains authoritative for interstack synthesis, legacy-library migration compatibility, post-publication consumers, CLI/watch behavior, diagnostics/GC/export operations, and other application surfaces until later migration slices reach parity. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
+The Go application remains authoritative for post-publication consumers, CLI/watch behavior, diagnostics/GC/export operations, and other application surfaces until later migration slices reach parity. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
 
 ## Application
 

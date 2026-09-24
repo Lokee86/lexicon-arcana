@@ -6,6 +6,7 @@ mod engine_support;
 mod execute;
 mod execute_error;
 mod execution;
+mod initialize;
 mod legacy;
 mod legacy_parse;
 mod legacy_wire;
