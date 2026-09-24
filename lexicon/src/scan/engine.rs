@@ -7,6 +7,7 @@ use crate::{
 };
 
 use super::engine_support::{adapter_fingerprints, languages_in_tree};
+use super::legacy::{build_legacy_manifest, legacy_library_exists, remove_legacy_library};
 use super::{PlanningInput, ScanExecutionError, execute_analysis_plans, plan_scan};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -74,6 +75,7 @@ impl ScanEngine {
         self.git.reset_index()?;
 
         let (current_id, manifest) = self.load_manifest()?;
+        let legacy_removed = remove_legacy_library(self.git.root())?;
         synchronize(&self.mirror, &self.repository)?;
         self.git.stage_source()?;
         let changes = self.git.source_changes()?;
@@ -91,6 +93,7 @@ impl ScanEngine {
         let interstack_drift = interstack_drifted(&plan.manifest);
         if !plan.needs_work()
             && changes.is_empty()
+            && !legacy_removed
             && !interstack_drift
             && let Some(id) = current_id
         {
@@ -124,17 +127,42 @@ impl ScanEngine {
     fn load_manifest(&self) -> Result<(Option<String>, SnapshotManifest), ScanExecutionError> {
         match self.store.current() {
             Ok((id, manifest)) => {
+                if let Some(head) = self.git.head_option()?
+                    && manifest.state_commit != head
+                {
+                    if legacy_library_exists(self.git.root())
+                        && let Ok(migrated) =
+                            build_legacy_manifest(&self.store, self.git.root(), &head, &self.host)
+                    {
+                        let id = self.store.publish(&migrated)?;
+                        return Ok((Some(id), migrated));
+                    }
+                    return Err(ScanExecutionError::new(format!(
+                        "Lexicon snapshot state {} does not match private state {} and no recoverable publication exists",
+                        manifest.state_commit, head
+                    )));
+                }
                 self.verify_current_state(&manifest)?;
                 Ok((Some(id), manifest))
             }
-            Err(StorageError::NoCurrentSnapshot) => Ok((
-                None,
-                SnapshotManifest {
-                    version: crate::storage::SNAPSHOT_VERSION,
-                    state_commit: String::new(),
-                    languages: Some(Vec::new()),
-                },
-            )),
+            Err(StorageError::NoCurrentSnapshot) => {
+                if let Some(head) = self.git.head_option()?
+                    && legacy_library_exists(self.git.root())
+                    && let Ok(migrated) =
+                        build_legacy_manifest(&self.store, self.git.root(), &head, &self.host)
+                {
+                    let id = self.store.publish(&migrated)?;
+                    return Ok((Some(id), migrated));
+                }
+                Ok((
+                    None,
+                    SnapshotManifest {
+                        version: crate::storage::SNAPSHOT_VERSION,
+                        state_commit: String::new(),
+                        languages: Some(Vec::new()),
+                    },
+                ))
+            }
             Err(error) => Err(error.into()),
         }
     }
