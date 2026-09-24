@@ -27,7 +27,10 @@ pub use config::{
     save_config_with_languages, state_root, update_enabled_languages,
 };
 pub use consumer::{
-    CONSUMER_VERSION, ConsumerDefinition, list_consumer_paths, load_consumer_definition,
+    CONSUMER_STATE_VERSION, CONSUMER_VERSION, ConsumerDefinition, ConsumerSuccessState,
+    DEFAULT_CONSUMER_TIMEOUT, add_consumer_definition, list_consumer_paths,
+    load_consumer_definition, remove_consumer_definition, run_consumer, run_consumers, timeout_for,
+    validate_consumer_name,
 };
 pub use facts::{
     EdgeRecord, FactHeader, FactRecord, FactStream, NodeRecord, SourceSpan, UnresolvedRecord,

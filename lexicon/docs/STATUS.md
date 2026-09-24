@@ -39,9 +39,9 @@ Implemented on the active Rust-migration branch:
 - retention- and consumer-pin-aware Rust garbage collection with deterministic planning, dry-run execution, validation, and `CURRENT` race protection.
 - structured Rust status reporting for snapshot, language selection, and registered consumer state.
 - structured Rust doctor diagnostics covering configuration, private state, snapshot/object integrity, adapter/runtime availability, and consumer definition/command validation without executing consumers.
-- Rust ownership of the consumer definition schema and Go-compatible timeout decoding; execution remains Go-owned.
+- Rust ownership of the consumer definition schema, Go-compatible timeout decoding, registry mutations, ordered execution, timeout/process environment handling, deterministic success-state pins, and post-scan notification hooks.
 
-The Go application remains authoritative for post-publication consumer execution, CLI/watch behavior, and other application surfaces until later migration slices reach parity. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
+The Go application remains authoritative for CLI/watch behavior and other application surfaces until later migration slices reach parity. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
 
 ## Application
 

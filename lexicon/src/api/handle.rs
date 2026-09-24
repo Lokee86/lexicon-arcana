@@ -8,10 +8,10 @@ use crate::{
 use super::LexiconError;
 
 pub struct Lexicon {
-    repository: PathBuf,
-    state_root: PathBuf,
+    pub(super) repository: PathBuf,
+    pub(super) state_root: PathBuf,
     adapter_root: PathBuf,
-    engine: ScanEngine,
+    pub(super) engine: ScanEngine,
 }
 
 impl Lexicon {
@@ -121,14 +121,6 @@ impl Lexicon {
 
     pub fn adapter_root(&self) -> &Path {
         &self.adapter_root
-    }
-
-    pub fn scan(&self) -> Result<ScanReport, LexiconError> {
-        self.engine.scan().map_err(Into::into)
-    }
-
-    pub fn scan_paths(&self, paths: &[PathBuf]) -> Result<ScanReport, LexiconError> {
-        self.engine.scan_paths(paths).map_err(Into::into)
     }
 
     pub fn export(
