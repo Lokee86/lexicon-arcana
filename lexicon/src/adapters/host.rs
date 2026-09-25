@@ -6,12 +6,13 @@ use crate::Analysis;
 
 use super::{
     ADAPTER_CONTRACT_VERSION, AdapterError, AdapterRequest, LanguageAdapter, fingerprint,
-    python::PythonAdapter,
+    generic::GenericAdapter, python::PythonAdapter,
 };
 
 pub struct AdapterHost {
     root: PathBuf,
     adapters: BTreeMap<String, Arc<dyn LanguageAdapter>>,
+    generic: Arc<dyn LanguageAdapter>,
 }
 
 impl AdapterHost {
@@ -19,6 +20,7 @@ impl AdapterHost {
         let mut host = Self {
             root: root.into(),
             adapters: BTreeMap::new(),
+            generic: Arc::new(GenericAdapter),
         };
         host.register("python", Arc::new(PythonAdapter));
         host
@@ -32,22 +34,21 @@ impl AdapterHost {
         self.adapters.insert(language.into(), adapter);
     }
 
+    pub fn register_generic(&mut self, adapter: Arc<dyn LanguageAdapter>) {
+        self.generic = adapter;
+    }
+
     pub fn has_adapter(&self, language: &str) -> bool {
-        self.adapters.contains_key(language)
+        self.adapters.contains_key(language) || crate::languages::is_generic(language)
     }
 
     pub fn fingerprint(&self, language: &str) -> Result<String, AdapterError> {
-        let adapter = self
-            .adapters
-            .get(language)
-            .ok_or_else(|| AdapterError::new(format!("no adapter registered for {language:?}")))?;
+        let adapter = self.adapter(language)?;
         fingerprint::adapter_fingerprint(language, adapter.as_ref())
     }
 
     pub fn analyze(&self, request: &AdapterRequest) -> Result<Analysis, AdapterError> {
-        let adapter = self.adapters.get(&request.language).ok_or_else(|| {
-            AdapterError::new(format!("no adapter registered for {:?}", request.language))
-        })?;
+        let adapter = self.adapter(&request.language)?;
 
         let contract = adapter.contract();
         if contract.version != ADAPTER_CONTRACT_VERSION {
@@ -80,5 +81,17 @@ impl AdapterHost {
             )));
         }
         Ok(analysis)
+    }
+
+    fn adapter(&self, language: &str) -> Result<&Arc<dyn LanguageAdapter>, AdapterError> {
+        if let Some(adapter) = self.adapters.get(language) {
+            return Ok(adapter);
+        }
+        if crate::languages::is_generic(language) {
+            return Ok(&self.generic);
+        }
+        Err(AdapterError::new(format!(
+            "no adapter registered for {language:?}"
+        )))
     }
 }

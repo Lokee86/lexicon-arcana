@@ -1,6 +1,7 @@
 mod contract;
 mod error;
 mod fingerprint;
+pub mod generic;
 mod host;
 mod model;
 pub mod python;
