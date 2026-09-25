@@ -6,7 +6,7 @@ use crate::Analysis;
 
 use super::{
     ADAPTER_CONTRACT_VERSION, AdapterError, AdapterRequest, LanguageAdapter, fingerprint,
-    generic::GenericAdapter, python::PythonAdapter,
+    gdscript::GdscriptAdapter, generic::GenericAdapter, python::PythonAdapter,
 };
 
 pub struct AdapterHost {
@@ -23,6 +23,7 @@ impl AdapterHost {
             generic: Arc::new(GenericAdapter),
         };
         host.register("python", Arc::new(PythonAdapter));
+        host.register("gdscript", Arc::new(GdscriptAdapter));
         host
     }
 
