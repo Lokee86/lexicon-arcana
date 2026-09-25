@@ -18,6 +18,17 @@ pub struct SourceFile {
     pub parse_error: bool,
     pub declarations: Vec<Declaration>,
     pub includes: Vec<IncludeObservation>,
+    pub inheritance: Vec<InheritanceObservation>,
+}
+
+#[derive(Debug, Clone)]
+pub struct InheritanceObservation {
+    pub source_id: String,
+    pub source_scope: String,
+    pub path: String,
+    pub expression: String,
+    pub candidate: String,
+    pub span: SourceSpan,
 }
 
 #[derive(Debug, Clone)]

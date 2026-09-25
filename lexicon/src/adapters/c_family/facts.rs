@@ -17,6 +17,7 @@ pub fn analysis(request: &AdapterRequest, model: RepositoryModel) -> Analysis {
     for file in &model.files {
         add_file_records(file, &files, &model.visibility, &mut records);
     }
+    super::relationship_facts::add(&model, &mut records);
 
     let incremental = request.mode == AdapterMode::Incremental;
     Analysis::new(

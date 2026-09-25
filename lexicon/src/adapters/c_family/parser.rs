@@ -49,6 +49,7 @@ pub fn parse_repository(root: &Path) -> Result<RepositoryModel, AdapterError> {
             content,
             declarations: Vec::new(),
             includes: Vec::new(),
+            inheritance: Vec::new(),
         };
         declarations::extract(&mut file, tree.root_node());
         files.push(file);

@@ -41,7 +41,7 @@ pub fn handle_typedef(
     }
 
     if let Some(type_node) = node.child_by_field_name("type") {
-        super::declarations::extract_type_child(file, type_node, context, source);
+        super::type_declarations::extract_type_child(file, type_node, context, source);
     }
 }
 

@@ -19,7 +19,12 @@ mod model;
 #[cfg(test)]
 mod model_tests;
 mod parser;
+mod relationship_facts;
+mod resolution;
+#[cfg(test)]
+mod resolution_tests;
 mod syntax;
+mod type_declarations;
 mod visibility;
 #[cfg(test)]
 mod visibility_tests;
@@ -62,7 +67,16 @@ impl LanguageAdapter for CFamilyAdapter {
                 ),
                 ("model.rs", include_bytes!("model.rs")),
                 ("parser.rs", include_bytes!("parser.rs")),
+                (
+                    "relationship_facts.rs",
+                    include_bytes!("relationship_facts.rs"),
+                ),
+                ("resolution.rs", include_bytes!("resolution.rs")),
                 ("syntax.rs", include_bytes!("syntax.rs")),
+                (
+                    "type_declarations.rs",
+                    include_bytes!("type_declarations.rs"),
+                ),
                 ("visibility.rs", include_bytes!("visibility.rs")),
             ],
         )
