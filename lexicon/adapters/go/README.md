@@ -85,7 +85,13 @@ Decoding is fail-closed: unsupported protocol versions, unknown fields or record
 
 The Rust `AdapterHost` now registers a native `GoAdapter` at `src/adapters/go/`. The shell retains adapter version `0.1.0`, fingerprints its Rust-side implementation together with the private helper version, and invokes language-native helpers through the shared internal helper runner rather than through the retired subprocess-adapter/facts handoff. Helper discovery is deterministic from an explicit environment override, the configured adapter root, or packaged executable adjacency.
 
-The runner uses a single JSON request/response frame over stdin/stdout, validates the protocol handshake before decoding the typed response, bounds stderr capture, reports non-zero exits, and kills/reaps a helper that emits malformed or incompatible protocol data. At this migration stage only an empty semantic response is materialized into a native `Analysis`; real Go semantic records remain owned by the legacy oracle until the extraction phases begin.
+The runner uses a single JSON request/response frame over stdin/stdout, validates the protocol handshake before decoding the typed response, bounds stderr capture, reports non-zero exits, and kills/reaps a helper that emits malformed or incompatible protocol data. At this migration stage semantic helper records are still withheld from materialization; real Go semantic records remain owned by the legacy oracle until the extraction phases begin.
+
+## Rust repository ownership
+
+Rust now owns the Go adapter's repository boundary in `src/adapters/go/discovery.rs`, with module parsing and ownership isolated in `module_ownership.rs`. It walks the repository without following directory symlinks, applies the legacy Go adapter's permanent exclusion set, records every visible directory, and inventories only `.go` and `go.mod` inputs. Every discovered `go.mod` is parsed for its module path, files are assigned deterministically to the nearest containing module root, and repository identity remains the root module path when a root `go.mod` exists or the repository directory name for a multi-module root.
+
+Only this Rust-owned sorted inventory and module table are sent across the private helper protocol. Rust also emits repository, directory, and file nodes plus their containment edges directly, including exact legacy node identities and file content hashes. The permanent fixture test compares this structural slice against the committed legacy oracle before any semantic helper records are involved.
 
 ## Code map
 
@@ -96,6 +102,7 @@ The runner uses a single JSON request/response frame over stdin/stdout, validate
 | Typed semantic model | `semantic.go`, `semantic_*.go`, `semantic_ssa.go` | semantic, invariant, and advanced-resolution tests |
 | Private migration protocol | `semantic_protocol_*.go`; Rust mirror in `src/adapters/go/protocol.rs` | protocol round-trip and strict-validation tests |
 | Native Rust shell/helper runner | `src/adapters/go/`, `src/adapters/helper.rs`, `src/adapters/helper_capture.rs` | Rust Go adapter shell/handshake tests |
+| Rust repository discovery/module ownership | `src/adapters/go/discovery.rs`, `src/adapters/go/module_ownership.rs`, `src/adapters/go/facts.rs` | `src/adapters/go/discovery_tests.rs`, `discovery_boundary_tests.rs`, and legacy oracle goldens |
 | Calls and dataflow | `semantic_calls.go`, `semantic_dataflow.go` | call and dataflow tests |
 | Dependencies | `dependencies.go` | package/dependency coverage |
 | Parallel execution | `parallel.go`, `semantic_parallel.go` | `semantic_parallel_test.go` |

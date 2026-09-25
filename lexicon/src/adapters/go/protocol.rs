@@ -38,8 +38,10 @@ pub(crate) struct Response {
 }
 
 impl Request {
-    pub(crate) fn shell(
+    pub(crate) fn new(
         repository_root: String,
+        files: Vec<String>,
+        modules: Vec<Module>,
         workers: usize,
         shards: usize,
         fan_in: usize,
@@ -47,8 +49,8 @@ impl Request {
         Self {
             protocol_version: PROTOCOL_VERSION,
             repository_root,
-            files: Vec::new(),
-            modules: Vec::new(),
+            files,
+            modules,
             execution: Execution {
                 workers: workers.max(1),
                 shards: shards.max(1),

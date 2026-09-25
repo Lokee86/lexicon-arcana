@@ -21,6 +21,11 @@ fn adapter_host_registers_go() {
 #[test]
 fn minimal_helper_response_produces_valid_native_analysis() {
     let root = TempDirectory::new("analysis");
+    fs::write(
+        root.path.join("go.mod"),
+        "module example.com/phase2\n\ngo 1.22\n",
+    )
+    .unwrap();
     let helper = synthetic_helper(&root.path, r#"{"protocol_version":1,"records":[]}"#);
     let adapter = GoAdapter::with_helper(helper);
     let request = AdapterRequest {
@@ -36,12 +41,14 @@ fn minimal_helper_response_produces_valid_native_analysis() {
     analysis.validate().unwrap();
     assert_eq!(analysis.header.language, "go");
     assert_eq!(analysis.header.adapter_version, "0.1.0");
-    assert!(analysis.records.is_empty());
+    assert_eq!(analysis.header.repository, "example.com/phase2");
+    assert!(!analysis.records.is_empty());
 }
 
 #[test]
 fn helper_handshake_rejects_protocol_mismatch() {
     let root = TempDirectory::new("mismatch");
+    fs::write(root.path.join("go.mod"), "module example.com/mismatch\n").unwrap();
     let helper = synthetic_helper(&root.path, r#"{"protocol_version":2,"records":[]}"#);
     let adapter = GoAdapter::with_helper(helper);
     let request = AdapterRequest {
@@ -72,7 +79,7 @@ fn helper_invocation_is_deterministic() {
     );
 }
 
-fn synthetic_helper(root: &Path, response: &str) -> HelperRunner {
+pub(super) fn synthetic_helper(root: &Path, response: &str) -> HelperRunner {
     #[cfg(windows)]
     {
         let script = root.join("helper.ps1");

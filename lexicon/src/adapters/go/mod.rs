@@ -1,6 +1,12 @@
+mod discovery;
 mod facts;
+mod module_ownership;
 mod protocol;
 
+#[cfg(test)]
+mod discovery_boundary_tests;
+#[cfg(test)]
+mod discovery_tests;
 #[cfg(test)]
 mod tests;
 
@@ -49,6 +55,8 @@ impl LanguageAdapter for GoAdapter {
             ADAPTER_VERSION,
             &[
                 ("mod.rs", include_bytes!("mod.rs")),
+                ("discovery.rs", include_bytes!("discovery.rs")),
+                ("module_ownership.rs", include_bytes!("module_ownership.rs")),
                 ("protocol.rs", include_bytes!("protocol.rs")),
                 ("facts.rs", include_bytes!("facts.rs")),
                 ("../helper.rs", include_bytes!("../helper.rs")),
@@ -71,12 +79,8 @@ impl LanguageAdapter for GoAdapter {
                 request.repository.display()
             ))
         })?;
-        let wire = protocol::Request::shell(
-            path_string(&repository)?,
-            request.workers,
-            request.shards,
-            request.merge_fan_in,
-        );
+        let inventory = discovery::discover(&repository)?;
+        let wire = semantic_request(&repository, &inventory, request)?;
         let response: protocol::Response = self.helper.run_json(
             &repository,
             &helper_arguments(),
@@ -90,8 +94,30 @@ impl LanguageAdapter for GoAdapter {
                 "Go semantic helper records are not materialized until the extraction phase",
             ));
         }
-        Ok(facts::empty_analysis(&repository, request))
+        facts::structural_analysis(request, &inventory)
     }
+}
+
+fn semantic_request(
+    repository: &Path,
+    inventory: &discovery::Inventory,
+    request: &AdapterRequest,
+) -> Result<protocol::Request, AdapterError> {
+    Ok(protocol::Request::new(
+        path_string(repository)?,
+        inventory.semantic_files(),
+        inventory
+            .modules
+            .iter()
+            .map(|module| protocol::Module {
+                root: module.root.clone(),
+                path: module.path.clone(),
+            })
+            .collect(),
+        request.workers,
+        request.shards,
+        request.merge_fan_in,
+    ))
 }
 
 fn helper_arguments() -> Vec<OsString> {

@@ -20,7 +20,8 @@ Implemented on the active Rust-migration branch:
 
 - pinned Go parity oracle and migration fixture registry under `evaluation/rust_migration/`, plus the frozen Go-adapter semantic oracle under `adapters/go/testdata/oracle/`;
 - private Go semantic-helper protocol v1 with strict request/response validation, canonical semantic identities, repository-relative owner paths/spans, and no facts-v1/persistence coupling;
-- native Rust `GoAdapter` shell registered in `AdapterHost`, with helper-version-aware fingerprinting and a reusable bounded private-helper process runner; only empty synthetic helper responses are materialized at this phase, while the legacy Go scanner remains the semantic oracle;
+- native Rust `GoAdapter` shell registered in `AdapterHost`, with helper-version-aware fingerprinting and a reusable bounded private-helper process runner;
+- Rust-owned Go repository discovery, permanent exclusions, deterministic `.go`/`go.mod` inventory, nearest-`go.mod` module ownership, root/multi-module repository identity, and direct repository/directory/file fact emission; semantic helper records remain withheld while the legacy Go scanner remains the semantic oracle;
 - Rust `lexicon` library crate foundation;
 - facts-v1 typed records, canonical JSONL parsing/emission, validation, ordering, path/span checks, incremental ownership checks, stable node IDs, and content IDs;
 - byte-identical Rust round-trip of the reference facts-v1 fixture;
