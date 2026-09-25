@@ -7,7 +7,7 @@ use crate::Analysis;
 use super::{
     ADAPTER_CONTRACT_VERSION, AdapterError, AdapterRequest, LanguageAdapter,
     c_family::CFamilyAdapter, fingerprint, gdscript::GdscriptAdapter, generic::GenericAdapter,
-    kotlin::KotlinAdapter, lotusscript::LotusScriptAdapter, python::PythonAdapter,
+    go::GoAdapter, kotlin::KotlinAdapter, lotusscript::LotusScriptAdapter, python::PythonAdapter,
     ruby::RubyAdapter, rust::RustAdapter,
 };
 
@@ -19,14 +19,16 @@ pub struct AdapterHost {
 
 impl AdapterHost {
     pub fn new(root: impl Into<PathBuf>) -> Self {
+        let root = root.into();
         let mut host = Self {
-            root: root.into(),
+            root: root.clone(),
             adapters: BTreeMap::new(),
             generic: Arc::new(GenericAdapter),
         };
         host.register("c-family", Arc::new(CFamilyAdapter));
         host.register("python", Arc::new(PythonAdapter));
         host.register("gdscript", Arc::new(GdscriptAdapter));
+        host.register("go", Arc::new(GoAdapter::new(&root)));
         host.register("lotusscript", Arc::new(LotusScriptAdapter));
         host.register("kotlin", Arc::new(KotlinAdapter));
         host.register("rust", Arc::new(RustAdapter));

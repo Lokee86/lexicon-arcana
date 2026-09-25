@@ -292,7 +292,8 @@ fn fingerprint_tracks_registered_native_implementation_and_rejects_missing_adapt
     let second = host.fingerprint("ruby").unwrap();
 
     assert_ne!(first, second);
-    assert!(host.fingerprint("go").is_err());
+    assert!(host.fingerprint("go").unwrap().starts_with("sha256:"));
+    assert!(host.fingerprint("java").is_err());
 }
 
 fn write(root: &std::path::Path, relative: &str, content: &str) {

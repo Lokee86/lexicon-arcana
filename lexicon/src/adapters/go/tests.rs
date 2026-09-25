@@ -1,0 +1,138 @@
+use std::{
+    ffi::OsString,
+    fs,
+    path::{Path, PathBuf},
+    sync::atomic::{AtomicU64, Ordering},
+};
+
+use crate::{AdapterHost, AdapterRequest, LanguageAdapter};
+
+use super::{GoAdapter, helper_arguments, helper_environment};
+use crate::adapters::helper::HelperRunner;
+
+#[test]
+fn adapter_host_registers_go() {
+    let root = TempDirectory::new("host");
+    let host = AdapterHost::new(&root.path);
+    assert!(host.has_adapter("go"));
+    assert!(host.fingerprint("go").unwrap().starts_with("sha256:"));
+}
+
+#[test]
+fn minimal_helper_response_produces_valid_native_analysis() {
+    let root = TempDirectory::new("analysis");
+    let helper = synthetic_helper(&root.path, r#"{"protocol_version":1,"records":[]}"#);
+    let adapter = GoAdapter::with_helper(helper);
+    let request = AdapterRequest {
+        language: "go".into(),
+        repository: root.path.clone(),
+        workers: 4,
+        shards: 8,
+        merge_fan_in: 4,
+        ..AdapterRequest::default()
+    };
+
+    let analysis = adapter.analyze(&request).unwrap();
+    analysis.validate().unwrap();
+    assert_eq!(analysis.header.language, "go");
+    assert_eq!(analysis.header.adapter_version, "0.1.0");
+    assert!(analysis.records.is_empty());
+}
+
+#[test]
+fn helper_handshake_rejects_protocol_mismatch() {
+    let root = TempDirectory::new("mismatch");
+    let helper = synthetic_helper(&root.path, r#"{"protocol_version":2,"records":[]}"#);
+    let adapter = GoAdapter::with_helper(helper);
+    let request = AdapterRequest {
+        language: "go".into(),
+        repository: root.path.clone(),
+        ..AdapterRequest::default()
+    };
+
+    let error = adapter.analyze(&request).unwrap_err().to_string();
+    assert!(error.contains("protocol mismatch"), "{error}");
+}
+
+#[test]
+fn helper_invocation_is_deterministic() {
+    assert_eq!(
+        helper_arguments(),
+        vec![OsString::from("--protocol-version"), OsString::from("1")]
+    );
+    assert_eq!(
+        helper_environment().into_iter().collect::<Vec<_>>(),
+        vec![
+            (OsString::from("LEXICON_HELPER"), OsString::from("go")),
+            (
+                OsString::from("LEXICON_HELPER_PROTOCOL"),
+                OsString::from("1")
+            ),
+        ]
+    );
+}
+
+fn synthetic_helper(root: &Path, response: &str) -> HelperRunner {
+    #[cfg(windows)]
+    {
+        let script = root.join("helper.ps1");
+        fs::write(
+            &script,
+            format!(
+                "$null = [Console]::In.ReadLine()\n[Console]::Out.WriteLine('{}')\n",
+                response.replace('\'', "''")
+            ),
+        )
+        .unwrap();
+        let system_root = std::env::var_os("SystemRoot").unwrap();
+        let program = PathBuf::from(system_root)
+            .join("System32")
+            .join("WindowsPowerShell")
+            .join("v1.0")
+            .join("powershell.exe");
+        HelperRunner::explicit(
+            program,
+            vec![
+                OsString::from("-NoProfile"),
+                OsString::from("-File"),
+                script.into_os_string(),
+            ],
+        )
+    }
+    #[cfg(not(windows))]
+    {
+        let script = root.join("helper.sh");
+        fs::write(
+            &script,
+            format!(
+                "#!/bin/sh\nIFS= read -r request\nprintf '%s\\n' '{}'\n",
+                response.replace('\'', "'\\''")
+            ),
+        )
+        .unwrap();
+        HelperRunner::explicit(PathBuf::from("/bin/sh"), vec![script.into_os_string()])
+    }
+}
+
+struct TempDirectory {
+    path: PathBuf,
+}
+
+impl TempDirectory {
+    fn new(name: &str) -> Self {
+        static SEQUENCE: AtomicU64 = AtomicU64::new(0);
+        let path = std::env::temp_dir().join(format!(
+            "lexicon-go-phase2-{name}-{}-{}",
+            std::process::id(),
+            SEQUENCE.fetch_add(1, Ordering::Relaxed)
+        ));
+        fs::create_dir_all(&path).unwrap();
+        Self { path }
+    }
+}
+
+impl Drop for TempDirectory {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.path);
+    }
+}

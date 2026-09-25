@@ -81,6 +81,12 @@ Responses are one JSON document containing typed declaration, relationship, call
 
 Decoding is fail-closed: unsupported protocol versions, unknown fields or record kinds, malformed repository paths, invalid semantic identities, and incomplete source spans are rejected. This protocol does not expose snapshots, `Analysis`, incremental publication, JSONL, object-store concepts, or other Lexicon persistence state. The legacy scanner is not routed through this protocol yet; this phase defines and tests only the private transport contract.
 
+## Native Rust shell
+
+The Rust `AdapterHost` now registers a native `GoAdapter` at `src/adapters/go/`. The shell retains adapter version `0.1.0`, fingerprints its Rust-side implementation together with the private helper version, and invokes language-native helpers through the shared internal helper runner rather than through the retired subprocess-adapter/facts handoff. Helper discovery is deterministic from an explicit environment override, the configured adapter root, or packaged executable adjacency.
+
+The runner uses a single JSON request/response frame over stdin/stdout, validates the protocol handshake before decoding the typed response, bounds stderr capture, reports non-zero exits, and kills/reaps a helper that emits malformed or incompatible protocol data. At this migration stage only an empty semantic response is materialized into a native `Analysis`; real Go semantic records remain owned by the legacy oracle until the extraction phases begin.
+
 ## Code map
 
 | Concern | Primary implementation | Related tests |
@@ -88,7 +94,8 @@ Decoding is fail-closed: unsupported protocol versions, unknown fields or record
 | Entry, modules, and package loading | `main.go`, `adapter.go`, `modules.go` | adapter, build-variant, and package tests |
 | AST declarations and base facts | `ast_*.go`, `facts.go`, `facts_json.go` | adapter and contract tests |
 | Typed semantic model | `semantic.go`, `semantic_*.go`, `semantic_ssa.go` | semantic, invariant, and advanced-resolution tests |
-| Private migration protocol | `semantic_protocol_*.go` | protocol round-trip and strict-validation tests |
+| Private migration protocol | `semantic_protocol_*.go`; Rust mirror in `src/adapters/go/protocol.rs` | protocol round-trip and strict-validation tests |
+| Native Rust shell/helper runner | `src/adapters/go/`, `src/adapters/helper.rs`, `src/adapters/helper_capture.rs` | Rust Go adapter shell/handshake tests |
 | Calls and dataflow | `semantic_calls.go`, `semantic_dataflow.go` | call and dataflow tests |
 | Dependencies | `dependencies.go` | package/dependency coverage |
 | Parallel execution | `parallel.go`, `semantic_parallel.go` | `semantic_parallel_test.go` |
