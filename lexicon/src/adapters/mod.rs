@@ -4,6 +4,7 @@ mod fingerprint;
 pub mod gdscript;
 pub mod generic;
 mod host;
+pub mod kotlin;
 pub mod lotusscript;
 mod model;
 pub mod python;

@@ -6,8 +6,8 @@ use crate::Analysis;
 
 use super::{
     ADAPTER_CONTRACT_VERSION, AdapterError, AdapterRequest, LanguageAdapter, fingerprint,
-    gdscript::GdscriptAdapter, generic::GenericAdapter, lotusscript::LotusScriptAdapter,
-    python::PythonAdapter,
+    gdscript::GdscriptAdapter, generic::GenericAdapter, kotlin::KotlinAdapter,
+    lotusscript::LotusScriptAdapter, python::PythonAdapter,
 };
 
 pub struct AdapterHost {
@@ -26,6 +26,7 @@ impl AdapterHost {
         host.register("python", Arc::new(PythonAdapter));
         host.register("gdscript", Arc::new(GdscriptAdapter));
         host.register("lotusscript", Arc::new(LotusScriptAdapter));
+        host.register("kotlin", Arc::new(KotlinAdapter));
         host
     }
 
