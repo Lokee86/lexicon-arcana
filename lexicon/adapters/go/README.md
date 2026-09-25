@@ -73,6 +73,14 @@ The legacy adapter is frozen as the semantic oracle for the native Rust Go-adapt
 
 The retained real-repository calibration inputs are pinned in the oracle README. Golden regeneration is an explicit migration-oracle maintenance action, not part of normal tests.
 
+## Private semantic helper protocol
+
+The migration boundary now includes a private version-1 semantic protocol implemented by `semantic_protocol_*.go`. It is deliberately independent of facts-v1 and persistence. Requests contain the canonical absolute repository root, the eligible repository-relative `.go`/`go.mod` inventory, optional module roots and module paths, and the normalized worker/shard/merge-fan-in execution parameters.
+
+Responses are one JSON document containing typed declaration, relationship, call, dataflow, unresolved, and diagnostic records. Semantic records carry canonical Go identity strings such as `method:example.com/foo:Thing.Run`, repository-relative owner paths, and complete source spans. They do not carry Lexicon SHA IDs. Rust is responsible for translating those semantic identities into Lexicon node identities when the helper boundary is wired into the native adapter.
+
+Decoding is fail-closed: unsupported protocol versions, unknown fields or record kinds, malformed repository paths, invalid semantic identities, and incomplete source spans are rejected. This protocol does not expose snapshots, `Analysis`, incremental publication, JSONL, object-store concepts, or other Lexicon persistence state. The legacy scanner is not routed through this protocol yet; this phase defines and tests only the private transport contract.
+
 ## Code map
 
 | Concern | Primary implementation | Related tests |
@@ -80,6 +88,7 @@ The retained real-repository calibration inputs are pinned in the oracle README.
 | Entry, modules, and package loading | `main.go`, `adapter.go`, `modules.go` | adapter, build-variant, and package tests |
 | AST declarations and base facts | `ast_*.go`, `facts.go`, `facts_json.go` | adapter and contract tests |
 | Typed semantic model | `semantic.go`, `semantic_*.go`, `semantic_ssa.go` | semantic, invariant, and advanced-resolution tests |
+| Private migration protocol | `semantic_protocol_*.go` | protocol round-trip and strict-validation tests |
 | Calls and dataflow | `semantic_calls.go`, `semantic_dataflow.go` | call and dataflow tests |
 | Dependencies | `dependencies.go` | package/dependency coverage |
 | Parallel execution | `parallel.go`, `semantic_parallel.go` | `semantic_parallel_test.go` |

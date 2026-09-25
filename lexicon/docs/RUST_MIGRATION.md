@@ -23,6 +23,7 @@ The reference implementation is pinned at commit
 The migration foundation and Interstack synthesis slice are implemented:
 
 - the Go parity oracle is pinned and representative contract, snapshot, incremental, recovery, and full-scan migration vectors are recorded;
+- the legacy Go language adapter now also has a private version-1 semantic-helper protocol for the native adapter migration. The protocol accepts a canonical repository root, eligible `.go`/`go.mod` inventory, optional module roots, and worker/shard/fan-in parameters; it returns typed declaration, relationship, call, dataflow, unresolved, and diagnostic observations using canonical semantic identity strings rather than Lexicon SHA IDs. Strict round-trip/decoding tests reject unsupported versions, malformed paths, unknown record kinds/fields, facts-v1 IDs, and incomplete spans. The legacy scanner is not routed through this boundary yet;
 - existing Go binary v1/v2 goldens and publication/export/scan tests remain authoritative instead of being duplicated;
 - the Rust `lexicon` crate exists as the future library boundary;
 - Rust owns facts-v1 header/record types, canonical JSONL parsing and emission, record ordering, path/span checks, incremental ownership checks, SHA-256 identity validation, stable node identity generation, and source-content identities;

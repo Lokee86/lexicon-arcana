@@ -10,7 +10,7 @@ This document records Lexicon's current implemented capabilities, adapter covera
 
 Status claims distinguish implemented behavior, measured evidence, and explicit non-claims. Future possibilities remain outside this document until implementation exists.
 
-Status date: September 24, 2026.
+Status date: September 25, 2026.
 
 This document describes the implementation in the current source tree. Dated validation reports record evidence from specific runs and should not be treated as permanent performance guarantees.
 
@@ -18,7 +18,8 @@ This document describes the implementation in the current source tree. Dated val
 
 Implemented on the active Rust-migration branch:
 
-- pinned Go parity oracle and migration fixture registry under `evaluation/rust_migration/`;
+- pinned Go parity oracle and migration fixture registry under `evaluation/rust_migration/`, plus the frozen Go-adapter semantic oracle under `adapters/go/testdata/oracle/`;
+- private Go semantic-helper protocol v1 with strict request/response validation, canonical semantic identities, repository-relative owner paths/spans, and no facts-v1/persistence coupling; the legacy scanner is not yet routed through this protocol;
 - Rust `lexicon` library crate foundation;
 - facts-v1 typed records, canonical JSONL parsing/emission, validation, ordering, path/span checks, incremental ownership checks, stable node IDs, and content IDs;
 - byte-identical Rust round-trip of the reference facts-v1 fixture;
