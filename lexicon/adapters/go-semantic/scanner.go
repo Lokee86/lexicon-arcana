@@ -11,7 +11,8 @@ import (
 type structuralScanner struct {
 	request request
 	set     *token.FileSet
-	records []declaration
+	records []semanticRecord
+	index   *semanticIndex
 }
 
 func scanStructural(value request) (response, error) {
@@ -25,6 +26,11 @@ func scanStructural(value request) (response, error) {
 		if err := scanner.parseFile(owner); err != nil {
 			return response{}, err
 		}
+	}
+	index, diagnostics := loadSemanticIndex(value)
+	scanner.index = index
+	for _, record := range diagnostics {
+		scanner.records = append(scanner.records, record)
 	}
 	return response{ProtocolVersion: protocolVersion, Records: scanner.records}, nil
 }

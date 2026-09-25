@@ -24,6 +24,9 @@ pub(crate) fn add(
     let mut edges = BTreeSet::<EdgeKey>::new();
 
     for record in semantic {
+        if matches!(record, Record::Diagnostic { .. }) {
+            continue;
+        }
         let Record::Declaration {
             identity,
             kind,

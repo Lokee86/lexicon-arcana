@@ -31,9 +31,13 @@ type execution struct {
 	MergeFanIn int `json:"merge_fan_in"`
 }
 
+type semanticRecord interface {
+	semanticRecord()
+}
+
 type response struct {
-	ProtocolVersion uint32        `json:"protocol_version"`
-	Records         []declaration `json:"records"`
+	ProtocolVersion uint32           `json:"protocol_version"`
+	Records         []semanticRecord `json:"records"`
 }
 
 type declaration struct {
@@ -45,6 +49,19 @@ type declaration struct {
 	Span     span              `json:"span"`
 	Metadata map[string]string `json:"metadata,omitempty"`
 }
+
+func (declaration) semanticRecord() {}
+
+type diagnostic struct {
+	Record   string `json:"record"`
+	Severity string `json:"severity"`
+	Code     string `json:"code"`
+	Message  string `json:"message"`
+	Owner    string `json:"owner,omitempty"`
+	Span     *span  `json:"span,omitempty"`
+}
+
+func (diagnostic) semanticRecord() {}
 
 type span struct {
 	StartLine   uint32 `json:"start_line"`

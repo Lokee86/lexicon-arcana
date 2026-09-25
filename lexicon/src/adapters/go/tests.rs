@@ -50,6 +50,32 @@ fn minimal_helper_response_produces_valid_native_analysis() {
 }
 
 #[test]
+fn structured_helper_diagnostics_do_not_change_fact_materialization() {
+    let root = TempDirectory::new("diagnostic");
+    fs::write(
+        root.path.join("go.mod"),
+        "module example.com/diagnostic\n\ngo 1.22\n",
+    )
+    .unwrap();
+    let helper = synthetic_helper(
+        &root.path,
+        r#"{"protocol_version":1,"records":[{"record":"diagnostic","severity":"error","code":"go-package","message":"type-check failed"}]}"#,
+    );
+    let adapter = GoAdapter::with_helper(helper);
+    let analysis = adapter
+        .analyze(&AdapterRequest {
+            language: "go".into(),
+            repository: root.path.clone(),
+            ..AdapterRequest::default()
+        })
+        .unwrap();
+
+    analysis.validate().unwrap();
+    assert_eq!(analysis.header.repository, "example.com/diagnostic");
+    assert!(!analysis.records.is_empty());
+}
+
+#[test]
 fn helper_handshake_rejects_protocol_mismatch() {
     let root = TempDirectory::new("mismatch");
     fs::write(root.path.join("go.mod"), "module example.com/mismatch\n").unwrap();

@@ -78,7 +78,11 @@ func Hidden() {}
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, record := range result.Records {
+	for _, value := range result.Records {
+		record, ok := value.(declaration)
+		if !ok {
+			continue
+		}
 		if strings.Contains(record.Identity, "Hidden") || record.Owner == "hidden.go" {
 			t.Fatalf("helper rediscovered excluded input: %#v", record)
 		}
@@ -88,10 +92,11 @@ func Hidden() {}
 	}
 }
 
-func declarations(records []declaration, identity string) []declaration {
+func declarations(records []semanticRecord, identity string) []declaration {
 	var result []declaration
-	for _, record := range records {
-		if record.Identity == identity {
+	for _, value := range records {
+		record, ok := value.(declaration)
+		if ok && record.Identity == identity {
 			result = append(result, record)
 		}
 	}

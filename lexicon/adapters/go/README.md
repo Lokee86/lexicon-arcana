@@ -99,6 +99,12 @@ Only this Rust-owned sorted inventory and module table are sent across the priva
 
 The helper reports packages, imports, named types, interfaces through their named type declarations, functions, methods, tests, interface methods, and closures as canonical semantic declarations with owner paths, spans, containment metadata, and import classification. Rust translates those declarations into module/import/type/function/method/test nodes plus `contains`, `defines`, and `imports` relationships. The seven frozen migration fixtures compare the Rust-materialized declaration slice against the legacy oracle, including mutually exclusive build-tag variants.
 
+## Typed semantic index
+
+The helper now also owns the `go/packages` / `go/types` semantic index used by later migration phases. Each Rust-supplied module is loaded with `packages.LoadAllSyntax | packages.NeedModule` and `Tests: true`; imported packages are flattened deterministically, while repository-local targets are still restricted to the Rust-supplied source inventory. Function targets preserve generic origins, methods preserve pointer/value receivers, aliases are unaliased before named-type indexing, interfaces are completed, and separate value/pointer method sets are retained.
+
+This phase does not emit typed relationships or calls into Lexicon yet. The index is helper-internal so later relationship/call/SSA phases reuse one typed authority without changing the Phase-4 fact surface. Package/type-check errors are returned as structured `diagnostic` protocol records rather than stderr text; Rust deliberately excludes those diagnostics from fact materialization.
+
 ## Code map
 
 | Concern | Primary implementation | Related tests |
@@ -111,6 +117,7 @@ The helper reports packages, imports, named types, interfaces through their name
 | Rust repository discovery/module ownership | `src/adapters/go/discovery.rs`, `src/adapters/go/module_ownership.rs`, `src/adapters/go/facts.rs` | `src/adapters/go/discovery_tests.rs`, `discovery_boundary_tests.rs`, and legacy oracle goldens |
 | Extracted structural semantic helper | `adapters/go-semantic/`, `src/adapters/go/protocol_records.rs`, `semantic_facts*.rs` | helper Go tests plus seven-fixture Rust declaration parity |
 | Native Go identity authority | `src/adapters/go/identities.rs` | legacy identity vectors, `_test` namespace tests, and seven-fixture node-ID parity |
+| Typed semantic index | `adapters/go-semantic/semantic_index*.go`, `semantic_targets.go`, `semantic_types.go` | helper typed-index tests plus unchanged legacy semantic/package gates |
 | Calls and dataflow | `semantic_calls.go`, `semantic_dataflow.go` | call and dataflow tests |
 | Dependencies | `dependencies.go` | package/dependency coverage |
 | Parallel execution | `parallel.go`, `semantic_parallel.go` | `semantic_parallel_test.go` |
