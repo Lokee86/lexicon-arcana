@@ -45,6 +45,10 @@ fn walk(file: &mut SourceFile, node: Node<'_>, context: &ExtractionContext, sour
             super::declaration_records::handle_alias(file, node, context, source);
             return;
         }
+        "preproc_include" => {
+            super::includes::extract(file, node, source);
+            return;
+        }
         "preproc_if" | "preproc_ifdef" | "preproc_ifndef" | "preproc_elif" | "preproc_else" => {
             let mut nested = context.clone();
             if !super::macro_declarations::is_include_guard(node, source) {

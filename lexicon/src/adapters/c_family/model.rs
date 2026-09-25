@@ -1,3 +1,4 @@
+use super::visibility::VisibilityIndex;
 use crate::SourceSpan;
 use serde_json::Map;
 
@@ -5,6 +6,7 @@ use serde_json::Map;
 pub struct RepositoryModel {
     pub repository: String,
     pub files: Vec<SourceFile>,
+    pub visibility: VisibilityIndex,
 }
 
 #[derive(Debug)]
@@ -15,6 +17,18 @@ pub struct SourceFile {
     pub content: Vec<u8>,
     pub parse_error: bool,
     pub declarations: Vec<Declaration>,
+    pub includes: Vec<IncludeObservation>,
+}
+
+#[derive(Debug, Clone)]
+pub struct IncludeObservation {
+    pub id: String,
+    pub module_id: String,
+    pub path: String,
+    pub target: String,
+    pub expression: String,
+    pub system: bool,
+    pub span: SourceSpan,
 }
 
 #[derive(Debug, Clone)]

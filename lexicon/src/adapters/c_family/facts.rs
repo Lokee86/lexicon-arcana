@@ -1,6 +1,8 @@
 use super::{
-    ADAPTER_VERSION,
+    ADAPTER_VERSION, include_facts,
+    includes::FileIndex,
     model::{Declaration, RepositoryModel, SourceFile},
+    visibility::VisibilityIndex,
 };
 use crate::{
     AdapterMode, AdapterRequest, Analysis, EdgeRecord, FACT_SCHEMA_VERSION, FactHeader, FactRecord,
@@ -11,8 +13,9 @@ use std::{collections::BTreeMap, path::Path};
 
 pub fn analysis(request: &AdapterRequest, model: RepositoryModel) -> Analysis {
     let mut records = Vec::new();
-    for file in model.files {
-        add_file_records(&file, &mut records);
+    let files = FileIndex::new(&model.files);
+    for file in &model.files {
+        add_file_records(file, &files, &model.visibility, &mut records);
     }
 
     let incremental = request.mode == AdapterMode::Incremental;
@@ -32,7 +35,12 @@ pub fn analysis(request: &AdapterRequest, model: RepositoryModel) -> Analysis {
     )
 }
 
-fn add_file_records(file: &SourceFile, records: &mut Vec<FactRecord>) {
+fn add_file_records(
+    file: &SourceFile,
+    files: &FileIndex<'_>,
+    visibility: &VisibilityIndex,
+    records: &mut Vec<FactRecord>,
+) {
     let file_id = node_id("c-family", "file", &file.path);
     let module_id = node_id("c-family", "module", &file.path);
     let name = Path::new(&file.path)
@@ -86,7 +94,8 @@ fn add_file_records(file: &SourceFile, records: &mut Vec<FactRecord>) {
         target: module_id.clone(),
     }));
 
-    add_declarations(file, records);
+    add_declarations(file, visibility, records);
+    include_facts::add(file, files, visibility, records);
 
     if file.parse_error {
         records.push(FactRecord::Unresolved(UnresolvedRecord {
@@ -103,12 +112,17 @@ fn add_file_records(file: &SourceFile, records: &mut Vec<FactRecord>) {
     }
 }
 
-fn add_declarations(file: &SourceFile, records: &mut Vec<FactRecord>) {
+fn add_declarations(
+    file: &SourceFile,
+    visibility: &VisibilityIndex,
+    records: &mut Vec<FactRecord>,
+) {
     let mut nodes = BTreeMap::<String, &Declaration>::new();
     for declaration in &file.declarations {
         nodes.insert(declaration.id.clone(), declaration);
     }
     for declaration in nodes.values() {
+        debug_assert!(visibility.declaration_visible(&file.path, declaration));
         records.push(FactRecord::Node(NodeRecord {
             attributes: Some(Value::Object(declaration.attributes.clone())),
             content_id: None,

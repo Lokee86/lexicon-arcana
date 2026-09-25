@@ -1,8 +1,10 @@
 use super::{
     declarations,
     discovery::{collect_sources, is_ambiguous_header_path},
+    includes::FileIndex,
     language::{classify_language, infer_header_languages, load_compile_languages},
     model::{RepositoryModel, SourceFile},
+    visibility::VisibilityIndex,
 };
 use crate::AdapterError;
 use std::{collections::HashMap, fs, path::Path};
@@ -46,10 +48,13 @@ pub fn parse_repository(root: &Path) -> Result<RepositoryModel, AdapterError> {
             parse_error: tree.root_node().has_error(),
             content,
             declarations: Vec::new(),
+            includes: Vec::new(),
         };
         declarations::extract(&mut file, tree.root_node());
         files.push(file);
     }
+    let file_index = FileIndex::new(&files);
+    let visibility = VisibilityIndex::new(&files, &file_index);
     Ok(RepositoryModel {
         repository: root
             .file_name()
@@ -57,6 +62,7 @@ pub fn parse_repository(root: &Path) -> Result<RepositoryModel, AdapterError> {
             .unwrap_or("repository")
             .into(),
         files,
+        visibility,
     })
 }
 

@@ -11,6 +11,8 @@ mod declaration_records;
 mod declarations;
 mod discovery;
 mod facts;
+mod include_facts;
+mod includes;
 mod language;
 mod macro_declarations;
 mod model;
@@ -18,6 +20,9 @@ mod model;
 mod model_tests;
 mod parser;
 mod syntax;
+mod visibility;
+#[cfg(test)]
+mod visibility_tests;
 
 use crate::{AdapterError, AdapterRequest, Analysis, LanguageAdapter};
 
@@ -48,6 +53,8 @@ impl LanguageAdapter for CFamilyAdapter {
                 ("declarations.rs", include_bytes!("declarations.rs")),
                 ("discovery.rs", include_bytes!("discovery.rs")),
                 ("facts.rs", include_bytes!("facts.rs")),
+                ("include_facts.rs", include_bytes!("include_facts.rs")),
+                ("includes.rs", include_bytes!("includes.rs")),
                 ("language.rs", include_bytes!("language.rs")),
                 (
                     "macro_declarations.rs",
@@ -56,6 +63,7 @@ impl LanguageAdapter for CFamilyAdapter {
                 ("model.rs", include_bytes!("model.rs")),
                 ("parser.rs", include_bytes!("parser.rs")),
                 ("syntax.rs", include_bytes!("syntax.rs")),
+                ("visibility.rs", include_bytes!("visibility.rs")),
             ],
         )
     }
