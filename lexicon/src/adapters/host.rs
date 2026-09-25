@@ -5,9 +5,10 @@ use std::sync::Arc;
 use crate::Analysis;
 
 use super::{
-    ADAPTER_CONTRACT_VERSION, AdapterError, AdapterRequest, LanguageAdapter, fingerprint,
-    gdscript::GdscriptAdapter, generic::GenericAdapter, kotlin::KotlinAdapter,
-    lotusscript::LotusScriptAdapter, python::PythonAdapter, ruby::RubyAdapter, rust::RustAdapter,
+    ADAPTER_CONTRACT_VERSION, AdapterError, AdapterRequest, LanguageAdapter,
+    c_family::CFamilyAdapter, fingerprint, gdscript::GdscriptAdapter, generic::GenericAdapter,
+    kotlin::KotlinAdapter, lotusscript::LotusScriptAdapter, python::PythonAdapter,
+    ruby::RubyAdapter, rust::RustAdapter,
 };
 
 pub struct AdapterHost {
@@ -23,6 +24,7 @@ impl AdapterHost {
             adapters: BTreeMap::new(),
             generic: Arc::new(GenericAdapter),
         };
+        host.register("c-family", Arc::new(CFamilyAdapter));
         host.register("python", Arc::new(PythonAdapter));
         host.register("gdscript", Arc::new(GdscriptAdapter));
         host.register("lotusscript", Arc::new(LotusScriptAdapter));

@@ -1,3 +1,4 @@
+pub mod c_family;
 mod contract;
 mod error;
 mod fingerprint;
