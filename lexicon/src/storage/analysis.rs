@@ -26,6 +26,24 @@ impl Analysis {
         })
     }
 
+    pub fn restrict_incremental_ownership(&mut self) {
+        if !self.is_incremental() {
+            return;
+        }
+        let allowed = self
+            .header
+            .changed_files
+            .as_deref()
+            .unwrap_or_default()
+            .iter()
+            .filter_map(|path| normalize_owner(path))
+            .collect::<BTreeSet<_>>();
+        let owners = node_owners(&self.records);
+        self.records.retain(|record| {
+            record_owner(record, &owners).is_none_or(|owner| allowed.contains(&owner))
+        });
+    }
+
     pub fn canonicalize(&mut self) -> Result<(), ValidationError> {
         crate::facts::sort_records(&mut self.records)
     }

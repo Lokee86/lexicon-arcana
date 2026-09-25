@@ -4,7 +4,10 @@ use std::sync::Arc;
 
 use crate::Analysis;
 
-use super::{ADAPTER_CONTRACT_VERSION, AdapterError, AdapterRequest, LanguageAdapter};
+use super::{
+    ADAPTER_CONTRACT_VERSION, AdapterError, AdapterRequest, LanguageAdapter, fingerprint,
+    python::PythonAdapter,
+};
 
 pub struct AdapterHost {
     root: PathBuf,
@@ -13,10 +16,12 @@ pub struct AdapterHost {
 
 impl AdapterHost {
     pub fn new(root: impl Into<PathBuf>) -> Self {
-        Self {
+        let mut host = Self {
             root: root.into(),
             adapters: BTreeMap::new(),
-        }
+        };
+        host.register("python", Arc::new(PythonAdapter));
+        host
     }
 
     pub fn root(&self) -> &Path {
@@ -29,6 +34,14 @@ impl AdapterHost {
 
     pub fn has_adapter(&self, language: &str) -> bool {
         self.adapters.contains_key(language)
+    }
+
+    pub fn fingerprint(&self, language: &str) -> Result<String, AdapterError> {
+        let adapter = self
+            .adapters
+            .get(language)
+            .ok_or_else(|| AdapterError::new(format!("no adapter registered for {language:?}")))?;
+        fingerprint::adapter_fingerprint(language, adapter.as_ref())
     }
 
     pub fn analyze(&self, request: &AdapterRequest) -> Result<Analysis, AdapterError> {
@@ -53,6 +66,7 @@ impl AdapterHost {
         }
 
         let mut analysis = adapter.analyze(request)?;
+        analysis.restrict_incremental_ownership();
         analysis
             .canonicalize()
             .map_err(|error| AdapterError::new(error.to_string()))?;

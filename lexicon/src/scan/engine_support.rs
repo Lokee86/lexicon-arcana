@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use crate::languages::for_path;
-use crate::{AdapterHost, SnapshotManifest, adapter_fingerprint};
+use crate::{AdapterHost, SnapshotManifest};
 
 use super::ScanExecutionError;
 
@@ -39,7 +39,7 @@ pub(crate) fn adapter_fingerprints(
         .iter()
         .filter(|entry| entry.language != "interstack")
         .map(|entry| {
-            adapter_fingerprint(host.root(), &entry.language)
+            host.fingerprint(&entry.language)
                 .map(|fingerprint| (entry.language.clone(), fingerprint))
                 .map_err(ScanExecutionError::from)
         })

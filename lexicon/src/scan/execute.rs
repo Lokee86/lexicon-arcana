@@ -2,10 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::config::ANALYSIS_CONFIG_ID;
-use crate::{
-    AdapterHost, Analysis, LanguageEntry, SnapshotManifest, Store, adapter_fingerprint,
-    build_analysis_scope,
-};
+use crate::{AdapterHost, Analysis, LanguageEntry, SnapshotManifest, Store, build_analysis_scope};
 
 use super::analysis_run::{request_for_plan, retry_full, run_analysis};
 use super::sources::{language_present, language_sources, selected_sources};
@@ -130,7 +127,7 @@ fn execute_incremental(
         let full = retry_full(host, request, source_root, None)?;
         return apply_full(store, host, source_root, &plan.language, &full);
     };
-    let fingerprint = adapter_fingerprint(host.root(), &plan.language)?;
+    let fingerprint = host.fingerprint(&plan.language)?;
     let sources = selected_sources(source_root, &plan.changed_files)?;
     store
         .build_incremental_language(
@@ -153,7 +150,7 @@ fn apply_full(
     language: &str,
     analysis: &Analysis,
 ) -> Result<LanguageEntry, ScanExecutionError> {
-    let fingerprint = adapter_fingerprint(host.root(), language)?;
+    let fingerprint = host.fingerprint(language)?;
     let sources = language_sources(source_root, language)?;
     store
         .build_full_language(

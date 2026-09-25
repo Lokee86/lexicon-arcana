@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use crate::{ANALYSIS_CONFIG_ID, AdapterHost, SnapshotManifest, Store, adapter_fingerprint};
+use crate::{ANALYSIS_CONFIG_ID, AdapterHost, SnapshotManifest, Store};
 
 use super::ScanExecutionError;
 use super::legacy_parse::parse_legacy_analysis;
@@ -37,11 +37,7 @@ pub(crate) fn build_legacy_manifest(
         let input = fs::read_to_string(entry.path())?;
         let analysis = parse_legacy_analysis(&input, &language)?;
         let sources = language_sources(&state_root.join("source"), &language)?;
-        let fingerprint = if host.root().as_os_str().is_empty() {
-            String::new()
-        } else {
-            adapter_fingerprint(host.root(), &language)?
-        };
+        let fingerprint = host.fingerprint(&language)?;
         let language_entry = store.build_full_language(
             &analysis,
             &sources,

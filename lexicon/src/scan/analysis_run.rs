@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{AdapterHost, AdapterRequest, Analysis};
+use crate::{AdapterHost, AdapterMode, AdapterRequest, Analysis};
 
 use super::{AnalysisPlan, ExecutionPlan, ScanExecutionError};
 
@@ -19,6 +19,7 @@ pub(crate) fn retry_full(
 ) -> Result<Analysis, ScanExecutionError> {
     let mut full = request.clone();
     full.repository = source_root.to_path_buf();
+    full.mode = AdapterMode::Full;
     full.changed_files.clear();
     full.removed_files.clear();
 
@@ -48,6 +49,11 @@ pub(crate) fn request_for_plan(
 ) -> AdapterRequest {
     AdapterRequest {
         language: plan.language.clone(),
+        mode: if plan.full {
+            AdapterMode::Full
+        } else {
+            AdapterMode::Incremental
+        },
         repository,
         changed_files: plan.changed_files.clone(),
         removed_files: plan.removed_files.clone(),

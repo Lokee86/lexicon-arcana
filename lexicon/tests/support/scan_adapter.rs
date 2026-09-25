@@ -23,6 +23,13 @@ impl FixtureAdapter {
 }
 
 impl LanguageAdapter for FixtureAdapter {
+    fn implementation_version(&self) -> &'static str {
+        "test"
+    }
+    fn implementation_fingerprint(&self) -> String {
+        "fixture".into()
+    }
+
     fn analyze(&self, request: &AdapterRequest) -> Result<Analysis, AdapterError> {
         let scoped = !request.changed_files.is_empty();
         self.requests.lock().unwrap().push(scoped);

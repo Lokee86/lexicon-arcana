@@ -22,5 +22,9 @@ pub trait LanguageAdapter: Send + Sync {
         AdapterContract::CURRENT
     }
 
+    fn implementation_version(&self) -> &'static str;
+
+    fn implementation_fingerprint(&self) -> String;
+
     fn analyze(&self, request: &AdapterRequest) -> Result<Analysis, AdapterError>;
 }
