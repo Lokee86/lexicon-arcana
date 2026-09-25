@@ -1,21 +1,14 @@
 use super::{
+    declarations,
     discovery::{collect_sources, is_ambiguous_header_path},
     language::{classify_language, infer_header_languages, load_compile_languages},
+    model::{RepositoryModel, SourceFile},
 };
 use crate::AdapterError;
 use std::{collections::HashMap, fs, path::Path};
-use tree_sitter::{Node, Parser};
+use tree_sitter::{Node, Parser, Tree};
 
-#[derive(Debug)]
-pub struct ParsedFile {
-    pub path: String,
-    pub language: String,
-    pub parser_language: String,
-    pub content: Vec<u8>,
-    pub parse_error: bool,
-}
-
-pub fn parse_repository(root: &Path) -> Result<Vec<ParsedFile>, AdapterError> {
+pub fn parse_repository(root: &Path) -> Result<RepositoryModel, AdapterError> {
     let paths = collect_sources(root)?;
     let compile_languages = load_compile_languages(root);
     let mut contents = HashMap::with_capacity(paths.len());
@@ -39,22 +32,32 @@ pub fn parse_repository(root: &Path) -> Result<Vec<ParsedFile>, AdapterError> {
     for path in paths {
         let content = contents.remove(&path).unwrap_or_default();
         let language = classify_language(&path, &content, &compile_languages, &header_languages);
-        let (parser_language, parse_error) = parse_source(
+        let (tree, parser_language) = parse_source(
             &content,
             &language,
             is_ambiguous_header_path(&path),
             &mut c_parser,
             &mut cpp_parser,
         )?;
-        files.push(ParsedFile {
+        let mut file = SourceFile {
             path,
             language,
             parser_language,
+            parse_error: tree.root_node().has_error(),
             content,
-            parse_error,
-        });
+            declarations: Vec::new(),
+        };
+        declarations::extract(&mut file, tree.root_node());
+        files.push(file);
     }
-    Ok(files)
+    Ok(RepositoryModel {
+        repository: root
+            .file_name()
+            .and_then(|value| value.to_str())
+            .unwrap_or("repository")
+            .into(),
+        files,
+    })
 }
 
 fn parse_source(
@@ -63,7 +66,7 @@ fn parse_source(
     allow_fallback: bool,
     c_parser: &mut Parser,
     cpp_parser: &mut Parser,
-) -> Result<(String, bool), AdapterError> {
+) -> Result<(Tree, String), AdapterError> {
     let (primary, alternate, alternate_language) = if language == "cpp" {
         (cpp_parser, c_parser, "c")
     } else {
@@ -73,20 +76,17 @@ fn parse_source(
     let tree = primary
         .parse(content, None)
         .ok_or_else(|| AdapterError::new("tree-sitter returned no tree"))?;
-    let primary_error = tree.root_node().has_error();
-    if !allow_fallback || !primary_error {
-        return Ok((language.into(), primary_error));
+    if !allow_fallback || !tree.root_node().has_error() {
+        return Ok((tree, language.into()));
     }
 
     let fallback = alternate
         .parse(content, None)
         .ok_or_else(|| AdapterError::new("tree-sitter returned no fallback tree"))?;
-    let primary_score = syntax_error_score(tree.root_node());
-    let fallback_score = syntax_error_score(fallback.root_node());
-    if fallback_score < primary_score {
-        Ok((alternate_language.into(), fallback.root_node().has_error()))
+    if syntax_error_score(fallback.root_node()) < syntax_error_score(tree.root_node()) {
+        Ok((fallback, alternate_language.into()))
     } else {
-        Ok((language.into(), primary_error))
+        Ok((tree, language.into()))
     }
 }
 

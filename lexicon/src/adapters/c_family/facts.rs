@@ -1,14 +1,17 @@
-use super::{ADAPTER_VERSION, parser::ParsedFile};
+use super::{
+    ADAPTER_VERSION,
+    model::{Declaration, RepositoryModel, SourceFile},
+};
 use crate::{
     AdapterMode, AdapterRequest, Analysis, EdgeRecord, FACT_SCHEMA_VERSION, FactHeader, FactRecord,
     NodeRecord, UnresolvedRecord, content_id, node_id,
 };
 use serde_json::{Map, Value, json};
-use std::path::Path;
+use std::{collections::BTreeMap, path::Path};
 
-pub fn analysis(root: &Path, request: &AdapterRequest, files: Vec<ParsedFile>) -> Analysis {
-    let mut records = Vec::with_capacity(files.len() * 4);
-    for file in files {
+pub fn analysis(request: &AdapterRequest, model: RepositoryModel) -> Analysis {
+    let mut records = Vec::new();
+    for file in model.files {
         add_file_records(&file, &mut records);
     }
 
@@ -21,11 +24,7 @@ pub fn analysis(root: &Path, request: &AdapterRequest, files: Vec<ParsedFile>) -
             mode: incremental.then(|| "incremental".into()),
             record: "lexicon".into(),
             removed_files: incremental.then(|| normalized(&request.removed_files)),
-            repository: root
-                .file_name()
-                .and_then(|value| value.to_str())
-                .unwrap_or("repository")
-                .into(),
+            repository: model.repository.clone(),
             schema_version: FACT_SCHEMA_VERSION,
             shared_complete: incremental.then_some(false),
         },
@@ -33,7 +32,7 @@ pub fn analysis(root: &Path, request: &AdapterRequest, files: Vec<ParsedFile>) -
     )
 }
 
-fn add_file_records(file: &ParsedFile, records: &mut Vec<FactRecord>) {
+fn add_file_records(file: &SourceFile, records: &mut Vec<FactRecord>) {
     let file_id = node_id("c-family", "file", &file.path);
     let module_id = node_id("c-family", "module", &file.path);
     let name = Path::new(&file.path)
@@ -87,6 +86,8 @@ fn add_file_records(file: &ParsedFile, records: &mut Vec<FactRecord>) {
         target: module_id.clone(),
     }));
 
+    add_declarations(file, records);
+
     if file.parse_error {
         records.push(FactRecord::Unresolved(UnresolvedRecord {
             attributes: Some(json!({ "parser": "tree-sitter" })),
@@ -98,6 +99,34 @@ fn add_file_records(file: &ParsedFile, records: &mut Vec<FactRecord>) {
             relation: "references".into(),
             source: module_id,
             span: None,
+        }));
+    }
+}
+
+fn add_declarations(file: &SourceFile, records: &mut Vec<FactRecord>) {
+    let mut nodes = BTreeMap::<String, &Declaration>::new();
+    for declaration in &file.declarations {
+        nodes.insert(declaration.id.clone(), declaration);
+    }
+    for declaration in nodes.values() {
+        records.push(FactRecord::Node(NodeRecord {
+            attributes: Some(Value::Object(declaration.attributes.clone())),
+            content_id: None,
+            id: declaration.id.clone(),
+            kind: declaration.kind.clone(),
+            name: declaration.name.clone(),
+            owner: Some(declaration.path.clone()),
+            path: declaration.path.clone(),
+            qualified_name: declaration.qualified_name.clone(),
+            span: Some(declaration.span.clone()),
+        }));
+        records.push(FactRecord::Edge(EdgeRecord {
+            attributes: None,
+            owner: Some(declaration.path.clone()),
+            relation: "defines".into(),
+            source: declaration.container_id.clone(),
+            span: Some(declaration.span.clone()),
+            target: declaration.id.clone(),
         }));
     }
 }

@@ -1,13 +1,23 @@
 //! Native C/C++ adapter foundation.
 //!
 //! C and C++ share one repository model and one stable `c-family` identity
-//! namespace. Step 1 owns discovery, language selection, parsing, and the
-//! file/module fact foundation; semantic extraction is layered on later.
+//! namespace. The current native slice owns discovery, language selection,
+//! parsing, repository/declaration extraction, and typed foundation facts.
+//! Cross-file semantic relationships are layered on later.
 
+mod callables;
+mod declaration_helpers;
+mod declaration_records;
+mod declarations;
 mod discovery;
 mod facts;
 mod language;
+mod macro_declarations;
+mod model;
+#[cfg(test)]
+mod model_tests;
 mod parser;
+mod syntax;
 
 use crate::{AdapterError, AdapterRequest, Analysis, LanguageAdapter};
 
@@ -26,10 +36,26 @@ impl LanguageAdapter for CFamilyAdapter {
             ADAPTER_VERSION,
             &[
                 ("mod.rs", include_bytes!("mod.rs")),
+                ("callables.rs", include_bytes!("callables.rs")),
+                (
+                    "declaration_helpers.rs",
+                    include_bytes!("declaration_helpers.rs"),
+                ),
+                (
+                    "declaration_records.rs",
+                    include_bytes!("declaration_records.rs"),
+                ),
+                ("declarations.rs", include_bytes!("declarations.rs")),
                 ("discovery.rs", include_bytes!("discovery.rs")),
-                ("language.rs", include_bytes!("language.rs")),
-                ("parser.rs", include_bytes!("parser.rs")),
                 ("facts.rs", include_bytes!("facts.rs")),
+                ("language.rs", include_bytes!("language.rs")),
+                (
+                    "macro_declarations.rs",
+                    include_bytes!("macro_declarations.rs"),
+                ),
+                ("model.rs", include_bytes!("model.rs")),
+                ("parser.rs", include_bytes!("parser.rs")),
+                ("syntax.rs", include_bytes!("syntax.rs")),
             ],
         )
     }
@@ -54,7 +80,7 @@ impl LanguageAdapter for CFamilyAdapter {
             ));
         }
 
-        let files = parser::parse_repository(&repository)?;
-        Ok(facts::analysis(&repository, request, files))
+        let model = parser::parse_repository(&repository)?;
+        Ok(facts::analysis(request, model))
     }
 }
