@@ -80,6 +80,9 @@ pub(super) fn walk(
             }
             return;
         }
+        "call_expression" => {
+            super::expressions::observe(file, node, context, source);
+        }
         _ => {}
     }
     for child in named_children(node) {
@@ -175,6 +178,9 @@ fn handle_variable(
         true,
         attributes,
     );
+    if !context.callable_id.is_empty() {
+        super::expressions::observe_tree(file, declarator, context, source);
+    }
 }
 
 fn handle_enumerator(

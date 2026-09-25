@@ -7,23 +7,35 @@ use std::collections::BTreeMap;
 
 #[derive(Debug)]
 pub struct DeclarationIndex<'a> {
-    by_qualified: BTreeMap<String, Vec<&'a Declaration>>,
-    by_name: BTreeMap<String, Vec<&'a Declaration>>,
-    visibility: &'a VisibilityIndex,
+    pub(super) by_id: BTreeMap<String, &'a Declaration>,
+    pub(super) by_qualified: BTreeMap<String, Vec<&'a Declaration>>,
+    pub(super) by_name: BTreeMap<String, Vec<&'a Declaration>>,
+    pub(super) by_container_name: BTreeMap<String, Vec<&'a Declaration>>,
+    pub(super) visibility: &'a VisibilityIndex,
 }
 
 impl<'a> DeclarationIndex<'a> {
     pub fn new(model: &'a RepositoryModel) -> Self {
+        let mut by_id = BTreeMap::<String, &Declaration>::new();
         let mut by_qualified = BTreeMap::<String, Vec<&Declaration>>::new();
         let mut by_name = BTreeMap::<String, Vec<&Declaration>>::new();
+        let mut by_container_name = BTreeMap::<String, Vec<&Declaration>>::new();
         for file in &model.files {
             for declaration in &file.declarations {
+                by_id.insert(declaration.id.clone(), declaration);
                 by_qualified
                     .entry(normalize_qualified(&declaration.qualified_name))
                     .or_default()
                     .push(declaration);
                 by_name
                     .entry(declaration.name.clone())
+                    .or_default()
+                    .push(declaration);
+                by_container_name
+                    .entry(format!(
+                        "{}\0{}",
+                        declaration.container_id, declaration.name
+                    ))
                     .or_default()
                     .push(declaration);
             }
@@ -34,9 +46,14 @@ impl<'a> DeclarationIndex<'a> {
         for values in by_name.values_mut() {
             values.sort_by(|left, right| left.id.cmp(&right.id));
         }
+        for values in by_container_name.values_mut() {
+            values.sort_by(|left, right| left.id.cmp(&right.id));
+        }
         Self {
+            by_id,
             by_qualified,
             by_name,
+            by_container_name,
             visibility: &model.visibility,
         }
     }
@@ -80,7 +97,7 @@ impl<'a> DeclarationIndex<'a> {
             .unwrap_or_default()
     }
 
-    fn select<F>(
+    pub(super) fn select<F>(
         &self,
         values: Option<&Vec<&'a Declaration>>,
         path: &str,
@@ -149,11 +166,18 @@ fn parent_scope(scope: &str) -> &str {
     scope.rsplit_once("::").map_or("", |(parent, _)| parent)
 }
 
-fn strip_template_arguments(value: &str) -> String {
-    value
-        .split_once('<')
-        .map_or(value, |(prefix, _)| prefix)
-        .to_owned()
+pub(super) fn strip_template_arguments(value: &str) -> String {
+    let mut depth = 0usize;
+    let mut result = String::with_capacity(value.len());
+    for character in value.chars() {
+        match character {
+            '<' => depth += 1,
+            '>' if depth > 0 => depth -= 1,
+            _ if depth == 0 => result.push(character),
+            _ => {}
+        }
+    }
+    result
 }
 
 #[cfg(test)]
@@ -166,5 +190,9 @@ mod tests {
         assert_eq!(parent_scope("demo"), "");
         assert_eq!(strip_template_arguments("Base<int>"), "Base");
         assert_eq!(strip_template_arguments("demo::Base<T>"), "demo::Base");
+        assert_eq!(
+            strip_template_arguments("demo::Holder<int>::get"),
+            "demo::Holder::get"
+        );
     }
 }

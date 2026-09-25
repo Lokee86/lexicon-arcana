@@ -5,11 +5,14 @@
 //! parsing, repository/declaration extraction, and typed foundation facts.
 //! Cross-file semantic relationships are layered on later.
 
+mod call_candidates;
+mod call_facts;
 mod callables;
 mod declaration_helpers;
 mod declaration_records;
 mod declarations;
 mod discovery;
+mod expressions;
 mod facts;
 mod include_facts;
 mod includes;
@@ -19,6 +22,7 @@ mod model;
 #[cfg(test)]
 mod model_tests;
 mod parser;
+mod receiver_resolution;
 mod relationship_facts;
 mod resolution;
 #[cfg(test)]
@@ -46,6 +50,8 @@ impl LanguageAdapter for CFamilyAdapter {
             ADAPTER_VERSION,
             &[
                 ("mod.rs", include_bytes!("mod.rs")),
+                ("call_candidates.rs", include_bytes!("call_candidates.rs")),
+                ("call_facts.rs", include_bytes!("call_facts.rs")),
                 ("callables.rs", include_bytes!("callables.rs")),
                 (
                     "declaration_helpers.rs",
@@ -57,6 +63,7 @@ impl LanguageAdapter for CFamilyAdapter {
                 ),
                 ("declarations.rs", include_bytes!("declarations.rs")),
                 ("discovery.rs", include_bytes!("discovery.rs")),
+                ("expressions.rs", include_bytes!("expressions.rs")),
                 ("facts.rs", include_bytes!("facts.rs")),
                 ("include_facts.rs", include_bytes!("include_facts.rs")),
                 ("includes.rs", include_bytes!("includes.rs")),
@@ -67,6 +74,10 @@ impl LanguageAdapter for CFamilyAdapter {
                 ),
                 ("model.rs", include_bytes!("model.rs")),
                 ("parser.rs", include_bytes!("parser.rs")),
+                (
+                    "receiver_resolution.rs",
+                    include_bytes!("receiver_resolution.rs"),
+                ),
                 (
                     "relationship_facts.rs",
                     include_bytes!("relationship_facts.rs"),

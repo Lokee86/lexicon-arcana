@@ -19,6 +19,21 @@ pub struct SourceFile {
     pub declarations: Vec<Declaration>,
     pub includes: Vec<IncludeObservation>,
     pub inheritance: Vec<InheritanceObservation>,
+    pub calls: Vec<CallObservation>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CallObservation {
+    pub source_id: String,
+    pub source_scope: String,
+    pub path: String,
+    pub expression: String,
+    pub candidate: String,
+    pub arguments: Vec<String>,
+    pub member: bool,
+    pub receiver: String,
+    pub receiver_type_id: String,
+    pub span: SourceSpan,
 }
 
 #[derive(Debug, Clone)]
