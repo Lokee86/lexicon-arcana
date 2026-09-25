@@ -12,6 +12,7 @@ Development documentation defines current L+A verification/release practice and 
 
 ## Research and historical evidence
 
+- [Hermes field evidence](hermes-field-evidence.md) — observational evidence from real Hermes maintenance/refactoring work, including positive, negative, and no-benefit Arcana cases plus a prospective capture schema.
 - [Agent benchmark findings](agent-benchmark-findings.md) — Grimoire historical comparisons and current L+A experiments.
 - [Retrieval quality](retrieval-quality.md) — historical retrieval-pipeline methodology and result interpretation where still relevant to preserved experiments.
 - [Ranking calibration corpus](ranking-calibration-corpus.md) — judged-case design retained as research evidence.
