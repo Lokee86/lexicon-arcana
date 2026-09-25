@@ -31,6 +31,7 @@ pub struct CallObservation {
     pub expression: String,
     pub candidate: String,
     pub arguments: Vec<String>,
+    pub argument_expressions: Vec<String>,
     pub member: bool,
     pub receiver: String,
     pub receiver_type_id: String,
@@ -70,6 +71,16 @@ pub struct IncludeObservation {
 }
 
 #[derive(Debug, Clone)]
+pub struct MacroCallExpression {
+    pub callee: String,
+    pub arguments: Vec<String>,
+    pub token_pasting: bool,
+    pub stringification: bool,
+    pub variadic_substitution: bool,
+    pub unsupported: bool,
+}
+
+#[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct Declaration {
     pub id: String,
@@ -87,6 +98,10 @@ pub struct Declaration {
     pub callable: bool,
     pub definition: bool,
     pub file_local: bool,
+    pub macro_function: bool,
+    pub macro_target: String,
+    pub macro_parameters: Vec<String>,
+    pub macro_calls: Vec<MacroCallExpression>,
     pub callable_shape: Option<CallableShape>,
 }
 

@@ -20,6 +20,12 @@ mod includes;
 mod indirect_calls;
 mod language;
 mod macro_declarations;
+mod macro_expanded_call;
+mod macro_fact_records;
+mod macro_facts;
+mod macro_resolution;
+mod macro_substitution;
+mod macro_syntax;
 mod model;
 #[cfg(test)]
 mod model_tests;
@@ -78,6 +84,21 @@ impl LanguageAdapter for CFamilyAdapter {
                     "macro_declarations.rs",
                     include_bytes!("macro_declarations.rs"),
                 ),
+                (
+                    "macro_expanded_call.rs",
+                    include_bytes!("macro_expanded_call.rs"),
+                ),
+                (
+                    "macro_fact_records.rs",
+                    include_bytes!("macro_fact_records.rs"),
+                ),
+                ("macro_facts.rs", include_bytes!("macro_facts.rs")),
+                ("macro_resolution.rs", include_bytes!("macro_resolution.rs")),
+                (
+                    "macro_substitution.rs",
+                    include_bytes!("macro_substitution.rs"),
+                ),
+                ("macro_syntax.rs", include_bytes!("macro_syntax.rs")),
                 ("model.rs", include_bytes!("model.rs")),
                 ("parser.rs", include_bytes!("parser.rs")),
                 ("pointer_aliases.rs", include_bytes!("pointer_aliases.rs")),

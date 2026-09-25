@@ -28,16 +28,21 @@ pub fn observe(file: &mut SourceFile, node: Node<'_>, context: &ExtractionContex
     } else {
         String::new()
     };
-    let arguments = node
+    let argument_nodes = node
         .child_by_field_name("arguments")
-        .map(|arguments| {
-            named_children(arguments)
-                .into_iter()
-                .filter(|child| child.kind() != "comment")
-                .map(|child| callable_reference_candidate(child, source))
-                .collect()
-        })
-        .unwrap_or_default();
+        .map(named_children)
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|child| child.kind() != "comment")
+        .collect::<Vec<_>>();
+    let arguments = argument_nodes
+        .iter()
+        .map(|child| callable_reference_candidate(*child, source))
+        .collect();
+    let argument_expressions = argument_nodes
+        .iter()
+        .map(|child| node_text(*child, source).to_owned())
+        .collect();
 
     file.calls.push(CallObservation {
         source_id: context.callable_id.clone(),
@@ -46,6 +51,7 @@ pub fn observe(file: &mut SourceFile, node: Node<'_>, context: &ExtractionContex
         expression: node_text(function, source).into(),
         candidate,
         arguments,
+        argument_expressions,
         member,
         receiver,
         receiver_type_id,

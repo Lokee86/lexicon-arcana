@@ -1,31 +1,13 @@
 use super::{
     declaration_helpers::add_declaration,
+    macro_syntax::{direct_target, semantic_details},
     model::{ExtractionContext, SourceFile},
-    syntax::{node_text, normalize_space, qualify},
+    syntax::{node_text, qualify},
 };
 use regex::Regex;
 use serde_json::{Map, json};
 use std::sync::OnceLock;
 use tree_sitter::Node;
-
-const NON_CALL_TARGETS: &[&str] = &[
-    "_Alignof",
-    "_Generic",
-    "_Static_assert",
-    "alignof",
-    "defined",
-    "do",
-    "else",
-    "for",
-    "if",
-    "return",
-    "sizeof",
-    "static_assert",
-    "switch",
-    "typeof",
-    "typeof_unqual",
-    "while",
-];
 
 pub fn handle_macro(
     file: &mut SourceFile,
@@ -41,25 +23,25 @@ pub fn handle_macro(
         return;
     }
 
+    let function_like = node.kind() == "preproc_function_def";
+    let definition = node_text(node, source);
+    let (replacement, parameters, calls) = semantic_details(definition, &name, function_like);
+    let target = direct_target(&replacement);
+
     let mut attributes = Map::new();
     attributes.insert("macro".into(), json!(true));
-    attributes.insert(
-        "function_like".into(),
-        json!(node.kind() == "preproc_function_def"),
-    );
+    attributes.insert("function_like".into(), json!(function_like));
     if context.conditional {
         attributes.insert("conditional".into(), json!(true));
     }
-    if let Some(replacement) = macro_replacement(node, &name, source)
-        && !replacement.is_empty()
-    {
-        if let Some(target) = direct_macro_target(&replacement) {
-            attributes.insert("target".into(), json!(target));
-        }
+    if !replacement.is_empty() {
         attributes.insert("replacement".into(), json!(replacement));
     }
+    if !target.is_empty() {
+        attributes.insert("target".into(), json!(target));
+    }
 
-    add_declaration(
+    let index = add_declaration(
         file,
         node,
         context,
@@ -71,6 +53,8 @@ pub fn handle_macro(
         true,
         attributes,
     );
+    file.declarations[index].macro_parameters = parameters;
+    file.declarations[index].macro_calls = calls;
 }
 
 pub fn is_include_guard(node: Node<'_>, source: &[u8]) -> bool {
@@ -89,50 +73,7 @@ pub fn is_include_guard(node: Node<'_>, source: &[u8]) -> bool {
     Regex::new(&pattern).is_ok_and(|value| value.is_match(sample))
 }
 
-fn macro_replacement(node: Node<'_>, name: &str, source: &[u8]) -> Option<String> {
-    let text = node_text(node, source);
-    let index = text.find(name)?;
-    let mut remainder = &text[index + name.len()..];
-    if node.kind() == "preproc_function_def" {
-        remainder = remainder.trim_start_matches([' ', '\t']);
-        if remainder.starts_with('(') {
-            let mut depth = 0usize;
-            for (index, character) in remainder.char_indices() {
-                match character {
-                    '(' => depth += 1,
-                    ')' => {
-                        depth -= 1;
-                        if depth == 0 {
-                            remainder = &remainder[index + 1..];
-                            break;
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }
-    Some(normalize_space(
-        &remainder.replace("\\\r\n", " ").replace("\\\n", " "),
-    ))
-}
-
-fn direct_macro_target(replacement: &str) -> Option<String> {
-    let mut value = replacement.trim();
-    while let Some(rest) = value.strip_prefix('(') {
-        value = rest.trim_start();
-    }
-    let captures = macro_target().captures(value)?;
-    let target = captures.get(1)?.as_str();
-    (!NON_CALL_TARGETS.contains(&target)).then(|| target.into())
-}
-
 fn include_guard_name() -> &'static Regex {
     static VALUE: OnceLock<Regex> = OnceLock::new();
     VALUE.get_or_init(|| Regex::new(r"^\s*#\s*ifndef\s+([A-Za-z_][A-Za-z0-9_]*)\b").unwrap())
-}
-
-fn macro_target() -> &'static Regex {
-    static VALUE: OnceLock<Regex> = OnceLock::new();
-    VALUE.get_or_init(|| Regex::new(r"^([A-Za-z_][A-Za-z0-9_]*)\s*(\(|$)").unwrap())
 }

@@ -50,6 +50,7 @@ impl<'a> IndirectCallIndex<'a> {
                     expression: String::new(),
                     candidate: binding.candidate.clone(),
                     arguments: Vec::new(),
+                    argument_expressions: Vec::new(),
                     member: binding.member,
                     receiver: String::new(),
                     receiver_type_id: String::new(),
@@ -168,6 +169,11 @@ fn direct_callable_targets<'a>(
     index: &'a DeclarationIndex<'a>,
     observation: &CallObservation,
 ) -> Vec<&'a Declaration> {
+    let macros =
+        super::macro_resolution::resolve_macros(index, &observation.candidate, &observation.path);
+    if !macros.is_empty() {
+        return super::macro_resolution::callable_targets(index, &macros, observation);
+    }
     index.resolve(
         &observation.candidate,
         &observation.source_scope,
@@ -182,5 +188,28 @@ fn resolve_callable_reference<'a>(
     scope: &str,
     path: &str,
 ) -> Vec<&'a Declaration> {
+    let macros = super::macro_resolution::resolve_macros(index, candidate, path);
+    if !macros.is_empty() {
+        let observation = CallObservation {
+            source_id: String::new(),
+            source_scope: scope.to_owned(),
+            path: path.to_owned(),
+            expression: candidate.to_owned(),
+            candidate: candidate.to_owned(),
+            arguments: Vec::new(),
+            argument_expressions: Vec::new(),
+            member: false,
+            receiver: String::new(),
+            receiver_type_id: String::new(),
+            span: crate::SourceSpan {
+                path: path.to_owned(),
+                start_line: 1,
+                start_column: 1,
+                end_line: 1,
+                end_column: 1,
+            },
+        };
+        return super::macro_resolution::callable_targets(index, &macros, &observation);
+    }
     index.resolve(candidate, scope, path, |value| value.callable)
 }

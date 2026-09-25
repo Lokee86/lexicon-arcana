@@ -124,6 +124,15 @@ pub fn add_declaration(
         .get("linkage")
         .and_then(Value::as_str)
         .is_some_and(|value| value == "internal");
+    let macro_function = attributes
+        .get("function_like")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let macro_target = attributes
+        .get("target")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_owned();
     let declaration = Declaration {
         id: node_id("c-family", kind, &canonical),
         kind: kind.into(),
@@ -140,6 +149,10 @@ pub fn add_declaration(
         callable,
         definition,
         file_local,
+        macro_function,
+        macro_target,
+        macro_parameters: Vec::new(),
+        macro_calls: Vec::new(),
         callable_shape: None,
     };
     file.declarations.push(declaration);

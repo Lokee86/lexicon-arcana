@@ -23,6 +23,9 @@ fn resolve_call(
     observation: &CallObservation,
     records: &mut Vec<FactRecord>,
 ) {
+    if super::macro_facts::try_resolve(index, indirect, observation, records) {
+        return;
+    }
     let mut resolution = resolve(index, observation);
     if resolution.candidates.len() == 1 {
         add_edge(
