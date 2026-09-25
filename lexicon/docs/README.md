@@ -21,6 +21,8 @@ Lexicon documentation follows these rules:
 | File | Responsibility |
 | --- | --- |
 | [HOWTO.md](HOWTO.md) | Practical installation, repository setup, semantic querying, refresh, Arcana registration, generated-state guidance, and troubleshooting |
+| [ADAPTER_AUTHORING.md](ADAPTER_AUTHORING.md) | Main contributor guide for designing, implementing, registering, testing, and validating native language adapters |
+| [ADAPTER_GO_COMPATIBILITY.md](ADAPTER_GO_COMPATIBILITY.md) | Temporary compatibility guide for adapters that must also run in the currently recommended optimized Go Lexicon |
 | [APPLICATION.md](APPLICATION.md) | CLI flags, repository discovery, state layout, scan behavior, watch mode, consumers, export, garbage collection, and recovery |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System ownership, components, analysis lifecycle, incremental boundaries, concurrency, storage, and consumer integration |
 | [MAINTAINER_MAP.md](MAINTAINER_MAP.md) | Short routing map from common changes to canonical documents and implementation boundaries |

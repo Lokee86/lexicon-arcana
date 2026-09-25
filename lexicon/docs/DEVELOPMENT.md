@@ -86,6 +86,10 @@ Use `--jobs N` only when additional concurrency is intentional:
 python scripts/workflow.py test --jobs 2
 ```
 
+## Adapter development
+
+For a new language adapter or a substantial semantic expansion, start with [Adapter authoring](ADAPTER_AUTHORING.md). New long-lived first-party adapter work targets the native Rust `LanguageAdapter` contract. If the adapter must also work in the currently recommended Go runtime, implement the legacy executable/facts-v1 compatibility boundary described there.
+
 ## Semantic acceptance
 
 Parser completion or nonzero output is not sufficient. Semantic changes must preserve:

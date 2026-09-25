@@ -12,6 +12,8 @@
     "lexicon/README.md",
     "lexicon/docs/README.md",
     "lexicon/docs/HOWTO.md",
+    "lexicon/docs/ADAPTER_AUTHORING.md",
+    "lexicon/docs/ADAPTER_GO_COMPATIBILITY.md",
     "lexicon/docs/APPLICATION.md",
     "lexicon/docs/ARCHITECTURE.md",
     "lexicon/docs/MAINTAINER_MAP.md",

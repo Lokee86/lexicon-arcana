@@ -1,6 +1,8 @@
 # Lexicon language adapters
 
-This directory owns Lexicon's language-specific semantic extraction implementations. Each adapter is independently executable and emits the shared facts-v1 JSONL contract.
+Lexicon is currently migrating adapter ownership into native Rust implementations under `lexicon/src/adapters/`. This `lexicon/adapters/` directory contains the legacy executable implementations, parity oracles, and Go-runtime compatibility assets that remain necessary during that migration.
+
+Both boundaries implement the same language semantics and facts-v1 meaning; they differ in execution mechanics.
 
 ## Purpose
 
@@ -80,26 +82,19 @@ Other adapters may add safe process or project partitioning later, but partition
 
 ## Adding an adapter
 
-A new adapter requires:
+Start with the dedicated [adapter authoring guide](../docs/ADAPTER_AUTHORING.md).
 
-1. a self-contained executable entry point;
-2. documented runtime and build requirements;
-3. canonical identity definitions;
-4. permanent exclusion behavior;
-5. declaration, relationship, unresolved, dependency, dataflow, and determinism tests;
-6. application registry and runner integration;
-7. full-stream support before incremental narrowing;
-8. an adapter README covering usage, modeled semantics, conservative boundaries, identities, tests, dependencies, and dataflow;
-9. semantic acceptance evidence;
-10. status and documentation index updates.
+New first-party adapters target the native Rust `LanguageAdapter` contract under `../src/adapters/<language>/`. If the adapter must also run in the currently recommended optimized Go Lexicon, add the separate executable compatibility boundary described in [Go adapter compatibility](../docs/ADAPTER_GO_COMPATIBILITY.md).
 
-See [Development and verification](../docs/DEVELOPMENT.md) and [Semantic acceptance gates](../docs/SEMANTIC_ACCEPTANCE.md).
+Every new adapter still requires explicit identities, exclusions, semantic fixtures, unresolved-evidence behavior, deterministic output, full-analysis support before incremental narrowing, an adapter README, acceptance evidence, and status/index updates.
 
 ## Placement rules
 
-Language-specific parser, resolver, model, emitter, fixtures, and tests belong inside the owning adapter folder.
+Native Rust parser, resolver, model, emitter, fixtures, and tests belong under `src/adapters/<language>/`.
 
-Cross-language record meaning belongs in `spec/`. Application orchestration belongs in `internal/scan` and `internal/adapters`. Do not create a cross-runtime helper dependency merely to share implementation convenience; share behavior through the versioned contract and acceptance fixtures.
+Legacy executable/parity-oracle code needed by the Go runtime belongs under `adapters/<language>/`.
+
+Cross-language record meaning belongs in `spec/`. Shared scan/storage orchestration belongs outside adapters. Do not create a cross-runtime helper dependency merely to share implementation convenience; share behavior through versioned contracts and acceptance fixtures.
 
 ## Code map
 
