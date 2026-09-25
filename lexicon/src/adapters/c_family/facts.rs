@@ -19,6 +19,7 @@ pub fn analysis(request: &AdapterRequest, model: RepositoryModel) -> Analysis {
     }
     super::relationship_facts::add(&model, &mut records);
     super::call_facts::add(&model, &mut records);
+    super::dataflow::add_access_facts(&model, &mut records);
 
     let incremental = request.mode == AdapterMode::Incremental;
     Analysis::new(

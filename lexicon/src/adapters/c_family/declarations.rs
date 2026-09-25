@@ -80,8 +80,21 @@ pub(super) fn walk(
             }
             return;
         }
-        "call_expression" | "assignment_expression" => {
-            super::expressions::observe(file, node, context, source);
+        "call_expression"
+        | "assignment_expression"
+        | "update_expression"
+        | "field_expression"
+        | "subscript_expression" => {
+            if !context.callable_id.is_empty() {
+                super::dataflow::extract_expression(file, node, context, source);
+                return;
+            }
+        }
+        "identifier" => {
+            if !context.callable_id.is_empty() {
+                super::dataflow::extract_expression(file, node, context, source);
+            }
+            return;
         }
         _ => {}
     }
@@ -172,7 +185,7 @@ fn handle_variable(
             }
         }
     }
-    add_declaration(
+    let index = add_declaration(
         file,
         declarator,
         context,
@@ -185,9 +198,8 @@ fn handle_variable(
         attributes,
     );
     super::pointer_bindings::collect_designated(file, declarator, context, source);
-    if !context.callable_id.is_empty() {
-        super::expressions::observe_tree(file, declarator, context, source);
-    }
+    let declaration = file.declarations[index].clone();
+    super::dataflow::record_initializer(file, declarator, &declaration, context, source);
 }
 
 fn handle_enumerator(

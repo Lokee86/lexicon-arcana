@@ -6,10 +6,6 @@ use super::{
 use tree_sitter::Node;
 
 pub fn observe(file: &mut SourceFile, node: Node<'_>, context: &ExtractionContext, source: &[u8]) {
-    if node.kind() == "assignment_expression" {
-        super::pointer_bindings::collect_assignment(file, node, context, source);
-        return;
-    }
     if context.callable_id.is_empty() || node.kind() != "call_expression" {
         return;
     }
@@ -57,20 +53,6 @@ pub fn observe(file: &mut SourceFile, node: Node<'_>, context: &ExtractionContex
         receiver_type_id,
         span: span(&file.path, node),
     });
-}
-
-pub fn observe_tree(
-    file: &mut SourceFile,
-    node: Node<'_>,
-    context: &ExtractionContext,
-    source: &[u8],
-) {
-    if matches!(node.kind(), "call_expression" | "assignment_expression") {
-        observe(file, node, context, source);
-    }
-    for child in named_children(node) {
-        observe_tree(file, child, context, source);
-    }
 }
 
 fn call_candidate(node: Node<'_>, source: &[u8]) -> (String, bool, String) {

@@ -9,6 +9,9 @@ mod call_candidates;
 mod call_facts;
 mod call_references;
 mod callables;
+mod dataflow;
+mod dataflow_extract;
+mod dataflow_facts;
 mod declaration_helpers;
 mod declaration_records;
 mod declarations;
@@ -73,6 +76,9 @@ impl LanguageAdapter for CFamilyAdapter {
                     include_bytes!("declaration_records.rs"),
                 ),
                 ("declarations.rs", include_bytes!("declarations.rs")),
+                ("dataflow.rs", include_bytes!("dataflow.rs")),
+                ("dataflow_extract.rs", include_bytes!("dataflow_extract.rs")),
+                ("dataflow_facts.rs", include_bytes!("dataflow_facts.rs")),
                 ("discovery.rs", include_bytes!("discovery.rs")),
                 ("expressions.rs", include_bytes!("expressions.rs")),
                 ("facts.rs", include_bytes!("facts.rs")),

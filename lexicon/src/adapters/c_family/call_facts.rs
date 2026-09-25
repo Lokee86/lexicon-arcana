@@ -35,6 +35,7 @@ fn resolve_call(
             &resolution,
             records,
         );
+        super::dataflow::add_passes_to(index, observation, resolution.candidates[0], records);
         return;
     }
     if resolution.candidates.len() > 1 {
@@ -47,6 +48,7 @@ fn resolve_call(
                 &resolution,
                 records,
             );
+            super::dataflow::add_passes_to(index, observation, resolution.candidates[0], records);
             return;
         }
         for candidate in &resolution.candidates {

@@ -107,6 +107,7 @@ pub(super) fn resolve_expanded<'a>(
             attributes,
             records,
         );
+        super::dataflow::add_passes_to(index, &observation, resolution.candidates[0], records);
         return;
     }
     if !resolution.candidates.is_empty() {
