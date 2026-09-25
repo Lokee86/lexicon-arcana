@@ -6,6 +6,7 @@ This directory is the authoritative documentation set for Arcana's current appli
 
 | Document | Audience | Scope |
 | --- | --- | --- |
+| [Operator how-to](HOWTO.md) | Users and operators | Practical Lexicon handoff, sync/registration, common protocol queries, refresh, generated-state guidance, and troubleshooting |
 | [Application and operations](APPLICATION.md) | Users and operators | CLI commands, state layout, synchronization, publication, consumer registration, locking, failures, and diagnostics |
 | [Architecture](ARCHITECTURE.md) | Developers and integrators | Ownership boundaries, dependency direction, ingestion, compilation, storage, snapshots, protocol, vectors, and invariants |
 | [Maintainer map](MAINTAINER_MAP.md) | Maintainers and agents | Short routing from common changes to canonical documents and implementation boundaries |

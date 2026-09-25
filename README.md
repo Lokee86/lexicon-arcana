@@ -68,6 +68,8 @@ Later semantic updates use the normal Lexicon lifecycle:
 bin/lexicon scan --repo /path/to/repository
 ```
 
+For the day-to-day operator workflow, generated-state guidance, and troubleshooting, see the [Lexicon how-to](lexicon/docs/HOWTO.md) and [Arcana how-to](arcana/docs/HOWTO.md).
+
 ## Lexicon
 
 Lexicon currently provides semantic adapters for major repository languages including Go, Rust, Python, Ruby, JavaScript/TypeScript, Svelte, GDScript, C/C++, C#, Java, Kotlin, LotusScript, and conservative generic fallback surfaces.

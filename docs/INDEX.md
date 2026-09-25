@@ -7,6 +7,8 @@ This tree contains shared architecture, decisions, current release/verification 
 - [Architecture](architecture/INDEX.md) — active Lexicon → Arcana ownership, data flow, state, and consumer boundaries.
 - [Architecture decisions](decisions/INDEX.md) — accepted and superseded decisions, including [ADR 0006](decisions/0006-retire-grimoire-lead-with-lexicon-arcana.md).
 - [Reference](reference/INDEX.md) — current installation/Lexicon/Arcana reference plus clearly marked historical Grimoire pages.
+- [Lexicon operator how-to](../lexicon/docs/HOWTO.md) — practical setup, semantic querying, refresh, Arcana registration, state ownership, and troubleshooting.
+- [Arcana operator how-to](../arcana/docs/HOWTO.md) — practical synchronization, graph querying, refresh, state ownership, and troubleshooting.
 - [Lexicon documentation](../lexicon/docs/README.md) — semantic analysis, adapters, snapshots, contracts, operations, and verification.
 - [Arcana documentation](../arcana/docs/README.md) — graph ingestion, packed storage, snapshots, protocol operations, vectors, and verification.
 
