@@ -1,5 +1,6 @@
 use super::{
     call_candidates::{direct_qualified_types, explicit_qualifier, has_callable, resolve},
+    indirect_calls::{IndirectCallIndex, resolve_pointer_declarations},
     model::CallObservation,
     resolution::DeclarationIndex,
 };
@@ -8,15 +9,17 @@ use serde_json::json;
 
 pub fn add(model: &super::model::RepositoryModel, records: &mut Vec<FactRecord>) {
     let index = DeclarationIndex::new(model);
+    let indirect = IndirectCallIndex::build(model, &index);
     for file in &model.files {
         for observation in &file.calls {
-            resolve_call(&index, observation, records);
+            resolve_call(&index, &indirect, observation, records);
         }
     }
 }
 
 fn resolve_call(
     index: &DeclarationIndex<'_>,
+    indirect: &IndirectCallIndex<'_>,
     observation: &CallObservation,
     records: &mut Vec<FactRecord>,
 ) {
@@ -53,6 +56,35 @@ fn resolve_call(
             );
         }
         add_unresolved(observation, "ambiguous-target", records);
+        return;
+    }
+
+    let pointers = resolve_pointer_declarations(index, observation);
+    if !pointers.is_empty() {
+        let targets = indirect.targets(&pointers);
+        if !targets.is_empty() {
+            let via = pointers
+                .iter()
+                .map(|pointer| pointer.id.clone())
+                .collect::<Vec<_>>();
+            for target in &targets {
+                records.push(FactRecord::Edge(EdgeRecord {
+                    attributes: Some(json!({
+                        "candidate_count": targets.len(),
+                        "evidence": ["function-pointer"],
+                        "indirect": "function-pointer",
+                        "resolution": "possible",
+                        "via": via,
+                    })),
+                    owner: Some(observation.path.clone()),
+                    relation: "possible-calls".into(),
+                    source: observation.source_id.clone(),
+                    span: Some(observation.span.clone()),
+                    target: target.id.clone(),
+                }));
+            }
+        }
+        add_unresolved(observation, "dynamic-target", records);
         return;
     }
 

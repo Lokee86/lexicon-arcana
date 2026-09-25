@@ -20,6 +20,7 @@ pub struct SourceFile {
     pub includes: Vec<IncludeObservation>,
     pub inheritance: Vec<InheritanceObservation>,
     pub calls: Vec<CallObservation>,
+    pub pointer_bindings: Vec<PointerBindingObservation>,
 }
 
 #[derive(Debug, Clone)]
@@ -33,6 +34,17 @@ pub struct CallObservation {
     pub member: bool,
     pub receiver: String,
     pub receiver_type_id: String,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone)]
+pub struct PointerBindingObservation {
+    pub source_id: String,
+    pub source_scope: String,
+    pub path: String,
+    pub candidate: String,
+    pub target: String,
+    pub member: bool,
     pub span: SourceSpan,
 }
 

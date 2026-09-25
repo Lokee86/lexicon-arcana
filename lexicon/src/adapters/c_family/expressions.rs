@@ -1,10 +1,15 @@
 use super::{
+    call_references::callable_reference_candidate,
     model::{CallObservation, ExtractionContext, SourceFile},
     syntax::{last_qualified_part, named_children, node_text, normalize_qualified, span},
 };
 use tree_sitter::Node;
 
 pub fn observe(file: &mut SourceFile, node: Node<'_>, context: &ExtractionContext, source: &[u8]) {
+    if node.kind() == "assignment_expression" {
+        super::pointer_bindings::collect_assignment(file, node, context, source);
+        return;
+    }
     if context.callable_id.is_empty() || node.kind() != "call_expression" {
         return;
     }
@@ -29,7 +34,7 @@ pub fn observe(file: &mut SourceFile, node: Node<'_>, context: &ExtractionContex
             named_children(arguments)
                 .into_iter()
                 .filter(|child| child.kind() != "comment")
-                .map(|child| node_text(child, source).to_owned())
+                .map(|child| callable_reference_candidate(child, source))
                 .collect()
         })
         .unwrap_or_default();
@@ -54,7 +59,7 @@ pub fn observe_tree(
     context: &ExtractionContext,
     source: &[u8],
 ) {
-    if node.kind() == "call_expression" {
+    if matches!(node.kind(), "call_expression" | "assignment_expression") {
         observe(file, node, context, source);
     }
     for child in named_children(node) {

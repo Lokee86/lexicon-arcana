@@ -51,10 +51,12 @@ pub fn parse_repository(root: &Path) -> Result<RepositoryModel, AdapterError> {
             includes: Vec::new(),
             inheritance: Vec::new(),
             calls: Vec::new(),
+            pointer_bindings: Vec::new(),
         };
         declarations::extract(&mut file, tree.root_node());
         files.push(file);
     }
+    super::pointer_aliases::propagate(&mut files);
     let file_index = FileIndex::new(&files);
     let visibility = VisibilityIndex::new(&files, &file_index);
     Ok(RepositoryModel {

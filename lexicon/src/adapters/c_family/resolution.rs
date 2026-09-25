@@ -11,6 +11,8 @@ pub struct DeclarationIndex<'a> {
     pub(super) by_qualified: BTreeMap<String, Vec<&'a Declaration>>,
     pub(super) by_name: BTreeMap<String, Vec<&'a Declaration>>,
     pub(super) by_container_name: BTreeMap<String, Vec<&'a Declaration>>,
+    pub(super) by_path_name: BTreeMap<String, Vec<&'a Declaration>>,
+    pub(super) by_callable_parameters: BTreeMap<String, Vec<&'a Declaration>>,
     pub(super) visibility: &'a VisibilityIndex,
 }
 
@@ -20,6 +22,8 @@ impl<'a> DeclarationIndex<'a> {
         let mut by_qualified = BTreeMap::<String, Vec<&Declaration>>::new();
         let mut by_name = BTreeMap::<String, Vec<&Declaration>>::new();
         let mut by_container_name = BTreeMap::<String, Vec<&Declaration>>::new();
+        let mut by_path_name = BTreeMap::<String, Vec<&Declaration>>::new();
+        let mut by_callable_parameters = BTreeMap::<String, Vec<&Declaration>>::new();
         for file in &model.files {
             for declaration in &file.declarations {
                 by_id.insert(declaration.id.clone(), declaration);
@@ -38,6 +42,16 @@ impl<'a> DeclarationIndex<'a> {
                     ))
                     .or_default()
                     .push(declaration);
+                by_path_name
+                    .entry(format!("{}\0{}", declaration.path, declaration.name))
+                    .or_default()
+                    .push(declaration);
+                if declaration.kind == "parameter" {
+                    by_callable_parameters
+                        .entry(declaration.container_id.clone())
+                        .or_default()
+                        .push(declaration);
+                }
             }
         }
         for values in by_qualified.values_mut() {
@@ -49,11 +63,25 @@ impl<'a> DeclarationIndex<'a> {
         for values in by_container_name.values_mut() {
             values.sort_by(|left, right| left.id.cmp(&right.id));
         }
+        for values in by_path_name.values_mut() {
+            values.sort_by(|left, right| left.id.cmp(&right.id));
+        }
+        for values in by_callable_parameters.values_mut() {
+            values.sort_by_key(|value| {
+                value
+                    .attributes
+                    .get("index")
+                    .and_then(|index| index.as_u64())
+                    .unwrap_or(u64::MAX)
+            });
+        }
         Self {
             by_id,
             by_qualified,
             by_name,
             by_container_name,
+            by_path_name,
+            by_callable_parameters,
             visibility: &model.visibility,
         }
     }

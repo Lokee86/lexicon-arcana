@@ -80,7 +80,7 @@ pub(super) fn walk(
             }
             return;
         }
-        "call_expression" => {
+        "call_expression" | "assignment_expression" => {
             super::expressions::observe(file, node, context, source);
         }
         _ => {}
@@ -165,6 +165,12 @@ fn handle_variable(
     }
     if first_descendant(declarator, &["function_declarator"]).is_some() {
         attributes.insert("function_pointer".into(), json!(true));
+        if let Some(value) = declarator.child_by_field_name("value") {
+            let target = super::call_references::callable_reference_candidate(value, source);
+            if !target.is_empty() {
+                attributes.insert("pointer_target".into(), json!(target));
+            }
+        }
     }
     add_declaration(
         file,
@@ -178,6 +184,7 @@ fn handle_variable(
         true,
         attributes,
     );
+    super::pointer_bindings::collect_designated(file, declarator, context, source);
     if !context.callable_id.is_empty() {
         super::expressions::observe_tree(file, declarator, context, source);
     }
