@@ -4,8 +4,9 @@ use crate::{AdapterError, FactRecord, NodeRecord, SourceSpan};
 
 use super::{
     discovery::Inventory,
+    identities,
     protocol_records::{DeclarationKind, Record, Span},
-    semantic_facts_support::{EdgeKey, container_id, identity_id, parent_id, push_edge, required},
+    semantic_facts_support::{EdgeKey, container_id, parent_id, push_edge, required},
 };
 
 pub(crate) fn add(
@@ -37,7 +38,7 @@ pub(crate) fn add(
             ));
         };
         let location = source_span(owner, span);
-        let id = identity_id(identity)?;
+        let id = identities::node_id_for_kind(identity, fact_kind(*kind))?;
         let (path, qualified_name) = node_location(*kind, name, owner, metadata)?;
 
         if nodes.insert(id.clone()) {
@@ -59,7 +60,7 @@ pub(crate) fn add(
                 push_edge(
                     records,
                     &mut edges,
-                    parent_id(owner, inventory),
+                    parent_id(owner, inventory)?,
                     id.clone(),
                     "contains",
                     None,
@@ -69,7 +70,7 @@ pub(crate) fn add(
                     records,
                     &mut edges,
                     id,
-                    crate::node_id("go", "file", &format!("file:{owner}")),
+                    identities::node_id(&identities::file(owner))?,
                     "contains",
                     Some(owner.clone()),
                     Some(location),

@@ -38,7 +38,7 @@ Reflection, `reflect`-derived calls, external packages, generated methods withou
 
 ## Canonical identities
 
-The SHA-256 payload defined by the shared contract uses these Go identity strings:
+The SHA-256 payload defined by the shared contract uses these Go identity strings. During the native migration, `src/adapters/go/identities.rs` is the authoritative producer and validator for the semantic identity → Lexicon kind → SHA mapping; the legacy Go `hashIdentity` path remains only as oracle implementation evidence:
 
 | Kind | Canonical identity |
 | --- | --- |
@@ -56,7 +56,7 @@ The SHA-256 payload defined by the shared contract uses these Go identity string
 | closure | `closure:<import path>:<file>:<line>:<column>` |
 | captured variable | `variable:<owning import path>:<file>:<line>:<column>:<name>` |
 
-Compiler-generated wrappers and external closures use deterministic `ssa-function:` identities. Synthetic built-in and type-expression nodes use stable language namespaces such as `go:builtins` and `go:types`. Absolute checkout paths are never part of an identity.
+Compiler-generated wrappers and external closures use deterministic `ssa-function:` identities. Synthetic built-in and type-expression nodes use stable language namespaces such as `go:builtins` and `go:types`. Absolute checkout paths are never part of an identity. Rust rejects path-bearing semantic identities that contain absolute or Windows-style path material. Go package namespaces ending in `_test` are canonicalized to the corresponding internal package namespace only when the suffix-free namespace belongs to a discovered module, matching the legacy typed-semantic behavior.
 
 ## Dependency semantics
 
@@ -110,6 +110,7 @@ The helper reports packages, imports, named types, interfaces through their name
 | Native Rust shell/helper runner | `src/adapters/go/`, `src/adapters/helper.rs`, `src/adapters/helper_capture.rs` | Rust Go adapter shell/handshake tests |
 | Rust repository discovery/module ownership | `src/adapters/go/discovery.rs`, `src/adapters/go/module_ownership.rs`, `src/adapters/go/facts.rs` | `src/adapters/go/discovery_tests.rs`, `discovery_boundary_tests.rs`, and legacy oracle goldens |
 | Extracted structural semantic helper | `adapters/go-semantic/`, `src/adapters/go/protocol_records.rs`, `semantic_facts*.rs` | helper Go tests plus seven-fixture Rust declaration parity |
+| Native Go identity authority | `src/adapters/go/identities.rs` | legacy identity vectors, `_test` namespace tests, and seven-fixture node-ID parity |
 | Calls and dataflow | `semantic_calls.go`, `semantic_dataflow.go` | call and dataflow tests |
 | Dependencies | `dependencies.go` | package/dependency coverage |
 | Parallel execution | `parallel.go`, `semantic_parallel.go` | `semantic_parallel_test.go` |

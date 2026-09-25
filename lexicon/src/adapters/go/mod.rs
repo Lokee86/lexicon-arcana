@@ -1,5 +1,6 @@
 mod discovery;
 mod facts;
+mod identities;
 mod module_ownership;
 mod protocol;
 mod protocol_records;
@@ -10,6 +11,8 @@ mod semantic_facts_support;
 mod discovery_boundary_tests;
 #[cfg(test)]
 mod discovery_tests;
+#[cfg(test)]
+mod identities_tests;
 #[cfg(test)]
 mod semantic_parity_tests;
 #[cfg(test)]
@@ -61,6 +64,7 @@ impl LanguageAdapter for GoAdapter {
             &[
                 ("mod.rs", include_bytes!("mod.rs")),
                 ("discovery.rs", include_bytes!("discovery.rs")),
+                ("identities.rs", include_bytes!("identities.rs")),
                 ("module_ownership.rs", include_bytes!("module_ownership.rs")),
                 ("protocol.rs", include_bytes!("protocol.rs")),
                 ("protocol_records.rs", include_bytes!("protocol_records.rs")),

@@ -23,6 +23,7 @@ Implemented on the active Rust-migration branch:
 - native Rust `GoAdapter` shell registered in `AdapterHost`, with helper-version-aware fingerprinting and a reusable bounded private-helper process runner;
 - Rust-owned Go repository discovery, permanent exclusions, deterministic `.go`/`go.mod` inventory, nearest-`go.mod` module ownership, root/multi-module repository identity, and direct repository/directory/file fact emission;
 - extracted `adapters/go-semantic/` structural helper for package/import/type/function/method/test/interface-method/closure declarations, including inactive build-tag source; Rust materializes those semantic declarations into exact legacy-compatible structural nodes and containment/import relationships while typed relationships, calls, SSA/VTA, captures, and dataflow remain on the legacy oracle;
+- Rust-owned Go identity authority in `src/adapters/go/identities.rs`, covering the legacy canonical identity vocabulary, semantic-prefix → Lexicon-kind mapping, `_test` namespace normalization, absolute-path rejection, and exact node-SHA parity for every permanent migration fixture;
 - Rust `lexicon` library crate foundation;
 - facts-v1 typed records, canonical JSONL parsing/emission, validation, ordering, path/span checks, incremental ownership checks, stable node IDs, and content IDs;
 - byte-identical Rust round-trip of the reference facts-v1 fixture;

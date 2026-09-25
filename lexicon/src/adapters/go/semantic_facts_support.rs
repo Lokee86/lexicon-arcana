@@ -1,39 +1,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::{AdapterError, EdgeRecord, FactRecord, SourceSpan, node_id};
+use crate::{AdapterError, EdgeRecord, FactRecord, SourceSpan};
 
-use super::discovery::Inventory;
+use super::{discovery::Inventory, identities};
 
 pub(super) type EdgeKey = (String, String, String, String);
 
-pub(super) fn identity_id(identity: &str) -> Result<String, AdapterError> {
-    let prefix = identity
-        .split_once(':')
-        .map(|(prefix, _)| prefix)
-        .ok_or_else(|| AdapterError::new(format!("invalid Go semantic identity {identity:?}")))?;
-    let kind = match prefix {
-        "package" => "module",
-        "import" => "import",
-        "namespace" => "namespace",
-        "type" | "type-expression" => "type",
-        "function" | "closure" | "ssa-function" => "function",
-        "method" | "interface-method" | "dynamic-method" => "method",
-        "test" => "test",
-        "parameter" => "parameter",
-        "variable" | "capture" => "variable",
-        "field" => "field",
-        "constant" => "constant",
-        _ => {
-            return Err(AdapterError::new(format!(
-                "unknown Go semantic identity prefix {prefix:?}"
-            )));
-        }
-    };
-    Ok(node_id("go", kind, identity))
-}
-
 pub(super) fn container_id(metadata: &BTreeMap<String, String>) -> Result<String, AdapterError> {
-    identity_id(required(metadata, "container")?)
+    identities::node_id(required(metadata, "container")?)
 }
 
 pub(super) fn required<'a>(
@@ -47,14 +21,10 @@ pub(super) fn required<'a>(
         .ok_or_else(|| AdapterError::new(format!("Go semantic declaration is missing {key}")))
 }
 
-pub(super) fn parent_id(owner: &str, inventory: &Inventory) -> String {
+pub(super) fn parent_id(owner: &str, inventory: &Inventory) -> Result<String, AdapterError> {
     match owner.rsplit_once('/') {
-        Some((parent, _)) => node_id("go", "directory", &format!("directory:{parent}")),
-        None => node_id(
-            "go",
-            "repository",
-            &format!("repository:{}", inventory.repository),
-        ),
+        Some((parent, _)) => identities::node_id(&identities::directory(parent)),
+        None => identities::node_id(&identities::repository(&inventory.repository)),
     }
 }
 

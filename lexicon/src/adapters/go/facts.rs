@@ -2,10 +2,12 @@ use std::path::Path;
 
 use crate::{
     AdapterMode, AdapterRequest, Analysis, EdgeRecord, FACT_SCHEMA_VERSION, FactHeader, FactRecord,
-    NodeRecord, content_id, node_id,
+    NodeRecord, content_id,
 };
 
-use super::{ADAPTER_VERSION, discovery::Inventory, protocol_records::Record, semantic_facts};
+use super::{
+    ADAPTER_VERSION, discovery::Inventory, identities, protocol_records::Record, semantic_facts,
+};
 
 pub(crate) fn structural_analysis(
     request: &AdapterRequest,
@@ -13,7 +15,7 @@ pub(crate) fn structural_analysis(
     semantic: &[Record],
 ) -> Result<Analysis, crate::AdapterError> {
     let mut records = Vec::new();
-    let repository_id = repository_id(&inventory.repository);
+    let repository_id = identities::node_id(&identities::repository(&inventory.repository))?;
     records.push(FactRecord::Node(NodeRecord {
         attributes: None,
         content_id: None,
@@ -27,7 +29,7 @@ pub(crate) fn structural_analysis(
     }));
 
     for directory in &inventory.directories {
-        let id = directory_id(directory);
+        let id = identities::node_id(&identities::directory(directory))?;
         records.push(FactRecord::Node(NodeRecord {
             attributes: None,
             content_id: None,
@@ -39,11 +41,11 @@ pub(crate) fn structural_analysis(
             qualified_name: directory.clone(),
             span: None,
         }));
-        records.push(contains(parent_id(directory, &repository_id), id));
+        records.push(contains(parent_id(directory, &repository_id)?, id));
     }
 
     for file in &inventory.files {
-        let id = file_id(&file.path);
+        let id = identities::node_id(&identities::file(&file.path))?;
         records.push(FactRecord::Node(NodeRecord {
             attributes: None,
             content_id: Some(content_id(&file.content)),
@@ -55,7 +57,7 @@ pub(crate) fn structural_analysis(
             qualified_name: file.path.clone(),
             span: None,
         }));
-        records.push(contains(parent_id(&file.path, &repository_id), id));
+        records.push(contains(parent_id(&file.path, &repository_id)?, id));
     }
     semantic_facts::add(inventory, semantic, &mut records)?;
 
@@ -91,23 +93,13 @@ fn contains(source: String, target: String) -> FactRecord {
     })
 }
 
-fn parent_id(path: &str, repository: &str) -> String {
+fn parent_id(path: &str, repository: &str) -> Result<String, crate::AdapterError> {
     match Path::new(path).parent().and_then(|value| value.to_str()) {
-        Some(parent) if !parent.is_empty() => directory_id(&parent.replace('\\', "/")),
-        _ => repository.to_owned(),
+        Some(parent) if !parent.is_empty() => {
+            identities::node_id(&identities::directory(&parent.replace('\\', "/")))
+        }
+        _ => Ok(repository.to_owned()),
     }
-}
-
-fn repository_id(repository: &str) -> String {
-    node_id("go", "repository", &format!("repository:{repository}"))
-}
-
-fn directory_id(path: &str) -> String {
-    node_id("go", "directory", &format!("directory:{path}"))
-}
-
-fn file_id(path: &str) -> String {
-    node_id("go", "file", &format!("file:{path}"))
 }
 
 fn file_name(path: &str) -> String {

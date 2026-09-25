@@ -41,6 +41,11 @@ fn all_oracle_structural_declarations_match_legacy() {
             "repository/declaration parity failed for {name}"
         );
         assert_eq!(
+            phase_five_node_ids(&analysis.records),
+            phase_five_node_ids(&legacy.records),
+            "node identity parity failed for {name}"
+        );
+        assert_eq!(
             analysis.header.repository, legacy.header.repository,
             "repository identity failed for {name}"
         );
@@ -77,6 +82,16 @@ fn phase_four_records(records: &[FactRecord]) -> Vec<FactRecord> {
             FactRecord::Unresolved(_) => false,
         })
         .cloned()
+        .collect()
+}
+
+fn phase_five_node_ids(records: &[FactRecord]) -> Vec<(String, String)> {
+    phase_four_records(records)
+        .into_iter()
+        .filter_map(|record| match record {
+            FactRecord::Node(node) => Some((node.kind, node.id)),
+            _ => None,
+        })
         .collect()
 }
 
