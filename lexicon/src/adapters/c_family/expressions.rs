@@ -27,10 +27,7 @@ pub fn observe(file: &mut SourceFile, node: Node<'_>, context: &ExtractionContex
     let argument_nodes = node
         .child_by_field_name("arguments")
         .map(named_children)
-        .unwrap_or_default()
-        .into_iter()
-        .filter(|child| child.kind() != "comment")
-        .collect::<Vec<_>>();
+        .unwrap_or_default();
     let arguments = argument_nodes
         .iter()
         .map(|child| callable_reference_candidate(*child, source))

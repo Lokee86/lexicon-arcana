@@ -33,6 +33,10 @@ pub(super) fn call_attributes(
     call_index: usize,
     alias: bool,
 ) -> Map<String, Value> {
+    debug_assert_eq!(
+        original.unsupported,
+        original.token_pasting || original.stringification || original.variadic_substitution
+    );
     let mut evidence = vec![
         "macro-mediation",
         if alias { "macro-alias" } else { "macro-body" },
@@ -61,8 +65,22 @@ pub(super) fn call_attributes(
             "end_column": current.span.end_column,
         }),
     );
-    attributes.insert("substituted_arguments".into(), json!(expanded.arguments));
-    attributes.insert("substitutions".into(), json!(bindings));
+    attributes.insert(
+        "substituted_arguments".into(),
+        if expanded.arguments.is_empty() {
+            Value::Null
+        } else {
+            json!(expanded.arguments)
+        },
+    );
+    attributes.insert(
+        "substitutions".into(),
+        if bindings.is_empty() {
+            Value::Null
+        } else {
+            json!(bindings)
+        },
+    );
     attributes.insert(
         "via".into(),
         json!(chain.iter().map(|value| &value.id).collect::<Vec<_>>()),
@@ -116,12 +134,13 @@ pub(super) fn add_unresolved(
     );
     if let Some(call) = call {
         attributes.insert("macro_body_callee".into(), json!(call.callee));
-        attributes.insert("substituted_arguments".into(), json!(call.arguments));
-        attributes.insert("token_pasting".into(), json!(call.token_pasting));
-        attributes.insert("stringification".into(), json!(call.stringification));
         attributes.insert(
-            "variadic_substitution".into(),
-            json!(call.variadic_substitution),
+            "substituted_arguments".into(),
+            if call.arguments.is_empty() {
+                Value::Null
+            } else {
+                json!(call.arguments)
+            },
         );
     }
     if let Some(bindings) = bindings

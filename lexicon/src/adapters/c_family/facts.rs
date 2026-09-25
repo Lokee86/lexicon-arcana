@@ -20,6 +20,7 @@ pub fn analysis(request: &AdapterRequest, model: RepositoryModel) -> Analysis {
     super::relationship_facts::add(&model, &mut records);
     super::call_facts::add(&model, &mut records);
     super::dataflow::add_access_facts(&model, &mut records);
+    records = deduplicate(records);
 
     let incremental = request.mode == AdapterMode::Incremental;
     Analysis::new(
@@ -27,7 +28,7 @@ pub fn analysis(request: &AdapterRequest, model: RepositoryModel) -> Analysis {
             adapter_version: ADAPTER_VERSION.into(),
             changed_files: incremental.then(|| normalized(&request.changed_files)),
             language: "c-family".into(),
-            mode: incremental.then(|| "incremental".into()),
+            mode: Some(if incremental { "incremental" } else { "full" }.into()),
             record: "lexicon".into(),
             removed_files: incremental.then(|| normalized(&request.removed_files)),
             repository: model.repository.clone(),
@@ -123,9 +124,17 @@ fn add_declarations(
     let mut nodes = BTreeMap::<String, &Declaration>::new();
     for declaration in &file.declarations {
         nodes.insert(declaration.id.clone(), declaration);
+        debug_assert!(visibility.declaration_visible(&file.path, declaration));
+        records.push(FactRecord::Edge(EdgeRecord {
+            attributes: None,
+            owner: Some(declaration.path.clone()),
+            relation: "defines".into(),
+            source: declaration.container_id.clone(),
+            span: Some(declaration.span.clone()),
+            target: declaration.id.clone(),
+        }));
     }
     for declaration in nodes.values() {
-        debug_assert!(visibility.declaration_visible(&file.path, declaration));
         records.push(FactRecord::Node(NodeRecord {
             attributes: Some(Value::Object(declaration.attributes.clone())),
             content_id: None,
@@ -137,15 +146,43 @@ fn add_declarations(
             qualified_name: declaration.qualified_name.clone(),
             span: Some(declaration.span.clone()),
         }));
-        records.push(FactRecord::Edge(EdgeRecord {
-            attributes: None,
-            owner: Some(declaration.path.clone()),
-            relation: "defines".into(),
-            source: declaration.container_id.clone(),
-            span: Some(declaration.span.clone()),
-            target: declaration.id.clone(),
-        }));
     }
+}
+
+fn deduplicate(records: Vec<FactRecord>) -> Vec<FactRecord> {
+    let mut unique = BTreeMap::<String, FactRecord>::new();
+    for record in records {
+        let key = match &record {
+            FactRecord::Node(node) => format!("node\0{}", node.id),
+            FactRecord::Edge(edge) => format!(
+                "edge\0{}\0{}\0{}\0{}",
+                edge.source,
+                edge.target,
+                edge.relation,
+                span_key(edge.span.as_ref())
+            ),
+            FactRecord::Unresolved(value) => format!(
+                "unresolved\0{}\0{}\0{}\0{}\0{}",
+                value.source,
+                value.relation,
+                value.expression,
+                value.reason,
+                span_key(value.span.as_ref())
+            ),
+        };
+        unique.insert(key, record);
+    }
+    unique.into_values().collect()
+}
+
+fn span_key(span: Option<&crate::SourceSpan>) -> String {
+    span.map(|span| {
+        format!(
+            "{}\0{:08}\0{:08}\0{:08}\0{:08}",
+            span.path, span.start_line, span.start_column, span.end_line, span.end_column
+        )
+    })
+    .unwrap_or_default()
 }
 
 fn normalized(paths: &[String]) -> Vec<String> {

@@ -13,17 +13,21 @@ pub fn resolve_macros<'a>(
     path: &str,
 ) -> Vec<&'a Declaration> {
     let name = super::syntax::last_qualified_part(candidate);
-    let mut best_rank = usize::MAX;
-    let mut result = Vec::new();
+    let mut macros = BTreeMap::<&str, &Declaration>::new();
     for value in index.by_name.get(&name).into_iter().flatten() {
         let is_macro = value
             .attributes
             .get("macro")
             .and_then(|attribute| attribute.as_bool())
             .unwrap_or(false);
-        if !is_macro || (!value.macro_function && value.macro_target.is_empty()) {
-            continue;
+        if is_macro && (value.macro_function || !value.macro_target.is_empty()) {
+            macros.insert(value.id.as_str(), *value);
         }
+    }
+
+    let mut best_rank = usize::MAX;
+    let mut result = Vec::new();
+    for value in macros.into_values() {
         let Some(rank) = index.visibility.include_rank(path, &value.path) else {
             continue;
         };
@@ -32,7 +36,7 @@ pub fn resolve_macros<'a>(
             result.clear();
         }
         if rank == best_rank {
-            result.push(*value);
+            result.push(value);
         }
     }
     result.sort_by(|left, right| left.id.cmp(&right.id));

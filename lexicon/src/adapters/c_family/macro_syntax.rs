@@ -73,7 +73,10 @@ pub fn split_arguments(value: &str) -> Vec<String> {
     let mut index = 0usize;
     while index < bytes.len() {
         match bytes[index] {
-            b'"' | b'\'' => index = skip_quoted(value, index),
+            b'"' | b'\'' => {
+                index = skip_quoted(value, index);
+                continue;
+            }
             b'(' => round += 1,
             b')' => round -= 1,
             b'[' => square += 1,
@@ -98,7 +101,10 @@ pub fn matching_delimiter(value: &str, open: usize, left: u8, right: u8) -> Opti
     let mut index = open;
     while index < bytes.len() {
         match bytes[index] {
-            b'"' | b'\'' => index = skip_quoted(value, index),
+            b'"' | b'\'' => {
+                index = skip_quoted(value, index);
+                continue;
+            }
             byte if byte == left => depth += 1,
             byte if byte == right => {
                 depth -= 1;

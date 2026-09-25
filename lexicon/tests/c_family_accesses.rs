@@ -6,7 +6,7 @@ use lexicon::{AdapterHost, AdapterRequest, Analysis, FactRecord};
 use support::TestDirectory;
 
 #[test]
-fn local_initializers_write_the_local_and_read_the_initializer() {
+fn simple_identifier_initializers_match_oracle_dataflow_boundary() {
     let root = TestDirectory::new("c-family-access-initializer");
     write(
         &root,
@@ -16,8 +16,22 @@ fn local_initializers_write_the_local_and_read_the_initializer() {
 
     let analysis = analyze(&root);
     assert_access(&analysis, "run", "writes", "run::local");
-    assert_access(&analysis, "run", "reads", "run::input");
+    assert_no_access(&analysis, "run", "reads", "run::input");
     assert_access(&analysis, "run", "reads", "run::local");
+}
+
+#[test]
+fn declarator_size_expressions_emit_reads_without_fabricating_writes() {
+    let root = TestDirectory::new("c-family-access-declarator-size");
+    write(
+        &root,
+        "main.c",
+        "int run(int input) { char buffer[sizeof(input)]; return 0; }\n",
+    );
+
+    let analysis = analyze(&root);
+    assert_access(&analysis, "run", "reads", "run::input");
+    assert_no_access(&analysis, "run", "writes", "run::buffer");
 }
 
 #[test]

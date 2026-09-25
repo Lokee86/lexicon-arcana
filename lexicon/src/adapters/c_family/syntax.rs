@@ -69,6 +69,10 @@ pub fn last_qualified_part(value: &str) -> String {
         .into()
 }
 
+pub fn is_expression_kind(kind: &str) -> bool {
+    kind.ends_with("_expression") || matches!(kind, "initializer_list" | "argument_list")
+}
+
 pub fn anonymous_name(kind: &str, node: Node<'_>, source: &[u8]) -> String {
     use sha2::{Digest, Sha256};
     let digest = Sha256::digest(normalize_space(node_text(node, source)).as_bytes());

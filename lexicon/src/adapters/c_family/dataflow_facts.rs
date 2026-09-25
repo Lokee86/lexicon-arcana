@@ -4,6 +4,7 @@ use super::{
 };
 use crate::{EdgeRecord, FactRecord};
 use serde_json::json;
+use std::collections::BTreeMap;
 
 pub fn add_passes_to(
     index: &DeclarationIndex<'_>,
@@ -76,24 +77,26 @@ fn resolve_access<'a>(
         )
     };
     let key = format!("{}\0{}", observation.source_id, observation.candidate);
-    let mut candidates = index
-        .by_container_name
-        .get(&key)
-        .into_iter()
-        .flatten()
-        .copied()
-        .filter(|value| accept(value))
-        .collect::<Vec<_>>();
-    if candidates.is_empty() && !observation.parent_type_id.is_empty() {
-        let key = format!("{}\0{}", observation.parent_type_id, observation.candidate);
-        candidates = index
+    let mut candidates = unique_declarations(
+        index
             .by_container_name
             .get(&key)
             .into_iter()
             .flatten()
             .copied()
-            .filter(|value| accept(value))
-            .collect();
+            .filter(|value| accept(value)),
+    );
+    if candidates.is_empty() && !observation.parent_type_id.is_empty() {
+        let key = format!("{}\0{}", observation.parent_type_id, observation.candidate);
+        candidates = unique_declarations(
+            index
+                .by_container_name
+                .get(&key)
+                .into_iter()
+                .flatten()
+                .copied()
+                .filter(|value| accept(value)),
+        );
     }
     if candidates.is_empty() {
         candidates = index.resolve(
@@ -112,14 +115,15 @@ fn resolve_direct_argument<'a>(
     name: &str,
 ) -> Option<&'a Declaration> {
     let key = format!("{}\0{name}", observation.source_id);
-    let local = index
-        .by_container_name
-        .get(&key)
-        .into_iter()
-        .flatten()
-        .copied()
-        .filter(|value| matches!(value.kind.as_str(), "parameter" | "variable" | "constant"))
-        .collect::<Vec<_>>();
+    let local = unique_declarations(
+        index
+            .by_container_name
+            .get(&key)
+            .into_iter()
+            .flatten()
+            .copied()
+            .filter(|value| matches!(value.kind.as_str(), "parameter" | "variable" | "constant")),
+    );
     if local.len() == 1 {
         return Some(local[0]);
     }
@@ -158,6 +162,14 @@ fn resolve_direct_argument<'a>(
     } else {
         None
     }
+}
+
+fn unique_declarations<'a>(values: impl Iterator<Item = &'a Declaration>) -> Vec<&'a Declaration> {
+    let mut unique = BTreeMap::<&str, &Declaration>::new();
+    for value in values {
+        unique.insert(value.id.as_str(), value);
+    }
+    unique.into_values().collect()
 }
 
 fn simple_identifier_name(expression: &str) -> Option<String> {

@@ -96,7 +96,12 @@ pub(super) fn walk(
             }
             return;
         }
-        _ => {}
+        _ => {
+            if !context.callable_id.is_empty() && super::syntax::is_expression_kind(node.kind()) {
+                super::dataflow::extract_expression(file, node, context, source);
+                return;
+            }
+        }
     }
     for child in named_children(node) {
         walk(file, child, context, source);

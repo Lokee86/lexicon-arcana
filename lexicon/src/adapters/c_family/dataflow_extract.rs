@@ -57,22 +57,32 @@ pub fn record_initializer(
     context: &ExtractionContext,
     source: &[u8],
 ) {
-    if context.callable_id.is_empty() || declarator.kind() != "init_declarator" {
+    if context.callable_id.is_empty() {
         return;
     }
-    file.accesses.push(AccessObservation {
-        source_id: context.callable_id.clone(),
-        source_scope: context.callable_scope.clone(),
-        parent_type_id: context.type_id.clone(),
-        path: file.path.clone(),
-        expression: declaration.name.clone(),
-        candidate: declaration.name.clone(),
-        relation: "writes".into(),
-        member: false,
-        span: declaration.span.clone(),
-    });
-    if let Some(value) = declarator.child_by_field_name("value") {
-        extract_expression(file, value, context, source);
+    if declarator.kind() == "init_declarator" {
+        file.accesses.push(AccessObservation {
+            source_id: context.callable_id.clone(),
+            source_scope: context.callable_scope.clone(),
+            parent_type_id: context.type_id.clone(),
+            path: file.path.clone(),
+            expression: declaration.name.clone(),
+            candidate: declaration.name.clone(),
+            relation: "writes".into(),
+            member: false,
+            span: declaration.span.clone(),
+        });
+    }
+    for child in named_children(declarator) {
+        if matches!(
+            child.kind(),
+            "identifier" | "field_identifier" | "type_identifier"
+        ) {
+            continue;
+        }
+        if super::syntax::is_expression_kind(child.kind()) || child.kind() == "initializer_list" {
+            extract_expression(file, child, context, source);
+        }
     }
 }
 
