@@ -67,6 +67,12 @@ Malformed directives, dynamic module construction, and unresolved external packa
 
 The adapter emits conservative `reads` and `writes` edges from the containing callable to repository-local parameters, variables, constants, and fields. Assignments write, compound assignments and increment/decrement read and write, and initializer, argument, and return expressions contribute reads. Lexical shadowing is respected. Unresolved selectors, built-ins, external package values, reflection, and unsafe aliasing are omitted rather than guessed.
 
+## Migration oracle
+
+The legacy adapter is frozen as the semantic oracle for the native Rust Go-adapter migration. Permanent repositories live under `testdata/oracle/`; their byte-canonical facts-v1 outputs live under `testdata/oracle_golden/`. Normal Go tests rescan every fixture twice, require deterministic output, and compare it byte-for-byte with the committed golden. A separate parser check freezes literal `go.mod` `require` plus local and versioned-external `replace` observations even where final dependency-edge deduplication collapses transport detail.
+
+The retained real-repository calibration inputs are pinned in the oracle README. Golden regeneration is an explicit migration-oracle maintenance action, not part of normal tests.
+
 ## Code map
 
 | Concern | Primary implementation | Related tests |

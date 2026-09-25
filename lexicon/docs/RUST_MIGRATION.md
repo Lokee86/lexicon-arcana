@@ -15,8 +15,8 @@ The migration keeps the existing Go implementation as the behavioral reference u
 The existing Go implementation remains the behavioral parity oracle during migration. The Rust `lexicon` library and separate `lexicon-cli` crate now own the replacement executable surface.
 
 The reference implementation is pinned at commit
-`758af9daf6e71fc0a7ebb837875efe366f6403fd`. Migration fixtures and the differential harness live under
-`evaluation/rust_migration/`.
+`758af9daf6e71fc0a7ebb837875efe366f6403fd`. Migration fixtures and the general differential harness live under
+`evaluation/rust_migration/`. The legacy Go language adapter has an additional frozen semantic oracle under `adapters/go/testdata/oracle/` with committed canonical facts under `adapters/go/testdata/oracle_golden/`; its retained Demon Docs and Space Rocks calibration revisions are pinned in the fixture README.
 
 ## Completed foundation
 
