@@ -2,7 +2,11 @@ use std::{
     ffi::OsString,
     fs,
     path::{Path, PathBuf},
-    sync::atomic::{AtomicU64, Ordering},
+    process::Command,
+    sync::{
+        OnceLock,
+        atomic::{AtomicU64, Ordering},
+    },
 };
 
 use crate::{AdapterHost, AdapterRequest, LanguageAdapter};
@@ -77,6 +81,30 @@ fn helper_invocation_is_deterministic() {
             ),
         ]
     );
+}
+
+pub(super) fn real_helper() -> HelperRunner {
+    static BINARY: OnceLock<PathBuf> = OnceLock::new();
+    let binary = BINARY.get_or_init(|| {
+        let directory =
+            std::env::temp_dir().join(format!("lexicon-go-semantic-{}", std::process::id()));
+        fs::create_dir_all(&directory).unwrap();
+        let binary = directory.join(format!(
+            "lexicon-go-semantic{}",
+            std::env::consts::EXE_SUFFIX
+        ));
+        let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("adapters/go-semantic");
+        let status = Command::new("go")
+            .args(["build", "-o"])
+            .arg(&binary)
+            .arg(".")
+            .current_dir(source)
+            .status()
+            .expect("build Go semantic helper");
+        assert!(status.success(), "Go semantic helper build failed");
+        binary
+    });
+    HelperRunner::explicit(binary.clone(), Vec::new())
 }
 
 pub(super) fn synthetic_helper(root: &Path, response: &str) -> HelperRunner {

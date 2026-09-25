@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+use super::protocol_records::Record;
+
 pub(crate) const PROTOCOL_VERSION: u32 = 1;
-pub(crate) const HELPER_VERSION: &str = "0.1.0";
+pub(crate) const HELPER_VERSION: &str = "0.2.0";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -34,7 +36,7 @@ pub(crate) struct Execution {
 pub(crate) struct Response {
     pub protocol_version: u32,
     #[serde(default)]
-    pub records: Vec<serde_json::Value>,
+    pub records: Vec<Record>,
 }
 
 impl Request {

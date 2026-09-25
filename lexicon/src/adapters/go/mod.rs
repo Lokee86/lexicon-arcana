@@ -2,11 +2,16 @@ mod discovery;
 mod facts;
 mod module_ownership;
 mod protocol;
+mod protocol_records;
+mod semantic_facts;
+mod semantic_facts_support;
 
 #[cfg(test)]
 mod discovery_boundary_tests;
 #[cfg(test)]
 mod discovery_tests;
+#[cfg(test)]
+mod semantic_parity_tests;
 #[cfg(test)]
 mod tests;
 
@@ -58,7 +63,13 @@ impl LanguageAdapter for GoAdapter {
                 ("discovery.rs", include_bytes!("discovery.rs")),
                 ("module_ownership.rs", include_bytes!("module_ownership.rs")),
                 ("protocol.rs", include_bytes!("protocol.rs")),
+                ("protocol_records.rs", include_bytes!("protocol_records.rs")),
                 ("facts.rs", include_bytes!("facts.rs")),
+                ("semantic_facts.rs", include_bytes!("semantic_facts.rs")),
+                (
+                    "semantic_facts_support.rs",
+                    include_bytes!("semantic_facts_support.rs"),
+                ),
                 ("../helper.rs", include_bytes!("../helper.rs")),
                 (
                     "../helper_capture.rs",
@@ -89,12 +100,7 @@ impl LanguageAdapter for GoAdapter {
             &wire,
         )?;
         debug_assert_eq!(response.protocol_version, protocol::PROTOCOL_VERSION);
-        if !response.records.is_empty() {
-            return Err(AdapterError::new(
-                "Go semantic helper records are not materialized until the extraction phase",
-            ));
-        }
-        facts::structural_analysis(request, &inventory)
+        facts::structural_analysis(request, &inventory, &response.records)
     }
 }
 

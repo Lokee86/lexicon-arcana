@@ -79,19 +79,25 @@ The migration boundary now includes a private version-1 semantic protocol implem
 
 Responses are one JSON document containing typed declaration, relationship, call, dataflow, unresolved, and diagnostic records. Semantic records carry canonical Go identity strings such as `method:example.com/foo:Thing.Run`, repository-relative owner paths, and complete source spans. They do not carry Lexicon SHA IDs. Rust is responsible for translating those semantic identities into Lexicon node identities when the helper boundary is wired into the native adapter.
 
-Decoding is fail-closed: unsupported protocol versions, unknown fields or record kinds, malformed repository paths, invalid semantic identities, and incomplete source spans are rejected. This protocol does not expose snapshots, `Analysis`, incremental publication, JSONL, object-store concepts, or other Lexicon persistence state. The legacy scanner is not routed through this protocol yet; this phase defines and tests only the private transport contract.
+Decoding is fail-closed: unsupported protocol versions, unknown fields or record kinds, malformed repository paths, invalid semantic identities, and incomplete source spans are rejected. This protocol does not expose snapshots, `Analysis`, incremental publication, JSONL, object-store concepts, or other Lexicon persistence state. Structural declaration records are now produced by the extracted `adapters/go-semantic/` helper and materialized into Lexicon facts only on the Rust side.
 
 ## Native Rust shell
 
 The Rust `AdapterHost` now registers a native `GoAdapter` at `src/adapters/go/`. The shell retains adapter version `0.1.0`, fingerprints its Rust-side implementation together with the private helper version, and invokes language-native helpers through the shared internal helper runner rather than through the retired subprocess-adapter/facts handoff. Helper discovery is deterministic from an explicit environment override, the configured adapter root, or packaged executable adjacency.
 
-The runner uses a single JSON request/response frame over stdin/stdout, validates the protocol handshake before decoding the typed response, bounds stderr capture, reports non-zero exits, and kills/reaps a helper that emits malformed or incompatible protocol data. At this migration stage semantic helper records are still withheld from materialization; real Go semantic records remain owned by the legacy oracle until the extraction phases begin.
+The runner uses a single JSON request/response frame over stdin/stdout, validates the protocol handshake before decoding the typed response, bounds stderr capture, reports non-zero exits, and kills/reaps a helper that emits malformed or incompatible protocol data. Structural declaration records are materialized now; typed relationships, calls, SSA/VTA, captures, and dataflow remain on the legacy side until their later migration phases.
 
 ## Rust repository ownership
 
 Rust now owns the Go adapter's repository boundary in `src/adapters/go/discovery.rs`, with module parsing and ownership isolated in `module_ownership.rs`. It walks the repository without following directory symlinks, applies the legacy Go adapter's permanent exclusion set, records every visible directory, and inventories only `.go` and `go.mod` inputs. Every discovered `go.mod` is parsed for its module path, files are assigned deterministically to the nearest containing module root, and repository identity remains the root module path when a root `go.mod` exists or the repository directory name for a multi-module root.
 
-Only this Rust-owned sorted inventory and module table are sent across the private helper protocol. Rust also emits repository, directory, and file nodes plus their containment edges directly, including exact legacy node identities and file content hashes. The permanent fixture test compares this structural slice against the committed legacy oracle before any semantic helper records are involved.
+Only this Rust-owned sorted inventory and module table are sent across the private helper protocol. Rust also emits repository, directory, and file nodes plus their containment edges directly, including exact legacy node identities and file content hashes.
+
+## Extracted structural helper
+
+`adapters/go-semantic/` is the extracted language-native structural layer. It uses only Go's standard `go/parser`, `go/ast`, and token APIs and never emits Lexicon node IDs, facts-v1 records, hashes, snapshots, or persistence state. It parses exactly the Rust-supplied inventory, so it has no independent repository crawler. Every supplied `.go` file is parsed regardless of the active host build configuration, preserving inactive build-tag declarations.
+
+The helper reports packages, imports, named types, interfaces through their named type declarations, functions, methods, tests, interface methods, and closures as canonical semantic declarations with owner paths, spans, containment metadata, and import classification. Rust translates those declarations into module/import/type/function/method/test nodes plus `contains`, `defines`, and `imports` relationships. The seven frozen migration fixtures compare the Rust-materialized declaration slice against the legacy oracle, including mutually exclusive build-tag variants.
 
 ## Code map
 
@@ -103,6 +109,7 @@ Only this Rust-owned sorted inventory and module table are sent across the priva
 | Private migration protocol | `semantic_protocol_*.go`; Rust mirror in `src/adapters/go/protocol.rs` | protocol round-trip and strict-validation tests |
 | Native Rust shell/helper runner | `src/adapters/go/`, `src/adapters/helper.rs`, `src/adapters/helper_capture.rs` | Rust Go adapter shell/handshake tests |
 | Rust repository discovery/module ownership | `src/adapters/go/discovery.rs`, `src/adapters/go/module_ownership.rs`, `src/adapters/go/facts.rs` | `src/adapters/go/discovery_tests.rs`, `discovery_boundary_tests.rs`, and legacy oracle goldens |
+| Extracted structural semantic helper | `adapters/go-semantic/`, `src/adapters/go/protocol_records.rs`, `semantic_facts*.rs` | helper Go tests plus seven-fixture Rust declaration parity |
 | Calls and dataflow | `semantic_calls.go`, `semantic_dataflow.go` | call and dataflow tests |
 | Dependencies | `dependencies.go` | package/dependency coverage |
 | Parallel execution | `parallel.go`, `semantic_parallel.go` | `semantic_parallel_test.go` |

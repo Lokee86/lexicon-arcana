@@ -5,11 +5,12 @@ use crate::{
     NodeRecord, content_id, node_id,
 };
 
-use super::{ADAPTER_VERSION, discovery::Inventory};
+use super::{ADAPTER_VERSION, discovery::Inventory, protocol_records::Record, semantic_facts};
 
 pub(crate) fn structural_analysis(
     request: &AdapterRequest,
     inventory: &Inventory,
+    semantic: &[Record],
 ) -> Result<Analysis, crate::AdapterError> {
     let mut records = Vec::new();
     let repository_id = repository_id(&inventory.repository);
@@ -56,6 +57,7 @@ pub(crate) fn structural_analysis(
         }));
         records.push(contains(parent_id(&file.path, &repository_id), id));
     }
+    semantic_facts::add(inventory, semantic, &mut records)?;
 
     let incremental = request.mode == AdapterMode::Incremental;
     let mut analysis = Analysis::new(

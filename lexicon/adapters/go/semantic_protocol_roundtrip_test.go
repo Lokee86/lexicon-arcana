@@ -43,6 +43,22 @@ func TestGoSemanticProtocolResponseRoundTrip(t *testing.T) {
 					Name:     "Run",
 					Owner:    "thing.go",
 					Span:     span,
+					Metadata: map[string]string{"container": "package:example.com/foo:foo"},
+				},
+			},
+			{
+				Kind: goSemanticRecordDeclaration,
+				Declaration: &goSemanticDeclaration{
+					Identity: "import:external:fmt",
+					Kind:     goSemanticDeclarationImport,
+					Name:     "fmt",
+					Owner:    "thing.go",
+					Span:     span,
+					Metadata: map[string]string{
+						"container":    "package:example.com/foo:foo",
+						"import_class": "external",
+						"import_path":  "fmt",
+					},
 				},
 			},
 			{

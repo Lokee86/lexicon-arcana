@@ -34,7 +34,7 @@ func validateGoSemanticIdentity(identity string) error {
 		return fmt.Errorf("invalid semantic identity %q", identity)
 	}
 	switch prefix {
-	case "package", "namespace", "type", "type-expression", "function", "closure", "ssa-function",
+	case "package", "import", "namespace", "type", "type-expression", "function", "closure", "ssa-function",
 		"method", "interface-method", "dynamic-method", "test", "parameter", "variable", "capture", "field", "constant":
 		return nil
 	default:

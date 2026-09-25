@@ -58,6 +58,7 @@ type goSemanticDeclarationKind string
 
 const (
 	goSemanticDeclarationPackage   goSemanticDeclarationKind = "package"
+	goSemanticDeclarationImport    goSemanticDeclarationKind = "import"
 	goSemanticDeclarationNamespace goSemanticDeclarationKind = "namespace"
 	goSemanticDeclarationType      goSemanticDeclarationKind = "type"
 	goSemanticDeclarationFunction  goSemanticDeclarationKind = "function"
@@ -75,6 +76,7 @@ type goSemanticDeclaration struct {
 	Name     string                    `json:"name"`
 	Owner    string                    `json:"owner"`
 	Span     goSemanticSpan            `json:"span"`
+	Metadata map[string]string         `json:"metadata,omitempty"`
 }
 
 type goSemanticRelationshipKind string

@@ -17,7 +17,7 @@ func goSemanticRecordPayloadCount(record goSemanticRecord) int {
 
 func knownGoSemanticDeclaration(kind goSemanticDeclarationKind) bool {
 	switch kind {
-	case goSemanticDeclarationPackage, goSemanticDeclarationNamespace, goSemanticDeclarationType,
+	case goSemanticDeclarationPackage, goSemanticDeclarationImport, goSemanticDeclarationNamespace, goSemanticDeclarationType,
 		goSemanticDeclarationFunction, goSemanticDeclarationMethod, goSemanticDeclarationTest,
 		goSemanticDeclarationParameter, goSemanticDeclarationVariable, goSemanticDeclarationField,
 		goSemanticDeclarationConstant:
@@ -32,6 +32,8 @@ func identityMatchesDeclarationKind(identity string, kind goSemanticDeclarationK
 	switch kind {
 	case goSemanticDeclarationPackage:
 		return prefix == "package"
+	case goSemanticDeclarationImport:
+		return prefix == "import"
 	case goSemanticDeclarationNamespace:
 		return prefix == "namespace"
 	case goSemanticDeclarationType:

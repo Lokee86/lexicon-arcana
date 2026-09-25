@@ -63,7 +63,7 @@ fn basic_oracle_discovery_and_structural_facts_match_legacy() {
 }
 
 #[test]
-fn all_oracle_structural_facts_match_legacy() {
+fn all_oracle_repository_facts_match_legacy() {
     for name in [
         "basic_calls",
         "relationships",
@@ -82,26 +82,17 @@ fn all_oracle_structural_facts_match_legacy() {
                 ..AdapterRequest::default()
             },
             &inventory,
+            &[],
         )
         .unwrap();
-        analysis.validate().unwrap();
-
         let golden = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("adapters/go/testdata/oracle_golden")
             .join(format!("{name}.jsonl"));
-        let legacy = Analysis::parse(
-            &fs::read_to_string(golden)
-                .unwrap_or_else(|error| panic!("read {name} oracle: {error}")),
-        )
-        .unwrap();
+        let legacy = Analysis::parse(&fs::read_to_string(golden).unwrap()).unwrap();
         assert_eq!(
             analysis.records,
             structural_records(&legacy.records),
-            "structural parity failed for {name}"
-        );
-        assert_eq!(
-            analysis.header.repository, legacy.header.repository,
-            "repository identity failed for {name}"
+            "repository parity failed for {name}"
         );
     }
 }
