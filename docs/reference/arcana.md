@@ -4,191 +4,167 @@ Parent index: [Reference](INDEX.md)
 
 ## Purpose
 
-This document defines Arcana's product-facing commands, state, synchronization, graph, protocol, vector, degradation, and diagnostic contracts inside the Grimoire bundle.
+Define Arcana's current direct command surface, managed graph state, Lexicon synchronization, deterministic query protocol, optional semantic vectors, and implementation ownership.
 
 ## Overview
 
-Arcana consumes an immutable Lexicon snapshot and publishes verified graph state for deterministic structural queries. Grimoire normally coordinates it automatically, while direct commands remain available for specialist operation and development.
+Arcana consumes a verified immutable Lexicon snapshot and publishes immutable graph state for deterministic structural queries. It is directly operable and does not require Grimoire.
 
-Arcana is the repository-graph component in the Grimoire bundle. It consumes one immutable Lexicon snapshot and publishes a verified graph snapshot optimized for deterministic traversal, impact analysis, paths, call chains, architecture summaries, and structural inspection.
-
-Grimoire normally synchronizes and queries Arcana automatically. Direct Arcana commands are for graph operators, protocol integrators, storage developers, benchmark work, and semantic-index diagnostics.
+For a task-oriented first-use guide, start with the [Arcana operator how-to](../../arcana/docs/HOWTO.md). Exact command/state semantics live in [Arcana application](../../arcana/docs/APPLICATION.md).
 
 ## Command access
 
-Use either the standalone executable:
+Use the standalone executable:
 
 ```text
 arcana <command> ...
 ```
 
-or Grimoire's forwarding namespace:
+The main command families are:
 
-```text
-grimoire arcana <command> ...
-```
-
-`grimoire arcana check` reports the resolved executable and version. Other arguments and process streams are forwarded unchanged.
-
-## Core operations
-
-| Operation | Purpose |
+| Command | Purpose |
 | --- | --- |
-| `import-facts` | Compile one complete canonical TSV fact file into a new standalone repository snapshot directory. |
-| `update-facts` | Replace facts owned by declared changed paths and publish a new standalone snapshot with a cumulative edge overlay when node identities remain stable. |
-| `sync` | Verify a Lexicon snapshot and publish or reuse the corresponding managed Arcana graph snapshot. |
-| `sync --register` | Register Arcana as a Lexicon post-publication consumer. |
-| `protocol --snapshot <path>` | Serve line-oriented `arcana.query.v1` requests against one immutable, overlay-aware repository snapshot. |
-| `query` | Perform direct lookup against explicitly supplied packed graph and catalogue files; this path does not apply repository overlays. |
-| `vectorize` | Explicitly build the optional semantic graph index for the current graph snapshot. |
-| `semantic-query` | Find graph entry points through the optional semantic index. |
-| `benchmark` | Compare packed rebuild and immutable-overlay update/query behavior on deterministic synthetic graphs. |
+| `sync` | Synchronize managed `.arcana/` state from the current Lexicon snapshot. |
+| `sync --register` | Synchronize and register Arcana as a Lexicon post-publication consumer. |
+| `protocol --snapshot <path>` | Serve overlay-aware `arcana.query.v1` JSONL requests against one verified snapshot. |
+| `query` | Inspect an explicitly supplied packed graph/catalogue directly; this does not apply overlays. |
+| `vectorize` | Explicitly build the optional semantic entry-point index. |
+| `semantic-query` | Query that optional semantic index for graph entry points. |
+| `import-facts` | Build a standalone repository snapshot from canonical fact input. |
+| `update-facts` | Produce a new standalone generation from declared changed-file facts when node identity permits an overlay. |
+| `benchmark` | Exercise deterministic packed/overlay graph workloads. |
 
-Exact flags, defaults, exit behavior, standalone-versus-managed publication, and diagnostics are documented in [`arcana/docs/APPLICATION.md`](../../arcana/docs/APPLICATION.md). Command parsing is owned by `arcana/src/cli.rs`; execution is split across the command-specific CLI modules.
+## Normal operator path
 
-## State layout
-
-Arcana publishes state beneath `.arcana/`. The current snapshot is immutable and bound to the exact Lexicon snapshot it consumed.
-
-A graph snapshot contains:
+Prepare Lexicon first:
 
 ```text
-graph.arcana
-catalogue.tsv
-unresolved.tsv
-snapshot manifest
-optional overlay
+lexicon init --repo /path/to/repository
 ```
 
-The state root also contains writer coordination and optional semantic-vector state. `.arcana/CURRENT` advances only after the candidate graph state validates.
+Synchronize and register Arcana:
 
-## Synchronization lifecycle
+```text
+arcana sync \
+  --lexicon /path/to/repository/.lexicon \
+  --state /path/to/repository/.arcana \
+  --register
+```
 
-1. Resolve `.lexicon/CURRENT` or an explicitly selected Lexicon snapshot.
-2. Validate the Lexicon manifest and each referenced fact object.
-3. Decode normalized nodes, relationships, and unresolved evidence.
-4. Build the dense node catalogue and repository fact model.
-5. Choose a packed-base rebuild or an immutable overlay update.
-6. Validate forward and reverse graph state, counts, ordering, and checksums.
-7. Publish the Arcana snapshot and atomically advance `.arcana/CURRENT`.
+Later repository updates normally begin with:
 
-If the graph node set remains stable, relationship-only changes may use an overlay. Symbol additions/removals or shared language-level fact changes rebuild the packed base.
+```text
+lexicon scan --repo /path/to/repository
+```
 
-## Packed graph
+When registered, Arcana can be synchronized automatically after successful Lexicon publication. Explicit `arcana sync` remains valid.
 
-The packed graph stores aligned forward and reverse adjacency sections in a versioned little-endian format. Readers query the packed bytes directly rather than reconstructing a complete in-memory graph.
+## Managed state
 
-Opening state validates:
+Arcana publishes generated state under `.arcana/`:
 
-- header and section layout;
-- file length and checksums;
-- node bounds and offset tables;
-- canonical adjacency ordering;
-- logical dataset identity.
+```text
+.arcana/
+  CURRENT
+  LOCK
+  snapshots/
+    <lexicon-digest>/
+      graph.arcana
+      overlay.arcana              # optional
+      graph.manifest
+      catalogue.tsv
+      unresolved.tsv
+      facts.tsv
+      repository.manifest
+      lexicon.snapshot
+      compatibility.warnings      # optional
+  vector-cache/                   # optional
+  vectors/                        # optional
+```
 
-An in-memory graph implementation remains the correctness oracle for tests.
-
-## Snapshots, overlays, and compaction
-
-An Arcana snapshot is a composition of one validated packed base and an optional immutable overlay. The overlay stores added edges and removed-edge tombstones bound to the exact base identity.
-
-Forward and reverse queries merge base adjacency with overlay indexes. Compaction writes a new packed base for the visible graph and publishes a new base-only manifest. It does not mutate the source snapshot.
+`.arcana/` is generated state and should normally be ignored by the source repository. `CURRENT` contains the full Lexicon snapshot identity; the matching directory under `snapshots/` uses its digest.
 
 ## Query protocol
 
-The stable protocol identifier is `arcana.query.v1`. Consumers begin with `capabilities`, which returns protocol version `1`, the Arcana implementation version, and the supported operation names. Consumers must reject unsupported protocol versions or missing required operations rather than inferring compatibility from response shape.
+The stable machine boundary is `arcana.query.v1`. Start a session with:
 
-Implemented operations include:
+```text
+arcana protocol --snapshot /path/to/repository/.arcana/snapshots/<digest>
+```
 
-- capability and operation discovery;
-- symbol and file resolution;
-- forward and reverse neighbors;
-- bounded multi-hop paths;
-- entry-point reachability;
-- transitive impact;
-- shortest call chains;
-- unresolved references;
-- graph statistics;
-- snapshot differences;
-- dead-symbol detection;
-- operational-role summaries;
-- deterministic architecture communities and summaries;
-- graph export.
+Then send one JSON object per line. Begin with capabilities:
 
-Architecture summaries can be scoped by path and relationship kind and report representative nodes plus internal and boundary relationship counts.
+```json
+{"id":"cap","op":"capabilities"}
+```
 
-Grimoire communicates through this protocol from `internal/arcanagraph/`; it does not read Arcana's packed format as an internal implementation shortcut.
+Common operations include `search_nodes`, `resolve_symbol`, `resolve_file`, `neighbors`, `paths`, `reachability`, `impact`, `shortest_call_chain`, `dead_symbols`, `operational_role`, `architecture_summary`, `unresolved`, `stats`, and `diff`.
 
-## Optional semantic graph index
+The protocol validates the complete repository snapshot and is overlay-aware. Consumers should use it instead of reading packed bytes directly when they need authoritative managed-state graph results.
 
-Arcana can explicitly vectorize eligible declaration-level graph entry points and bounded neighborhoods using Grimoire's configured OpenAI-compatible embedding endpoint.
+## Direct query
 
-The semantic index is optional:
+`arcana query` is intentionally narrower:
 
-- ordinary synchronization does not build it;
-- deterministic graph traversal does not require it;
-- semantic matches identify entry points, while exact Arcana traversal remains authoritative;
-- cached graph-document vectors can be reused across snapshots when rendered content is byte-identical.
+```text
+arcana query \
+  --graph <snapshot>/graph.arcana \
+  --catalogue <snapshot>/catalogue.tsv \
+  --name ExactSymbolName
+```
 
-See [`arcana/docs/vector-index.md`](../../arcana/docs/vector-index.md) for storage, invalidation, resume, and query behavior.
+It reads the packed base directly and does not merge `overlay.arcana`. Use `protocol` for normal managed snapshots.
 
 ## Lexicon boundary
 
-Lexicon owns language parsing and durable normalized fact identities. Arcana owns graph compaction and snapshot-local dense IDs.
+Lexicon owns language parsing, normalized semantic facts, durable identities, source spans, and immutable semantic snapshots. Arcana owns graph ingestion, packed graph storage, overlays, traversal, graph algorithms, and graph-local query semantics.
 
-Arcana records the consumed Lexicon snapshot ID and rejects incompatible or corrupted input. It may read legacy fact encodings during migration, but the current integration boundary is the immutable Lexicon snapshot/object contract.
+Arcana records the exact Lexicon snapshot it consumed and rejects corrupt or incompatible input rather than silently substituting stale graph state.
 
-See [`arcana/docs/LEXICON_CONTRACT.md`](../../arcana/docs/LEXICON_CONTRACT.md).
+See [Lexicon ingestion contract](../../arcana/docs/LEXICON_CONTRACT.md).
 
-## Degradation in Grimoire
+## Optional semantic vectors
 
-When Arcana is unavailable or stale, Grimoire can still return exact source, BM25 source, document, and Lexicon symbol evidence. Relationship evidence may fall back to direct Lexicon facts with reduced traversal capability.
+Arcana can build an optional graph-entry-point index through a compatible external OpenAI-style embedding endpoint:
 
-Arcana vector state is independent. Missing graph vectors do not make deterministic graph state stale.
+```text
+arcana vectorize --state /path/to/repository/.arcana
+arcana semantic-query --state /path/to/repository/.arcana --query "profile persistence"
+```
+
+Semantic matches are entry points. Exact relationships, paths, reachability, and impact remain deterministic graph operations.
 
 ## Common diagnostics
 
-### No graph snapshot
+If no graph snapshot exists, verify Lexicon with `lexicon status` and `lexicon doctor`, then run explicit `arcana sync`.
 
-Confirm Lexicon has a valid current snapshot, then run Arcana synchronization. Arcana cannot create authoritative language facts itself.
+If a snapshot is rejected, rebuild/synchronize from verified Lexicon state rather than editing `.arcana/` files manually.
 
-### Snapshot rejected
+If automatic synchronization does not occur, inspect the Lexicon consumer registration and rerun `arcana sync --register`.
 
-A manifest/object checksum mismatch, catalogue collision, invalid packed layout, or Lexicon identity mismatch is a hard error. Rebuild from verified Lexicon state rather than editing Arcana files manually.
-
-### Arcana does not follow Lexicon scans
-
-Run `sync --register` and inspect the Lexicon consumer definition/state. The event-driven path is a bounded consumer invocation, not a resident Arcana daemon.
-
-### Queries return no symbol
-
-Inspect the catalogue and confirm the symbol exists in the consumed Lexicon snapshot. Name resolution is constrained by actual graph catalogue entries and protocol query fields.
-
-### Semantic query unavailable
-
-The optional index must be built explicitly and must match the current graph and embedding identities. Deterministic protocol queries remain available without it.
+If direct `query` disagrees with a managed snapshot containing an overlay, use `protocol`; direct query intentionally sees only the packed base.
 
 ## Code map
 
-| Documented concern | Primary implementation | Related tests |
+| Concern | Current implementation | Verification |
 | --- | --- | --- |
-| Grimoire process/protocol integration | `internal/arcanagraph/` | `internal/arcanagraph/*_test.go` |
-| Arcana command surface | `arcana/src/cli.rs`, `arcana/src/cli_*.rs`, `arcana/src/main.rs` | Arcana CLI tests |
-| Lexicon snapshot ingestion | `arcana/src/lexicon/` | Arcana Lexicon and sync tests |
-| Repository compilation and catalogue | `arcana/src/repository/` | repository module tests |
-| Packed graph and snapshots | `arcana/src/storage/`, `arcana/src/snapshot/` | storage and snapshot tests |
+| CLI parsing/dispatch | `arcana/src/main.rs`, `arcana/src/cli.rs`, `arcana/src/cli_*.rs` | Arcana CLI tests |
+| Lexicon synchronization | `arcana/src/cli_sync.rs`, `arcana/src/cli_sync_state.rs`, `arcana/src/lexicon/` | sync/Lexicon tests |
+| Repository compilation/catalogue | `arcana/src/repository/` | repository tests |
+| Packed graph/snapshots | `arcana/src/storage/`, `arcana/src/snapshot/` | storage/snapshot tests |
 | Query protocol | `arcana/src/protocol/` | protocol tests |
-| Optional vectors | `arcana/src/vector/` | vector tests |
-
-Grimoire consumes Arcana through `arcana.query.v1`; it does not read packed graph bytes directly.
+| Optional vectors | `arcana/src/vector/`, `arcana/src/cli_vectors.rs` | vector tests |
+| Deterministic synthetic benchmarks | `arcana/src/benchmark/`, `arcana/src/synthetic/` | benchmark/synthetic tests |
 
 ## Related docs
 
+- [Arcana operator how-to](../../arcana/docs/HOWTO.md)
 - [Arcana application](../../arcana/docs/APPLICATION.md)
 - [Arcana architecture](../../arcana/docs/ARCHITECTURE.md)
-- [Arcana maintainer map](../../arcana/docs/MAINTAINER_MAP.md)
-- [Analysis stack](../architecture/analysis-stack.md)
+- [Lexicon ingestion contract](../../arcana/docs/LEXICON_CONTRACT.md)
+- [Repository snapshots](../../arcana/docs/repository-snapshots.md)
+- [Installation](installation.md)
 
 ## Notes
 
-Use the subject document's code map for the narrow implementation path. Use the maintainer map only when ownership is unclear.
+Arcana is a deterministic graph provider. Higher-level task interpretation, ranking, and agent orchestration belong to consumers such as Warlock or Pitlord.

@@ -9,7 +9,7 @@ Lexicon documentation follows these rules:
 - describe implemented behavior as present tense;
 - label dated measurements and validation records with their execution date;
 - separate current guarantees from limitations and future possibilities;
-- keep command and flag references synchronized with `internal/cli`;
+- keep command and flag references synchronized with the Rust `lexicon-cli/src/` host;
 - keep storage and exchange-format claims synchronized with `spec/` and `internal/objectstore`;
 - state ownership boundaries explicitly instead of using broad subsystem descriptions;
 - link to the owning document rather than duplicating detailed rules across files;

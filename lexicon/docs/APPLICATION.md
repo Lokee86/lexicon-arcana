@@ -16,7 +16,7 @@ Lexicon keeps the most recently observed relevant repository state. It does not 
 
 ## Runtime model
 
-Lexicon is primarily a one-shot CLI. `init`, `scan`, `rebuild`, `languages set`, `export`, `gc`, `consumer`, `status`, `doctor`, `find`, `show`, `refs`, and `calls` perform bounded operations and exit.
+Lexicon is primarily a one-shot CLI. The recommended Go runtime at `758af9d` provides `init`, `scan`, `rebuild`, `languages`, `export`, `gc`, `consumer`, `status`, `doctor`, and `version` as bounded operations. The Rust migration CLI additionally provides `find`, `show`, `refs`, and `calls`; those four commands are not part of the recommended Go operator surface.
 
 `lexicon demon` is an optional watch mode. It remains active only to translate filesystem events and periodic reconciliation into the same locked scan transaction used by `lexicon scan`. Snapshot consumers do not depend on the watch process and can read any published snapshot after Lexicon exits.
 
@@ -45,7 +45,7 @@ Lexicon can invoke deterministic one-shot consumers after a successful scan has 
 
 Commands execute directly without a shell, in lexical filename order, with the repository as their working directory. `timeout` is optional; definitions without it use Lexicon's owned 30-minute default. Lexicon provides `LEXICON_REPOSITORY`, `LEXICON_STATE_ROOT`, and `LEXICON_SNAPSHOT_ID`. Lexicon attempts every registered consumer, aggregates failures, and retries failed consumers on a later scan. After a successful invocation, its state file contains deterministic JSON such as `{"version":1,"snapshot_id":"sha256:..."}` and is replaced atomically; failed or timed-out invocations leave their previous state unchanged. The already-published Lexicon snapshot remains valid.
 
-The `lexicon consumer` commands and `internal/consumer` package expose list, add, remove, and one-shot execution operations. Definition names are simple `.json` filenames; path traversal and other extensions are rejected. Listing is lexical, adding replaces an existing definition atomically, removal deletes both the definition and its consumer state, and one-shot execution validates the requested immutable snapshot before invoking the selected consumer.
+The `lexicon consumer` commands in `lexicon-cli` and the Rust `consumer` library module expose list, add, remove, and one-shot execution operations. Definition names are simple `.json` filenames; path traversal and other extensions are rejected. Listing is lexical, adding replaces an existing definition atomically, removal deletes both the definition and its consumer state, and one-shot execution validates the requested immutable snapshot before invoking the selected consumer.
 
 ## Commands
 
@@ -64,12 +64,19 @@ lexicon consumer list [--repo PATH]
 lexicon consumer add [--repo PATH] --name NAME --command PATH [--arg VALUE]... [--timeout DURATION]
 lexicon consumer remove [--repo PATH] --name NAME
 lexicon consumer run [--repo PATH] --name NAME [--snapshot ID]
+lexicon version
+```
+
+Rust migration CLI additions:
+
+```text
 lexicon find QUERY [--repo PATH] [--snapshot ID] [--limit N]
 lexicon show SELECTOR [--repo PATH] [--snapshot ID]
 lexicon refs SELECTOR [--repo PATH] [--snapshot ID] [--limit N]
 lexicon calls SELECTOR [--repo PATH] [--snapshot ID] [--limit N]
-lexicon version
 ```
+
+The migration-only commands above are not available in the recommended Go runtime at `758af9d`.
 
 `lexicon init` creates `.lexicon/repo`, performs complete analysis for the selected detected languages, creates the initial private state commit, and publishes an immutable analysis snapshot. Omitting `--languages` or using `all` enables every supported language.
 
@@ -83,7 +90,7 @@ lexicon version
 
 `lexicon export` reconstructs verified standalone JSONL libraries. `lexicon gc` deletes only unreachable snapshots and objects while preserving retention and consumer pins. Consumer commands manage and invoke deterministic post-publication hooks.
 
-`lexicon find` performs bounded deterministic matching over node names, qualified names, paths, and kinds. `lexicon show` resolves an exact node ID, qualified name, name, or path and rejects ambiguous selectors. `lexicon refs` reports direct incoming/outgoing relationships plus unresolved outgoing evidence; `lexicon calls` restricts that one-hop view to `calls`, `possible-calls`, and `calls-endpoint` without merging their semantics. `find` and `show` use the binary object's node-only reader so they do not decode edge/unresolved sections; `refs` and `calls` load relationship evidence. These commands do not provide traversal, reachability, impact analysis, or ranking beyond bounded local matching; those remain Arcana responsibilities.
+In the Rust migration CLI, `lexicon find` performs bounded deterministic matching over node names, qualified names, paths, and kinds. `lexicon show` resolves an exact node ID, qualified name, name, or path and rejects ambiguous selectors. `lexicon refs` reports direct incoming/outgoing relationships plus unresolved outgoing evidence; `lexicon calls` restricts that one-hop view to `calls`, `possible-calls`, and `calls-endpoint` without merging their semantics. These commands are migration/development surfaces for now. Normal Go-runtime users should use Arcana for query work.
 
 ## Private state repository
 
@@ -168,14 +175,15 @@ The demon keeps the loaded ignore policy in memory while processing filesystem e
 
 | Application area | Primary implementation | Related tests |
 | --- | --- | --- |
-| Executable entry and command dispatch | `cmd/lexicon/main.go`, `internal/cli/cli.go` | `internal/cli/*_test.go` |
-| Repository and configuration selection | `internal/cli/repository.go`, `internal/config/` | CLI and config tests |
-| Initialization, scans, and rebuilds | `internal/scan/scanner_open.go`, `scanner.go`, `rebuild.go` | `internal/scan/*_test.go` |
-| Transaction, recovery, and publication | `internal/scan/transaction.go`, `internal/objectstore/store.go`, `pending.go` | scan and object-store tests |
-| Watch mode and writer locking | `internal/watch/`, `internal/lock/` | package-local tests |
-| Consumers | `internal/consumer/`, `internal/cli/consumers.go` | consumer and CLI tests |
-| Export and garbage collection | `internal/objectstore/export*.go`, `gc*.go`, `internal/cli/storage.go` | object-store and CLI operation tests |
-| Status and diagnostics | `internal/cli/status.go`, `doctor.go`, `doctor_checks.go` | CLI diagnostic tests |
+| Executable entry and command dispatch | `../lexicon-cli/src/` | `../lexicon-cli/tests/`, module tests |
+| Repository and configuration selection | `src/repository/`, `src/config/`; CLI repository resolution in `../lexicon-cli/src/repository.rs` | config, repository-policy, private-state, and CLI tests |
+| Initialization, scans, and rebuilds | `src/api/`, `src/scan/` | public API, scan-engine, scan-planning, scan-transaction, and rebuild tests |
+| Transaction, recovery, and publication | `src/scan/`, `src/storage/`, `src/repository/` | publication, recovery, private-state, and storage tests |
+| Watch mode | `src/watch/`; signal handling in `../lexicon-cli/src/` | watch-daemon and CLI tests |
+| Consumers | `src/consumer/`, `../lexicon-cli/src/commands_consumer.rs` | consumer-execution and CLI tests |
+| Export and garbage collection | `src/storage/`, `../lexicon-cli/src/commands_storage.rs` | storage export/GC and CLI tests |
+| Status and diagnostics | `src/api/`, `../lexicon-cli/src/commands_diagnostics.rs` | status-report, doctor-report, and CLI tests |
+| Semantic lookup | `src/lookup/`, `../lexicon-cli/src/commands_lookup.rs` | lookup and CLI lookup tests |
 
 Language parsing belongs to the owning adapter. The application coordinates adapters and immutable state but does not define language semantics.
 

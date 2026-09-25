@@ -97,9 +97,9 @@ Their active implementation has been removed. Historical documentation, ADRs, ev
 
 | Product boundary | Primary implementation | Related tests |
 | --- | --- | --- |
-| Lexicon CLI and lifecycle | `lexicon/cmd/lexicon/`, `lexicon/internal/cli/`, `lexicon/internal/scan/` | Lexicon package tests |
-| Lexicon semantic analysis | `lexicon/adapters/` | adapter tests and semantic validation |
-| Lexicon immutable publication | `lexicon/internal/objectstore/` | publication/recovery tests |
+| Lexicon CLI host | `lexicon-cli/src/` | Lexicon CLI tests |
+| Lexicon lifecycle and immutable publication | `lexicon/src/api/`, `lexicon/src/scan/`, `lexicon/src/storage/`, `lexicon/src/repository/` | public API, scan, storage, publication, and recovery tests |
+| Lexicon semantic analysis | native `lexicon/src/adapters/`; transitional/oracle `lexicon/adapters/` | adapter parity/oracle tests and semantic validation |
 | Arcana repository compilation | `arcana/src/lexicon/`, `arcana/src/repository/` | ingestion/repository tests |
 | Arcana graph storage and snapshots | `arcana/src/storage/`, `arcana/src/snapshot/` | storage/snapshot tests |
 | Arcana query protocol | `arcana/src/protocol/` | protocol/traversal tests |

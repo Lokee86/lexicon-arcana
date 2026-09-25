@@ -14,19 +14,21 @@ The normal lifecycle is: install Lexicon, initialize a repository once, inspect 
 
 ## 1. Install and verify
 
-The supported combined Lexicon + Arcana bundle is documented in the shared [installation guide](../../docs/reference/installation.md).
+For normal use, install or build the last optimized Go Lexicon implementation. The Rust port remains a migration/development target and is not yet the recommended operator runtime because its optimization work is incomplete.
 
-After installation:
-
-```text
-lexicon version
-```
-
-For a source checkout, the shared build workflow is preferred:
+The pinned Go reference revision is `758af9daf6e71fc0a7ebb837875efe366f6403fd`. Build it from the `lexicon/` directory:
 
 ```text
-python scripts/workflow.py build --version 0.1.0-dev
+go build -o ../bin/lexicon ./cmd/lexicon
 ```
+
+Then verify:
+
+```text
+../bin/lexicon version
+```
+
+The shared [installation guide](../../docs/reference/installation.md) documents the Go operator path and the separate Rust migration path.
 
 ## 2. Initialize a repository
 
@@ -61,25 +63,13 @@ lexicon doctor --repo /path/to/repository
 
 Use `status` for the current snapshot, detected/enabled languages, and consumers. Use `doctor` when adapters, runtimes, storage, or registered consumers may be misconfigured.
 
-## 4. Find semantic owners
+## 4. Inspect semantic structure
 
-The common inspection loop is:
+The recommended Go runtime at `758af9d` does not include the newer Rust-migration-only `find`, `show`, `refs`, or `calls` commands.
 
-```text
-lexicon find "Gateway" --repo /path/to/repository
-lexicon show "Gateway" --repo /path/to/repository
-lexicon refs "Gateway" --repo /path/to/repository
-lexicon calls "Gateway" --repo /path/to/repository
-```
+For normal operator work, publish the Lexicon snapshot and use Arcana for symbol resolution, relationships, traversal, reachability, impact, call chains, and architecture queries. See [Arcana operator how-to](../../arcana/docs/HOWTO.md).
 
-Use the commands for different questions:
-
-- `find` — bounded matching over names, qualified names, paths, and kinds.
-- `show` — resolve one exact node or reject an ambiguous selector.
-- `refs` — direct incoming/outgoing relationships plus unresolved outgoing evidence.
-- `calls` — the one-hop call-oriented subset of those relationships.
-
-Lexicon intentionally stops at local semantic evidence. Use Arcana for traversal, reachability, transitive impact, shortest call chains, or architecture communities.
+When a consumer needs raw normalized facts instead of graph queries, use `lexicon export`.
 
 ## 5. Refresh after source changes
 

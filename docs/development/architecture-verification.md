@@ -55,7 +55,7 @@ A passing Pitlord check does not waive those review requirements.
 | Canonical policy composition | `tools/pitlord/policy.json` | `pitlord validate` in root workflow and CI |
 | Repository architecture rules | `tools/pitlord/repository.json` | `pitlord check` in root workflow and CI |
 | Shared release workflow | `scripts/workflow.py` | `scripts/test_workflow.py` |
-| Lexicon consumer lifecycle | `lexicon/internal/consumer/` | `lexicon/internal/consumer/runner_test.go` |
+| Lexicon consumer lifecycle | `lexicon/src/consumer/` | `lexicon/tests/consumer_execution.rs` |
 | Lexicon semantics/publication | `lexicon/` | Lexicon package and adapter tests |
 | Arcana graph/protocol | `arcana/` | Arcana Cargo tests and root protocol capability verification |
 

@@ -62,7 +62,7 @@ Operators recover by inspecting status, removing only the affected generated sta
 | MCP negotiation, admission, cancellation, and framing | `internal/mcpserver/`, `internal/app/mcp.go` | `internal/mcpserver/server_test.go`, `internal/app/mcp_test.go` |
 | MCP audit privacy | `internal/app/mcp_audit.go` | `internal/app/mcp_audit_test.go` |
 | Arcana process lifecycle and correlation | `internal/arcanagraph/session.go`, `internal/arcanagraph/protocol.go` | `internal/arcanagraph/*_test.go` |
-| Lexicon consumer execution limits | `lexicon/internal/consumer/` | `lexicon/internal/consumer/runner_test.go` |
+| Lexicon consumer execution limits | `lexicon/src/consumer/` | `lexicon/tests/consumer_execution.rs` |
 | Lodestone source identity | `go.mod`, `scripts/workflow.py`, `.github/workflows/release.yml` | `tools/pitlord/repository.json`, `scripts/test_workflow.py`, release verification |
 | Generated-state traversal exclusions | `.gitignore`, `internal/index/exclusions.go` | `tools/pitlord/repository.json`, `internal/app/index_exclude_test.go`, `internal/index/*_test.go` |
 

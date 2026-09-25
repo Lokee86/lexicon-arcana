@@ -99,9 +99,9 @@ Warlock owns probabilistic task/context orchestration. Lexicon and Arcana remain
 
 | Boundary | Primary implementation | Related tests |
 | --- | --- | --- |
-| Lexicon executable and application | `lexicon/cmd/lexicon/main.go`, `lexicon/internal/cli/` | `lexicon/internal/cli/*_test.go` |
-| Lexicon scan/publication | `lexicon/internal/scan/`, `lexicon/internal/objectstore/` | package-local `*_test.go` |
-| Lexicon adapters | `lexicon/adapters/` | adapter-owned tests/evaluations |
+| Lexicon executable host | `lexicon-cli/src/` | Lexicon CLI tests |
+| Lexicon library, scan, and publication | `lexicon/src/api/`, `lexicon/src/scan/`, `lexicon/src/storage/`, `lexicon/src/repository/` | Rust public API, scan, publication, recovery, and storage tests |
+| Lexicon semantic adapters | native `lexicon/src/adapters/`; transitional/oracle `lexicon/adapters/` | adapter-owned Rust parity and legacy oracle suites |
 | Arcana executable | `arcana/src/main.rs`, `arcana/src/cli.rs`, `arcana/src/cli_*.rs` | `arcana/src/cli*_tests.rs` |
 | Arcana graph and snapshots | `arcana/src/repository/`, `arcana/src/storage/`, `arcana/src/snapshot/` | module-local Rust tests |
 | Arcana query protocol | `arcana/src/protocol/` | protocol module tests |

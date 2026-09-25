@@ -14,7 +14,7 @@ Current coverage contains two independently usable analysis products plus shared
 
 | Boundary | Implementation | Canonical current owner |
 | --- | --- | --- |
-| Lexicon application and publication lifecycle | `lexicon/cmd/lexicon/`, `lexicon/internal/`; Rust publication/recovery parity in `lexicon/src/storage/` | [Lexicon documentation](../../lexicon/docs/README.md), [Lexicon Rust migration](../../lexicon/docs/RUST_MIGRATION.md) |
+| Lexicon application and publication lifecycle | `lexicon-cli/src/`, `lexicon/src/api/`, `lexicon/src/scan/`, `lexicon/src/storage/`, `lexicon/src/repository/` | [Lexicon documentation](../../lexicon/docs/README.md), [Lexicon operator how-to](../../lexicon/docs/HOWTO.md), [Lexicon Rust migration](../../lexicon/docs/RUST_MIGRATION.md) |
 | Lexicon Rust migration foundation, storage/publication, materialization, dependency/topology, scan planning, transaction, configuration/repository-state, adapter-host, scope/execution, scan-engine parity, and oracle | `lexicon/src/`, `lexicon/evaluation/rust_migration/` | [Lexicon Rust migration](../../lexicon/docs/RUST_MIGRATION.md) |
 | Lexicon language semantics | `lexicon/adapters/`, `lexicon/spec/` | [Lexicon architecture](../../lexicon/docs/ARCHITECTURE.md), [Lexicon contracts](../../lexicon/spec/README.md) |
 | Arcana application and graph lifecycle | `arcana/src/` | [Arcana documentation](../../arcana/docs/README.md) |
@@ -28,8 +28,8 @@ Current coverage contains two independently usable analysis products plus shared
 
 | Contract | Implementation owner | Canonical current owner |
 | --- | --- | --- |
-| Lexicon facts, immutable objects, snapshot manifests, and consumer definitions | `lexicon/spec/`, `lexicon/internal/objectstore/`, `lexicon/internal/consumer/`; Rust facts/storage parity in `lexicon/src/facts/` and `lexicon/src/storage/` | [Lexicon architecture](../../lexicon/docs/ARCHITECTURE.md), [Lexicon application](../../lexicon/docs/APPLICATION.md), [Lexicon Rust migration](../../lexicon/docs/RUST_MIGRATION.md) |
-| Lexicon fact-object binary v2 and compatibility rules | `lexicon/internal/objectstore/`, `lexicon/src/storage/`, `lexicon/spec/objects-v2.md` | [Fact-object v2](../../lexicon/spec/objects-v2.md), [Lexicon application](../../lexicon/docs/APPLICATION.md), [Lexicon Rust migration](../../lexicon/docs/RUST_MIGRATION.md) |
+| Lexicon facts, immutable objects, snapshot manifests, and consumer definitions | `lexicon/spec/`, `lexicon/src/facts/`, `lexicon/src/storage/`, `lexicon/src/consumer/` | [Lexicon architecture](../../lexicon/docs/ARCHITECTURE.md), [Lexicon application](../../lexicon/docs/APPLICATION.md), [Lexicon Rust migration](../../lexicon/docs/RUST_MIGRATION.md) |
+| Lexicon fact-object binary v2 and compatibility rules | `lexicon/src/storage/`, `lexicon/spec/objects-v2.md` | [Fact-object v2](../../lexicon/spec/objects-v2.md), [Lexicon application](../../lexicon/docs/APPLICATION.md), [Lexicon Rust migration](../../lexicon/docs/RUST_MIGRATION.md) |
 | `arcana.query.v1` | `arcana/src/protocol/` | [Arcana application](../../arcana/docs/APPLICATION.md), [Arcana architecture](../../arcana/docs/ARCHITECTURE.md) |
 | Arcana repository, graph, snapshot, and overlay formats | `arcana/src/repository/`, `arcana/src/storage/`, `arcana/src/snapshot/` | [Repository snapshots](../../arcana/docs/repository-snapshots.md), [Arcana architecture](../../arcana/docs/ARCHITECTURE.md) |
 | Optional Arcana semantic graph index | `arcana/src/vector/` | [Arcana vector index](../../arcana/docs/vector-index.md) |
