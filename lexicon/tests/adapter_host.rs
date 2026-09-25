@@ -247,7 +247,7 @@ fn host_rejects_missing_and_unsupported_contracts() {
     let mut host = AdapterHost::new(root.path.join("adapters"));
 
     let request = AdapterRequest {
-        language: "ruby".into(),
+        language: "java".into(),
         repository: root.path.join("repo"),
         ..Default::default()
     };
@@ -258,7 +258,7 @@ fn host_rejects_missing_and_unsupported_contracts() {
             .contains("no adapter registered")
     );
 
-    host.register("ruby", Arc::new(FutureAdapter));
+    host.register("java", Arc::new(FutureAdapter));
     assert!(
         host.analyze(&request)
             .unwrap_err()
