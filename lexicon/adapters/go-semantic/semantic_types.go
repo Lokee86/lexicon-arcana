@@ -41,6 +41,7 @@ func (index *semanticIndex) collectTypes(values []*packages.Package) {
 			entry := typedType{
 				Identity:       identity,
 				Owner:          owner,
+				Span:           pointSpan(position),
 				Named:          named,
 				ValueMethods:   index.methodSetIdentities(pkg, types.NewMethodSet(named)),
 				PointerMethods: index.methodSetIdentities(pkg, types.NewMethodSet(types.NewPointer(named))),
@@ -93,9 +94,10 @@ func (index *semanticIndex) ensureInterfaceTargets(
 		}
 		owner, _ := index.ownerForPosition(pkg.Fset.PositionFor(method.Pos(), false).Filename)
 		identity := interfaceMethodIdentity(namespace, entry.Named.Obj().Name(), method.Name())
+		position := pkg.Fset.PositionFor(method.Pos(), false)
 		index.addTarget(typedTarget{
 			Identity: identity, SemanticID: identity, Kind: "method",
-			Owner: owner, Object: method,
+			Owner: owner, Span: pointSpan(position), Object: method,
 		})
 	}
 }

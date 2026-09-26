@@ -103,7 +103,7 @@ The helper reports packages, imports, named types, interfaces through their name
 
 The helper now also owns the `go/packages` / `go/types` semantic index used by later migration phases. Each Rust-supplied module is loaded with `packages.LoadAllSyntax | packages.NeedModule` and `Tests: true`; imported packages are flattened deterministically, while repository-local targets are still restricted to the Rust-supplied source inventory. Function targets preserve generic origins, methods preserve pointer/value receivers, aliases are unaliased before named-type indexing, interfaces are completed, and separate value/pointer method sets are retained.
 
-This phase does not emit typed relationships or calls into Lexicon yet. The index is helper-internal so later relationship/call/SSA phases reuse one typed authority without changing the Phase-4 fact surface. Package/type-check errors are returned as structured `diagnostic` protocol records rather than stderr text; Rust deliberately excludes those diagnostics from fact materialization.
+The typed index is also now the authority for type relationships. It reports embedded named-type and embedded-interface `extends`, repository-local type and method `implements`, and embedded-method `overrides` as semantic relationship records. Relationship endpoints remain canonical semantic identities; the helper never hashes or creates Lexicon nodes. Rust validates the source and target identities, materializes the legacy ownerless namespace/type contract when an embedded target is external or standard-library, rejects `implements` self-edges, and emits the legacy owner-scoped, spanless relationship facts. Calls and SSA/VTA remain deferred. Package/type-check errors are returned as structured `diagnostic` protocol records rather than stderr text; Rust deliberately excludes those diagnostics from fact materialization.
 
 ## Code map
 
@@ -118,6 +118,7 @@ This phase does not emit typed relationships or calls into Lexicon yet. The inde
 | Extracted structural semantic helper | `adapters/go-semantic/`, `src/adapters/go/protocol_records.rs`, `semantic_facts*.rs` | helper Go tests plus seven-fixture Rust declaration parity |
 | Native Go identity authority | `src/adapters/go/identities.rs` | legacy identity vectors, `_test` namespace tests, and seven-fixture node-ID parity |
 | Typed semantic index | `adapters/go-semantic/semantic_index*.go`, `semantic_targets.go`, `semantic_types.go` | helper typed-index tests plus unchanged legacy semantic/package gates |
+| Typed relationships | `adapters/go-semantic/semantic_relationship*.go`, `src/adapters/go/semantic_facts.rs` | helper relationship/override tests, seven-fixture relationship parity, and self-edge/endpoint validation |
 | Calls and dataflow | `semantic_calls.go`, `semantic_dataflow.go` | call and dataflow tests |
 | Dependencies | `dependencies.go` | package/dependency coverage |
 | Parallel execution | `parallel.go`, `semantic_parallel.go` | `semantic_parallel_test.go` |

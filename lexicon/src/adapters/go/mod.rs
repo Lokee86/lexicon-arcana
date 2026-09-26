@@ -6,6 +6,7 @@ mod protocol;
 mod protocol_records;
 mod semantic_facts;
 mod semantic_facts_support;
+mod semantic_relationship_facts;
 
 #[cfg(test)]
 mod discovery_boundary_tests;
@@ -13,6 +14,8 @@ mod discovery_boundary_tests;
 mod discovery_tests;
 #[cfg(test)]
 mod identities_tests;
+#[cfg(test)]
+mod relationship_tests;
 #[cfg(test)]
 mod semantic_parity_tests;
 #[cfg(test)]
@@ -73,6 +76,10 @@ impl LanguageAdapter for GoAdapter {
                 (
                     "semantic_facts_support.rs",
                     include_bytes!("semantic_facts_support.rs"),
+                ),
+                (
+                    "semantic_relationship_facts.rs",
+                    include_bytes!("semantic_relationship_facts.rs"),
                 ),
                 ("../helper.rs", include_bytes!("../helper.rs")),
                 (

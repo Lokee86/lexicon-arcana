@@ -5,7 +5,7 @@ use crate::{AdapterRequest, Analysis, FactRecord, LanguageAdapter};
 use super::{GoAdapter, tests::real_helper};
 
 #[test]
-fn all_oracle_structural_declarations_match_legacy() {
+fn all_oracle_through_phase_seven_matches_legacy() {
     for name in [
         "basic_calls",
         "relationships",
@@ -45,6 +45,12 @@ fn all_oracle_structural_declarations_match_legacy() {
             phase_five_node_ids(&legacy.records),
             "node identity parity failed for {name}"
         );
+        assert_eq!(
+            phase_seven_relationships(&analysis.records),
+            phase_seven_relationships(&legacy.records),
+            "typed relationship parity failed for {name}"
+        );
+        assert_no_implements_self_edges(&analysis.records, name);
         assert_eq!(
             analysis.header.repository, legacy.header.repository,
             "repository identity failed for {name}"
@@ -93,6 +99,37 @@ fn phase_five_node_ids(records: &[FactRecord]) -> Vec<(String, String)> {
             _ => None,
         })
         .collect()
+}
+
+fn phase_seven_relationships(records: &[FactRecord]) -> Vec<FactRecord> {
+    records
+        .iter()
+        .filter(|record| {
+            matches!(
+                record,
+                FactRecord::Edge(edge)
+                    if matches!(
+                        edge.relation.as_str(),
+                        "implements" | "extends" | "overrides"
+                    )
+            )
+        })
+        .cloned()
+        .collect()
+}
+
+fn assert_no_implements_self_edges(records: &[FactRecord], fixture: &str) {
+    for record in records {
+        if let FactRecord::Edge(edge) = record
+            && edge.relation == "implements"
+        {
+            assert_ne!(
+                edge.source, edge.target,
+                "implements self-edge emitted for {fixture}: {}",
+                edge.source
+            );
+        }
+    }
 }
 
 fn fixture(name: &str) -> PathBuf {

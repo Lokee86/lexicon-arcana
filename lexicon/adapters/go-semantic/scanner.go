@@ -29,6 +29,9 @@ func scanStructural(value request) (response, error) {
 	}
 	index, diagnostics := loadSemanticIndex(value)
 	scanner.index = index
+	for _, record := range index.collectRelationships() {
+		scanner.records = append(scanner.records, record)
+	}
 	for _, record := range diagnostics {
 		scanner.records = append(scanner.records, record)
 	}

@@ -175,12 +175,12 @@ pub(super) fn synthetic_helper(root: &Path, response: &str) -> HelperRunner {
     }
 }
 
-struct TempDirectory {
-    path: PathBuf,
+pub(super) struct TempDirectory {
+    pub(super) path: PathBuf,
 }
 
 impl TempDirectory {
-    fn new(name: &str) -> Self {
+    pub(super) fn new(name: &str) -> Self {
         static SEQUENCE: AtomicU64 = AtomicU64::new(0);
         let path = std::env::temp_dir().join(format!(
             "lexicon-go-phase2-{name}-{}-{}",

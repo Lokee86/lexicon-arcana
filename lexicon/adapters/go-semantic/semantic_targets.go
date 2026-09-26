@@ -31,6 +31,7 @@ func (index *semanticIndex) collectTargets(pkg *packages.Package) {
 					SemanticID: semanticFunctionIdentity(index.request.Modules, object),
 					Kind:       kind,
 					Owner:      owner,
+					Span:       sourceSpan(pkg.Fset, declaration.Pos(), declaration.End()),
 					Object:     object,
 				})
 			case *ast.GenDecl:
@@ -63,7 +64,8 @@ func (index *semanticIndex) collectInterfaceTargets(
 				identity := interfaceMethodIdentity(importPath, typeSpec.Name.Name, name.Name)
 				index.addTarget(typedTarget{
 					Identity: identity, SemanticID: identity, Kind: "method",
-					Owner: owner, Object: object,
+					Owner: owner, Span: sourceSpan(pkg.Fset, field.Pos(), field.End()),
+					Object: object,
 				})
 			}
 		}

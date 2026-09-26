@@ -24,12 +24,14 @@ type typedTarget struct {
 	SemanticID string
 	Kind       string
 	Owner      string
+	Span       span
 	Object     *types.Func
 }
 
 type typedType struct {
 	Identity       string
 	Owner          string
+	Span           span
 	Named          *types.Named
 	Interface      *types.Interface
 	ValueMethods   []string

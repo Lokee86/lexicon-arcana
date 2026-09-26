@@ -52,6 +52,17 @@ type declaration struct {
 
 func (declaration) semanticRecord() {}
 
+type relationship struct {
+	Record string `json:"record"`
+	Source string `json:"source"`
+	Target string `json:"target"`
+	Kind   string `json:"kind"`
+	Owner  string `json:"owner"`
+	Span   span   `json:"span"`
+}
+
+func (relationship) semanticRecord() {}
+
 type diagnostic struct {
 	Record   string `json:"record"`
 	Severity string `json:"severity"`
