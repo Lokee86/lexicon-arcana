@@ -85,7 +85,7 @@ Decoding is fail-closed: unsupported protocol versions, unknown fields or record
 
 The Rust `AdapterHost` now registers a native `GoAdapter` at `src/adapters/go/`. The shell retains adapter version `0.1.0`, fingerprints its Rust-side implementation together with the private helper version, and invokes language-native helpers through the shared internal helper runner rather than through the retired subprocess-adapter/facts handoff. Helper discovery is deterministic from an explicit environment override, the configured adapter root, or packaged executable adjacency.
 
-The runner uses a single JSON request/response frame over stdin/stdout, validates the protocol handshake before decoding the typed response, bounds stderr capture, reports non-zero exits, and kills/reaps a helper that emits malformed or incompatible protocol data. Structural declaration records are materialized now; typed relationships, calls, SSA/VTA, captures, and dataflow remain on the legacy side until their later migration phases.
+The runner uses a single JSON request/response frame over stdin/stdout, validates the protocol handshake before decoding the typed response, bounds stderr capture, reports non-zero exits, and kills/reaps a helper that emits malformed or incompatible protocol data. Structural declarations, typed relationships, and typed direct calls are materialized now; SSA/VTA, higher-order call reconciliation, captures, and dataflow remain on the legacy side until their later migration phases.
 
 ## Rust repository ownership
 
@@ -103,7 +103,13 @@ The helper reports packages, imports, named types, interfaces through their name
 
 The helper now also owns the `go/packages` / `go/types` semantic index used by later migration phases. Each Rust-supplied module is loaded with `packages.LoadAllSyntax | packages.NeedModule` and `Tests: true`; imported packages are flattened deterministically, while repository-local targets are still restricted to the Rust-supplied source inventory. Function targets preserve generic origins, methods preserve pointer/value receivers, aliases are unaliased before named-type indexing, interfaces are completed, and separate value/pointer method sets are retained.
 
-The typed index is also now the authority for type relationships. It reports embedded named-type and embedded-interface `extends`, repository-local type and method `implements`, and embedded-method `overrides` as semantic relationship records. Relationship endpoints remain canonical semantic identities; the helper never hashes or creates Lexicon nodes. Rust validates the source and target identities, materializes the legacy ownerless namespace/type contract when an embedded target is external or standard-library, rejects `implements` self-edges, and emits the legacy owner-scoped, spanless relationship facts. Calls and SSA/VTA remain deferred. Package/type-check errors are returned as structured `diagnostic` protocol records rather than stderr text; Rust deliberately excludes those diagnostics from fact materialization.
+The typed index is also now the authority for type relationships. It reports embedded named-type and embedded-interface `extends`, repository-local type and method `implements`, and embedded-method `overrides` as semantic relationship records. Relationship endpoints remain canonical semantic identities; the helper never hashes or creates Lexicon nodes. Rust validates the source and target identities, materializes the legacy ownerless namespace/type contract when an embedded target is external or standard-library, rejects `implements` self-edges, and emits the legacy owner-scoped, spanless relationship facts. Package/type-check errors are returned as structured `diagnostic` protocol records rather than stderr text; Rust deliberately excludes those diagnostics from fact materialization.
+
+## Typed direct calls
+
+The helper now owns the `go/types` direct-call pass previously implemented in `semantic_calls.go`. Callsite observations identify the caller by canonical semantic identity plus normalized source span and carry an explicit class: `internal`, `external`, `builtin`, `conversion`, `dynamic`, or `interface`. Direct internal and cross-package functions, methods and concrete receiver calls, recursion, standard-library/external contracts, builtins, and type conversions are resolved here. Dynamic expressions and interface dispatch remain explicit unresolved observations for the later SSA/VTA reconciliation phase.
+
+Rust performs the final graph conversion: definite observations become `calls`, conversion observations become `converts-to`, unresolved observations remain unresolved call facts, and external/builtin/type contracts are materialized with the same ownerless synthetic namespaces as the legacy adapter. The frozen `basic_calls` fixture matches the legacy call edges and unresolved record exactly. SSA/VTA, higher-order targets, closures/captures, and typed dataflow remain deferred.
 
 ## Code map
 
@@ -119,7 +125,8 @@ The typed index is also now the authority for type relationships. It reports emb
 | Native Go identity authority | `src/adapters/go/identities.rs` | legacy identity vectors, `_test` namespace tests, and seven-fixture node-ID parity |
 | Typed semantic index | `adapters/go-semantic/semantic_index*.go`, `semantic_targets.go`, `semantic_types.go` | helper typed-index tests plus unchanged legacy semantic/package gates |
 | Typed relationships | `adapters/go-semantic/semantic_relationship*.go`, `src/adapters/go/semantic_facts.rs` | helper relationship/override tests, seven-fixture relationship parity, and self-edge/endpoint validation |
-| Calls and dataflow | `semantic_calls.go`, `semantic_dataflow.go` | call and dataflow tests |
+| Typed direct calls | `adapters/go-semantic/semantic_call*.go`, `src/adapters/go/semantic_call*.rs` | helper call-count/classification tests, protocol round-trip tests, and exact `basic_calls` edge/unresolved parity |
+| SSA/VTA and dataflow | legacy `semantic_ssa.go`, `semantic_dataflow.go` until later phases | advanced-resolution, callback, and dataflow tests |
 | Dependencies | `dependencies.go` | package/dependency coverage |
 | Parallel execution | `parallel.go`, `semantic_parallel.go` | `semantic_parallel_test.go` |
 | Synthetic nodes and identities | `synthetic_nodes.go`, `semantic_nodes.go`, `semantic_symbols.go` | semantic identity tests |

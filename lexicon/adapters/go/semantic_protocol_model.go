@@ -104,12 +104,24 @@ const (
 	goSemanticCallConversion goSemanticCallKind = "conversion"
 )
 
+type goSemanticCallClass string
+
+const (
+	goSemanticCallClassInternal   goSemanticCallClass = "internal"
+	goSemanticCallClassExternal   goSemanticCallClass = "external"
+	goSemanticCallClassBuiltin    goSemanticCallClass = "builtin"
+	goSemanticCallClassConversion goSemanticCallClass = "conversion"
+	goSemanticCallClassDynamic    goSemanticCallClass = "dynamic"
+	goSemanticCallClassInterface  goSemanticCallClass = "interface"
+)
+
 type goSemanticCallObservation struct {
-	Source string             `json:"source"`
-	Target string             `json:"target"`
-	Kind   goSemanticCallKind `json:"kind"`
-	Owner  string             `json:"owner"`
-	Span   goSemanticSpan     `json:"span"`
+	Source string              `json:"source"`
+	Target string              `json:"target"`
+	Kind   goSemanticCallKind  `json:"kind"`
+	Class  goSemanticCallClass `json:"class"`
+	Owner  string              `json:"owner"`
+	Span   goSemanticSpan      `json:"span"`
 }
 
 type goSemanticDataflowKind string
@@ -147,6 +159,7 @@ type goSemanticUnresolvedObservation struct {
 	CandidateNamespace string                     `json:"candidate_namespace,omitempty"`
 	CandidateName      string                     `json:"candidate_name,omitempty"`
 	Reason             goSemanticUnresolvedReason `json:"reason"`
+	Class              goSemanticCallClass        `json:"class"`
 	Owner              string                     `json:"owner"`
 	Span               goSemanticSpan             `json:"span"`
 }

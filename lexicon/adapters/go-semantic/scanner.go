@@ -32,6 +32,9 @@ func scanStructural(value request) (response, error) {
 	for _, record := range index.collectRelationships() {
 		scanner.records = append(scanner.records, record)
 	}
+	for _, record := range index.collectDirectCalls() {
+		scanner.records = append(scanner.records, record)
+	}
 	for _, record := range diagnostics {
 		scanner.records = append(scanner.records, record)
 	}

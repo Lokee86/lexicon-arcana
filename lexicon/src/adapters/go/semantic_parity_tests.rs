@@ -5,7 +5,7 @@ use crate::{AdapterRequest, Analysis, FactRecord, LanguageAdapter};
 use super::{GoAdapter, tests::real_helper};
 
 #[test]
-fn all_oracle_through_phase_seven_matches_legacy() {
+fn all_oracle_through_phase_eight_matches_legacy() {
     for name in [
         "basic_calls",
         "relationships",
@@ -51,6 +51,13 @@ fn all_oracle_through_phase_seven_matches_legacy() {
             "typed relationship parity failed for {name}"
         );
         assert_no_implements_self_edges(&analysis.records, name);
+        if name == "basic_calls" {
+            assert_eq!(
+                phase_eight_calls(&analysis.records),
+                phase_eight_calls(&legacy.records),
+                "typed direct-call parity failed for {name}"
+            );
+        }
         assert_eq!(
             analysis.header.repository, legacy.header.repository,
             "repository identity failed for {name}"
@@ -113,6 +120,21 @@ fn phase_seven_relationships(records: &[FactRecord]) -> Vec<FactRecord> {
                         "implements" | "extends" | "overrides"
                     )
             )
+        })
+        .cloned()
+        .collect()
+}
+
+fn phase_eight_calls(records: &[FactRecord]) -> Vec<FactRecord> {
+    records
+        .iter()
+        .filter(|record| match record {
+            FactRecord::Edge(edge) => matches!(
+                edge.relation.as_str(),
+                "calls" | "possible-calls" | "converts-to"
+            ),
+            FactRecord::Unresolved(value) => value.relation == "calls",
+            FactRecord::Node(_) => false,
         })
         .cloned()
         .collect()

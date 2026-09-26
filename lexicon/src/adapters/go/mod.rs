@@ -4,6 +4,9 @@ mod identities;
 mod module_ownership;
 mod protocol;
 mod protocol_records;
+mod semantic_call_facts;
+mod semantic_call_target_support;
+mod semantic_call_targets;
 mod semantic_facts;
 mod semantic_facts_support;
 mod semantic_relationship_facts;
@@ -72,6 +75,18 @@ impl LanguageAdapter for GoAdapter {
                 ("protocol.rs", include_bytes!("protocol.rs")),
                 ("protocol_records.rs", include_bytes!("protocol_records.rs")),
                 ("facts.rs", include_bytes!("facts.rs")),
+                (
+                    "semantic_call_facts.rs",
+                    include_bytes!("semantic_call_facts.rs"),
+                ),
+                (
+                    "semantic_call_target_support.rs",
+                    include_bytes!("semantic_call_target_support.rs"),
+                ),
+                (
+                    "semantic_call_targets.rs",
+                    include_bytes!("semantic_call_targets.rs"),
+                ),
                 ("semantic_facts.rs", include_bytes!("semantic_facts.rs")),
                 (
                     "semantic_facts_support.rs",

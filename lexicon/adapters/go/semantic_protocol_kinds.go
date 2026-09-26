@@ -76,6 +76,17 @@ func knownGoSemanticCall(kind goSemanticCallKind) bool {
 	}
 }
 
+func knownGoSemanticCallClass(class goSemanticCallClass) bool {
+	switch class {
+	case goSemanticCallClassInternal, goSemanticCallClassExternal,
+		goSemanticCallClassBuiltin, goSemanticCallClassConversion,
+		goSemanticCallClassDynamic, goSemanticCallClassInterface:
+		return true
+	default:
+		return false
+	}
+}
+
 func knownGoSemanticDataflow(kind goSemanticDataflowKind) bool {
 	return kind == goSemanticDataflowRead || kind == goSemanticDataflowWrite
 }

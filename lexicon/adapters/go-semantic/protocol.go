@@ -63,6 +63,33 @@ type relationship struct {
 
 func (relationship) semanticRecord() {}
 
+type callObservation struct {
+	Record string `json:"record"`
+	Source string `json:"source"`
+	Target string `json:"target"`
+	Kind   string `json:"kind"`
+	Class  string `json:"class"`
+	Owner  string `json:"owner"`
+	Span   span   `json:"span"`
+}
+
+func (callObservation) semanticRecord() {}
+
+type unresolvedObservation struct {
+	Record             string `json:"record"`
+	Source             string `json:"source"`
+	Relation           string `json:"relation"`
+	Expression         string `json:"expression"`
+	CandidateNamespace string `json:"candidate_namespace,omitempty"`
+	CandidateName      string `json:"candidate_name,omitempty"`
+	Reason             string `json:"reason"`
+	Class              string `json:"class"`
+	Owner              string `json:"owner"`
+	Span               span   `json:"span"`
+}
+
+func (unresolvedObservation) semanticRecord() {}
+
 type diagnostic struct {
 	Record   string `json:"record"`
 	Severity string `json:"severity"`

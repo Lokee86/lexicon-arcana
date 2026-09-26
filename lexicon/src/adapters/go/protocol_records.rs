@@ -28,6 +28,7 @@ pub(crate) enum Record {
         source: String,
         target: String,
         kind: CallKind,
+        class: CallClass,
         owner: String,
         span: Span,
     },
@@ -49,6 +50,7 @@ pub(crate) enum Record {
         #[serde(default)]
         candidate_name: Option<String>,
         reason: UnresolvedReason,
+        class: CallClass,
         owner: String,
         span: Span,
     },
@@ -95,6 +97,17 @@ pub(crate) enum CallKind {
     Definite,
     Possible,
     Conversion,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum CallClass {
+    Internal,
+    External,
+    Builtin,
+    Conversion,
+    Dynamic,
+    Interface,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]

@@ -80,6 +80,9 @@ func validateGoSemanticRecord(record goSemanticRecord) error {
 		if !knownGoSemanticCall(value.Kind) {
 			return fmt.Errorf("unknown call kind %q", value.Kind)
 		}
+		if !knownGoSemanticCallClass(value.Class) {
+			return fmt.Errorf("unknown call class %q", value.Class)
+		}
 		return validateGoSemanticReference(value.Source, value.Target, value.Owner, value.Span)
 	case goSemanticRecordDataflow:
 		if record.Dataflow == nil {
@@ -140,6 +143,9 @@ func validateGoSemanticUnresolved(value goSemanticUnresolvedObservation) error {
 	}
 	if !knownGoSemanticUnresolved(value.Reason) {
 		return fmt.Errorf("unknown unresolved reason %q", value.Reason)
+	}
+	if !knownGoSemanticCallClass(value.Class) {
+		return fmt.Errorf("unknown unresolved call class %q", value.Class)
 	}
 	return validateGoSemanticLocation(value.Owner, value.Span)
 }
