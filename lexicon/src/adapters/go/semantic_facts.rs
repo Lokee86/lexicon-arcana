@@ -1,8 +1,9 @@
 use std::collections::BTreeSet;
 
-use crate::{AdapterError, FactRecord, NodeRecord, SourceSpan};
+use crate::{AdapterError, AdapterRequest, FactRecord, NodeRecord, SourceSpan};
 
 use super::{
+    dependencies,
     discovery::Inventory,
     identities,
     protocol_records::{DeclarationKind, Record, Span},
@@ -12,6 +13,7 @@ use super::{
 };
 
 pub(crate) fn add(
+    request: &AdapterRequest,
     inventory: &Inventory,
     semantic: &[Record],
     records: &mut Vec<FactRecord>,
@@ -118,6 +120,9 @@ pub(crate) fn add(
             }
         }
     }
+    dependencies::add(
+        request, inventory, semantic, records, &mut nodes, &mut edges,
+    )?;
     Ok(())
 }
 

@@ -1,3 +1,4 @@
+mod dependencies;
 mod discovery;
 mod facts;
 mod identities;
@@ -19,6 +20,8 @@ mod semantic_ssa_target_support;
 mod capture_tests;
 #[cfg(test)]
 mod dataflow_tests;
+#[cfg(test)]
+mod dependencies_tests;
 #[cfg(test)]
 mod discovery_boundary_tests;
 #[cfg(test)]
@@ -79,6 +82,7 @@ impl LanguageAdapter for GoAdapter {
             ADAPTER_VERSION,
             &[
                 ("mod.rs", include_bytes!("mod.rs")),
+                ("dependencies.rs", include_bytes!("dependencies.rs")),
                 ("discovery.rs", include_bytes!("discovery.rs")),
                 ("identities.rs", include_bytes!("identities.rs")),
                 ("module_ownership.rs", include_bytes!("module_ownership.rs")),

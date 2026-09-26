@@ -90,7 +90,7 @@ fn all_oracle_repository_facts_match_legacy() {
             .join(format!("{name}.jsonl"));
         let legacy = Analysis::parse(&fs::read_to_string(golden).unwrap()).unwrap();
         assert_eq!(
-            analysis.records,
+            structural_records(&analysis.records),
             structural_records(&legacy.records),
             "repository parity failed for {name}"
         );

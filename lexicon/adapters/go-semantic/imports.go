@@ -14,6 +14,10 @@ func (scanner *structuralScanner) addImport(
 	if err != nil {
 		return fmt.Errorf("parse import in %s: %w", owner, err)
 	}
+	alias := ""
+	if spec.Name != nil {
+		alias = spec.Name.Name
+	}
 	class := "external"
 	if internalNamespace(scanner.request.Modules, importPath) {
 		class = "internal"
@@ -27,6 +31,7 @@ func (scanner *structuralScanner) addImport(
 		sourceSpan(scanner.set, spec.Pos(), spec.End()),
 		map[string]string{
 			"container":    pkgIdentity,
+			"import_alias": alias,
 			"import_class": class,
 			"import_path":  importPath,
 		},

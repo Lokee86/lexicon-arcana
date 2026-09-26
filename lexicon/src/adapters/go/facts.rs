@@ -59,7 +59,7 @@ pub(crate) fn structural_analysis(
         }));
         records.push(contains(parent_id(&file.path, &repository_id)?, id));
     }
-    semantic_facts::add(inventory, semantic, &mut records)?;
+    semantic_facts::add(request, inventory, semantic, &mut records)?;
 
     let incremental = request.mode == AdapterMode::Incremental;
     let mut analysis = Analysis::new(
