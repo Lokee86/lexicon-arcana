@@ -300,6 +300,45 @@ Phase 6 uses invalidated work cardinality as the regression measure rather than 
 
 The intended commit is `Restore Go incremental package scoping`.
 
+## Phase 7 — protocol conversion overhead
+
+Completed 2026-09-26.
+
+The Rust helper runner no longer decodes a helper response into `serde_json::Value` and then converts that generic JSON tree into the typed protocol response. `run_json` now deserializes directly from the response frame into the typed response exactly once. A small `ProtocolResponse` interface exposes the already-deserialized protocol version so the helper runner can preserve its handshake validation before returning the response.
+
+The wire protocol, response framing, response-size limit, typed Go response shape, and protocol mismatch behaviour remain unchanged. The redundant debug assertion in the Go adapter was removed because successful `run_json` completion now already guarantees that the typed response carries the expected protocol version.
+
+Controlled measurements used the existing development-profile snapshot harness with the `4 / 8 / 4` worker/shard/fan-in shape.
+
+### Small fixture
+
+Target: `lexicon/adapters/go/testdata/oracle/basic_calls`.
+
+- helper response: **8,753 bytes**;
+- helper response encoding: **<0.001 ms**;
+- Rust typed response decode: **0.915 ms**;
+- canonical JSONL: **22,056 bytes**;
+- SHA-256: `596A04253AA5A427EF56F374C1FF97A6929719D9401B8E15C6E5DF3D1D5FA8B7`.
+
+The canonical output hash is identical to the Phase 0 baseline.
+
+### Demon Docs
+
+Target revision: `fa5ca9aea12e20c29c378d5d018647958b862cac`.
+
+- helper response: **38,738,960 bytes**;
+- helper response encoding: **126.590 ms**;
+- Rust typed response decode: **812.567 ms**;
+- helper IPC: **22,538.686 ms**;
+- final JSONL: **50,932,343 bytes**;
+- SHA-256: `AE3064C2085AA479B058F026A26D7DC3CE2DD05EBEE036023C94E7543E650F0E`.
+
+The canonical output hash is identical to Phases 1–5. The response remains a single bounded frame, so the observed peak response payload for this run is approximately **38.74 MB**, comfortably below the existing 64 MiB response cap after Phase 4 compaction.
+
+At the current payload size, JSON decoding accounts for roughly **0.81 s** of a **22.54 s** helper IPC interval. That cost is visible but no longer large enough to justify introducing streamed records, new framing, or a private binary protocol as part of this restoration phase. Any future protocol redesign should therefore be justified by a new profile showing protocol handling has again become material.
+
+The intended commit is `Avoid duplicate helper response decoding`.
+
 ## Related docs
 
 - [Go adapter Phase 16 freeze](go-adapter-port-freeze-2026-09-26.md)

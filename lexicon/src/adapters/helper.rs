@@ -16,6 +16,10 @@ use super::{
 
 const MAX_RESPONSE_BYTES: u64 = 64 * 1024 * 1024;
 
+pub(crate) trait ProtocolResponse {
+    fn protocol_version(&self) -> u32;
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct HelperRunner {
     candidates: Vec<PathBuf>,
@@ -65,7 +69,7 @@ impl HelperRunner {
     ) -> Result<Response, AdapterError>
     where
         Request: Serialize,
-        Response: DeserializeOwned,
+        Response: DeserializeOwned + ProtocolResponse,
     {
         let request = serde_json::to_vec(request)
             .map_err(|error| AdapterError::new(format!("encode helper request: {error}")))?;
@@ -133,29 +137,7 @@ impl HelperRunner {
 
         let response_bytes = frame.len() as u64;
         let decode_started = profile_go.then(Instant::now);
-        let value: serde_json::Value = match serde_json::from_slice(&frame) {
-            Ok(value) => value,
-            Err(error) => {
-                return Err(terminate(
-                    &mut child,
-                    stderr_thread,
-                    format!("decode semantic helper response: {error}"),
-                ));
-            }
-        };
-        let version = value
-            .get("protocol_version")
-            .and_then(serde_json::Value::as_u64);
-        if version != Some(u64::from(expected_protocol)) {
-            return Err(terminate(
-                &mut child,
-                stderr_thread,
-                format!(
-                    "semantic helper protocol mismatch: got {version:?}, expected {expected_protocol}"
-                ),
-            ));
-        }
-        let response = match serde_json::from_value(value) {
+        let response: Response = match serde_json::from_slice(&frame) {
             Ok(response) => response,
             Err(error) => {
                 return Err(terminate(
@@ -165,6 +147,16 @@ impl HelperRunner {
                 ));
             }
         };
+        let version = response.protocol_version();
+        if version != expected_protocol {
+            return Err(terminate(
+                &mut child,
+                stderr_thread,
+                format!(
+                    "semantic helper protocol mismatch: got {version}, expected {expected_protocol}"
+                ),
+            ));
+        }
         let decode_elapsed = decode_started.map(|started| started.elapsed());
 
         drop(reader);

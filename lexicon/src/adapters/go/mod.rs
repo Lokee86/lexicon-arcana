@@ -190,7 +190,6 @@ impl LanguageAdapter for GoAdapter {
             protocol::PROTOCOL_VERSION,
             &wire,
         )?;
-        debug_assert_eq!(response.protocol_version, protocol::PROTOCOL_VERSION);
         facts::structural_analysis(request, &inventory, &response.records)
     }
 }

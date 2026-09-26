@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::adapters::helper::ProtocolResponse;
+
 use super::protocol_records::Record;
 
 pub(crate) const PROTOCOL_VERSION: u32 = 1;
@@ -37,6 +39,12 @@ pub(crate) struct Response {
     pub protocol_version: u32,
     #[serde(default)]
     pub records: Vec<Record>,
+}
+
+impl ProtocolResponse for Response {
+    fn protocol_version(&self) -> u32 {
+        self.protocol_version
+    }
 }
 
 impl Request {
