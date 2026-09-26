@@ -23,6 +23,10 @@ mod dataflow_tests;
 #[cfg(test)]
 mod dependencies_tests;
 #[cfg(test)]
+mod differential_compare;
+#[cfg(test)]
+mod differential_tests;
+#[cfg(test)]
 mod discovery_boundary_tests;
 #[cfg(test)]
 mod discovery_tests;

@@ -103,6 +103,31 @@ fn ensure_dynamic_target(
     hints: TargetHints<'_>,
     materialization: &mut TargetMaterialization<'_>,
 ) -> Result<(), AdapterError> {
+    if let Some(body) = identity.strip_prefix("dynamic-method:") {
+        let (_, name) = body.rsplit_once('.').ok_or_else(|| {
+            AdapterError::new(format!("invalid Go dynamic method identity {identity:?}"))
+        })?;
+        ensure_namespace(
+            "go:types",
+            "@types/go",
+            materialization.inventory,
+            materialization.records,
+            materialization.nodes,
+            materialization.edges,
+        )?;
+        return super::semantic_call_target_support::ensure_node(
+            super::semantic_call_target_support::SyntheticNode {
+                id: identities::node_id(identity)?,
+                kind: "method",
+                name,
+                path: "@types/go",
+                namespace: "go:types",
+            },
+            materialization.records,
+            materialization.nodes,
+            materialization.edges,
+        );
+    }
     if identity.starts_with("ssa-function:") {
         return super::semantic_ssa_target_support::ensure_synthetic_function(
             identity,

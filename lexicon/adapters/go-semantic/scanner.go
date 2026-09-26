@@ -12,6 +12,7 @@ type structuralScanner struct {
 	request request
 	set     *token.FileSet
 	records []semanticRecord
+	files   []structuralFile
 	index   *semanticIndex
 }
 
@@ -39,7 +40,11 @@ func scanStructural(value request) (response, error) {
 	for _, record := range dataflow {
 		scanner.records = append(scanner.records, record)
 	}
-	for _, record := range index.mergeSSASemantics(directCalls) {
+	resolvedCalls := index.mergeSSASemantics(directCalls)
+	for _, record := range resolvedCalls {
+		scanner.records = append(scanner.records, record)
+	}
+	for _, record := range scanner.collectFallbackCalls(resolvedCalls) {
 		scanner.records = append(scanner.records, record)
 	}
 	for _, record := range diagnostics {
@@ -70,6 +75,9 @@ func (scanner *structuralScanner) parseFile(owner string) error {
 	for _, declaration := range file.Decls {
 		scanner.addDeclaration(owner, importPath, pkgIdentity, declaration)
 	}
+	scanner.files = append(scanner.files, structuralFile{
+		owner: owner, importPath: importPath, packageName: file.Name.Name, file: file,
+	})
 	return nil
 }
 
