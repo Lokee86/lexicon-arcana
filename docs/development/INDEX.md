@@ -10,6 +10,7 @@ Development documentation defines current L+A verification/release practice and 
 - [Release workflow](release-workflow.md) — root L+A build, install, packaging, protocol verification, and release artifacts.
 - [Testing and benchmarks](testing-and-benchmarks.md) — component/evaluation procedures and retained report artifacts.
 - [Lexicon performance restoration](lexicon-performance-restoration.md) — frozen-contract optimization project, Phase 0 instrumentation, and baselines.
+- [Lexicon optimization parity audit](lexicon-optimization-parity-audit.md) — Phase 8 concern-by-concern comparison with the mature Go optimization oracle.
 - [Go adapter Phase 16 freeze](go-adapter-port-freeze-2026-09-26.md) — paused migration checkpoint and resumption guardrails.
 
 ## Research and historical evidence

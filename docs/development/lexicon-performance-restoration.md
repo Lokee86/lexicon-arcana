@@ -339,8 +339,23 @@ At the current payload size, JSON decoding accounts for roughly **0.81 s** of a 
 
 The intended commit is `Avoid duplicate helper response decoding`.
 
+## Phase 8 — optimization parity audit
+
+Completed 2026-09-26.
+
+The mature pre-port Go implementation at `c822f4d` was compared systematically with the current Rust/helper path across discovery, parsing, identity construction, indexes, semantic targets, type relationships, calls, dataflow, SSA/VTA, dependency generation, fact materialization, incremental invalidation, deduplication, canonicalization, and serialization.
+
+The permanent classification is recorded in [Lexicon optimization parity audit](lexicon-optimization-parity-audit.md).
+
+The audit found one additional concrete lost optimization: full-language object materialization in the oracle used a bounded file-write worker pool capped at 16 workers, while the Rust materializer had become serial. Phase 8 restores bounded parallel file-object writes while retaining deterministic `FileEntry` ordering and the existing immutable object-write contract. Incremental materialization remains unchanged because the oracle also wrote the changed-file set directly rather than through the full-build worker pool.
+
+No other lost oracle optimization was found. The remaining meaningful differences are either semantic requirements, intentional Rust architecture changes, obsolete adapter-boundary details, or possible optimizations that require measurement. In particular, identity-to-node-ID memoization and hot-key clone reduction remain Phase 9 work; worker/shard calibration remains Phase 10 work; and helper streaming/framing remains unjustified after the Phase 7 profile.
+
+The intended Phase 8 commits are `Restore parallel Lexicon object writes` and `Document Lexicon optimization parity audit`.
+
 ## Related docs
 
+- [Lexicon optimization parity audit](lexicon-optimization-parity-audit.md)
 - [Go adapter Phase 16 freeze](go-adapter-port-freeze-2026-09-26.md)
 - [Testing and benchmarks](testing-and-benchmarks.md)
 - [Lexicon Rust migration](../../lexicon/docs/RUST_MIGRATION.md)
