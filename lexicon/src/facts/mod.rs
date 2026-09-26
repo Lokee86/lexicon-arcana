@@ -2,6 +2,8 @@ mod incremental;
 mod jsonl;
 mod model;
 mod order;
+#[cfg(test)]
+mod order_tests;
 mod path;
 mod validate;
 

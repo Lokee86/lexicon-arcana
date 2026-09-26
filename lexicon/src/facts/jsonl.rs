@@ -102,21 +102,8 @@ fn tagged_record_value(record: &FactRecord) -> Result<Value, ValidationError> {
 }
 
 pub(crate) fn sort_records(records: &mut Vec<FactRecord>) -> Result<(), ValidationError> {
-    let values = std::mem::take(records);
-    let mut encoded = values
-        .into_iter()
-        .map(|record| tagged_record_bytes(&record).map(|value| (record, value)))
-        .collect::<Result<Vec<_>, _>>()?;
-    encoded.sort_by(|(left, left_value), (right, right_value)| {
-        order::compare(left, right).then_with(|| left_value.cmp(right_value))
-    });
-    *records = encoded.into_iter().map(|(record, _)| record).collect();
+    records.sort_by(order::compare);
     Ok(())
-}
-
-fn tagged_record_bytes(record: &FactRecord) -> Result<Vec<u8>, ValidationError> {
-    let value = tagged_record_value(record)?;
-    serde_json::to_vec(&value).map_err(|error| ValidationError::Json(error.to_string()))
 }
 
 fn tagged_value<T: serde::Serialize>(record: &str, value: &T) -> Result<Value, ValidationError> {

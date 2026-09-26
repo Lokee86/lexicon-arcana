@@ -176,6 +176,22 @@ The Rust library suite passed 54/54 after the change, including deterministic pa
 
 The intended commit is `Restore indexed fact materialization`.
 
+## Phase 2 — structural fact canonicalization
+
+Completed 2026-09-26.
+
+Canonical sorting no longer serializes every fact into a tagged JSON object before sorting. The existing record-kind and semantic primary ordering remains unchanged; ties are now resolved structurally from the remaining record fields. Optional fields preserve the legacy JSON ordering rule that a present earlier key sorts before an omitted key. Arbitrary JSON attributes are serialized only when the primary fields and earlier structural tie-break fields are indistinguishable.
+
+Focused comparator tests compare the new total order pairwise against the previous JSON-byte tie-break, including optional fields, attributes, source spans, and escaped string values. The full Rust library suite passed 56/56 after the change, including deterministic parallel execution and the live legacy/native differential gates.
+
+A single controlled Demon Docs run at the same pinned revision and `4 / 8 / 4` execution shape produced byte-identical canonical JSONL to Phase 1:
+
+`AE3064C2085AA479B058F026A26D7DC3CE2DD05EBEE036023C94E7543E650F0E`
+
+Canonicalization time changed from **4,112.866 ms** in Phase 1 to **410.940 ms** in Phase 2, a reduction of approximately **90.0%** on the controlled development-profile run. Other stage and wall-clock differences are treated as run-to-run noise rather than attributed to Phase 2.
+
+The intended commit is `Restore structural fact canonicalization`.
+
 ## Related docs
 
 - [Go adapter Phase 16 freeze](go-adapter-port-freeze-2026-09-26.md)
