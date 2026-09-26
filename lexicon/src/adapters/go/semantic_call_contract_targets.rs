@@ -15,7 +15,7 @@ pub(super) fn ensure_type_target(
     records: &mut Vec<FactRecord>,
     index: &mut FactIndex,
 ) -> Result<(), AdapterError> {
-    let id = identities::node_id(identity)?;
+    let id = index.node_id(identity)?;
     if let Some(name) = identity.strip_prefix("type-expression:") {
         ensure_namespace("go:types", "@types/go", inventory, records, index)?;
         ensure_node(
@@ -63,7 +63,7 @@ pub(super) fn ensure_callable(
     records: &mut Vec<FactRecord>,
     index: &mut FactIndex,
 ) -> Result<(), AdapterError> {
-    let id = identities::node_id(identity)?;
+    let id = index.node_id(identity)?;
     ensure_node(
         SyntheticNode {
             id,

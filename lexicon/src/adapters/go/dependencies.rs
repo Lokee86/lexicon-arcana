@@ -38,7 +38,7 @@ pub(crate) fn add(
     records: &mut Vec<FactRecord>,
     index: &mut FactIndex,
 ) -> Result<(), AdapterError> {
-    let repository_id = identities::node_id(&identities::repository(&inventory.repository))?;
+    let repository_id = index.node_id(&identities::repository(&inventory.repository))?;
     let repository_root = fs::canonicalize(&request.repository).map_err(|error| {
         AdapterError::new(format!(
             "cannot resolve repository {}: {error}",
@@ -109,7 +109,7 @@ fn add_local_imports(
     records: &mut Vec<FactRecord>,
     index: &mut FactIndex,
 ) -> Result<(), AdapterError> {
-    let packages = package_candidates(semantic)?;
+    let packages = package_candidates(semantic, index)?;
     for record in semantic {
         let Record::Declaration {
             kind: DeclarationKind::Import,
@@ -137,7 +137,7 @@ fn add_local_imports(
             .get("container")
             .map(String::as_str)
             .ok_or_else(|| AdapterError::new("Go import declaration is missing container"))?;
-        let source = identities::node_id(source_identity)?;
+        let source = index.node_id(source_identity)?;
         let Some(target) = package_for_namespace(&packages, &inventory.modules, import_path) else {
             continue;
         };
@@ -247,7 +247,7 @@ fn dependency_node(
     index: &mut FactIndex,
 ) -> Result<String, AdapterError> {
     let identity = format!("package:dependency:go:{name}");
-    let id = identities::node_id_for_kind(&identity, "module")?;
+    let id = index.node_id_for_kind(&identity, "module")?;
     let path = if local {
         local_path.to_owned()
     } else {
@@ -309,7 +309,10 @@ fn push_dependency_edge(
     );
 }
 
-fn package_candidates(records: &[Record]) -> Result<Vec<PackageCandidate>, AdapterError> {
+fn package_candidates(
+    records: &[Record],
+    index: &mut FactIndex,
+) -> Result<Vec<PackageCandidate>, AdapterError> {
     let mut result = Vec::new();
     for record in records {
         let Record::Declaration {
@@ -330,7 +333,7 @@ fn package_candidates(records: &[Record]) -> Result<Vec<PackageCandidate>, Adapt
         result.push(PackageCandidate {
             namespace: namespace.into(),
             name: name.clone(),
-            id: identities::node_id_for_kind(identity, "module")?,
+            id: index.node_id_for_kind(identity, "module")?,
         });
     }
     Ok(result)

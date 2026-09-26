@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{EdgeRecord, FactRecord, NodeRecord};
+use crate::{AdapterError, EdgeRecord, FactRecord, NodeRecord};
+
+use super::identities;
 
 pub(super) type EdgeKey = (String, String, String, String);
 
@@ -8,6 +10,9 @@ pub(super) struct FactIndex {
     nodes: HashSet<String>,
     node_owners: HashMap<String, Option<String>>,
     edges: HashSet<EdgeKey>,
+    identity_ids: HashMap<String, String>,
+    identity_cache_hits: u64,
+    identity_cache_misses: u64,
 }
 
 impl FactIndex {
@@ -16,6 +21,9 @@ impl FactIndex {
             nodes: HashSet::new(),
             node_owners: HashMap::new(),
             edges: HashSet::new(),
+            identity_ids: HashMap::new(),
+            identity_cache_hits: 0,
+            identity_cache_misses: 0,
         };
         for record in records {
             let FactRecord::Node(node) = record else {
@@ -35,6 +43,35 @@ impl FactIndex {
 
     pub(super) fn node_owner(&self, id: &str) -> Option<String> {
         self.node_owners.get(id).cloned().flatten()
+    }
+
+    pub(super) fn node_id(&mut self, identity: &str) -> Result<String, AdapterError> {
+        if let Some(id) = self.identity_ids.get(identity) {
+            self.identity_cache_hits += 1;
+            return Ok(id.clone());
+        }
+        let id = identities::node_id(identity)?;
+        self.identity_ids.insert(identity.to_owned(), id.clone());
+        self.identity_cache_misses += 1;
+        Ok(id)
+    }
+
+    pub(super) fn node_id_for_kind(
+        &mut self,
+        identity: &str,
+        expected_kind: &str,
+    ) -> Result<String, AdapterError> {
+        let actual = identities::lexicon_kind(identity)?;
+        if actual != expected_kind {
+            return Err(AdapterError::new(format!(
+                "Go identity {identity:?} maps to {actual:?}, expected {expected_kind:?}"
+            )));
+        }
+        self.node_id(identity)
+    }
+
+    pub(super) fn identity_cache_stats(&self) -> (u64, u64) {
+        (self.identity_cache_hits, self.identity_cache_misses)
     }
 
     pub(super) fn push_node(&mut self, records: &mut Vec<FactRecord>, node: NodeRecord) -> bool {
@@ -112,5 +149,17 @@ mod tests {
         ));
         assert_eq!(records.len(), 1);
         assert_eq!(index.node_owner("node-1").as_deref(), Some("main.go"));
+    }
+
+    #[test]
+    fn memoizes_identity_to_node_id_within_materialization() {
+        let mut index = FactIndex::from_records(&[]);
+        let identity = "function:example.com/app:run";
+
+        let first = index.node_id(identity).unwrap();
+        let second = index.node_id(identity).unwrap();
+
+        assert_eq!(first, second);
+        assert_eq!(index.identity_cache_stats(), (1, 1));
     }
 }

@@ -60,7 +60,7 @@ The audit found several differences that may be optimizable but are not establis
 - revisiting streamed/framed helper responses only if protocol handling again becomes material;
 - tuning worker/shard/fan-in settings against representative repositories.
 
-These remain later-phase work rather than Phase 8 changes.
+Phase 9 subsequently retained scan-local semantic identity-to-node-ID memoization after a measured materialization improvement. It also tested and rejected compact interned edge keys because they regressed the measured materialization stage. The remaining items stay measurement-driven rather than being carried forward as presumed optimizations.
 
 ## Verification
 

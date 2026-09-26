@@ -23,9 +23,9 @@ pub(crate) fn add(
         return Ok(false);
     };
 
-    let source_id = identities::node_id(source)?;
+    let source_id = index.node_id(source)?;
     let symbol = data_symbol(target)?;
-    let target_id = identities::node_id_for_kind(target, symbol.kind)?;
+    let target_id = index.node_id_for_kind(target, symbol.kind)?;
     index.push_node(
         records,
         NodeRecord {

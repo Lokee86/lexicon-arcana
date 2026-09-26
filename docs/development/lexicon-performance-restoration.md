@@ -353,6 +353,24 @@ No other lost oracle optimization was found. The remaining meaningful difference
 
 The intended Phase 8 commits are `Restore parallel Lexicon object writes` and `Document Lexicon optimization parity audit`.
 
+## Phase 9 — identity/materialization micro-optimizations
+
+Completed 2026-09-26.
+
+Semantic fact materialization now owns a scan-local identity-to-node-ID cache inside `FactIndex`. Declaration, relationship, call, dataflow, SSA target, and dependency materialization all reuse the first validated SHA-256 node ID for a textual semantic identity instead of repeatedly validating and hashing the same identity. Structural repository, directory, and file construction remains direct because it is low-cardinality and was not the measured hot path.
+
+A fresh controlled Demon Docs baseline at the pinned revision and `4 / 8 / 4` execution shape measured **4,734.089 ms** for fact materialization. With the identity cache retained, the final controlled run measured **1,663.064 ms**, a reduction of approximately **64.9%** in that stage. The cache recorded **196,476 hits** and **24,708 misses**, an approximately **88.8% hit rate**.
+
+The final run produced the same canonical JSONL SHA-256 as the earlier restoration phases:
+
+`AE3064C2085AA479B058F026A26D7DC3CE2DD05EBEE036023C94E7543E650F0E`
+
+Step 9.2 audited the remaining cloned semantic edge key. The existing key clones source ID, target ID, relation, and a formatted source-span key for edge deduplication. A scan-local compact-key experiment replaced those strings with interned endpoint, relation, and path ordinals plus numeric span coordinates. It preserved semantic parity, but materialization regressed from **1,684.279 ms** for the cache-only candidate to **2,197.694 ms**, approximately **30.5% slower**. The compact-key experiment was therefore reverted under the Phase 9 measurement gate. No global interner or compact edge-key machinery is retained.
+
+Only the measured identity cache remains. Timing changes outside fact materialization are treated as run-to-run noise.
+
+The intended commit is `Memoize Go semantic node identities`.
+
 ## Related docs
 
 - [Lexicon optimization parity audit](lexicon-optimization-parity-audit.md)

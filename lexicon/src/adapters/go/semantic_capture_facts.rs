@@ -25,7 +25,7 @@ pub(super) fn add(
         return Ok(false);
     };
 
-    let source_id = identities::node_id(source)?;
+    let source_id = index.node_id(source)?;
     if !index.contains_node(&source_id) {
         return Err(AdapterError::new(format!(
             "Go semantic capture source is not materialized: {source:?}"
@@ -39,7 +39,7 @@ pub(super) fn add(
     let identity = target
         .clone()
         .unwrap_or_else(|| identities::capture(&source_id, capture_index, name));
-    let target_id = identities::node_id_for_kind(&identity, "variable")?;
+    let target_id = index.node_id_for_kind(&identity, "variable")?;
     let location = span.as_ref().map(|value| source_span(owner, value));
     let node_location = location.as_ref().map(|value| SourceSpan {
         path: value.path.clone(),

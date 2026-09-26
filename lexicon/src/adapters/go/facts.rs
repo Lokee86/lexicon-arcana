@@ -60,7 +60,8 @@ pub(crate) fn structural_analysis(
         }));
         records.push(contains(parent_id(&file.path, &repository_id)?, id));
     }
-    semantic_facts::add(request, inventory, semantic, &mut records)?;
+    let (identity_cache_hits, identity_cache_misses) =
+        semantic_facts::add(request, inventory, semantic, &mut records)?;
 
     if let Some(materialization_started) = materialization_started {
         let materialized_nodes = records
@@ -77,6 +78,8 @@ pub(crate) fn structural_analysis(
             &[
                 ("materialized_nodes", materialized_nodes),
                 ("materialized_edges", materialized_edges),
+                ("identity_cache_hits", identity_cache_hits),
+                ("identity_cache_misses", identity_cache_misses),
                 ("final_fact_count", records.len() as u64),
             ],
         );

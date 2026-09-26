@@ -29,7 +29,7 @@ pub(super) fn ensure_call_target(
     hints: TargetHints<'_>,
     materialization: &mut TargetMaterialization<'_>,
 ) -> Result<String, AdapterError> {
-    let id = identities::node_id(identity)?;
+    let id = materialization.index.node_id(identity)?;
     if materialization.index.contains_node(&id) {
         return Ok(id);
     }
@@ -131,13 +131,13 @@ fn ensure_interface_target(
                 "Go semantic internal interface target is missing container: {identity:?}"
             ))
         })?;
-        let parent = identities::node_id(container)?;
+        let parent = materialization.index.node_id(container)?;
         if !materialization.index.contains_node(&parent) {
             return Err(AdapterError::new(format!(
                 "Go semantic internal interface container is not materialized: {container:?}"
             )));
         }
-        let id = identities::node_id(identity)?;
+        let id = materialization.index.node_id(identity)?;
         let location = SourceSpan {
             path: owner.into(),
             start_line: span.start_line,
@@ -207,7 +207,7 @@ fn ensure_dynamic_target(
         )?;
         return super::semantic_call_target_support::ensure_node(
             super::semantic_call_target_support::SyntheticNode {
-                id: identities::node_id(identity)?,
+                id: materialization.index.node_id(identity)?,
                 kind: "method",
                 name,
                 path: "@types/go",

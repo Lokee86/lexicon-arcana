@@ -12,7 +12,7 @@ pub(super) fn ensure_namespace(
     records: &mut Vec<FactRecord>,
     index: &mut FactIndex,
 ) -> Result<String, AdapterError> {
-    let id = identities::node_id(&identities::namespace(namespace))?;
+    let id = index.node_id(&identities::namespace(namespace))?;
     if index.push_node(
         records,
         NodeRecord {
@@ -27,10 +27,11 @@ pub(super) fn ensure_namespace(
             span: None,
         },
     ) {
+        let repository = index.node_id(&identities::repository(&inventory.repository))?;
         push_edge(
             records,
             index,
-            identities::node_id(&identities::repository(&inventory.repository))?,
+            repository,
             id.clone(),
             "contains",
             None,
@@ -53,7 +54,7 @@ pub(super) fn ensure_node(
     records: &mut Vec<FactRecord>,
     index: &mut FactIndex,
 ) -> Result<(), AdapterError> {
-    let namespace_id = identities::node_id(&identities::namespace(node.namespace))?;
+    let namespace_id = index.node_id(&identities::namespace(node.namespace))?;
     let node_id = node.id.clone();
     if index.push_node(
         records,

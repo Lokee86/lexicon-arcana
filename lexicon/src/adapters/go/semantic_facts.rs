@@ -16,7 +16,7 @@ pub(crate) fn add(
     inventory: &Inventory,
     semantic: &[Record],
     records: &mut Vec<FactRecord>,
-) -> Result<(), AdapterError> {
+) -> Result<(u64, u64), AdapterError> {
     let mut index = FactIndex::from_records(records);
 
     for record in semantic {
@@ -49,7 +49,7 @@ pub(crate) fn add(
             ));
         };
         let location = source_span(owner, span);
-        let id = identities::node_id_for_kind(identity, fact_kind(*kind))?;
+        let id = index.node_id_for_kind(identity, fact_kind(*kind))?;
         let (path, qualified_name) = node_location(*kind, name, owner, metadata)?;
 
         index.push_node(
@@ -69,30 +69,33 @@ pub(crate) fn add(
 
         match kind {
             DeclarationKind::Package => {
+                let parent = parent_id(owner, inventory, &mut index)?;
                 push_edge(
                     records,
                     &mut index,
-                    parent_id(owner, inventory)?,
+                    parent,
                     id.clone(),
                     "contains",
                     None,
                     None,
                 );
+                let file = index.node_id(&identities::file(owner))?;
                 push_edge(
                     records,
                     &mut index,
                     id,
-                    identities::node_id(&identities::file(owner))?,
+                    file,
                     "contains",
                     Some(owner.clone()),
                     Some(location),
                 );
             }
             DeclarationKind::Import => {
+                let container = container_id(metadata, &mut index)?;
                 push_edge(
                     records,
                     &mut index,
-                    container_id(metadata)?,
+                    container,
                     id,
                     "imports",
                     Some(owner.clone()),
@@ -101,10 +104,11 @@ pub(crate) fn add(
             }
             DeclarationKind::Namespace => {}
             _ => {
+                let container = container_id(metadata, &mut index)?;
                 push_edge(
                     records,
                     &mut index,
-                    container_id(metadata)?,
+                    container,
                     id,
                     "defines",
                     Some(owner.clone()),
@@ -122,7 +126,7 @@ pub(crate) fn add(
             &[("final_fact_count", records.len() as u64)],
         );
     }
-    Ok(())
+    Ok(index.identity_cache_stats())
 }
 
 fn fact_kind(kind: DeclarationKind) -> &'static str {

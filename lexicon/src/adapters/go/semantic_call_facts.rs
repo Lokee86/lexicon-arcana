@@ -2,7 +2,6 @@ use crate::{AdapterError, FactRecord, SourceSpan, UnresolvedRecord};
 
 use super::{
     discovery::Inventory,
-    identities,
     protocol_records::{CallKind, Record, Span, UnresolvedReason},
     semantic_call_targets::{TargetHints, TargetMaterialization, ensure_call_target},
     semantic_fact_index::FactIndex,
@@ -54,7 +53,7 @@ pub(super) fn add(
             owner,
             span,
         } => {
-            let source_id = identities::node_id(source)?;
+            let source_id = index.node_id(source)?;
             if !index.contains_node(&source_id) {
                 return Err(AdapterError::new(format!(
                     "Go semantic call source is not materialized: {source:?}"
@@ -98,7 +97,7 @@ pub(super) fn add(
             span,
             ..
         } => {
-            let source_id = identities::node_id(source)?;
+            let source_id = index.node_id(source)?;
             if !index.contains_node(&source_id) {
                 return Err(AdapterError::new(format!(
                     "Go semantic unresolved call source is not materialized: {source:?}"

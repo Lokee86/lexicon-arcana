@@ -2,7 +2,6 @@ use crate::{AdapterError, FactRecord};
 
 use super::{
     discovery::Inventory,
-    identities,
     protocol_records::{Record, RelationshipKind},
     semantic_fact_index::FactIndex,
     semantic_facts_support::{ensure_relationship_target, push_edge},
@@ -25,7 +24,7 @@ pub(super) fn add(
         return Ok(false);
     };
 
-    let source_id = identities::node_id(source)?;
+    let source_id = index.node_id(source)?;
     if !index.contains_node(&source_id) {
         return Err(AdapterError::new(format!(
             "Go semantic relationship source is not materialized: {source:?}"

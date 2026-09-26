@@ -4,8 +4,11 @@ use crate::{AdapterError, EdgeRecord, FactRecord, NodeRecord, SourceSpan};
 
 use super::{discovery::Inventory, identities, semantic_fact_index::FactIndex};
 
-pub(super) fn container_id(metadata: &BTreeMap<String, String>) -> Result<String, AdapterError> {
-    identities::node_id(required(metadata, "container")?)
+pub(super) fn container_id(
+    metadata: &BTreeMap<String, String>,
+    index: &mut FactIndex,
+) -> Result<String, AdapterError> {
+    index.node_id(required(metadata, "container")?)
 }
 
 pub(super) fn required<'a>(
@@ -19,10 +22,14 @@ pub(super) fn required<'a>(
         .ok_or_else(|| AdapterError::new(format!("Go semantic declaration is missing {key}")))
 }
 
-pub(super) fn parent_id(owner: &str, inventory: &Inventory) -> Result<String, AdapterError> {
+pub(super) fn parent_id(
+    owner: &str,
+    inventory: &Inventory,
+    index: &mut FactIndex,
+) -> Result<String, AdapterError> {
     match owner.rsplit_once('/') {
-        Some((parent, _)) => identities::node_id(&identities::directory(parent)),
-        None => identities::node_id(&identities::repository(&inventory.repository)),
+        Some((parent, _)) => index.node_id(&identities::directory(parent)),
+        None => index.node_id(&identities::repository(&inventory.repository)),
     }
 }
 
@@ -32,13 +39,13 @@ pub(super) fn ensure_relationship_target(
     records: &mut Vec<FactRecord>,
     index: &mut FactIndex,
 ) -> Result<String, AdapterError> {
-    let id = identities::node_id(identity)?;
+    let id = index.node_id(identity)?;
     if index.contains_node(&id) {
         return Ok(id);
     }
     let (namespace, name) = external_named_type(identity, inventory)?;
     let path = namespace_path(namespace);
-    let namespace_id = identities::node_id(&identities::namespace(namespace))?;
+    let namespace_id = index.node_id(&identities::namespace(namespace))?;
 
     if index.push_node(
         records,
@@ -54,10 +61,11 @@ pub(super) fn ensure_relationship_target(
             span: None,
         },
     ) {
+        let repository = index.node_id(&identities::repository(&inventory.repository))?;
         push_edge(
             records,
             index,
-            identities::node_id(&identities::repository(&inventory.repository))?,
+            repository,
             namespace_id.clone(),
             "contains",
             None,

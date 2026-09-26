@@ -15,7 +15,7 @@ pub(super) fn ensure_synthetic_function(
     container: Option<&str>,
     materialization: &mut TargetMaterialization<'_>,
 ) -> Result<(), AdapterError> {
-    let id = identities::node_id(identity)?;
+    let id = materialization.index.node_id(identity)?;
     if materialization.index.contains_node(&id) {
         return Ok(());
     }
@@ -23,16 +23,16 @@ pub(super) fn ensure_synthetic_function(
     if let Some(path) = internal_namespace_path(materialization.inventory, namespace) {
         let parent = match container {
             Some(identity) => {
-                let candidate = identities::node_id(identity)?;
+                let candidate = materialization.index.node_id(identity)?;
                 if materialization.index.contains_node(&candidate) {
                     candidate
                 } else {
-                    identities::node_id(&identities::repository(
+                    materialization.index.node_id(&identities::repository(
                         &materialization.inventory.repository,
                     ))?
                 }
             }
-            None => identities::node_id(&identities::repository(
+            None => materialization.index.node_id(&identities::repository(
                 &materialization.inventory.repository,
             ))?,
         };
@@ -92,7 +92,7 @@ pub(super) fn ensure_generated_internal_function(
     container: Option<&str>,
     materialization: &mut TargetMaterialization<'_>,
 ) -> Result<(), AdapterError> {
-    let id = identities::node_id(identity)?;
+    let id = materialization.index.node_id(identity)?;
     if materialization.index.contains_node(&id) {
         return Ok(());
     }
@@ -123,7 +123,7 @@ pub(super) fn ensure_generated_internal_function(
         },
     );
     if let Some(container) = container.filter(|value| !value.is_empty()) {
-        let parent = identities::node_id(container)?;
+        let parent = materialization.index.node_id(container)?;
         if materialization.index.contains_node(&parent) {
             let owner = materialization.index.node_owner(&parent);
             push_edge(
