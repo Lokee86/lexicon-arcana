@@ -4,7 +4,7 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-use crate::AdapterRequest;
+use crate::{AdapterRequest, content_id};
 
 use super::{discovery, helper_arguments, helper_environment, semantic_request};
 
@@ -43,6 +43,36 @@ fn exclusions_and_helper_inventory_are_rust_owned() {
         vec!["go.mod", "main.go", "visible/keep.go"]
     );
     assert_eq!(inventory.directories, vec!["visible"]);
+
+    let manifest = inventory
+        .files
+        .iter()
+        .find(|file| file.path == "go.mod")
+        .unwrap();
+    assert_eq!(
+        manifest.manifest_content.as_deref(),
+        Some(b"module example.com/inventory\n".as_slice())
+    );
+    assert_eq!(
+        manifest.content_id,
+        content_id(b"module example.com/inventory\n")
+    );
+
+    let main = inventory
+        .files
+        .iter()
+        .find(|file| file.path == "main.go")
+        .unwrap();
+    assert!(main.manifest_content.is_none());
+    assert_eq!(main.content_id, content_id(b"package main\n"));
+
+    let visible = inventory
+        .files
+        .iter()
+        .find(|file| file.path == "visible/keep.go")
+        .unwrap();
+    assert!(visible.manifest_content.is_none());
+    assert_eq!(visible.content_id, content_id(b"package visible\n"));
 
     let request = semantic_request(
         &fs::canonicalize(&root.path).unwrap(),

@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::{
     AdapterMode, AdapterRequest, Analysis, EdgeRecord, FACT_SCHEMA_VERSION, FactHeader, FactRecord,
-    NodeRecord, content_id,
+    NodeRecord,
 };
 
 use super::{
@@ -49,7 +49,7 @@ pub(crate) fn structural_analysis(
         let id = identities::node_id(&identities::file(&file.path))?;
         records.push(FactRecord::Node(NodeRecord {
             attributes: None,
-            content_id: Some(content_id(&file.content)),
+            content_id: Some(file.content_id.clone()),
             id: id.clone(),
             kind: "file".into(),
             name: file_name(&file.path),

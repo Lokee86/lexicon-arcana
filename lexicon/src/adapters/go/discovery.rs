@@ -1,6 +1,6 @@
 use std::{fs, path::Path};
 
-use crate::AdapterError;
+use crate::{AdapterError, content_id};
 
 use super::module_ownership;
 
@@ -24,7 +24,8 @@ const EXCLUDED_DIRECTORIES: &[&str] = &[
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SourceFile {
     pub path: String,
-    pub content: Vec<u8>,
+    pub content_id: String,
+    pub manifest_content: Option<Vec<u8>>,
     pub module: Option<usize>,
 }
 
@@ -134,9 +135,15 @@ fn read_source(root: &Path, path: String) -> Result<SourceFile, AdapterError> {
     let absolute = root.join(path.replace('/', std::path::MAIN_SEPARATOR_STR));
     let content =
         fs::read(&absolute).map_err(|error| AdapterError::new(format!("read {path}: {error}")))?;
+    let content_id = content_id(&content);
+    let manifest_content = Path::new(&path)
+        .file_name()
+        .is_some_and(|name| name == "go.mod")
+        .then_some(content);
     Ok(SourceFile {
         path,
-        content,
+        content_id,
+        manifest_content,
         module: None,
     })
 }

@@ -48,7 +48,10 @@ pub(crate) fn add(
 
     for module in &inventory.modules {
         let manifest = manifest_file(inventory, module)?;
-        for mut dependency in parse_dependencies(&manifest.content)? {
+        let content = manifest.manifest_content.as_deref().ok_or_else(|| {
+            AdapterError::new(format!("missing retained manifest {}", manifest.path))
+        })?;
+        for mut dependency in parse_dependencies(content)? {
             let mut target_name = dependency.name.clone();
             let mut local_path = String::new();
             if dependency.replacement.starts_with("./") || dependency.replacement.starts_with("../")

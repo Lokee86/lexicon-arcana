@@ -192,6 +192,26 @@ Canonicalization time changed from **4,112.866 ms** in Phase 1 to **410.940 ms**
 
 The intended commit is `Restore structural fact canonicalization`.
 
+## Phase 3 — reduce retained and computed state
+
+Completed 2026-09-26.
+
+The Go semantic helper no longer eagerly computes and stores value/pointer method-set identity slices on every `typedType`. Relationship analysis continues to derive method sets from the retained `*types.Named` values where required. The method-set expectations in `semantic_index_test.go` are now computed locally by the test, so production state no longer exists only to satisfy test inspection.
+
+The Rust-owned Go discovery inventory now computes each file content ID immediately after reading it. Ordinary `.go` bodies are then released rather than retained for the rest of the adapter run. `go.mod` bodies remain retained because module ownership and dependency materialization still consume the manifest text. File fact materialization uses the precomputed content ID, preserving identity without retaining source bytes.
+
+An audit of the Rust Go-adapter inventory found no second persistent full-source-byte collection after this change. The remaining explicit `fs::read` in dependency replacement handling reads a replacement `go.mod` transiently to obtain its module path and does not retain the file body.
+
+The full Rust library suite passed 56/56, including deterministic parallel execution and both live legacy/native differential gates. The Go semantic helper suite also passed.
+
+A single controlled Demon Docs run at the same pinned revision and `4 / 8 / 4` execution shape produced byte-identical canonical JSONL to Phase 2:
+
+`AE3064C2085AA479B058F026A26D7DC3CE2DD05EBEE036023C94E7543E650F0E`
+
+The Phase 0 retained-source proxy was **1,769,246 bytes**. After Phase 3 it is **1,311 bytes**, a reduction of approximately **99.93%**. The remaining retained bytes are the repository's Go manifest content. Other timing differences in the single controlled run are treated as run-to-run noise rather than attributed to Phase 3.
+
+The intended commits are `Remove unused semantic type state` and `Reduce Go inventory source retention`.
+
 ## Related docs
 
 - [Go adapter Phase 16 freeze](go-adapter-port-freeze-2026-09-26.md)

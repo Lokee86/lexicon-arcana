@@ -14,9 +14,13 @@ pub(crate) fn discover(files: &[SourceFile]) -> Result<Vec<Module>, AdapterError
             continue;
         }
         let root = parent(&file.path).unwrap_or(".");
+        let content = file
+            .manifest_content
+            .as_deref()
+            .ok_or_else(|| AdapterError::new(format!("missing retained manifest {}", file.path)))?;
         modules.push(Module {
             root: root.to_owned(),
-            path: module_path(&file.content)?,
+            path: module_path(content)?,
         });
     }
     modules.sort_by(|left, right| {

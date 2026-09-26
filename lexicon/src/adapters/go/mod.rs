@@ -174,7 +174,8 @@ impl LanguageAdapter for GoAdapter {
                         inventory
                             .files
                             .iter()
-                            .map(|file| file.content.len() as u64)
+                            .filter_map(|file| file.manifest_content.as_ref())
+                            .map(|content| content.len() as u64)
                             .sum(),
                     ),
                     ("modules", inventory.modules.len() as u64),
