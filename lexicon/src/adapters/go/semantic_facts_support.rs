@@ -129,6 +129,13 @@ fn is_standard_library_namespace(namespace: &str) -> bool {
     !first.contains('.')
 }
 
+pub(super) fn node_owner(records: &[FactRecord], id: &str) -> Option<String> {
+    records.iter().find_map(|record| match record {
+        FactRecord::Node(node) if node.id == id => node.owner.clone(),
+        _ => None,
+    })
+}
+
 pub(super) fn push_edge(
     records: &mut Vec<FactRecord>,
     seen: &mut BTreeSet<EdgeKey>,

@@ -35,9 +35,27 @@ func (index *semanticIndex) implementedMethodRelationships(
 				concreteTargets[0].Owner,
 				concreteTargets[0].Span,
 			))
+			index.addInterfaceImplementation(interfaceTargets[0].Identity, concreteTargets[0])
 		}
 	}
 	return result
+}
+
+func (index *semanticIndex) addInterfaceImplementation(contract string, target typedTarget) {
+	current := index.interfaceImplementations[contract]
+	for _, existing := range current {
+		if existing.Identity == target.Identity && existing.Owner == target.Owner {
+			return
+		}
+	}
+	current = append(current, target)
+	sort.Slice(current, func(i, j int) bool {
+		if current[i].Identity != current[j].Identity {
+			return current[i].Identity < current[j].Identity
+		}
+		return current[i].Owner < current[j].Owner
+	})
+	index.interfaceImplementations[contract] = current
 }
 
 func (index *semanticIndex) targetCandidates(function *types.Func) []typedTarget {

@@ -88,6 +88,9 @@ func semanticFunctionIdentity(modules []module, function *types.Func) string {
 		function = origin
 	}
 	namespace := canonicalNamespace(modules, objectNamespace(function))
+	if namespace == "" {
+		namespace = "go:unknown"
+	}
 	signature, _ := function.Type().(*types.Signature)
 	if signature != nil && signature.Recv() != nil {
 		return "method:" + namespace + ":" +

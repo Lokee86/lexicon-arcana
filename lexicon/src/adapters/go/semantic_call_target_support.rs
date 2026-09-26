@@ -100,7 +100,9 @@ pub(super) fn named_type_identity(identity: &str) -> Result<(&str, &str), Adapte
 }
 
 pub(super) fn namespace_path(namespace: &str) -> String {
-    if is_standard_library_namespace(namespace) {
+    if namespace == "go:unknown" {
+        "@external/go-unknown".into()
+    } else if is_standard_library_namespace(namespace) {
         format!("@stdlib/{namespace}")
     } else {
         format!("@external/{namespace}")

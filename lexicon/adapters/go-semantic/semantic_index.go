@@ -10,14 +10,17 @@ import (
 )
 
 type semanticIndex struct {
-	request         request
-	roots           []*packages.Package
-	packages        []*packages.Package
-	targetsByObject map[*types.Func]typedTarget
-	targetsByID     map[string][]typedTarget
-	typesByID       map[string]typedType
-	allowedFiles    map[string]bool
-	callsiteKeys    map[string]string
+	request                  request
+	roots                    []*packages.Package
+	rootGroups               [][]*packages.Package
+	packages                 []*packages.Package
+	targetsByObject          map[*types.Func]typedTarget
+	targetsByID              map[string][]typedTarget
+	typesByID                map[string]typedType
+	interfaceImplementations map[string][]typedTarget
+	allowedFiles             map[string]bool
+	callsiteKeys             map[string]string
+	structuralClosures       map[string]bool
 }
 
 type typedTarget struct {
@@ -41,12 +44,14 @@ type typedType struct {
 
 func loadSemanticIndex(value request) (*semanticIndex, []diagnostic) {
 	index := &semanticIndex{
-		request:         value,
-		targetsByObject: make(map[*types.Func]typedTarget),
-		targetsByID:     make(map[string][]typedTarget),
-		typesByID:       make(map[string]typedType),
-		allowedFiles:    make(map[string]bool),
-		callsiteKeys:    make(map[string]string),
+		request:                  value,
+		targetsByObject:          make(map[*types.Func]typedTarget),
+		targetsByID:              make(map[string][]typedTarget),
+		typesByID:                make(map[string]typedType),
+		interfaceImplementations: make(map[string][]typedTarget),
+		allowedFiles:             make(map[string]bool),
+		callsiteKeys:             make(map[string]string),
+		structuralClosures:       make(map[string]bool),
 	}
 	for _, file := range value.Files {
 		if filepath.Ext(file) == ".go" {
@@ -70,6 +75,7 @@ func loadSemanticIndex(value request) (*semanticIndex, []diagnostic) {
 			continue
 		}
 		index.roots = append(index.roots, roots...)
+		index.rootGroups = append(index.rootGroups, append([]*packages.Package(nil), roots...))
 		loaded := flattenPackages(roots)
 		index.packages = append(index.packages, loaded...)
 		diagnostics = append(diagnostics, packageDiagnostics(loaded)...)

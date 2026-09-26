@@ -17,6 +17,10 @@ mod semantic_relationship_facts;
 mod semantic_ssa_target_support;
 
 #[cfg(test)]
+mod anonymous_interface_tests;
+#[cfg(test)]
+mod capture_position_tests;
+#[cfg(test)]
 mod capture_tests;
 #[cfg(test)]
 mod dataflow_tests;

@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use crate::{AdapterError, FactRecord};
+use crate::{AdapterError, FactRecord, NodeRecord, SourceSpan};
 
 use super::{
     discovery::Inventory,
@@ -15,6 +15,8 @@ pub(super) struct TargetHints<'a> {
     pub name: Option<&'a str>,
     pub namespace: Option<&'a str>,
     pub container: Option<&'a str>,
+    pub owner: Option<&'a str>,
+    pub span: Option<&'a super::protocol_records::Span>,
 }
 
 pub(super) struct TargetMaterialization<'a> {
@@ -36,10 +38,23 @@ pub(super) fn ensure_call_target(
     }
 
     match class {
-        CallClass::Internal | CallClass::Interface => {
-            return Err(AdapterError::new(format!(
-                "Go semantic call target is not materialized: {identity:?}"
-            )));
+        CallClass::Internal => {
+            if let (Some(name), Some(namespace)) = (hints.name, hints.namespace) {
+                super::semantic_ssa_target_support::ensure_generated_internal_function(
+                    identity,
+                    name,
+                    namespace,
+                    hints.container,
+                    materialization,
+                )?;
+            } else {
+                return Err(AdapterError::new(format!(
+                    "Go semantic call target is not materialized: {identity:?}"
+                )));
+            }
+        }
+        CallClass::Interface => {
+            ensure_interface_target(identity, &hints, materialization)?;
         }
         CallClass::Dynamic => {
             ensure_dynamic_target(identity, hints, materialization)?;
@@ -96,6 +111,90 @@ pub(super) fn ensure_call_target(
         }
     }
     Ok(id)
+}
+
+fn ensure_interface_target(
+    identity: &str,
+    hints: &TargetHints<'_>,
+    materialization: &mut TargetMaterialization<'_>,
+) -> Result<(), AdapterError> {
+    let (namespace, parsed_name) = callable_identity(identity)?;
+    let internal = materialization.inventory.modules.iter().any(|module| {
+        namespace == module.path || namespace.starts_with(&format!("{}/", module.path))
+    });
+    if internal {
+        let name = hints.name.unwrap_or(parsed_name);
+        let owner = hints.owner.ok_or_else(|| {
+            AdapterError::new(format!(
+                "Go semantic internal interface target is missing owner: {identity:?}"
+            ))
+        })?;
+        let span = hints.span.ok_or_else(|| {
+            AdapterError::new(format!(
+                "Go semantic internal interface target is missing span: {identity:?}"
+            ))
+        })?;
+        let container = hints.container.ok_or_else(|| {
+            AdapterError::new(format!(
+                "Go semantic internal interface target is missing container: {identity:?}"
+            ))
+        })?;
+        let parent = identities::node_id(container)?;
+        if !materialization.nodes.contains(&parent) {
+            return Err(AdapterError::new(format!(
+                "Go semantic internal interface container is not materialized: {container:?}"
+            )));
+        }
+        let id = identities::node_id(identity)?;
+        let location = SourceSpan {
+            path: owner.into(),
+            start_line: span.start_line,
+            start_column: span.start_column,
+            end_line: span.end_line,
+            end_column: span.end_column,
+        };
+        if materialization.nodes.insert(id.clone()) {
+            materialization.records.push(FactRecord::Node(NodeRecord {
+                attributes: None,
+                content_id: None,
+                id: id.clone(),
+                kind: identities::lexicon_kind(identity)?.into(),
+                name: name.into(),
+                owner: Some(owner.into()),
+                path: owner.into(),
+                qualified_name: format!("{owner}::{name}"),
+                span: Some(location.clone()),
+            }));
+            super::semantic_facts_support::push_edge(
+                materialization.records,
+                materialization.edges,
+                parent,
+                id,
+                "defines",
+                Some(owner.into()),
+                Some(location),
+            );
+        }
+        return Ok(());
+    }
+    let path = namespace_path(namespace);
+    ensure_namespace(
+        namespace,
+        &path,
+        materialization.inventory,
+        materialization.records,
+        materialization.nodes,
+        materialization.edges,
+    )?;
+    ensure_callable(
+        identity,
+        namespace,
+        parsed_name,
+        &path,
+        materialization.records,
+        materialization.nodes,
+        materialization.edges,
+    )
 }
 
 fn ensure_dynamic_target(

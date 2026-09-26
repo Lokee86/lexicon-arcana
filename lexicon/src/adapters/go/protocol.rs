@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use super::protocol_records::Record;
 
 pub(crate) const PROTOCOL_VERSION: u32 = 1;
-pub(crate) const HELPER_VERSION: &str = "0.11.0";
+pub(crate) const HELPER_VERSION: &str = "0.13.0";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

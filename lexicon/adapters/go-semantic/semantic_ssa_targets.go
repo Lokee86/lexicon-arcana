@@ -14,35 +14,43 @@ import (
 func (index *semanticIndex) ssaSourceIdentity(
 	function *ssa.Function,
 	set *token.FileSet,
-) (string, bool) {
+) (string, *ssaTarget, bool) {
 	if function == nil {
-		return "", false
+		return "", nil, false
 	}
 	if object := function.Object(); object != nil {
 		typed, ok := object.(*types.Func)
 		if !ok {
-			return "", false
+			return "", nil, false
 		}
 		namespace := canonicalNamespace(index.request.Modules, objectNamespace(typed))
 		if !internalNamespace(index.request.Modules, namespace) {
-			return "", false
+			return "", nil, false
 		}
 		targets := index.targetCandidates(typed)
-		if len(targets) != 1 {
-			return "", false
+		if len(targets) > 1 {
+			return "", nil, false
 		}
-		return targets[0].Identity, true
+		if len(targets) == 1 {
+			return targets[0].Identity, nil, true
+		}
+		generated := index.generatedInternalTarget(typed, namespace)
+		return generated.Identity, &generated, true
 	}
 	literal, ok := function.Syntax().(*ast.FuncLit)
 	if !ok {
-		return "", false
+		return "", nil, false
 	}
 	position := set.PositionFor(literal.Pos(), false)
 	owner, ok := index.ownerForPosition(position.Filename)
 	if !ok {
-		return "", false
+		return "", nil, false
 	}
-	return closureIdentity(moduleImportPath(index.request, owner), owner, position), true
+	identity := closureIdentity(moduleImportPath(index.request, owner), owner, position)
+	if !index.structuralClosures[identity] {
+		return "", nil, false
+	}
+	return identity, nil, true
 }
 
 func (index *semanticIndex) ssaTargetIdentity(
@@ -61,13 +69,16 @@ func (index *semanticIndex) ssaTargetIdentity(
 		internal := internalNamespace(index.request.Modules, namespace)
 		if internal {
 			targets := index.targetCandidates(typed)
-			if len(targets) != 1 {
+			if len(targets) > 1 {
 				return ssaTarget{}, false
 			}
-			return ssaTarget{
-				Identity: targets[0].Identity, Class: "internal",
-				Name: typed.Name(), Namespace: namespace, Internal: true,
-			}, true
+			if len(targets) == 1 {
+				return ssaTarget{
+					Identity: targets[0].Identity, Class: "internal",
+					Name: typed.Name(), Namespace: namespace, Internal: true,
+				}, true
+			}
+			return index.generatedInternalTarget(typed, namespace), true
 		}
 		return ssaTarget{
 			Identity: semanticFunctionIdentity(index.request.Modules, typed),
@@ -78,11 +89,14 @@ func (index *semanticIndex) ssaTargetIdentity(
 		position := set.PositionFor(literal.Pos(), false)
 		if owner, exists := index.ownerForPosition(position.Filename); exists {
 			namespace := moduleImportPath(index.request, owner)
-			return ssaTarget{
-				Identity: closureIdentity(namespace, owner, position),
-				Class:    "dynamic", Name: function.Name(),
-				Namespace: namespace, Internal: true,
-			}, true
+			identity := closureIdentity(namespace, owner, position)
+			if index.structuralClosures[identity] {
+				return ssaTarget{
+					Identity: identity,
+					Class:    "dynamic", Name: function.Name(),
+					Namespace: namespace, Internal: true,
+				}, true
+			}
 		}
 	}
 	namespace := index.ssaFunctionNamespace(function)
@@ -106,6 +120,59 @@ func (index *semanticIndex) ssaTargetIdentity(
 		Identity: identity, Class: "dynamic", Name: name,
 		Namespace: namespace, Container: container, Internal: internal,
 	}, true
+}
+
+func (index *semanticIndex) generatedTestMainTargets() []ssaTarget {
+	byIdentity := make(map[string]ssaTarget)
+	for _, pkg := range index.packages {
+		if pkg == nil || pkg.Types == nil || pkg.Name != "main" {
+			continue
+		}
+		namespace := canonicalNamespace(index.request.Modules, pkg.Types.Path())
+		if !strings.HasSuffix(namespace, ".test") || !internalNamespace(index.request.Modules, namespace) {
+			continue
+		}
+		object, ok := pkg.Types.Scope().Lookup("main").(*types.Func)
+		if !ok || len(index.targetCandidates(object)) != 0 {
+			continue
+		}
+		target := index.generatedInternalTarget(object, namespace)
+		byIdentity[target.Identity] = target
+	}
+	return sortedSSATargets(byIdentity)
+}
+
+func (index *semanticIndex) generatedTestMainTarget(function *ssa.Function) (ssaTarget, bool) {
+	if function == nil || function.Name() != "main" {
+		return ssaTarget{}, false
+	}
+	object, ok := function.Object().(*types.Func)
+	if !ok {
+		return ssaTarget{}, false
+	}
+	namespace := canonicalNamespace(index.request.Modules, objectNamespace(object))
+	if !strings.HasSuffix(namespace, ".test") || !internalNamespace(index.request.Modules, namespace) {
+		return ssaTarget{}, false
+	}
+	if len(index.targetCandidates(object)) != 0 {
+		return ssaTarget{}, false
+	}
+	return index.generatedInternalTarget(object, namespace), true
+}
+
+func (index *semanticIndex) generatedInternalTarget(
+	function *types.Func,
+	namespace string,
+) ssaTarget {
+	return ssaTarget{
+		Identity:  semanticFunctionIdentity(index.request.Modules, function),
+		Class:     "internal",
+		Name:      function.Name(),
+		Namespace: namespace,
+		Container: index.packageContainerIdentity(namespace),
+		Internal:  true,
+		Generated: true,
+	}
 }
 
 func (index *semanticIndex) packageContainerIdentity(namespace string) string {

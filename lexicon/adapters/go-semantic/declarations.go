@@ -70,6 +70,10 @@ func (scanner *structuralScanner) collectClosures(
 		}
 		position := scanner.set.PositionFor(literal.Pos(), false)
 		identity := closureIdentity(importPath, owner, position)
+		if scanner.closures == nil {
+			scanner.closures = make(map[string]bool)
+		}
+		scanner.closures[identity] = true
 		scanner.add(
 			"function",
 			identity,

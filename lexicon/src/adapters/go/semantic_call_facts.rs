@@ -18,6 +18,32 @@ pub(super) fn add(
     edges: &mut BTreeSet<EdgeKey>,
 ) -> Result<bool, AdapterError> {
     match record {
+        Record::Target {
+            identity,
+            class,
+            name,
+            namespace,
+            container,
+        } => {
+            ensure_call_target(
+                identity,
+                *class,
+                TargetHints {
+                    name: name.as_deref(),
+                    namespace: namespace.as_deref(),
+                    container: container.as_deref(),
+                    owner: None,
+                    span: None,
+                },
+                &mut TargetMaterialization {
+                    inventory,
+                    records,
+                    nodes,
+                    edges,
+                },
+            )?;
+            Ok(true)
+        }
         Record::Call {
             source,
             target,
@@ -26,6 +52,8 @@ pub(super) fn add(
             target_name,
             target_namespace,
             target_container,
+            target_owner,
+            target_span,
             owner,
             span,
         } => {
@@ -42,6 +70,8 @@ pub(super) fn add(
                     name: target_name.as_deref(),
                     namespace: target_namespace.as_deref(),
                     container: target_container.as_deref(),
+                    owner: target_owner.as_deref(),
+                    span: target_span.as_ref(),
                 },
                 &mut TargetMaterialization {
                     inventory,

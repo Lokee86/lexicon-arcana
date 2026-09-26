@@ -26,6 +26,18 @@ func callRecordWithTarget(
 	}
 }
 
+func callRecordWithTargetProvenance(
+	source, target, kind, class, targetName, targetNamespace, targetContainer,
+	targetOwner string, targetSpan span, owner string, location span,
+) callObservation {
+	return callObservation{
+		Record: "call", Source: source, Target: target, Kind: kind,
+		Class: class, TargetName: targetName, TargetNamespace: targetNamespace,
+		TargetContainer: targetContainer, TargetOwner: targetOwner, TargetSpan: &targetSpan,
+		Owner: owner, Span: location,
+	}
+}
+
 func unresolvedForPackage(
 	set *token.FileSet,
 	source, owner string,

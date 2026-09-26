@@ -34,6 +34,9 @@ func (index *semanticIndex) collectSSACaptures(
 		}
 		namespace := moduleImportPath(index.request, owner)
 		closure := closureIdentity(namespace, owner, position)
+		if !index.structuralClosures[closure] {
+			continue
+		}
 
 		for captureIndex, variable := range function.FreeVars {
 			captureIndex := captureIndex

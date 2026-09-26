@@ -41,8 +41,23 @@ pub(crate) enum Record {
         target_namespace: Option<String>,
         #[serde(default)]
         target_container: Option<String>,
+        #[serde(default)]
+        target_owner: Option<String>,
+        #[serde(default)]
+        target_span: Option<Span>,
         owner: String,
         span: Span,
+    },
+    #[serde(rename = "target")]
+    Target {
+        identity: String,
+        class: CallClass,
+        #[serde(default)]
+        name: Option<String>,
+        #[serde(default)]
+        namespace: Option<String>,
+        #[serde(default)]
+        container: Option<String>,
     },
     #[serde(rename = "dataflow")]
     Dataflow {

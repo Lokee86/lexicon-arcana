@@ -6,7 +6,7 @@ use super::{
     discovery::Inventory,
     identities,
     protocol_records::{Record, RelationshipKind},
-    semantic_facts_support::{EdgeKey, ensure_relationship_target, push_edge},
+    semantic_facts_support::{EdgeKey, ensure_relationship_target, node_owner, push_edge},
 };
 
 pub(super) fn add(
@@ -42,13 +42,14 @@ pub(super) fn add(
             "Go semantic relationship attempted an implements self-edge",
         ));
     }
+    let edge_owner = node_owner(records, &source_id).or_else(|| Some(owner.clone()));
     push_edge(
         records,
         edges,
         source_id,
         target_id,
         relationship_name(*kind),
-        Some(owner.clone()),
+        edge_owner,
         None,
     );
     Ok(true)

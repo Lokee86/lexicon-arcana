@@ -13,7 +13,7 @@ use super::{
     helper_capture::{capture_stderr, stderr_suffix, terminate},
 };
 
-const MAX_RESPONSE_BYTES: u64 = 16 * 1024 * 1024;
+const MAX_RESPONSE_BYTES: u64 = 64 * 1024 * 1024;
 
 #[derive(Debug, Clone)]
 pub(crate) struct HelperRunner {

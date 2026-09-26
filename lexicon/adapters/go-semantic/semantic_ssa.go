@@ -2,8 +2,10 @@ package main
 
 import (
 	"sort"
+	"strings"
 
 	"golang.org/x/tools/go/callgraph/vta"
+	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
 )
@@ -20,57 +22,83 @@ type ssaTarget struct {
 	Namespace string
 	Container string
 	Internal  bool
+	Generated bool
 }
 
 func (index *semanticIndex) mergeSSASemantics(direct []semanticRecord) []semanticRecord {
 	if len(index.roots) == 0 {
 		return direct
 	}
-	program, _ := ssautil.AllPackages(index.roots, ssa.InstantiateGenerics)
-	program.Build()
-	functions := ssautil.AllFunctions(program)
-	captures := index.collectSSACaptures(functions, program.Fset)
-	if len(direct) == 0 {
-		return captures
+	groups := index.rootGroups
+	if len(groups) == 0 && len(index.roots) != 0 {
+		groups = [][]*packages.Package{index.roots}
 	}
-	graph := vta.CallGraph(functions, nil)
+	var captures []semanticRecord
 	outcomes := make(map[string]*ssaOutcome)
-
-	for _, node := range graph.Nodes {
-		for _, edge := range node.Out {
-			if edge.Site == nil || edge.Callee == nil || edge.Caller == nil {
-				continue
-			}
-			source, ok := index.ssaSourceIdentity(edge.Caller.Func, program.Fset)
-			if !ok {
-				continue
-			}
-			position := program.Fset.PositionFor(edge.Site.Pos(), false)
-			owner, ok := index.ownerForPosition(position.Filename)
-			if !ok {
-				continue
-			}
-			key, exists := index.callsiteKeys[callsiteStartKey(source, owner, position)]
-			if !exists {
-				continue
-			}
-			target, ok := index.ssaTargetIdentity(edge.Callee.Func, program.Fset)
-			if !ok {
-				continue
-			}
-			common := edge.Site.Common()
-			outcome := outcomes[key]
-			if outcome == nil {
-				outcome = &ssaOutcome{Targets: make(map[string]ssaTarget)}
-				outcomes[key] = outcome
-			}
-			outcome.Invoke = outcome.Invoke || common.IsInvoke()
-			if !common.IsInvoke() || target.Internal {
-				outcome.Targets[target.Identity] = target
+	materializations := make(map[string]ssaTarget)
+	for _, target := range index.generatedTestMainTargets() {
+		materializations[target.Identity] = target
+	}
+	for _, roots := range groups {
+		program, _ := ssautil.AllPackages(roots, ssa.InstantiateGenerics)
+		program.Build()
+		functions := ssautil.AllFunctions(program)
+		captures = append(captures, index.collectSSACaptures(functions, program.Fset)...)
+		graph := vta.CallGraph(functions, nil)
+		for _, node := range graph.Nodes {
+			for _, edge := range node.Out {
+				if edge.Site == nil || edge.Callee == nil || edge.Caller == nil {
+					continue
+				}
+				if generated, ok := index.generatedTestMainTarget(edge.Caller.Func); ok {
+					materializations[generated.Identity] = generated
+				}
+				source, generatedSource, ok := index.ssaSourceIdentity(edge.Caller.Func, program.Fset)
+				if !ok {
+					continue
+				}
+				if generatedSource != nil {
+					materializations[generatedSource.Identity] = *generatedSource
+				}
+				position := program.Fset.PositionFor(edge.Site.Pos(), false)
+				owner, ok := index.ownerForPosition(position.Filename)
+				if !ok {
+					continue
+				}
+				key, exists := index.callsiteKeys[callsiteStartKey(source, owner, position)]
+				if !exists {
+					continue
+				}
+				target, ok := index.ssaTargetIdentity(edge.Callee.Func, program.Fset)
+				if !ok {
+					continue
+				}
+				if target.Generated || !target.Internal {
+					materializations[target.Identity] = target
+				}
+				common := edge.Site.Common()
+				outcome := outcomes[key]
+				if outcome == nil {
+					outcome = &ssaOutcome{Targets: make(map[string]ssaTarget)}
+					outcomes[key] = outcome
+				}
+				outcome.Invoke = outcome.Invoke || common.IsInvoke()
+				if !common.IsInvoke() || target.Internal {
+					outcome.Targets[target.Identity] = target
+				}
 			}
 		}
 	}
-	result := mergeSSAOutcomes(direct, outcomes)
+	var result []semanticRecord
+	for _, target := range sortedSSATargets(materializations) {
+		result = append(result, targetObservation{
+			Record: "target", Identity: target.Identity, Class: target.Class,
+			Name: target.Name, Namespace: target.Namespace, Container: target.Container,
+		})
+	}
+	if len(direct) != 0 {
+		result = append(result, mergeSSAOutcomes(direct, outcomes)...)
+	}
 	result = append(result, captures...)
 	return result
 }
@@ -112,14 +140,22 @@ func mergeSSAOutcomes(
 		if outcome.Invoke {
 			class = "interface"
 		}
-		replacement := make([]semanticRecord, 0, len(targets))
+		replacement := make([]semanticRecord, 0, len(targets)+len(existing))
+		if outcome.Invoke {
+			for _, record := range existing {
+				call, resolved := record.(callObservation)
+				if resolved && !strings.HasPrefix(call.Target, "interface-method:") {
+					replacement = append(replacement, record)
+				}
+			}
+		}
 		for _, target := range targets {
 			replacement = append(replacement, callRecordWithTarget(
 				source, target.Identity, kind, class,
 				target.Name, target.Namespace, target.Container, owner, location,
 			))
 		}
-		byKey[key] = replacement
+		byKey[key] = mergeDirectCallRecords(replacement)
 	}
 	var result []semanticRecord
 	for _, records := range byKey {

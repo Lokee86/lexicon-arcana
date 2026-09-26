@@ -74,11 +74,24 @@ type callObservation struct {
 	TargetName      string `json:"target_name,omitempty"`
 	TargetNamespace string `json:"target_namespace,omitempty"`
 	TargetContainer string `json:"target_container,omitempty"`
+	TargetOwner     string `json:"target_owner,omitempty"`
+	TargetSpan      *span  `json:"target_span,omitempty"`
 	Owner           string `json:"owner"`
 	Span            span   `json:"span"`
 }
 
 func (callObservation) semanticRecord() {}
+
+type targetObservation struct {
+	Record    string `json:"record"`
+	Identity  string `json:"identity"`
+	Class     string `json:"class"`
+	Name      string `json:"name,omitempty"`
+	Namespace string `json:"namespace,omitempty"`
+	Container string `json:"container,omitempty"`
+}
+
+func (targetObservation) semanticRecord() {}
 
 type dataflowObservation struct {
 	Record string `json:"record"`

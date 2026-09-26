@@ -9,11 +9,12 @@ import (
 )
 
 type structuralScanner struct {
-	request request
-	set     *token.FileSet
-	records []semanticRecord
-	files   []structuralFile
-	index   *semanticIndex
+	request  request
+	set      *token.FileSet
+	records  []semanticRecord
+	files    []structuralFile
+	closures map[string]bool
+	index    *semanticIndex
 }
 
 func scanStructural(value request) (response, error) {
@@ -29,6 +30,7 @@ func scanStructural(value request) (response, error) {
 		}
 	}
 	index, diagnostics := loadSemanticIndex(value)
+	index.structuralClosures = scanner.closures
 	scanner.index = index
 	for _, record := range index.collectRelationships() {
 		scanner.records = append(scanner.records, record)
@@ -37,6 +39,7 @@ func scanStructural(value request) (response, error) {
 	if err != nil {
 		return response{}, err
 	}
+	directCalls = mergeDirectCallRecords(directCalls)
 	for _, record := range dataflow {
 		scanner.records = append(scanner.records, record)
 	}

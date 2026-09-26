@@ -48,7 +48,7 @@ pub(super) fn add(
         start_line: value.start_line,
         start_column: value.start_column,
         end_line: value.end_line,
-        end_column: value.start_column + name.len() as u64,
+        end_column: value.end_column,
     });
 
     if nodes.insert(target_id.clone()) {

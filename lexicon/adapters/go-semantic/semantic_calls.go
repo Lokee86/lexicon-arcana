@@ -66,7 +66,7 @@ func (index *semanticIndex) collectCallableCalls(
 			return true
 		}
 		location := sourceSpan(pkg.Fset, call.Pos(), call.End())
-		*result = append(*result, index.resolveDirectCall(pkg, owner, caller, call, location))
+		*result = append(*result, index.resolveDirectCall(pkg, owner, caller, call, location)...)
 		index.registerCallsite(pkg, owner, caller, call, call.Pos())
 		if call.Lparen.IsValid() {
 			index.registerCallsite(pkg, owner, caller, call, call.Lparen)
@@ -80,27 +80,27 @@ func (index *semanticIndex) resolveDirectCall(
 	owner, caller string,
 	call *ast.CallExpr,
 	location span,
-) semanticRecord {
+) []semanticRecord {
 	if typed, exists := pkg.TypesInfo.Types[call.Fun]; exists && typed.IsType() {
-		return callRecord(caller, typeIdentityFromType(index.request.Modules, typed.Type),
-			"conversion", "conversion", owner, location)
+		return []semanticRecord{callRecord(caller, typeIdentityFromType(index.request.Modules, typed.Type),
+			"conversion", "conversion", owner, location)}
 	}
 	object := calledObject(pkg.TypesInfo, call.Fun)
 	switch object := object.(type) {
 	case *types.Builtin:
-		return callRecord(caller, "function:go:builtins:"+object.Name(),
-			"definite", "builtin", owner, location)
+		return []semanticRecord{callRecord(caller, "function:go:builtins:"+object.Name(),
+			"definite", "builtin", owner, location)}
 	case *types.TypeName:
-		return callRecord(caller, typeIdentityFromType(index.request.Modules, object.Type()),
-			"conversion", "conversion", owner, location)
+		return []semanticRecord{callRecord(caller, typeIdentityFromType(index.request.Modules, object.Type()),
+			"conversion", "conversion", owner, location)}
 	case *types.Func:
 		return index.resolveFunctionCall(pkg, owner, caller, call, object, location)
 	case nil:
 		reason, namespace, name := classifyCallExpression(call.Fun)
-		return unresolvedForPackage(pkg.Fset, caller, owner, call, reason, namespace, name, "dynamic", location)
+		return []semanticRecord{unresolvedForPackage(pkg.Fset, caller, owner, call, reason, namespace, name, "dynamic", location)}
 	default:
-		return unresolvedForPackage(pkg.Fset, caller, owner, call, "dynamic-target", "",
-			expressionName(call.Fun), "dynamic", location)
+		return []semanticRecord{unresolvedForPackage(pkg.Fset, caller, owner, call, "dynamic-target", "",
+			expressionName(call.Fun), "dynamic", location)}
 	}
 }
 
@@ -110,22 +110,52 @@ func (index *semanticIndex) resolveFunctionCall(
 	call *ast.CallExpr,
 	function *types.Func,
 	location span,
-) semanticRecord {
+) []semanticRecord {
 	namespace := canonicalNamespace(index.request.Modules, objectNamespace(function))
-	if isInterfaceCall(pkg.TypesInfo, call.Fun) {
-		return unresolvedForPackage(pkg.Fset, caller, owner, call, "dynamic-target", namespace,
-			function.Name(), "interface", location)
-	}
 	semanticID := semanticFunctionIdentity(index.request.Modules, function)
-	if internalNamespace(index.request.Modules, namespace) {
+	internal := internalNamespace(index.request.Modules, namespace)
+	if isInterfaceCall(pkg.TypesInfo, call.Fun) {
+		if !internal {
+			return []semanticRecord{callRecord(caller, semanticID, "definite", "interface", owner, location)}
+		}
+		if contract, named := index.targetsByObject[function]; named {
+			implementations := index.interfaceImplementations[contract.Identity]
+			if len(implementations) == 0 {
+				return []semanticRecord{unresolvedForPackage(pkg.Fset, caller, owner, call, "dynamic-target", namespace,
+					function.Name(), "interface", location)}
+			}
+			kind := "definite"
+			if len(implementations) > 1 {
+				kind = "possible"
+			}
+			result := make([]semanticRecord, 0, len(implementations))
+			for _, target := range implementations {
+				result = append(result, callRecord(
+					caller, target.Identity, kind, "interface", owner, location,
+				))
+			}
+			return result
+		}
+		position := pkg.Fset.PositionFor(function.Pos(), false)
+		targetOwner, ok := index.ownerForPosition(position.Filename)
+		if !ok {
+			return []semanticRecord{unresolvedForPackage(pkg.Fset, caller, owner, call, "dynamic-target", namespace,
+				function.Name(), "interface", location)}
+		}
+		return []semanticRecord{callRecordWithTargetProvenance(
+			caller, semanticID, "definite", "interface", function.Name(), namespace,
+			index.packageContainerIdentity(namespace), targetOwner, pointSpan(position), owner, location,
+		)}
+	}
+	if internal {
 		targets := index.targetCandidates(function)
 		if len(targets) != 1 {
-			return unresolvedForPackage(pkg.Fset, caller, owner, call, "ambiguous-target", namespace,
-				function.Name(), "internal", location)
+			return []semanticRecord{unresolvedForPackage(pkg.Fset, caller, owner, call, "ambiguous-target", namespace,
+				function.Name(), "internal", location)}
 		}
-		return callRecord(caller, targets[0].Identity, "definite", "internal", owner, location)
+		return []semanticRecord{callRecord(caller, targets[0].Identity, "definite", "internal", owner, location)}
 	}
-	return callRecord(caller, semanticID, "definite", "external", owner, location)
+	return []semanticRecord{callRecord(caller, semanticID, "definite", "external", owner, location)}
 }
 
 func sortSemanticCallRecords(records []semanticRecord) {
