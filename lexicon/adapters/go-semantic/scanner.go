@@ -70,29 +70,26 @@ func scanStructuralWithProfile(value request, profile *performanceProfile) (resp
 	if profile != nil {
 		callsStarted = time.Now()
 	}
-	dataflow, directCalls, err := index.collectParallelSemantics(value.Execution)
+	collection, err := index.collectParallelSemantics(value.Execution)
 	if err != nil {
 		return response{}, err
 	}
 	if profile != nil {
-		profile.RawCalls = len(directCalls)
-		profile.RawDataflow = len(dataflow)
-	}
-	directCalls = mergeDirectCallRecords(directCalls)
-	if profile != nil {
-		profile.CompactedCalls = len(directCalls)
-		profile.CompactedDataflow = len(dataflow)
+		profile.RawCalls = collection.rawCalls
+		profile.RawDataflow = collection.rawDataflow
+		profile.CompactedCalls = len(collection.calls)
+		profile.CompactedDataflow = len(collection.dataflow)
 		profile.CallsDataflow = time.Since(callsStarted)
 	}
 
-	for _, record := range dataflow {
+	for _, record := range collection.dataflow {
 		scanner.records = append(scanner.records, record)
 	}
 	var ssaStarted time.Time
 	if profile != nil {
 		ssaStarted = time.Now()
 	}
-	resolvedCalls := index.mergeSSASemantics(directCalls)
+	resolvedCalls := index.mergeSSASemantics(collection.calls)
 	if profile != nil {
 		profile.SSAVTA = time.Since(ssaStarted)
 	}

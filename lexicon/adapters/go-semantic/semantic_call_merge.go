@@ -3,39 +3,9 @@ package main
 import "sort"
 
 func mergeDirectCallRecords(records []semanticRecord) []semanticRecord {
-	byKey := make(map[string][]semanticRecord)
-	var keys []string
-	for _, record := range records {
-		key := recordCallsiteKey(record)
-		existing, found := byKey[key]
-		if !found {
-			keys = append(keys, key)
-			byKey[key] = []semanticRecord{record}
-			continue
-		}
-		switch incoming := record.(type) {
-		case callObservation:
-			if _, unresolved := existing[0].(unresolvedObservation); unresolved {
-				existing = existing[:0]
-			}
-			existing = appendResolvedObservation(existing, incoming)
-			byKey[key] = normalizeResolvedObservations(existing)
-		case unresolvedObservation:
-			if _, resolved := existing[0].(callObservation); resolved {
-				continue
-			}
-			// Legacy mergeSemanticCall preserves the first unresolved reason.
-		default:
-			panic("unexpected direct call record")
-		}
-	}
-	sort.Strings(keys)
-	result := make([]semanticRecord, 0, len(records))
-	for _, key := range keys {
-		result = append(result, byKey[key]...)
-	}
-	sortSemanticCallRecords(result)
-	return result
+	var accumulator directCallAccumulator
+	accumulator.addRecords(records)
+	return accumulator.records()
 }
 
 func appendResolvedObservation(

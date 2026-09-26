@@ -26,6 +26,8 @@ func TestParallelSemanticCollectionMatchesSerialAndReductionShapes(t *testing.T)
 	}
 	settings := []execution{
 		{Workers: 1, Shards: 1, MergeFanIn: 2},
+		{Workers: 2, Shards: 2, MergeFanIn: 2},
+		{Workers: 2, Shards: 4, MergeFanIn: 2},
 		{Workers: 4, Shards: 8, MergeFanIn: 4},
 		{Workers: 3, Shards: 6, MergeFanIn: 8},
 	}

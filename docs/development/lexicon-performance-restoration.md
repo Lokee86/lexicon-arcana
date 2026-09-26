@@ -212,6 +212,35 @@ The Phase 0 retained-source proxy was **1,769,246 bytes**. After Phase 3 it is *
 
 The intended commits are `Remove unused semantic type state` and `Reduce Go inventory source retention`.
 
+## Phase 4 — early semantic compaction
+
+Completed 2026-09-26.
+
+Direct call observations are now compacted by callsite inside each semantic shard using the existing precedence rules: resolved observations replace unresolved ones, duplicate resolved targets are removed, multi-target callsites are promoted to `possible`, and the highest-priority call class is preserved. Fan-in merges these compact callsite buckets rather than concatenating raw call slices, and the scanner no longer performs a second repository-wide direct-call compaction pass.
+
+Dataflow observations are now keyed and deduplicated inside each shard by their complete semantic record identity: source, target, read/write kind, owner, and full source span. Fan-in merges the compact maps while preserving deterministic insertion order for structural ties. Calls and dataflow are flattened and sorted only after the shard reduction completes.
+
+Focused compaction tests prove that cross-shard call merging matches the previous global `mergeDirectCallRecords` result and that exact duplicate dataflow observations collapse without changing deterministic ordering. The helper execution-shape test now covers `1/1/2`, `2/2/2`, `2/4/2`, `4/8/4`, and `3/6/8` worker/shard/fan-in configurations. The full Rust library suite passed 56/56, including the live legacy/native differential gates.
+
+A single controlled Demon Docs run at the pinned revision and `4 / 8 / 4` execution shape produced byte-identical canonical JSONL to Phase 3:
+
+`AE3064C2085AA479B058F026A26D7DC3CE2DD05EBEE036023C94E7543E650F0E`
+
+The Phase 4 compaction measurements were:
+
+| Measure | Before Phase 4 | Phase 4 |
+| --- | ---: | ---: |
+| Raw call observations | 30,647 | 30,647 |
+| Compacted calls | 20,962 | 20,962 |
+| Raw dataflow observations | 143,466 | 143,466 |
+| Compacted dataflow observations | 143,466 | 80,895 |
+| Helper response records | 172,071 | 109,500 |
+| Helper response bytes | 60,882,434 | 38,908,896 |
+
+Dataflow records sent across IPC fell by **43.61%** and helper response size fell by **36.09%**. The helper response is no longer close to the 64 MiB capture ceiling. Timing differences from this single run are not treated as stable performance claims; the retained result is the reduction in intermediate cardinality and response size.
+
+The intended commit is `Restore early Go semantic compaction`.
+
 ## Related docs
 
 - [Go adapter Phase 16 freeze](go-adapter-port-freeze-2026-09-26.md)

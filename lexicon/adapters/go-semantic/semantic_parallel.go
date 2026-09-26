@@ -18,17 +18,24 @@ type semanticFileJob struct {
 }
 
 type semanticShardResult struct {
-	calls        []semanticRecord
-	dataflow     []semanticRecord
+	calls        directCallAccumulator
+	dataflow     dataflowAccumulator
 	callsiteKeys map[string]string
+}
+
+type semanticCollection struct {
+	calls       []semanticRecord
+	dataflow    []semanticRecord
+	rawCalls    int
+	rawDataflow int
 }
 
 func (index *semanticIndex) collectParallelSemantics(
 	settings execution,
-) ([]semanticRecord, []semanticRecord, error) {
+) (semanticCollection, error) {
 	jobs := index.semanticFileJobs()
 	if len(jobs) == 0 {
-		return nil, nil, nil
+		return semanticCollection{}, nil
 	}
 	settings = normalizedExecution(settings, len(jobs))
 	shards := partitionSemanticJobs(jobs, settings.Shards)
@@ -45,13 +52,11 @@ func (index *semanticIndex) collectParallelSemantics(
 				local.callsiteKeys = make(map[string]string)
 				result := &semanticShardResult{callsiteKeys: local.callsiteKeys}
 				for _, job := range shards[shardIndex] {
-					result.calls = append(
-						result.calls,
-						local.collectDirectCallsForFile(job.pkg, job.file, job.owner)...,
+					result.calls.addRecords(
+						local.collectDirectCallsForFile(job.pkg, job.file, job.owner),
 					)
-					result.dataflow = append(
-						result.dataflow,
-						local.collectDataflowForFile(job.pkg, job.file, job.owner)...,
+					result.dataflow.addRecords(
+						local.collectDataflowForFile(job.pkg, job.file, job.owner),
 					)
 				}
 				results[shardIndex] = result
@@ -66,12 +71,15 @@ func (index *semanticIndex) collectParallelSemantics(
 
 	root, err := reduceSemanticShards(results, settings.MergeFanIn)
 	if err != nil {
-		return nil, nil, err
+		return semanticCollection{}, err
 	}
 	index.callsiteKeys = root.callsiteKeys
-	sortSemanticCallRecords(root.calls)
-	sortDataflowRecords(root.dataflow)
-	return root.dataflow, root.calls, nil
+	return semanticCollection{
+		calls:       root.calls.records(),
+		dataflow:    root.dataflow.records(),
+		rawCalls:    root.calls.raw,
+		rawDataflow: root.dataflow.raw,
+	}, nil
 }
 
 func (index *semanticIndex) semanticFileJobs() []semanticFileJob {
@@ -185,8 +193,8 @@ func mergeSemanticShard(destination, source *semanticShardResult) error {
 	if source == nil {
 		return nil
 	}
-	destination.calls = append(destination.calls, source.calls...)
-	destination.dataflow = append(destination.dataflow, source.dataflow...)
+	destination.calls.merge(source.calls)
+	destination.dataflow.merge(source.dataflow)
 	for key, incoming := range source.callsiteKeys {
 		if existing, exists := destination.callsiteKeys[key]; exists && existing != incoming {
 			return fmt.Errorf("semantic shard callsite conflict for %s", key)
