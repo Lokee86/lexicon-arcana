@@ -76,10 +76,13 @@ func TestGoSemanticProtocolResponseRoundTrip(t *testing.T) {
 				Call: &goSemanticCallObservation{
 					Source: "function:example.com/foo:caller",
 					Target: "method:example.com/foo:Thing.Run",
-					Kind:   goSemanticCallDefinite,
-					Class:  goSemanticCallClassInternal,
-					Owner:  "caller.go",
-					Span:   span,
+					Kind:            goSemanticCallDefinite,
+					Class:           goSemanticCallClassDynamic,
+					TargetName:      "Run$bound",
+					TargetNamespace: "example.com/foo",
+					TargetContainer: "package:example.com/foo:foo",
+					Owner:           "caller.go",
+					Span:            span,
 				},
 			},
 			{

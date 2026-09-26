@@ -15,6 +15,17 @@ func callRecord(source, target, kind, class, owner string, location span) callOb
 	}
 }
 
+func callRecordWithTarget(
+	source, target, kind, class, targetName, targetNamespace, targetContainer, owner string,
+	location span,
+) callObservation {
+	return callObservation{
+		Record: "call", Source: source, Target: target, Kind: kind,
+		Class: class, TargetName: targetName, TargetNamespace: targetNamespace,
+		TargetContainer: targetContainer, Owner: owner, Span: location,
+	}
+}
+
 func unresolvedForPackage(
 	set *token.FileSet,
 	source, owner string,
@@ -130,4 +141,11 @@ func recordSource(record semanticRecord) string {
 	default:
 		return ""
 	}
+}
+
+func recordTarget(record semanticRecord) string {
+	if value, ok := record.(callObservation); ok {
+		return value.Target
+	}
+	return ""
 }

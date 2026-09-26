@@ -83,6 +83,14 @@ func validateGoSemanticRecord(record goSemanticRecord) error {
 		if !knownGoSemanticCallClass(value.Class) {
 			return fmt.Errorf("unknown call class %q", value.Class)
 		}
+		if value.TargetContainer != "" {
+			if err := validateGoSemanticIdentity(value.TargetContainer); err != nil {
+				return fmt.Errorf("target_container: %w", err)
+			}
+		}
+		if (value.TargetName == "") != (value.TargetNamespace == "") {
+			return fmt.Errorf("target_name and target_namespace must be supplied together")
+		}
 		return validateGoSemanticReference(value.Source, value.Target, value.Owner, value.Span)
 	case goSemanticRecordDataflow:
 		if record.Dataflow == nil {

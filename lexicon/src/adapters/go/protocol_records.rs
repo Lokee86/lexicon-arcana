@@ -29,6 +29,12 @@ pub(crate) enum Record {
         target: String,
         kind: CallKind,
         class: CallClass,
+        #[serde(default)]
+        target_name: Option<String>,
+        #[serde(default)]
+        target_namespace: Option<String>,
+        #[serde(default)]
+        target_container: Option<String>,
         owner: String,
         span: Span,
     },

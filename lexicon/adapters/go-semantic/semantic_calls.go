@@ -36,20 +36,7 @@ func (index *semanticIndex) collectDirectCalls() []semanticRecord {
 			}
 		}
 	}
-	sort.SliceStable(result, func(i, j int) bool {
-		leftOwner, leftSpan := recordLocation(result[i])
-		rightOwner, rightSpan := recordLocation(result[j])
-		if leftOwner != rightOwner {
-			return leftOwner < rightOwner
-		}
-		if leftSpan.StartLine != rightSpan.StartLine {
-			return leftSpan.StartLine < rightSpan.StartLine
-		}
-		if leftSpan.StartColumn != rightSpan.StartColumn {
-			return leftSpan.StartColumn < rightSpan.StartColumn
-		}
-		return recordSource(result[i]) < recordSource(result[j])
-	})
+	sortSemanticCallRecords(result)
 	return result
 }
 
@@ -61,8 +48,16 @@ func (index *semanticIndex) collectCallableCalls(
 ) {
 	ast.Inspect(body, func(node ast.Node) bool {
 		if node != body {
-			if _, nested := node.(*ast.FuncLit); nested {
+			switch typed := node.(type) {
+			case *ast.FuncLit:
+				position := pkg.Fset.PositionFor(typed.Pos(), false)
+				closure := closureIdentity(moduleImportPath(index.request, owner), owner, position)
+				index.collectCallableCalls(pkg, owner, closure, typed.Body, result)
 				return false
+			case *ast.GoStmt:
+				index.registerCallsite(pkg, owner, caller, typed.Call, typed.Pos())
+			case *ast.DeferStmt:
+				index.registerCallsite(pkg, owner, caller, typed.Call, typed.Pos())
 			}
 		}
 		call, ok := node.(*ast.CallExpr)
@@ -71,6 +66,10 @@ func (index *semanticIndex) collectCallableCalls(
 		}
 		location := sourceSpan(pkg.Fset, call.Pos(), call.End())
 		*result = append(*result, index.resolveDirectCall(pkg, owner, caller, call, location))
+		index.registerCallsite(pkg, owner, caller, call, call.Pos())
+		if call.Lparen.IsValid() {
+			index.registerCallsite(pkg, owner, caller, call, call.Lparen)
+		}
 		return true
 	})
 }
@@ -126,4 +125,24 @@ func (index *semanticIndex) resolveFunctionCall(
 		return callRecord(caller, targets[0].Identity, "definite", "internal", owner, location)
 	}
 	return callRecord(caller, semanticID, "definite", "external", owner, location)
+}
+
+func sortSemanticCallRecords(records []semanticRecord) {
+	sort.SliceStable(records, func(i, j int) bool {
+		leftOwner, leftSpan := recordLocation(records[i])
+		rightOwner, rightSpan := recordLocation(records[j])
+		if leftOwner != rightOwner {
+			return leftOwner < rightOwner
+		}
+		if leftSpan.StartLine != rightSpan.StartLine {
+			return leftSpan.StartLine < rightSpan.StartLine
+		}
+		if leftSpan.StartColumn != rightSpan.StartColumn {
+			return leftSpan.StartColumn < rightSpan.StartColumn
+		}
+		if recordSource(records[i]) != recordSource(records[j]) {
+			return recordSource(records[i]) < recordSource(records[j])
+		}
+		return recordTarget(records[i]) < recordTarget(records[j])
+	})
 }

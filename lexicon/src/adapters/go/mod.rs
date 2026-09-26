@@ -4,12 +4,14 @@ mod identities;
 mod module_ownership;
 mod protocol;
 mod protocol_records;
+mod semantic_call_contract_targets;
 mod semantic_call_facts;
 mod semantic_call_target_support;
 mod semantic_call_targets;
 mod semantic_facts;
 mod semantic_facts_support;
 mod semantic_relationship_facts;
+mod semantic_ssa_target_support;
 
 #[cfg(test)]
 mod discovery_boundary_tests;
@@ -21,6 +23,8 @@ mod identities_tests;
 mod relationship_tests;
 #[cfg(test)]
 mod semantic_parity_tests;
+#[cfg(test)]
+mod ssa_tests;
 #[cfg(test)]
 mod tests;
 
@@ -76,6 +80,10 @@ impl LanguageAdapter for GoAdapter {
                 ("protocol_records.rs", include_bytes!("protocol_records.rs")),
                 ("facts.rs", include_bytes!("facts.rs")),
                 (
+                    "semantic_call_contract_targets.rs",
+                    include_bytes!("semantic_call_contract_targets.rs"),
+                ),
+                (
                     "semantic_call_facts.rs",
                     include_bytes!("semantic_call_facts.rs"),
                 ),
@@ -95,6 +103,10 @@ impl LanguageAdapter for GoAdapter {
                 (
                     "semantic_relationship_facts.rs",
                     include_bytes!("semantic_relationship_facts.rs"),
+                ),
+                (
+                    "semantic_ssa_target_support.rs",
+                    include_bytes!("semantic_ssa_target_support.rs"),
                 ),
                 ("../helper.rs", include_bytes!("../helper.rs")),
                 (

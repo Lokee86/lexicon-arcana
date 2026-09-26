@@ -17,6 +17,7 @@ type semanticIndex struct {
 	targetsByID     map[string][]typedTarget
 	typesByID       map[string]typedType
 	allowedFiles    map[string]bool
+	callsiteKeys    map[string]string
 }
 
 type typedTarget struct {
@@ -45,6 +46,7 @@ func loadSemanticIndex(value request) (*semanticIndex, []diagnostic) {
 		targetsByID:     make(map[string][]typedTarget),
 		typesByID:       make(map[string]typedType),
 		allowedFiles:    make(map[string]bool),
+		callsiteKeys:    make(map[string]string),
 	}
 	for _, file := range value.Files {
 		if filepath.Ext(file) == ".go" {

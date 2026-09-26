@@ -116,12 +116,15 @@ const (
 )
 
 type goSemanticCallObservation struct {
-	Source string              `json:"source"`
-	Target string              `json:"target"`
-	Kind   goSemanticCallKind  `json:"kind"`
-	Class  goSemanticCallClass `json:"class"`
-	Owner  string              `json:"owner"`
-	Span   goSemanticSpan      `json:"span"`
+	Source          string              `json:"source"`
+	Target          string              `json:"target"`
+	Kind            goSemanticCallKind  `json:"kind"`
+	Class           goSemanticCallClass `json:"class"`
+	TargetName      string              `json:"target_name,omitempty"`
+	TargetNamespace string              `json:"target_namespace,omitempty"`
+	TargetContainer string              `json:"target_container,omitempty"`
+	Owner           string              `json:"owner"`
+	Span            goSemanticSpan      `json:"span"`
 }
 
 type goSemanticDataflowKind string

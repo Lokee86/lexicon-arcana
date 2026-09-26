@@ -5,7 +5,7 @@ use crate::{AdapterRequest, Analysis, FactRecord, LanguageAdapter};
 use super::{GoAdapter, tests::real_helper};
 
 #[test]
-fn all_oracle_through_phase_eight_matches_legacy() {
+fn all_oracle_through_phase_nine_matches_legacy() {
     for name in [
         "basic_calls",
         "relationships",
@@ -51,11 +51,11 @@ fn all_oracle_through_phase_eight_matches_legacy() {
             "typed relationship parity failed for {name}"
         );
         assert_no_implements_self_edges(&analysis.records, name);
-        if name == "basic_calls" {
+        if name != "build_tags" {
             assert_eq!(
-                phase_eight_calls(&analysis.records),
-                phase_eight_calls(&legacy.records),
-                "typed direct-call parity failed for {name}"
+                phase_nine_calls(&analysis.records),
+                phase_nine_calls(&legacy.records),
+                "SSA/VTA call-target parity failed for {name}"
             );
         }
         assert_eq!(
@@ -125,7 +125,7 @@ fn phase_seven_relationships(records: &[FactRecord]) -> Vec<FactRecord> {
         .collect()
 }
 
-fn phase_eight_calls(records: &[FactRecord]) -> Vec<FactRecord> {
+fn phase_nine_calls(records: &[FactRecord]) -> Vec<FactRecord> {
     records
         .iter()
         .filter(|record| match record {

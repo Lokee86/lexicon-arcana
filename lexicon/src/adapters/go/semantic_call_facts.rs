@@ -6,7 +6,7 @@ use super::{
     discovery::Inventory,
     identities,
     protocol_records::{CallKind, Record, Span, UnresolvedReason},
-    semantic_call_targets::ensure_call_target,
+    semantic_call_targets::{TargetHints, TargetMaterialization, ensure_call_target},
     semantic_facts_support::{EdgeKey, push_edge},
 };
 
@@ -23,6 +23,9 @@ pub(super) fn add(
             target,
             kind,
             class,
+            target_name,
+            target_namespace,
+            target_container,
             owner,
             span,
         } => {
@@ -32,7 +35,21 @@ pub(super) fn add(
                     "Go semantic call source is not materialized: {source:?}"
                 )));
             }
-            let target_id = ensure_call_target(target, *class, inventory, records, nodes, edges)?;
+            let target_id = ensure_call_target(
+                target,
+                *class,
+                TargetHints {
+                    name: target_name.as_deref(),
+                    namespace: target_namespace.as_deref(),
+                    container: target_container.as_deref(),
+                },
+                &mut TargetMaterialization {
+                    inventory,
+                    records,
+                    nodes,
+                    edges,
+                },
+            )?;
             push_edge(
                 records,
                 edges,

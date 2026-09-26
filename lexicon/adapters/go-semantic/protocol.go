@@ -64,13 +64,16 @@ type relationship struct {
 func (relationship) semanticRecord() {}
 
 type callObservation struct {
-	Record string `json:"record"`
-	Source string `json:"source"`
-	Target string `json:"target"`
-	Kind   string `json:"kind"`
-	Class  string `json:"class"`
-	Owner  string `json:"owner"`
-	Span   span   `json:"span"`
+	Record          string `json:"record"`
+	Source          string `json:"source"`
+	Target          string `json:"target"`
+	Kind            string `json:"kind"`
+	Class           string `json:"class"`
+	TargetName      string `json:"target_name,omitempty"`
+	TargetNamespace string `json:"target_namespace,omitempty"`
+	TargetContainer string `json:"target_container,omitempty"`
+	Owner           string `json:"owner"`
+	Span            span   `json:"span"`
 }
 
 func (callObservation) semanticRecord() {}
