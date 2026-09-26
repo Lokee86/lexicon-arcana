@@ -92,6 +92,24 @@ fn helper_handshake_rejects_protocol_mismatch() {
 }
 
 #[test]
+fn semantic_request_preserves_execution_plan() {
+    let repository = fixture("parallel");
+    let inventory = super::discovery::discover(&repository).unwrap();
+    let request = AdapterRequest {
+        language: "go".into(),
+        repository: repository.clone(),
+        workers: 3,
+        shards: 6,
+        merge_fan_in: 8,
+        ..AdapterRequest::default()
+    };
+    let wire = super::semantic_request(&repository, &inventory, &request).unwrap();
+    assert_eq!(wire.execution.workers, 3);
+    assert_eq!(wire.execution.shards, 6);
+    assert_eq!(wire.execution.merge_fan_in, 8);
+}
+
+#[test]
 fn helper_invocation_is_deterministic() {
     assert_eq!(
         helper_arguments(),
@@ -107,6 +125,12 @@ fn helper_invocation_is_deterministic() {
             ),
         ]
     );
+}
+
+fn fixture(name: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("adapters/go/testdata/oracle")
+        .join(name)
 }
 
 pub(super) fn real_helper() -> HelperRunner {

@@ -5,7 +5,7 @@ use crate::{AdapterRequest, Analysis, FactRecord, LanguageAdapter};
 use super::{GoAdapter, tests::real_helper};
 
 #[test]
-fn all_oracle_through_phase_twelve_matches_legacy() {
+fn all_oracle_through_phase_fourteen_matches_legacy() {
     for name in [
         "basic_calls",
         "relationships",
@@ -77,6 +77,35 @@ fn all_oracle_through_phase_twelve_matches_legacy() {
             analysis.header.repository, legacy.header.repository,
             "repository identity failed for {name}"
         );
+    }
+}
+
+#[test]
+fn native_parallel_execution_is_deterministic() {
+    let repository = fixture("parallel");
+    let adapter = GoAdapter::with_helper(real_helper());
+    let configurations = [(1, 1, 2), (4, 8, 4), (3, 6, 8)];
+    let mut baseline = None;
+    for (workers, shards, merge_fan_in) in configurations {
+        let analysis = adapter
+            .analyze(&AdapterRequest {
+                language: "go".into(),
+                repository: repository.clone(),
+                workers,
+                shards,
+                merge_fan_in,
+                ..AdapterRequest::default()
+            })
+            .unwrap();
+        analysis.validate().unwrap();
+        if let Some(expected) = baseline.as_ref() {
+            assert_eq!(
+                &analysis, expected,
+                "native Go output changed for execution {workers}/{shards}/{merge_fan_in}"
+            );
+        } else {
+            baseline = Some(analysis);
+        }
     }
 }
 

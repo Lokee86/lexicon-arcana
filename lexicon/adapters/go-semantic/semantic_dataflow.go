@@ -15,37 +15,38 @@ import (
 // function literals; closure free-variable evidence remains the SSA capture pass.
 func (index *semanticIndex) collectDataflow() []semanticRecord {
 	var result []semanticRecord
-	for _, pkg := range index.packages {
-		if pkg.TypesInfo == nil || pkg.Fset == nil {
-			continue
-		}
-		for _, file := range pkg.Syntax {
-			owner, ok := index.ownerForPosition(pkg.Fset.PositionFor(file.Pos(), false).Filename)
-			if !ok {
-				continue
-			}
-			for _, declaration := range file.Decls {
-				function, ok := declaration.(*ast.FuncDecl)
-				if !ok || function.Body == nil {
-					continue
-				}
-				object, ok := pkg.TypesInfo.Defs[function.Name].(*types.Func)
-				if !ok {
-					continue
-				}
-				source, ok := index.targetsByObject[object]
-				if !ok {
-					continue
-				}
-				visitor := dataflowVisitor{
-					index: index, pkg: pkg, owner: owner, source: source.Identity,
-					result: &result,
-				}
-				visitor.visitBlock(function.Body)
-			}
-		}
+	for _, job := range index.semanticFileJobs() {
+		result = append(result, index.collectDataflowForFile(job.pkg, job.file, job.owner)...)
 	}
 	sortDataflowRecords(result)
+	return result
+}
+
+func (index *semanticIndex) collectDataflowForFile(
+	pkg *packages.Package,
+	file *ast.File,
+	owner string,
+) []semanticRecord {
+	var result []semanticRecord
+	for _, declaration := range file.Decls {
+		function, ok := declaration.(*ast.FuncDecl)
+		if !ok || function.Body == nil {
+			continue
+		}
+		object, ok := pkg.TypesInfo.Defs[function.Name].(*types.Func)
+		if !ok {
+			continue
+		}
+		source, ok := index.targetsByObject[object]
+		if !ok {
+			continue
+		}
+		visitor := dataflowVisitor{
+			index: index, pkg: pkg, owner: owner, source: source.Identity,
+			result: &result,
+		}
+		visitor.visitBlock(function.Body)
+	}
 	return result
 }
 

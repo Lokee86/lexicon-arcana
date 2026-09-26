@@ -10,33 +10,34 @@ import (
 
 func (index *semanticIndex) collectDirectCalls() []semanticRecord {
 	var result []semanticRecord
-	for _, pkg := range index.packages {
-		if pkg.TypesInfo == nil || pkg.Fset == nil {
-			continue
-		}
-		for _, file := range pkg.Syntax {
-			owner, ok := index.ownerForPosition(pkg.Fset.PositionFor(file.Pos(), false).Filename)
-			if !ok {
-				continue
-			}
-			for _, declaration := range file.Decls {
-				function, ok := declaration.(*ast.FuncDecl)
-				if !ok || function.Body == nil {
-					continue
-				}
-				object, ok := pkg.TypesInfo.Defs[function.Name].(*types.Func)
-				if !ok {
-					continue
-				}
-				caller, ok := index.targetsByObject[object]
-				if !ok {
-					continue
-				}
-				index.collectCallableCalls(pkg, owner, caller.Identity, function.Body, &result)
-			}
-		}
+	for _, job := range index.semanticFileJobs() {
+		result = append(result, index.collectDirectCallsForFile(job.pkg, job.file, job.owner)...)
 	}
 	sortSemanticCallRecords(result)
+	return result
+}
+
+func (index *semanticIndex) collectDirectCallsForFile(
+	pkg *packages.Package,
+	file *ast.File,
+	owner string,
+) []semanticRecord {
+	var result []semanticRecord
+	for _, declaration := range file.Decls {
+		function, ok := declaration.(*ast.FuncDecl)
+		if !ok || function.Body == nil {
+			continue
+		}
+		object, ok := pkg.TypesInfo.Defs[function.Name].(*types.Func)
+		if !ok {
+			continue
+		}
+		caller, ok := index.targetsByObject[object]
+		if !ok {
+			continue
+		}
+		index.collectCallableCalls(pkg, owner, caller.Identity, function.Body, &result)
+	}
 	return result
 }
 
