@@ -2,16 +2,20 @@
 
 > **Canonical source:** Arcana lives under `arcana/` in the shared `Lokee86/lexicon-arcana` repository. It remains an independently buildable Rust application, CLI, protocol, and reusable graph engine.
 
-Arcana is the graph-analysis product in the Lexicon + Arcana stack and a deterministic analysis provider for the [**Warlock Toolchain**](https://github.com/Lokee86/warlock-toolchain).
-It models repositories as queryable graphs and provides storage, snapshots, traversal, impact, paths, call chains, and architecture queries for humans and higher-level tools such as Warlock and Pitlord.
+Arcana is a reusable deterministic graph engine and the graph-analysis product in the Lexicon + Arcana stack. It is also a deterministic analysis provider for the [**Warlock Toolchain**](https://github.com/Lokee86/warlock-toolchain).
 
+The crate has two intentionally separate layers:
 
+- **Domain-neutral graph substrate** — reusable graph primitives, packed forward/reverse storage, immutable snapshots, overlays, compaction, and bounded traversal. This layer does not require Lexicon or repository semantics.
+- **Bundled repository-analysis layer** — Lexicon ingestion, repository facts and catalogues, repository snapshots, repository-oriented queries, and the `arcana.query.v1` protocol.
+
+The repository layer is included because repository intelligence is Arcana's primary shipped application, not because the graph engine is repository-specific. Other domains can build their own stable identities and relation semantics over the same Arcana substrate. Reliquary already does this for its memory/entity/observation semantic graph.
 
 ## Ownership boundaries
 
 - **Lexicon** owns language parsing and the normalized symbol/relationship fact contract.
-- **Arcana** owns graph ingestion, packed storage, snapshots, deterministic traversal,
-  optional semantic graph indexes, and measurements of storage representations.
+- **Arcana graph core** owns domain-neutral graph primitives, packed storage, snapshots, overlays, compaction, and deterministic traversal.
+- **Arcana's repository layer** owns Lexicon ingestion, repository fact compilation, repository snapshots, repository-oriented protocol queries, optional semantic graph indexes, and measurements of repository graph representations.
 - **Demon Docs** owns documentation semantics, policy, review history, and
   Codemap decisions. It consumes Arcana facts without owning the graph
   engine.

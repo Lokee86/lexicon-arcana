@@ -37,16 +37,24 @@ Lexicon does not depend on Arcana. A published Lexicon snapshot remains valid if
 
 ## Arcana
 
-`arcana/` owns:
+`arcana/` contains a reusable graph engine and a bundled repository-analysis layer.
+
+The graph engine owns:
+
+- domain-neutral `NodeId`, `EdgeKind`, `Edge`, and `GraphDataset` primitives;
+- packed forward and reverse graph storage;
+- immutable snapshots, overlays, and compaction;
+- bounded deterministic traversal.
+
+The repository layer owns:
 
 - ingestion and verification of one immutable Lexicon snapshot;
-- packed forward and reverse repository/call graphs;
-- immutable snapshots, overlays, and compaction;
+- repository fact compilation and catalogue metadata;
 - symbol/file resolution, neighbours, impact, paths, call chains, unresolved references, graph statistics, operational roles, and architecture summaries;
 - optional semantic graph entry points backed by a generic external embedding endpoint;
-- direct CLI and `arcana.query.v1` protocol behavior.
+- direct CLI and repository-oriented `arcana.query.v1` protocol behavior.
 
-Arcana does not own language parsing or adapter semantics. It preserves Lexicon's durable identities while using snapshot-local compact graph IDs internally.
+Arcana does not own language parsing or adapter semantics. The repository layer preserves Lexicon's durable identities while using snapshot-local compact graph IDs internally. Non-repository consumers may use the graph library directly with their own external identities and domain semantics.
 
 ## Grimoire retirement boundary
 
@@ -67,7 +75,7 @@ No component mutates another component's private state directly. Integration use
 ## Independent use
 
 - Lexicon can analyze and export repository facts without Arcana.
-- Arcana can synchronize from Lexicon and answer graph queries without Grimoire.
+- Arcana's graph library can be consumed without Lexicon; its bundled repository application can synchronize from Lexicon and answer repository graph queries without Grimoire.
 - Consumers may read source or Git directly without routing through either product.
 - Arcana synchronization may be registered as a deterministic Lexicon post-publication consumer, but Lexicon publication does not depend on Arcana success.
 

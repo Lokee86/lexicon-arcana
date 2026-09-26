@@ -5,7 +5,7 @@
 Large repositories force humans and agents to repeatedly rediscover the same structure: where symbols live, what calls what, which files depend on a change, and where architectural boundaries actually sit. Lexicon + Arcana turns that work into reusable, queryable repository state.
 
 - **Lexicon** performs polyglot semantic analysis and publishes immutable facts about files, symbols, calls, dataflow, dependencies, and unresolved relationships.
-- **Arcana** consumes a verified Lexicon snapshot and publishes a queryable repository/call graph with deterministic traversal, impact, paths, call chains, architecture summaries, and unresolved-reference queries.
+- **Arcana** provides a reusable deterministic graph engine and includes a repository-analysis layer that consumes verified Lexicon snapshots to publish queryable repository/call graphs with traversal, impact, paths, call chains, architecture summaries, and unresolved-reference queries.
 
 The pair is designed to augment direct source inspection, not replace it: use deterministic repository facts to find the right evidence faster, then inspect the source that owns the answer.
 
@@ -87,8 +87,11 @@ See [Lexicon documentation](lexicon/docs/README.md) and [Lexicon contracts](lexi
 
 ## Arcana
 
-Arcana consumes Lexicon snapshots without rebuilding language parsers. Its stable responsibilities are:
+Arcana is a reusable graph library plus a bundled repository-analysis application. Its domain-neutral core is usable independently of Lexicon; the repository layer in this repository maps Lexicon facts into that graph core and exposes the current repository-oriented CLI and protocol.
 
+Its stable graph-engine responsibilities are:
+
+- reusable `NodeId`, `EdgeKind`, `Edge`, and `GraphDataset` primitives;
 - packed forward/reverse graph storage;
 - immutable snapshots, overlays, and compaction;
 - symbol and file resolution;
@@ -98,7 +101,9 @@ Arcana consumes Lexicon snapshots without rebuilding language parsers. Its stabl
 - operational-role and architecture summaries;
 - optional semantic graph entry points through an external OpenAI-compatible embedding endpoint.
 
-The stable machine protocol identifier is `arcana.query.v1`.
+The bundled repository layer additionally owns Lexicon ingestion, repository facts/catalogues, repository snapshots, and the repository-oriented `arcana.query.v1` protocol. Other domains may consume Arcana's graph library directly without using those repository semantics. Reliquary is one such consumer: it uses Arcana graph primitives and traversal beneath its own memory/entity/observation domain model.
+
+The stable machine protocol identifier for the bundled repository layer is `arcana.query.v1`.
 
 See [Arcana documentation](arcana/docs/README.md) and [Lexicon integration contract](arcana/docs/LEXICON_CONTRACT.md).
 

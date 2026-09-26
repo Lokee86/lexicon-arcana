@@ -8,7 +8,11 @@ This document defines Arcana's ownership, dependency direction, ingestion, compi
 
 ## Overview
 
-Arcana consumes language-neutral facts and owns deterministic repository-graph state. It does not parse source languages or own higher-level repository-discovery, context, or agent workflow policy.
+Arcana is a domain-neutral deterministic graph substrate with a bundled repository-analysis domain layer.
+
+The graph substrate owns reusable node/edge primitives, packed forward/reverse storage, immutable snapshots, overlays, compaction, and bounded traversal. It does not require Lexicon or repository semantics. The repository layer maps language-neutral repository facts into that substrate, adds repository metadata and publication contracts, and exposes the current repository-oriented protocol and CLI workflows.
+
+Arcana does not parse source languages or own higher-level repository-discovery, context, or agent workflow policy. Other domains may consume the graph substrate directly and define their own stable identities, node meanings, and relation semantics.
 
 This document describes the architecture implemented by the current Arcana source and covered by its focused tests. It is an ownership and dependency map, not a roadmap or a file-format specification.
 
@@ -22,7 +26,12 @@ Detailed contracts:
 
 ## Scope and dependency direction
 
-Arcana owns the language-neutral repository graph after Lexicon has published facts. It does not parse source languages or run adapters. Its production data flow is:
+Arcana owns two nested boundaries:
+
+1. a reusable graph engine that is independent of repository semantics;
+2. a repository-analysis layer that consumes Lexicon facts and projects them into that graph engine.
+
+It does not parse source languages or run adapters. The bundled repository-analysis data flow is:
 
 ```text
 Lexicon immutable store
@@ -50,7 +59,26 @@ The binary command modules orchestrate these library owners; library modules do 
 | `vector` | Optional graph documents, embedding cache, vector index, and semantic search | One opened repository snapshot and an external embedder |
 | CLI orchestration | Import, update, sync, protocol, and vector command lifecycles | The library owners above |
 
-`NodeId`, `EdgeKind`, `Edge`, and `GraphDataset` are defined in `synthetic`, re-exported from the Arcana library root as reusable graph primitives, and shared by compilation, storage, snapshots, and external library consumers. `traversal` exposes bounded repository-agnostic graph traversal over caller-supplied adjacency. Synthetic generation and benchmarking are not part of the Lexicon-to-query runtime path.
+`NodeId`, `EdgeKind`, `Edge`, and `GraphDataset` are defined in `synthetic` for historical reasons and re-exported from the Arcana library root as reusable graph primitives. They are shared by repository compilation, storage, snapshots, traversal, and external non-repository consumers. `traversal` exposes bounded repository-agnostic graph traversal over caller-supplied adjacency. Synthetic generation and benchmarking are not part of the Lexicon-to-query runtime path.
+
+### Domain layering
+
+The generic graph engine does not know what an application node or relation means. A domain adapter owns durable external identity and semantic typing, then compiles or maps that domain into Arcana's dense graph representation.
+
+```text
+domain model                    Arcana graph substrate
+------------                    ----------------------
+stable external identity   ->   snapshot-local NodeId
+domain relation kind       ->   EdgeKind
+domain relationships       ->   GraphDataset
+                                packed storage
+                                snapshots / overlays
+                                traversal
+```
+
+The built-in repository layer provides one such adapter through `RepositoryFacts`, `NodeKey`, `NodeKind`, `RelationKind`, catalogue metadata, and repository snapshots. It is a first-party application of Arcana's graph engine, not the definition of the engine itself.
+
+Reliquary demonstrates the independent-consumer boundary in production code: it depends on the Arcana crate for `NodeId`, `EdgeKind`, `Edge`, `GraphDataset`, `storage::InMemoryGraph`, and generic traversal while retaining its own memory/entity/observation identities and relation semantics.
 
 Evidence: [`lib.rs`](../src/lib.rs), [`repository/mod.rs`](../src/repository/mod.rs), [`storage/mod.rs`](../src/storage/mod.rs), [`snapshot/mod.rs`](../src/snapshot/mod.rs), [`protocol/mod.rs`](../src/protocol/mod.rs), [`vector/mod.rs`](../src/vector/mod.rs), and [`synthetic/mod.rs`](../src/synthetic/mod.rs).
 
