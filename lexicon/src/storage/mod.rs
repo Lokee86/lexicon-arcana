@@ -13,6 +13,7 @@ mod io;
 mod lock;
 mod manifest;
 mod materialize;
+mod materialize_parallel;
 mod materialize_support;
 mod model;
 mod pending;

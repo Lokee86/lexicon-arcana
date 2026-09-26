@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::analysis::normalized_paths;
+use super::materialize_parallel::write_full_file_objects;
 use super::materialize_support::{
     language_metadata, materialization, require_incremental_scope, require_language, source_map,
 };
@@ -26,15 +27,7 @@ impl Store {
         let groups = analysis.groups(Some(&allowed));
         let entry = language_metadata(analysis, analysis_config_id, adapter_fingerprint);
 
-        let mut files = Vec::with_capacity(sources.len());
-        for (path, source) in sources {
-            files.push(self.write_language_file_object(
-                &entry,
-                &path,
-                &source,
-                groups.owned.get(&path).cloned().unwrap_or_default(),
-            )?);
-        }
+        let files = write_full_file_objects(self, &entry, sources, &groups)?;
         let shared_object_id = self.write_language_shared_object(&entry, groups.shared)?;
         Ok(LanguageEntry {
             files: Some(files),
