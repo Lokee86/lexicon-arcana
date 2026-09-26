@@ -24,10 +24,8 @@ type semanticShardResult struct {
 }
 
 type semanticCollection struct {
-	calls       []semanticRecord
-	dataflow    []semanticRecord
-	rawCalls    int
-	rawDataflow int
+	calls    directCallAccumulator
+	dataflow dataflowAccumulator
 }
 
 func (index *semanticIndex) collectParallelSemantics(
@@ -75,10 +73,8 @@ func (index *semanticIndex) collectParallelSemantics(
 	}
 	index.callsiteKeys = root.callsiteKeys
 	return semanticCollection{
-		calls:       root.calls.records(),
-		dataflow:    root.dataflow.records(),
-		rawCalls:    root.calls.raw,
-		rawDataflow: root.dataflow.raw,
+		calls:    root.calls,
+		dataflow: root.dataflow,
 	}, nil
 }
 

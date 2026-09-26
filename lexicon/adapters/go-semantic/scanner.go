@@ -15,7 +15,6 @@ type structuralScanner struct {
 	records  []semanticRecord
 	files    []structuralFile
 	closures map[string]bool
-	index    *semanticIndex
 }
 
 func scanStructural(value request) (response, error) {
@@ -51,54 +50,69 @@ func scanStructuralWithProfile(value request, profile *performanceProfile) (resp
 		profile.StructuralParsing = time.Since(parsingStarted)
 	}
 
-	index, diagnostics := loadSemanticIndexProfiled(value, profile)
-	index.structuralClosures = scanner.closures
-	scanner.index = index
+	state := newSemanticRepositoryState()
+	var diagnostics []diagnostic
+	for _, module := range value.Modules {
+		if profile != nil {
+			profile.ProcessedModules++
+		}
+		index, moduleDiagnostics := loadSemanticModuleIndexProfiled(value, module, profile)
+		index.structuralClosures = scanner.closures
+		diagnostics = append(diagnostics, moduleDiagnostics...)
 
-	var relationshipsStarted time.Time
-	if profile != nil {
-		relationshipsStarted = time.Now()
-	}
-	for _, record := range index.collectRelationships() {
-		scanner.records = append(scanner.records, record)
-	}
-	if profile != nil {
-		profile.Relationships = time.Since(relationshipsStarted)
+		var relationshipsStarted time.Time
+		if profile != nil {
+			relationshipsStarted = time.Now()
+		}
+		state.addRelationships(index.collectRelationships())
+		if profile != nil {
+			profile.Relationships += time.Since(relationshipsStarted)
+		}
+
+		var callsStarted time.Time
+		if profile != nil {
+			callsStarted = time.Now()
+		}
+		collection, err := index.collectParallelSemantics(value.Execution)
+		if err != nil {
+			return response{}, err
+		}
+		state.addCollection(collection)
+		if profile != nil {
+			profile.CallsDataflow += time.Since(callsStarted)
+		}
+
+		var ssaStarted time.Time
+		if profile != nil {
+			ssaStarted = time.Now()
+		}
+		state.addSSARecords(index.mergeSSASemantics(collection.calls.records()))
+		if profile != nil {
+			profile.SSAVTA += time.Since(ssaStarted)
+		}
 	}
 
-	var callsStarted time.Time
 	if profile != nil {
-		callsStarted = time.Now()
-	}
-	collection, err := index.collectParallelSemantics(value.Execution)
-	if err != nil {
-		return response{}, err
-	}
-	if profile != nil {
-		profile.RawCalls = collection.rawCalls
-		profile.RawDataflow = collection.rawDataflow
-		profile.CompactedCalls = len(collection.calls)
-		profile.CompactedDataflow = len(collection.dataflow)
-		profile.CallsDataflow = time.Since(callsStarted)
+		profile.RawCalls = state.directBeforeSSA.raw
+		profile.CompactedCalls = state.directBeforeSSA.compactedCount()
+		profile.RawDataflow = state.dataflow.raw
+		profile.CompactedDataflow = len(state.dataflow.order)
 	}
 
-	for _, record := range collection.dataflow {
-		scanner.records = append(scanner.records, record)
-	}
-	var ssaStarted time.Time
-	if profile != nil {
-		ssaStarted = time.Now()
-	}
-	resolvedCalls := index.mergeSSASemantics(collection.calls)
-	if profile != nil {
-		profile.SSAVTA = time.Since(ssaStarted)
-	}
-	for _, record := range resolvedCalls {
-		scanner.records = append(scanner.records, record)
-	}
-	for _, record := range scanner.collectFallbackCalls(resolvedCalls) {
-		scanner.records = append(scanner.records, record)
-	}
+	scanner.records = append(scanner.records, state.relationshipRecords()...)
+	scanner.records = append(scanner.records, state.dataflow.records()...)
+	scanner.records = append(scanner.records, state.targetRecords()...)
+	resolvedCalls := state.finalCalls.records()
+	scanner.records = append(scanner.records, resolvedCalls...)
+	scanner.records = append(scanner.records, state.captureRecords()...)
+	scanner.records = append(scanner.records, scanner.collectFallbackCalls(resolvedCalls)...)
+
+	sort.Slice(diagnostics, func(i, j int) bool {
+		if diagnostics[i].Code != diagnostics[j].Code {
+			return diagnostics[i].Code < diagnostics[j].Code
+		}
+		return diagnostics[i].Message < diagnostics[j].Message
+	})
 	for _, record := range diagnostics {
 		scanner.records = append(scanner.records, record)
 	}

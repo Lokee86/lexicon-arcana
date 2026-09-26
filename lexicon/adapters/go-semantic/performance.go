@@ -17,6 +17,8 @@ type performanceProfile struct {
 
 	ParsedFiles       int
 	LoadedPackages    int
+	PeakLivePackages  int
+	ProcessedModules  int
 	TypedTargets      int
 	TypedTypes        int
 	RawCalls          int
@@ -47,7 +49,9 @@ func (profile performanceProfile) emit(responseEncoding time.Duration, responseR
 	emitPerformance("go.structural_parsing", profile.StructuralParsing,
 		performanceCounter{"parsed_files", profile.ParsedFiles})
 	emitPerformance("go.packages_load", profile.PackageLoad,
-		performanceCounter{"loaded_packages", profile.LoadedPackages})
+		performanceCounter{"loaded_packages", profile.LoadedPackages},
+		performanceCounter{"peak_live_packages", profile.PeakLivePackages},
+		performanceCounter{"processed_modules", profile.ProcessedModules})
 	emitPerformance("go.semantic_index", profile.SemanticIndex,
 		performanceCounter{"typed_targets", profile.TypedTargets},
 		performanceCounter{"typed_types", profile.TypedTypes})

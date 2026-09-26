@@ -8,6 +8,13 @@ import (
 	"testing"
 )
 
+func loadSemanticIndex(value request) (*semanticIndex, []diagnostic) {
+	if len(value.Modules) != 1 {
+		panic("semantic index test helper requires exactly one module")
+	}
+	return loadSemanticModuleIndexProfiled(value, value.Modules[0], nil)
+}
+
 func TestSemanticIndexPreservesCanonicalTargetsAndMethodSets(t *testing.T) {
 	root := t.TempDir()
 	writeSemanticFile(t, root, "go.mod", "module example.com/typed\n\ngo 1.22\n")

@@ -241,6 +241,34 @@ Dataflow records sent across IPC fell by **43.61%** and helper response size fel
 
 The intended commit is `Restore early Go semantic compaction`.
 
+## Phase 5 — bounded semantic lifetimes
+
+Completed 2026-09-26.
+
+The module lifetime model now matches the frozen pre-port Go optimization oracle at `c822f4d`: each module is loaded, indexed, resolved, compacted, and merged into repository state before the next module is loaded. Repository-wide state retains compact semantic records and identities only; `packages.Package`, syntax/type maps, typed target/type objects, SSA programs, and VTA state remain module-local and become unreachable after that module is merged.
+
+The previous repository-wide semantic index and `rootGroups` retention path are gone. Module-local relationships are resolved before calls so interface implementation information remains available to typed call resolution and SSA for that module. Local module replacements/imports remain visible through the loading module's `packages.Load` graph, preserving cross-module relationships without retaining every module's compiler graph simultaneously.
+
+A dedicated two-module regression fixture exercises a local replacement from an application module to a contracts module. It verifies:
+
+- the application type still implements the interface declared by the contracts module;
+- the interface call still resolves to the concrete application method;
+- reversing module processing order produces identical compact semantic output;
+- the contracts module index does not retain the unrelated application type; and
+- total packages loaded across both module passes is greater than the peak number of packages live in any one pass.
+
+Performance instrumentation now reports `processed_modules` and `peak_live_packages` alongside total `loaded_packages`, so the lifetime bound is observable on multi-module repositories.
+
+The full Go semantic helper suite passed after the change. The Rust library suite passed 56/56, including deterministic parallel execution, incremental tests, and both live legacy/native differential gates.
+
+A single controlled Demon Docs run at the pinned revision and `4 / 8 / 4` execution shape produced byte-identical canonical JSONL to Phase 4:
+
+`AE3064C2085AA479B058F026A26D7DC3CE2DD05EBEE036023C94E7543E650F0E`
+
+Demon Docs contains one Go module, so its Phase 5 profile reports **469 total loaded packages, 469 peak live packages, and 1 processed module**. That run therefore does not demonstrate a memory reduction from module bounding and is retained only as a real-repository parity check. Timing differences from the single run are likewise not attributed to Phase 5.
+
+The intended commit is `Bound Go semantic analysis by module`.
+
 ## Related docs
 
 - [Go adapter Phase 16 freeze](go-adapter-port-freeze-2026-09-26.md)

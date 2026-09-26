@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/callgraph/vta"
-	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
 )
@@ -29,63 +28,57 @@ func (index *semanticIndex) mergeSSASemantics(direct []semanticRecord) []semanti
 	if len(index.roots) == 0 {
 		return direct
 	}
-	groups := index.rootGroups
-	if len(groups) == 0 && len(index.roots) != 0 {
-		groups = [][]*packages.Package{index.roots}
-	}
 	var captures []semanticRecord
 	outcomes := make(map[string]*ssaOutcome)
 	materializations := make(map[string]ssaTarget)
 	for _, target := range index.generatedTestMainTargets() {
 		materializations[target.Identity] = target
 	}
-	for _, roots := range groups {
-		program, _ := ssautil.AllPackages(roots, ssa.InstantiateGenerics)
-		program.Build()
-		functions := ssautil.AllFunctions(program)
-		captures = append(captures, index.collectSSACaptures(functions, program.Fset)...)
-		graph := vta.CallGraph(functions, nil)
-		for _, node := range graph.Nodes {
-			for _, edge := range node.Out {
-				if edge.Site == nil || edge.Callee == nil || edge.Caller == nil {
-					continue
-				}
-				if generated, ok := index.generatedTestMainTarget(edge.Caller.Func); ok {
-					materializations[generated.Identity] = generated
-				}
-				source, generatedSource, ok := index.ssaSourceIdentity(edge.Caller.Func, program.Fset)
-				if !ok {
-					continue
-				}
-				if generatedSource != nil {
-					materializations[generatedSource.Identity] = *generatedSource
-				}
-				position := program.Fset.PositionFor(edge.Site.Pos(), false)
-				owner, ok := index.ownerForPosition(position.Filename)
-				if !ok {
-					continue
-				}
-				key, exists := index.callsiteKeys[callsiteStartKey(source, owner, position)]
-				if !exists {
-					continue
-				}
-				target, ok := index.ssaTargetIdentity(edge.Callee.Func, program.Fset)
-				if !ok {
-					continue
-				}
-				if target.Generated || !target.Internal {
-					materializations[target.Identity] = target
-				}
-				common := edge.Site.Common()
-				outcome := outcomes[key]
-				if outcome == nil {
-					outcome = &ssaOutcome{Targets: make(map[string]ssaTarget)}
-					outcomes[key] = outcome
-				}
-				outcome.Invoke = outcome.Invoke || common.IsInvoke()
-				if !common.IsInvoke() || target.Internal {
-					outcome.Targets[target.Identity] = target
-				}
+	program, _ := ssautil.AllPackages(index.roots, ssa.InstantiateGenerics)
+	program.Build()
+	functions := ssautil.AllFunctions(program)
+	captures = append(captures, index.collectSSACaptures(functions, program.Fset)...)
+	graph := vta.CallGraph(functions, nil)
+	for _, node := range graph.Nodes {
+		for _, edge := range node.Out {
+			if edge.Site == nil || edge.Callee == nil || edge.Caller == nil {
+				continue
+			}
+			if generated, ok := index.generatedTestMainTarget(edge.Caller.Func); ok {
+				materializations[generated.Identity] = generated
+			}
+			source, generatedSource, ok := index.ssaSourceIdentity(edge.Caller.Func, program.Fset)
+			if !ok {
+				continue
+			}
+			if generatedSource != nil {
+				materializations[generatedSource.Identity] = *generatedSource
+			}
+			position := program.Fset.PositionFor(edge.Site.Pos(), false)
+			owner, ok := index.ownerForPosition(position.Filename)
+			if !ok {
+				continue
+			}
+			key, exists := index.callsiteKeys[callsiteStartKey(source, owner, position)]
+			if !exists {
+				continue
+			}
+			target, ok := index.ssaTargetIdentity(edge.Callee.Func, program.Fset)
+			if !ok {
+				continue
+			}
+			if target.Generated || !target.Internal {
+				materializations[target.Identity] = target
+			}
+			common := edge.Site.Common()
+			outcome := outcomes[key]
+			if outcome == nil {
+				outcome = &ssaOutcome{Targets: make(map[string]ssaTarget)}
+				outcomes[key] = outcome
+			}
+			outcome.Invoke = outcome.Invoke || common.IsInvoke()
+			if !common.IsInvoke() || target.Internal {
+				outcome.Targets[target.Identity] = target
 			}
 		}
 	}

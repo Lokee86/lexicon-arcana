@@ -13,7 +13,6 @@ import (
 type semanticIndex struct {
 	request                  request
 	roots                    []*packages.Package
-	rootGroups               [][]*packages.Package
 	packages                 []*packages.Package
 	targetsByObject          map[*types.Func]typedTarget
 	targetsByID              map[string][]typedTarget
@@ -41,11 +40,67 @@ type typedType struct {
 	Interface *types.Interface
 }
 
-func loadSemanticIndex(value request) (*semanticIndex, []diagnostic) {
-	return loadSemanticIndexProfiled(value, nil)
+func loadSemanticModuleIndexProfiled(
+	value request,
+	module module,
+	profile *performanceProfile,
+) (*semanticIndex, []diagnostic) {
+	index := newSemanticIndex(value)
+	root := value.RepositoryRoot
+	if module.Root != "." {
+		root = filepath.Join(root, filepath.FromSlash(module.Root))
+	}
+
+	var loadStarted time.Time
+	if profile != nil {
+		loadStarted = time.Now()
+	}
+	roots, err := packages.Load(&packages.Config{
+		Mode:  packages.LoadAllSyntax | packages.NeedModule,
+		Dir:   root,
+		Tests: true,
+	}, "./...")
+	if profile != nil {
+		profile.PackageLoad += time.Since(loadStarted)
+	}
+	if err != nil {
+		return index, []diagnostic{packageLoadDiagnostic(module.Path, err)}
+	}
+
+	index.roots = roots
+	index.packages = flattenPackages(roots)
+	if profile != nil {
+		profile.LoadedPackages += len(index.packages)
+		if len(index.packages) > profile.PeakLivePackages {
+			profile.PeakLivePackages = len(index.packages)
+		}
+	}
+	diagnostics := packageDiagnostics(index.packages)
+
+	var indexStarted time.Time
+	if profile != nil {
+		indexStarted = time.Now()
+	}
+	for _, pkg := range index.packages {
+		index.collectTargets(pkg)
+	}
+	index.collectTypes(index.packages)
+	if profile != nil {
+		profile.SemanticIndex += time.Since(indexStarted)
+		profile.TypedTargets += len(index.targetsByObject)
+		profile.TypedTypes += len(index.typesByID)
+	}
+
+	sort.Slice(diagnostics, func(i, j int) bool {
+		if diagnostics[i].Code != diagnostics[j].Code {
+			return diagnostics[i].Code < diagnostics[j].Code
+		}
+		return diagnostics[i].Message < diagnostics[j].Message
+	})
+	return index, diagnostics
 }
 
-func loadSemanticIndexProfiled(value request, profile *performanceProfile) (*semanticIndex, []diagnostic) {
+func newSemanticIndex(value request) *semanticIndex {
 	index := &semanticIndex{
 		request:                  value,
 		targetsByObject:          make(map[*types.Func]typedTarget),
@@ -61,63 +116,7 @@ func loadSemanticIndexProfiled(value request, profile *performanceProfile) (*sem
 			index.allowedFiles[file] = true
 		}
 	}
-
-	var diagnostics []diagnostic
-	for _, module := range value.Modules {
-		root := value.RepositoryRoot
-		if module.Root != "." {
-			root = filepath.Join(root, filepath.FromSlash(module.Root))
-		}
-		var loadStarted time.Time
-		if profile != nil {
-			loadStarted = time.Now()
-		}
-		roots, err := packages.Load(&packages.Config{
-			Mode:  packages.LoadAllSyntax | packages.NeedModule,
-			Dir:   root,
-			Tests: true,
-		}, "./...")
-		if profile != nil {
-			profile.PackageLoad += time.Since(loadStarted)
-		}
-		if err != nil {
-			diagnostics = append(diagnostics, packageLoadDiagnostic(module.Path, err))
-			continue
-		}
-		index.roots = append(index.roots, roots...)
-		index.rootGroups = append(index.rootGroups, append([]*packages.Package(nil), roots...))
-		loaded := flattenPackages(roots)
-		if profile != nil {
-			profile.LoadedPackages += len(loaded)
-		}
-		index.packages = append(index.packages, loaded...)
-		diagnostics = append(diagnostics, packageDiagnostics(loaded)...)
-		var indexStarted time.Time
-		if profile != nil {
-			indexStarted = time.Now()
-		}
-		for _, pkg := range loaded {
-			index.collectTargets(pkg)
-		}
-		index.collectTypes(loaded)
-		if profile != nil {
-			profile.SemanticIndex += time.Since(indexStarted)
-		}
-	}
-	sort.Slice(index.packages, func(i, j int) bool {
-		return index.packages[i].ID < index.packages[j].ID
-	})
-	if profile != nil {
-		profile.TypedTargets = len(index.targetsByObject)
-		profile.TypedTypes = len(index.typesByID)
-	}
-	sort.Slice(diagnostics, func(i, j int) bool {
-		if diagnostics[i].Code != diagnostics[j].Code {
-			return diagnostics[i].Code < diagnostics[j].Code
-		}
-		return diagnostics[i].Message < diagnostics[j].Message
-	})
-	return index, diagnostics
+	return index
 }
 
 func flattenPackages(roots []*packages.Package) []*packages.Package {
