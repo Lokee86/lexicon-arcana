@@ -39,8 +39,7 @@ fn expand_semantic_units(
             for path in seeds {
                 if extension_eq(&path, "go") {
                     let directory = Path::new(&path).parent().unwrap_or(Path::new(""));
-                    let module_root = nearest_config(root, directory, "go.mod");
-                    include_go_module_sources(root, &module_root, selected)?;
+                    include_directory_sources(root, directory, "go", selected)?;
                 }
             }
         }
@@ -86,60 +85,30 @@ fn copy_scope_tree(
     Ok(())
 }
 
-fn include_go_module_sources(
+fn include_directory_sources(
     root: &Path,
-    relative_root: &Path,
+    relative_dir: &Path,
+    extension: &str,
     selected: &mut BTreeSet<String>,
 ) -> Result<(), std::io::Error> {
-    let start = root.join(relative_root);
-    let mut stack = vec![start.clone()];
-    while let Some(directory) = stack.pop() {
-        let mut entries = fs::read_dir(&directory)?.collect::<Result<Vec<_>, _>>()?;
-        entries.sort_by_key(fs::DirEntry::file_name);
-        for entry in entries {
-            let path = entry.path();
-            if entry.file_type()?.is_dir() {
-                let name = entry.file_name();
-                if go_ignored_directory(name.to_string_lossy().as_ref())
-                    || (path != start && path.join("go.mod").is_file())
-                {
-                    continue;
-                }
-                stack.push(path);
-                continue;
-            }
-            if path
+    let mut entries = fs::read_dir(root.join(relative_dir))?.collect::<Result<Vec<_>, _>>()?;
+    entries.sort_by_key(fs::DirEntry::file_name);
+    for entry in entries {
+        if !entry.file_type()?.is_dir()
+            && entry
+                .path()
                 .extension()
-                .is_some_and(|value| value.to_string_lossy().eq_ignore_ascii_case("go"))
-            {
-                let relative = path
-                    .strip_prefix(root)
-                    .expect("walked path must remain beneath root");
-                selected.insert(relative.to_string_lossy().replace('\\', "/"));
-            }
+                .is_some_and(|value| value.to_string_lossy().eq_ignore_ascii_case(extension))
+        {
+            selected.insert(
+                relative_dir
+                    .join(entry.file_name())
+                    .to_string_lossy()
+                    .replace('\\', "/"),
+            );
         }
     }
     Ok(())
-}
-
-fn go_ignored_directory(name: &str) -> bool {
-    matches!(
-        name,
-        ".git"
-            | ".worktrees"
-            | ".workingtrees"
-            | ".ddocs"
-            | ".lexicon"
-            | ".arcana"
-            | ".grimoire"
-            | ".pitlord"
-            | ".cantrip"
-            | ".homunculus"
-            | ".incubus"
-            | ".ritual"
-            | ".warlock"
-            | "vendor"
-    )
 }
 
 fn include_tree_sources(

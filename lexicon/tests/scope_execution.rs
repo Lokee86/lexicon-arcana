@@ -32,7 +32,7 @@ fn scope_copies_selected_source_and_language_configuration() {
 }
 
 #[test]
-fn scope_expands_go_modules_and_rust_crates() {
+fn scope_expands_go_packages_and_rust_crates() {
     let go = TestDirectory::new("scope-go-source");
     let temporary = TestDirectory::new("scope-go-temp");
     write(&go.path, "go.mod", "module example.com/test\n");
@@ -47,7 +47,7 @@ fn scope_expands_go_modules_and_rust_crates() {
         build_analysis_scope(&go.path, &temporary.path, "go", &["pkg/a.go".into()]).unwrap();
     assert!(repository.join("pkg/a.go").is_file());
     assert!(repository.join("pkg/b.go").is_file());
-    assert!(repository.join("other/c.go").is_file());
+    assert!(!repository.join("other/c.go").exists());
     assert!(repository.join("go.mod").is_file());
     assert!(repository.join("nested/go.mod").is_file());
     assert!(!repository.join("nested/d.go").exists());

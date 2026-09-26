@@ -269,6 +269,37 @@ Demon Docs contains one Go module, so its Phase 5 profile reports **469 total lo
 
 The intended commit is `Bound Go semantic analysis by module`.
 
+## Phase 6 — incremental execution audit
+
+Completed 2026-09-26.
+
+The incremental planner, dependency topology, fallback rules, and object-reuse machinery survived the Rust port substantially intact. The audit against the frozen Go implementation at `c822f4d` found one concrete work-scope regression rather than a missing incremental subsystem.
+
+Production incremental execution remains upstream-scoped rather than “analyze the full repository and discard most output”: the planner computes the emitted dependent closure and forward context closure from the previous stored fact graph, the scan executor builds a temporary repository containing that context, and the Go adapter analyzes that temporary repository. Additions, deletions, and Go manifest changes continue to force full analysis, matching the established contract.
+
+The lost optimization was Go semantic-unit expansion. The mature Go scope builder and the original Rust port expanded a selected Go source file to the other `.go` files in the same package directory. Commit `16f8769` broadened that step to every Go source file in the containing module. A one-package edit could therefore turn into near-full-module discovery, parsing, `packages.Load`, semantic analysis, and SSA/VTA work before ownership filtering.
+
+Phase 6 restores package-directory expansion. Dependency context still adds packages actually required by the stored topology, and language configuration such as `go.mod` is still copied into the temporary repository. Unrelated packages in the same module are no longer included merely because they share a module.
+
+The audit matrix is now protected by tests:
+
+| Change | Established execution |
+| --- | --- |
+| No repository change | No adapter analysis is planned. |
+| Modified implementation file | Dependency-scoped incremental analysis; the selected package is expanded to sibling Go files, not the whole module. |
+| Modified API with known dependents | Reverse dependents are emitted and their forward context is included; unrelated packages remain outside the scope when the stored topology makes scoped analysis safe. |
+| Added Go source | Full Go analysis. |
+| Deleted Go source | Full Go analysis. |
+| Modified `go.mod` | Full Go analysis. |
+
+A real-helper regression fixture also compares the changed file's owned fact group from package-scoped incremental analysis with the same owned group from full-repository analysis. They are identical. Ownerless shared facts are intentionally not compared as newly generated incremental state: both the mature Go scan engine and the Rust scan executor preserve the previous shared object during ordinary incremental materialization rather than replacing it from the scoped repository. Existing materialization and scan-execution tests protect that reuse contract.
+
+The Go semantic helper suite passed. The Rust library suite passed 57/57, including deterministic execution, incremental ownership, and both live legacy/native differential gates. The focused scan integration suites for planning, scope construction, materialization, and execution also passed.
+
+Phase 6 uses invalidated work cardinality as the regression measure rather than wall-clock thresholds: no-op scans schedule zero adapter work, scoped edits name only dependency-derived context, and the scope fixture proves that an unrelated package in the same Go module is absent from the temporary analysis repository. This makes the performance contract deterministic and avoids timing-noise assertions.
+
+The intended commit is `Restore Go incremental package scoping`.
+
 ## Related docs
 
 - [Go adapter Phase 16 freeze](go-adapter-port-freeze-2026-09-26.md)
