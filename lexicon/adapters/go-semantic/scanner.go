@@ -32,6 +32,9 @@ func scanStructural(value request) (response, error) {
 	for _, record := range index.collectRelationships() {
 		scanner.records = append(scanner.records, record)
 	}
+	for _, record := range index.collectDataflow() {
+		scanner.records = append(scanner.records, record)
+	}
 	directCalls := index.collectDirectCalls()
 	for _, record := range index.mergeSSASemantics(directCalls) {
 		scanner.records = append(scanner.records, record)

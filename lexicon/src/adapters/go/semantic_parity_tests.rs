@@ -5,7 +5,7 @@ use crate::{AdapterRequest, Analysis, FactRecord, LanguageAdapter};
 use super::{GoAdapter, tests::real_helper};
 
 #[test]
-fn all_oracle_through_phase_ten_matches_legacy() {
+fn all_oracle_through_phase_eleven_matches_legacy() {
     for name in [
         "basic_calls",
         "relationships",
@@ -62,6 +62,11 @@ fn all_oracle_through_phase_ten_matches_legacy() {
             phase_ten_captures(&analysis.records),
             phase_ten_captures(&legacy.records),
             "closure capture parity failed for {name}"
+        );
+        assert_eq!(
+            phase_eleven_dataflow(&analysis.records),
+            phase_eleven_dataflow(&legacy.records),
+            "typed dataflow parity failed for {name}"
         );
         assert_eq!(
             analysis.header.repository, legacy.header.repository,
@@ -158,6 +163,27 @@ fn phase_ten_captures(records: &[FactRecord]) -> Vec<FactRecord> {
         .filter(|record| match record {
             FactRecord::Node(node) => targets.contains(&node.id),
             FactRecord::Edge(edge) => edge.relation == "references",
+            FactRecord::Unresolved(_) => false,
+        })
+        .cloned()
+        .collect()
+}
+
+fn phase_eleven_dataflow(records: &[FactRecord]) -> Vec<FactRecord> {
+    let targets = records
+        .iter()
+        .filter_map(|record| match record {
+            FactRecord::Edge(edge) if matches!(edge.relation.as_str(), "reads" | "writes") => {
+                Some(edge.target.clone())
+            }
+            _ => None,
+        })
+        .collect::<std::collections::BTreeSet<_>>();
+    records
+        .iter()
+        .filter(|record| match record {
+            FactRecord::Node(node) => targets.contains(&node.id),
+            FactRecord::Edge(edge) => matches!(edge.relation.as_str(), "reads" | "writes"),
             FactRecord::Unresolved(_) => false,
         })
         .cloned()

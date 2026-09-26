@@ -80,6 +80,17 @@ type callObservation struct {
 
 func (callObservation) semanticRecord() {}
 
+type dataflowObservation struct {
+	Record string `json:"record"`
+	Source string `json:"source"`
+	Target string `json:"target"`
+	Kind   string `json:"kind"`
+	Owner  string `json:"owner"`
+	Span   span   `json:"span"`
+}
+
+func (dataflowObservation) semanticRecord() {}
+
 type unresolvedObservation struct {
 	Record             string `json:"record"`
 	Source             string `json:"source"`

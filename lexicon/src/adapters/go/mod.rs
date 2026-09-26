@@ -9,6 +9,7 @@ mod semantic_call_facts;
 mod semantic_call_target_support;
 mod semantic_call_targets;
 mod semantic_capture_facts;
+mod semantic_dataflow_facts;
 mod semantic_facts;
 mod semantic_facts_support;
 mod semantic_relationship_facts;
@@ -16,6 +17,8 @@ mod semantic_ssa_target_support;
 
 #[cfg(test)]
 mod capture_tests;
+#[cfg(test)]
+mod dataflow_tests;
 #[cfg(test)]
 mod discovery_boundary_tests;
 #[cfg(test)]
@@ -101,6 +104,10 @@ impl LanguageAdapter for GoAdapter {
                 (
                     "semantic_capture_facts.rs",
                     include_bytes!("semantic_capture_facts.rs"),
+                ),
+                (
+                    "semantic_dataflow_facts.rs",
+                    include_bytes!("semantic_dataflow_facts.rs"),
                 ),
                 ("semantic_facts.rs", include_bytes!("semantic_facts.rs")),
                 (
