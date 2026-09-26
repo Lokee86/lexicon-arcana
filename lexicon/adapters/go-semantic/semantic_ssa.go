@@ -22,13 +22,17 @@ type ssaTarget struct {
 	Internal  bool
 }
 
-func (index *semanticIndex) mergeSSACalls(direct []semanticRecord) []semanticRecord {
-	if len(index.roots) == 0 || len(direct) == 0 {
+func (index *semanticIndex) mergeSSASemantics(direct []semanticRecord) []semanticRecord {
+	if len(index.roots) == 0 {
 		return direct
 	}
 	program, _ := ssautil.AllPackages(index.roots, ssa.InstantiateGenerics)
 	program.Build()
 	functions := ssautil.AllFunctions(program)
+	captures := index.collectSSACaptures(functions, program.Fset)
+	if len(direct) == 0 {
+		return captures
+	}
 	graph := vta.CallGraph(functions, nil)
 	outcomes := make(map[string]*ssaOutcome)
 
@@ -66,7 +70,9 @@ func (index *semanticIndex) mergeSSACalls(direct []semanticRecord) []semanticRec
 			}
 		}
 	}
-	return mergeSSAOutcomes(direct, outcomes)
+	result := mergeSSAOutcomes(direct, outcomes)
+	result = append(result, captures...)
+	return result
 }
 
 func mergeSSAOutcomes(

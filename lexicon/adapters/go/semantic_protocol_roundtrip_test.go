@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+func pointerTo(value int) *int { return &value }
+
 func TestGoSemanticProtocolRequestRoundTrip(t *testing.T) {
 	request := goSemanticRequest{
 		ProtocolVersion: goSemanticProtocolVersion,
@@ -68,7 +70,17 @@ func TestGoSemanticProtocolResponseRoundTrip(t *testing.T) {
 					Target: "type:example.com/foo:Runner",
 					Kind:   goSemanticRelationshipImplements,
 					Owner:  "thing.go",
-					Span:   span,
+					Span:   &span,
+				},
+			},
+			{
+				Kind: goSemanticRecordRelationship,
+				Relationship: &goSemanticRelationship{
+					Source:       "closure:example.com/foo:caller.go:12:3",
+					Kind:         goSemanticRelationshipReferences,
+					TargetName:   "value",
+					CaptureIndex: pointerTo(0),
+					Owner:        "caller.go",
 				},
 			},
 			{

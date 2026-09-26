@@ -67,7 +67,7 @@ func dereference(value types.Type) types.Type {
 func relation(source, target, kind, owner string, evidence span) relationship {
 	return relationship{
 		Record: "relationship", Source: source, Target: target,
-		Kind: kind, Owner: owner, Span: evidence,
+		Kind: kind, Owner: owner, Span: &evidence,
 	}
 }
 

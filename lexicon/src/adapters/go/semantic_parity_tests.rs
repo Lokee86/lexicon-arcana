@@ -5,7 +5,7 @@ use crate::{AdapterRequest, Analysis, FactRecord, LanguageAdapter};
 use super::{GoAdapter, tests::real_helper};
 
 #[test]
-fn all_oracle_through_phase_nine_matches_legacy() {
+fn all_oracle_through_phase_ten_matches_legacy() {
     for name in [
         "basic_calls",
         "relationships",
@@ -58,6 +58,11 @@ fn all_oracle_through_phase_nine_matches_legacy() {
                 "SSA/VTA call-target parity failed for {name}"
             );
         }
+        assert_eq!(
+            phase_ten_captures(&analysis.records),
+            phase_ten_captures(&legacy.records),
+            "closure capture parity failed for {name}"
+        );
         assert_eq!(
             analysis.header.repository, legacy.header.repository,
             "repository identity failed for {name}"
@@ -135,6 +140,25 @@ fn phase_nine_calls(records: &[FactRecord]) -> Vec<FactRecord> {
             ),
             FactRecord::Unresolved(value) => value.relation == "calls",
             FactRecord::Node(_) => false,
+        })
+        .cloned()
+        .collect()
+}
+
+fn phase_ten_captures(records: &[FactRecord]) -> Vec<FactRecord> {
+    let targets = records
+        .iter()
+        .filter_map(|record| match record {
+            FactRecord::Edge(edge) if edge.relation == "references" => Some(edge.target.clone()),
+            _ => None,
+        })
+        .collect::<std::collections::BTreeSet<_>>();
+    records
+        .iter()
+        .filter(|record| match record {
+            FactRecord::Node(node) => targets.contains(&node.id),
+            FactRecord::Edge(edge) => edge.relation == "references",
+            FactRecord::Unresolved(_) => false,
         })
         .cloned()
         .collect()

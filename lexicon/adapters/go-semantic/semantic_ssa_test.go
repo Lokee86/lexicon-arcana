@@ -5,6 +5,41 @@ import (
 	"testing"
 )
 
+func TestSSACapturesFreeVariables(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", "go", "testdata", "oracle", "higher_order"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := scanStructural(request{
+		ProtocolVersion: protocolVersion,
+		RepositoryRoot:  root,
+		Files:           []string{"go.mod", "main.go"},
+		Modules:         []module{{Root: ".", Path: "example.com/oracle/higher"}},
+		Execution:       execution{Workers: 1, Shards: 1, MergeFanIn: 2},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var captures []relationship
+	for _, record := range result.Records {
+		value, ok := record.(relationship)
+		if ok && value.Kind == "references" {
+			captures = append(captures, value)
+		}
+	}
+	if len(captures) != 1 {
+		t.Fatalf("captures = %d, want 1: %#v", len(captures), captures)
+	}
+	capture := captures[0]
+	if capture.Source != "closure:example.com/oracle/higher:main.go:22:13" ||
+		capture.Target != "variable:example.com/oracle/higher:main.go:21:2:captured" ||
+		capture.TargetName != "captured" || capture.CaptureIndex == nil ||
+		*capture.CaptureIndex != 0 || capture.Span == nil ||
+		capture.Span.StartLine != 21 || capture.Span.StartColumn != 2 {
+		t.Fatalf("capture = %#v", capture)
+	}
+}
+
 func TestSSAResolvesHigherOrderAndClosureCalls(t *testing.T) {
 	root, err := filepath.Abs(filepath.Join("..", "go", "testdata", "oracle", "higher_order"))
 	if err != nil {

@@ -50,6 +50,46 @@ func TestStructuralScanKeepsInactiveBuildVariants(t *testing.T) {
 	}
 }
 
+func TestStructuralScanPreservesNestedClosureOwnership(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/nested\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	source := "package nested\nfunc Outer() {\n\t_ = func() {\n\t\t_ = func() {}\n\t}\n}\n"
+	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte(source), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := scanStructural(request{
+		ProtocolVersion: protocolVersion,
+		RepositoryRoot:  root,
+		Files:           []string{"go.mod", "main.go"},
+		Modules:         []module{{Root: ".", Path: "example.com/nested"}},
+		Execution:       execution{Workers: 1, Shards: 1, MergeFanIn: 2},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var closures []declaration
+	for _, value := range result.Records {
+		record, ok := value.(declaration)
+		if ok && strings.HasPrefix(record.Identity, "closure:example.com/nested:main.go:") {
+			closures = append(closures, record)
+		}
+	}
+	if len(closures) != 2 {
+		t.Fatalf("closures = %d, want 2: %#v", len(closures), closures)
+	}
+	nested := 0
+	for _, closure := range closures {
+		if strings.HasPrefix(closure.Metadata["container"], "closure:example.com/nested:main.go:") {
+			nested++
+		}
+	}
+	if nested != 1 {
+		t.Fatalf("nested closure ownership count = %d, want 1: %#v", nested, closures)
+	}
+}
+
 func TestStructuralScanUsesOnlyRustSuppliedInventory(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte(`module example.com/inventory

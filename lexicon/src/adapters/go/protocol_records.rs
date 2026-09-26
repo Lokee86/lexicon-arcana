@@ -18,10 +18,16 @@ pub(crate) enum Record {
     #[serde(rename = "relationship")]
     Relationship {
         source: String,
-        target: String,
+        #[serde(default)]
+        target: Option<String>,
         kind: RelationshipKind,
+        #[serde(default)]
+        target_name: Option<String>,
+        #[serde(default)]
+        capture_index: Option<usize>,
         owner: String,
-        span: Span,
+        #[serde(default)]
+        span: Option<Span>,
     },
     #[serde(rename = "call")]
     Call {

@@ -71,7 +71,30 @@ func validateGoSemanticRecord(record goSemanticRecord) error {
 		if !knownGoSemanticRelationship(value.Kind) {
 			return fmt.Errorf("unknown relationship kind %q", value.Kind)
 		}
-		return validateGoSemanticReference(value.Source, value.Target, value.Owner, value.Span)
+		if err := validateGoSemanticIdentity(value.Source); err != nil {
+			return fmt.Errorf("source: %w", err)
+		}
+		if err := validateGoSemanticOwner(value.Owner); err != nil {
+			return err
+		}
+		if value.Kind == goSemanticRelationshipReferences {
+			if value.CaptureIndex == nil || value.TargetName == "" {
+				return fmt.Errorf("capture references require capture_index and target_name")
+			}
+			if value.Target != "" {
+				if err := validateGoSemanticIdentity(value.Target); err != nil {
+					return fmt.Errorf("target: %w", err)
+				}
+			}
+			if value.Span != nil {
+				return validateGoSemanticSpan(*value.Span)
+			}
+			return nil
+		}
+		if value.Target == "" || value.Span == nil {
+			return fmt.Errorf("relationship target and span are required")
+		}
+		return validateGoSemanticReference(value.Source, value.Target, value.Owner, *value.Span)
 	case goSemanticRecordCall:
 		if record.Call == nil {
 			return fmt.Errorf("call payload is missing")

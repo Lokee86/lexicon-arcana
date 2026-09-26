@@ -33,6 +33,9 @@ pub(super) fn add(
             "Go semantic relationship source is not materialized: {source:?}"
         )));
     }
+    let target = target
+        .as_deref()
+        .ok_or_else(|| AdapterError::new("Go semantic relationship target is missing"))?;
     let target_id = ensure_relationship_target(target, inventory, records, nodes, edges)?;
     if matches!(kind, RelationshipKind::Implements) && source_id == target_id {
         return Err(AdapterError::new(

@@ -85,7 +85,7 @@ Decoding is fail-closed: unsupported protocol versions, unknown fields or record
 
 The Rust `AdapterHost` now registers a native `GoAdapter` at `src/adapters/go/`. The shell retains adapter version `0.1.0`, fingerprints its Rust-side implementation together with the private helper version, and invokes language-native helpers through the shared internal helper runner rather than through the retired subprocess-adapter/facts handoff. Helper discovery is deterministic from an explicit environment override, the configured adapter root, or packaged executable adjacency.
 
-The runner uses a single JSON request/response frame over stdin/stdout, validates the protocol handshake before decoding the typed response, bounds stderr capture, reports non-zero exits, and kills/reaps a helper that emits malformed or incompatible protocol data. Structural declarations, typed relationships, typed direct calls, and SSA/VTA higher-order call reconciliation are materialized now; closure capture evidence and typed dataflow remain on the legacy side until their later migration phases.
+The runner uses a single JSON request/response frame over stdin/stdout, validates the protocol handshake before decoding the typed response, bounds stderr capture, reports non-zero exits, and kills/reaps a helper that emits malformed or incompatible protocol data. Structural declarations, typed relationships, typed direct calls, SSA/VTA higher-order call reconciliation, and closure capture evidence are materialized now; typed dataflow remains on the legacy side until its migration phase.
 
 ## Rust repository ownership
 
@@ -115,7 +115,11 @@ Rust performs the final graph conversion: definite observations become `calls`, 
 
 The helper now also owns the extracted repository-wide SSA/VTA pass from `semantic_ssa.go`. It deliberately preserves `ssautil.AllPackages(..., ssa.InstantiateGenerics)` plus VTA callgraph construction rather than replacing the algorithm. Direct call observations register stable caller+owner+callsite-position keys; SSA/VTA outcomes merge back into those same callsites. Resolved non-interface direct calls remain authoritative, interface invokes are replaced by concrete VTA targets, one concrete target becomes `calls`, and multiple targets become `possible-calls`.
 
-This preserves function variables, callback parameters, returned function values, method values, interface invoke resolution, closure call targets, and compiler-generated `ssa-function:` targets. Once concrete interface targets are known, the contract target is discarded exactly as in the legacy `mergeSemanticCall` rule. Rust remains the owner of final node IDs and facts; the helper sends only canonical semantic target identities plus optional name/namespace/container hints needed for synthetic SSA targets. Capture/reference evidence remains deferred to the closure/capture phase, and inactive build-tag files continue to rely on the separate AST fallback rather than the active `go/packages` SSA graph.
+This preserves function variables, callback parameters, returned function values, method values, interface invoke resolution, closure call targets, and compiler-generated `ssa-function:` targets. Once concrete interface targets are known, the contract target is discarded exactly as in the legacy `mergeSemanticCall` rule. Rust remains the owner of final node IDs and facts; the helper sends only canonical semantic target identities plus optional name/namespace/container hints needed for synthetic SSA targets. Inactive build-tag files continue to rely on the separate AST fallback rather than the active `go/packages` SSA graph.
+
+## Closure captures
+
+Structural closure declaration remains in the AST pass, including immediate and nested closures with immediate-parent containment. SSA owns free-variable evidence through `ssa.Function.FreeVars`. Positioned captures report the legacy `variable:<import path>:<file>:<line>:<column>:<name>` identity plus the point evidence used by the `references` edge; Rust materializes the final variable node with the identifier-width span retained by the legacy pipeline. Positionless compiler captures carry the free-variable slot and name without a fabricated target identity, allowing Rust to derive the exact legacy `capture:<closure-node-id>:<index>:<name>` identity. Rust emits the capture variable node and closure-to-variable `references` edge; the helper never creates Lexicon IDs.
 
 ## Code map
 
@@ -133,7 +137,8 @@ This preserves function variables, callback parameters, returned function values
 | Typed relationships | `adapters/go-semantic/semantic_relationship*.go`, `src/adapters/go/semantic_facts.rs` | helper relationship/override tests, seven-fixture relationship parity, and self-edge/endpoint validation |
 | Typed direct calls | `adapters/go-semantic/semantic_call*.go`, `src/adapters/go/semantic_call*.rs` | helper call-count/classification tests, protocol round-trip tests, and exact `basic_calls` edge/unresolved parity |
 | SSA/VTA reconciliation | `adapters/go-semantic/semantic_ssa*.go`, `src/adapters/go/semantic_call*.rs` | helper higher-order/interface/merge tests, legacy advanced/callback gates, active-fixture call-target parity, and Rust synthetic-target tests |
-| Closure captures and dataflow | legacy `semantic_ssa.go` capture path and `semantic_dataflow.go` until later phases | capture and dataflow tests |
+| Closure captures | `adapters/go-semantic/semantic_captures.go`, `src/adapters/go/semantic_capture_facts.rs` | helper capture/nested-ownership tests, exact oracle capture parity, and Rust positionless-capture identity tests |
+| Typed dataflow | legacy `semantic_dataflow.go` until Phase 11 | dataflow tests |
 | Dependencies | `dependencies.go` | package/dependency coverage |
 | Parallel execution | `parallel.go`, `semantic_parallel.go` | `semantic_parallel_test.go` |
 | Synthetic nodes and identities | `synthetic_nodes.go`, `semantic_nodes.go`, `semantic_symbols.go` | semantic identity tests |

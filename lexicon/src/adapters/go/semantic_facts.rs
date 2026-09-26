@@ -6,7 +6,7 @@ use super::{
     discovery::Inventory,
     identities,
     protocol_records::{DeclarationKind, Record, Span},
-    semantic_call_facts,
+    semantic_call_facts, semantic_capture_facts,
     semantic_facts_support::{EdgeKey, container_id, parent_id, push_edge, required},
     semantic_relationship_facts,
 };
@@ -27,6 +27,9 @@ pub(crate) fn add(
 
     for record in semantic {
         if matches!(record, Record::Diagnostic { .. }) {
+            continue;
+        }
+        if semantic_capture_facts::add(record, records, &mut nodes, &mut edges)? {
             continue;
         }
         if semantic_relationship_facts::add(record, inventory, records, &mut nodes, &mut edges)? {

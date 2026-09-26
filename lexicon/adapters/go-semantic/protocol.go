@@ -53,12 +53,14 @@ type declaration struct {
 func (declaration) semanticRecord() {}
 
 type relationship struct {
-	Record string `json:"record"`
-	Source string `json:"source"`
-	Target string `json:"target"`
-	Kind   string `json:"kind"`
-	Owner  string `json:"owner"`
-	Span   span   `json:"span"`
+	Record       string `json:"record"`
+	Source       string `json:"source"`
+	Target       string `json:"target,omitempty"`
+	Kind         string `json:"kind"`
+	TargetName   string `json:"target_name,omitempty"`
+	CaptureIndex *int   `json:"capture_index,omitempty"`
+	Owner        string `json:"owner"`
+	Span         *span  `json:"span,omitempty"`
 }
 
 func (relationship) semanticRecord() {}

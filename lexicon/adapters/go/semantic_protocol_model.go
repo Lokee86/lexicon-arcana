@@ -89,11 +89,13 @@ const (
 )
 
 type goSemanticRelationship struct {
-	Source string                     `json:"source"`
-	Target string                     `json:"target"`
-	Kind   goSemanticRelationshipKind `json:"kind"`
-	Owner  string                     `json:"owner"`
-	Span   goSemanticSpan             `json:"span"`
+	Source       string                     `json:"source"`
+	Target       string                     `json:"target,omitempty"`
+	Kind         goSemanticRelationshipKind `json:"kind"`
+	TargetName   string                     `json:"target_name,omitempty"`
+	CaptureIndex *int                       `json:"capture_index,omitempty"`
+	Owner        string                     `json:"owner"`
+	Span         *goSemanticSpan             `json:"span,omitempty"`
 }
 
 type goSemanticCallKind string
