@@ -12,6 +12,7 @@ pub mod identity;
 pub mod interstack;
 pub mod languages;
 pub mod lookup;
+pub(crate) mod perf;
 pub mod repository;
 pub mod scan;
 pub mod scope;

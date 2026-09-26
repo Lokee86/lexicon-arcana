@@ -14,6 +14,7 @@ pub(crate) fn structural_analysis(
     inventory: &Inventory,
     semantic: &[Record],
 ) -> Result<Analysis, crate::AdapterError> {
+    let materialization_started = crate::perf::start();
     let mut records = Vec::new();
     let repository_id = identities::node_id(&identities::repository(&inventory.repository))?;
     records.push(FactRecord::Node(NodeRecord {
@@ -61,6 +62,26 @@ pub(crate) fn structural_analysis(
     }
     semantic_facts::add(request, inventory, semantic, &mut records)?;
 
+    if let Some(materialization_started) = materialization_started {
+        let materialized_nodes = records
+            .iter()
+            .filter(|record| matches!(record, FactRecord::Node(_)))
+            .count() as u64;
+        let materialized_edges = records
+            .iter()
+            .filter(|record| matches!(record, FactRecord::Edge(_)))
+            .count() as u64;
+        crate::perf::emit(
+            "go.fact_materialization",
+            materialization_started.elapsed(),
+            &[
+                ("materialized_nodes", materialized_nodes),
+                ("materialized_edges", materialized_edges),
+                ("final_fact_count", records.len() as u64),
+            ],
+        );
+    }
+
     let incremental = request.mode == AdapterMode::Incremental;
     let mut analysis = Analysis::new(
         FactHeader {
@@ -76,9 +97,17 @@ pub(crate) fn structural_analysis(
         },
         records,
     );
+    let canonicalization_started = crate::perf::start();
     analysis
         .canonicalize()
         .map_err(|error| crate::AdapterError::new(error.to_string()))?;
+    if let Some(canonicalization_started) = canonicalization_started {
+        crate::perf::emit(
+            "go.canonicalization",
+            canonicalization_started.elapsed(),
+            &[("final_fact_count", analysis.records.len() as u64)],
+        );
+    }
     Ok(analysis)
 }
 

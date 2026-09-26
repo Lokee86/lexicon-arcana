@@ -4,13 +4,14 @@ use std::{
     io::{BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
+    time::Instant,
 };
 
 use serde::{Serialize, de::DeserializeOwned};
 
 use super::{
     AdapterError,
-    helper_capture::{capture_stderr, stderr_suffix, terminate},
+    helper_capture::{capture_stderr, replay_stderr, stderr_suffix, terminate},
 };
 
 const MAX_RESPONSE_BYTES: u64 = 64 * 1024 * 1024;
@@ -68,6 +69,12 @@ impl HelperRunner {
     {
         let request = serde_json::to_vec(request)
             .map_err(|error| AdapterError::new(format!("encode helper request: {error}")))?;
+        let request_bytes = request.len() as u64;
+        let profile_go = crate::perf::enabled()
+            && environment.iter().any(|(key, value)| {
+                key.to_string_lossy() == "LEXICON_HELPER" && value.to_string_lossy() == "go"
+            });
+        let ipc_started = profile_go.then(Instant::now);
         let program = self.resolve()?;
         let mut child = Command::new(&program)
             .args(&self.prefix_args)
@@ -124,6 +131,8 @@ impl HelperRunner {
             frame.pop();
         }
 
+        let response_bytes = frame.len() as u64;
+        let decode_started = profile_go.then(Instant::now);
         let value: serde_json::Value = match serde_json::from_slice(&frame) {
             Ok(value) => value,
             Err(error) => {
@@ -156,6 +165,7 @@ impl HelperRunner {
                 ));
             }
         };
+        let decode_elapsed = decode_started.map(|started| started.elapsed());
 
         drop(reader);
         let status = child
@@ -167,6 +177,22 @@ impl HelperRunner {
                 "semantic helper exited with {status}{}",
                 stderr_suffix(&stderr)
             )));
+        }
+        if let (Some(ipc_started), Some(decode_elapsed)) = (ipc_started, decode_elapsed) {
+            replay_stderr(&stderr);
+            crate::perf::emit(
+                "go.helper_ipc",
+                ipc_started.elapsed(),
+                &[
+                    ("helper_request_bytes", request_bytes),
+                    ("helper_response_bytes", response_bytes),
+                ],
+            );
+            crate::perf::emit(
+                "go.rust_response_decode",
+                decode_elapsed,
+                &[("helper_response_bytes", response_bytes)],
+            );
         }
         Ok(response)
     }

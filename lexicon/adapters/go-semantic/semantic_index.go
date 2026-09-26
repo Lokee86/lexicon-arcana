@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -43,6 +44,10 @@ type typedType struct {
 }
 
 func loadSemanticIndex(value request) (*semanticIndex, []diagnostic) {
+	return loadSemanticIndexProfiled(value, nil)
+}
+
+func loadSemanticIndexProfiled(value request, profile *performanceProfile) (*semanticIndex, []diagnostic) {
 	index := &semanticIndex{
 		request:                  value,
 		targetsByObject:          make(map[*types.Func]typedTarget),
@@ -65,11 +70,18 @@ func loadSemanticIndex(value request) (*semanticIndex, []diagnostic) {
 		if module.Root != "." {
 			root = filepath.Join(root, filepath.FromSlash(module.Root))
 		}
+		var loadStarted time.Time
+		if profile != nil {
+			loadStarted = time.Now()
+		}
 		roots, err := packages.Load(&packages.Config{
 			Mode:  packages.LoadAllSyntax | packages.NeedModule,
 			Dir:   root,
 			Tests: true,
 		}, "./...")
+		if profile != nil {
+			profile.PackageLoad += time.Since(loadStarted)
+		}
 		if err != nil {
 			diagnostics = append(diagnostics, packageLoadDiagnostic(module.Path, err))
 			continue
@@ -77,16 +89,30 @@ func loadSemanticIndex(value request) (*semanticIndex, []diagnostic) {
 		index.roots = append(index.roots, roots...)
 		index.rootGroups = append(index.rootGroups, append([]*packages.Package(nil), roots...))
 		loaded := flattenPackages(roots)
+		if profile != nil {
+			profile.LoadedPackages += len(loaded)
+		}
 		index.packages = append(index.packages, loaded...)
 		diagnostics = append(diagnostics, packageDiagnostics(loaded)...)
+		var indexStarted time.Time
+		if profile != nil {
+			indexStarted = time.Now()
+		}
 		for _, pkg := range loaded {
 			index.collectTargets(pkg)
 		}
 		index.collectTypes(loaded)
+		if profile != nil {
+			profile.SemanticIndex += time.Since(indexStarted)
+		}
 	}
 	sort.Slice(index.packages, func(i, j int) bool {
 		return index.packages[i].ID < index.packages[j].ID
 	})
+	if profile != nil {
+		profile.TypedTargets = len(index.targetsByObject)
+		profile.TypedTypes = len(index.typesByID)
+	}
 	sort.Slice(diagnostics, func(i, j int) bool {
 		if diagnostics[i].Code != diagnostics[j].Code {
 			return diagnostics[i].Code < diagnostics[j].Code

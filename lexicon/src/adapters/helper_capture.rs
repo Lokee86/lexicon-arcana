@@ -40,6 +40,18 @@ pub(crate) fn stderr_suffix(stderr: &StderrCapture) -> String {
     format!(": {text}")
 }
 
+pub(crate) fn replay_stderr(stderr: &StderrCapture) {
+    if stderr.bytes.is_empty() {
+        return;
+    }
+    eprint!("{}", String::from_utf8_lossy(&stderr.bytes));
+    if stderr.truncated {
+        eprintln!("[lexicon-perf] helper_stderr_truncated=1");
+    } else if !stderr.bytes.ends_with(b"\n") {
+        eprintln!();
+    }
+}
+
 fn read_stderr(mut stderr: ChildStderr) -> StderrCapture {
     let mut result = StderrCapture::default();
     let mut buffer = [0_u8; 4096];

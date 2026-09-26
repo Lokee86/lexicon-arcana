@@ -120,9 +120,17 @@ pub(crate) fn add(
             }
         }
     }
+    let dependency_started = crate::perf::start();
     dependencies::add(
         request, inventory, semantic, records, &mut nodes, &mut edges,
     )?;
+    if let Some(dependency_started) = dependency_started {
+        crate::perf::emit(
+            "go.dependency_construction",
+            dependency_started.elapsed(),
+            &[("final_fact_count", records.len() as u64)],
+        );
+    }
     Ok(())
 }
 

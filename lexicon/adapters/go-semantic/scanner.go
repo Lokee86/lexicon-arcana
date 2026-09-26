@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"path/filepath"
 	"sort"
+	"time"
 )
 
 type structuralScanner struct {
@@ -18,9 +19,23 @@ type structuralScanner struct {
 }
 
 func scanStructural(value request) (response, error) {
+	return scanStructuralWithProfile(value, nil)
+}
+
+func scanStructuralProfiled(value request) (response, performanceProfile, error) {
+	profile := performanceProfile{}
+	result, err := scanStructuralWithProfile(value, &profile)
+	return result, profile, err
+}
+
+func scanStructuralWithProfile(value request, profile *performanceProfile) (response, error) {
 	scanner := &structuralScanner{request: value, set: token.NewFileSet()}
 	files := append([]string(nil), value.Files...)
 	sort.Strings(files)
+	var parsingStarted time.Time
+	if profile != nil {
+		parsingStarted = time.Now()
+	}
 	for _, owner := range files {
 		if filepath.Ext(owner) != ".go" {
 			continue
@@ -28,22 +43,59 @@ func scanStructural(value request) (response, error) {
 		if err := scanner.parseFile(owner); err != nil {
 			return response{}, err
 		}
+		if profile != nil {
+			profile.ParsedFiles++
+		}
 	}
-	index, diagnostics := loadSemanticIndex(value)
+	if profile != nil {
+		profile.StructuralParsing = time.Since(parsingStarted)
+	}
+
+	index, diagnostics := loadSemanticIndexProfiled(value, profile)
 	index.structuralClosures = scanner.closures
 	scanner.index = index
+
+	var relationshipsStarted time.Time
+	if profile != nil {
+		relationshipsStarted = time.Now()
+	}
 	for _, record := range index.collectRelationships() {
 		scanner.records = append(scanner.records, record)
+	}
+	if profile != nil {
+		profile.Relationships = time.Since(relationshipsStarted)
+	}
+
+	var callsStarted time.Time
+	if profile != nil {
+		callsStarted = time.Now()
 	}
 	dataflow, directCalls, err := index.collectParallelSemantics(value.Execution)
 	if err != nil {
 		return response{}, err
 	}
+	if profile != nil {
+		profile.RawCalls = len(directCalls)
+		profile.RawDataflow = len(dataflow)
+	}
 	directCalls = mergeDirectCallRecords(directCalls)
+	if profile != nil {
+		profile.CompactedCalls = len(directCalls)
+		profile.CompactedDataflow = len(dataflow)
+		profile.CallsDataflow = time.Since(callsStarted)
+	}
+
 	for _, record := range dataflow {
 		scanner.records = append(scanner.records, record)
 	}
+	var ssaStarted time.Time
+	if profile != nil {
+		ssaStarted = time.Now()
+	}
 	resolvedCalls := index.mergeSSASemantics(directCalls)
+	if profile != nil {
+		profile.SSAVTA = time.Since(ssaStarted)
+	}
 	for _, record := range resolvedCalls {
 		scanner.records = append(scanner.records, record)
 	}

@@ -1,4 +1,4 @@
-use std::{env, fs, path::PathBuf};
+use std::{env, fs, path::PathBuf, time::Instant};
 
 use lexicon::{AdapterHost, AdapterRequest, FactStream};
 
@@ -27,12 +27,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         header: analysis.header,
         records: analysis.records,
     };
+    let storage_started = performance_enabled().then(Instant::now);
+    let final_fact_count = stream.records.len();
     let bytes = stream.canonical_jsonl()?;
+    let output_bytes = bytes.len();
     if let Some(parent) = output.parent() {
         fs::create_dir_all(parent)?;
     }
     fs::write(output, bytes)?;
+    if let Some(storage_started) = storage_started {
+        eprintln!(
+            "[lexicon-perf] stage=go.final_serialization_storage elapsed_ms={:.3} final_fact_count={} output_bytes={}",
+            storage_started.elapsed().as_secs_f64() * 1000.0,
+            final_fact_count,
+            output_bytes
+        );
+    }
     Ok(())
+}
+
+fn performance_enabled() -> bool {
+    let Some(value) = env::var_os("LEXICON_PERF") else {
+        return false;
+    };
+    !matches!(
+        value.to_string_lossy().trim().to_ascii_lowercase().as_str(),
+        "" | "0" | "false" | "off" | "no"
+    )
 }
 
 fn parse_usize(

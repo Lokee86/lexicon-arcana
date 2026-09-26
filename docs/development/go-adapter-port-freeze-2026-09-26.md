@@ -6,7 +6,13 @@ Parent index: [Development Documentation](INDEX.md)
 **Branch:** `feature/lexicon-rust-library`  
 **Code checkpoint:** `c8dce3fee4951601ce414065061d2757f891a69c` — `Calibrate native Go adapter on real repository`
 
-This document freezes the native Rust Go-adapter port so the migration can be resumed without reconstructing intent from chat history.
+## Purpose
+
+Freeze the native Rust Go-adapter port so the migration can be resumed without reconstructing intent from chat history.
+
+## Overview
+
+Phases 0–15 are complete and Phase 16 real-repository calibration is paused. The separate performance-restoration project must complete before repeated Phase 16 calibration resumes; later cutover, packaging/runtime, and cleanup phases remain unstarted.
 
 ## Migration status
 
@@ -100,6 +106,8 @@ The first resumption task is therefore:
 
 Performance work must not weaken parity checks or silently alter the semantic contract.
 
+The independent restoration work is tracked in [Lexicon Performance Restoration](lexicon-performance-restoration.md). The Go adapter migration remains frozen at Phase 16 until that work is complete.
+
 ## Phase 16 resumption order
 
 After restoring the omitted optimization work:
@@ -164,3 +172,13 @@ Once cutover and packaging are proven:
 - Keep the legacy implementation available as the migration oracle until cutover is proven.
 - Preserve deterministic output across worker/shard/fan-in configurations.
 - Treat the current performance regression as unfinished port work, not an acceptable new baseline.
+
+## Related docs
+
+- [Lexicon performance restoration](lexicon-performance-restoration.md)
+- [Testing and benchmarks](testing-and-benchmarks.md)
+- [Lexicon Rust migration](../../lexicon/docs/RUST_MIGRATION.md)
+
+## Notes
+
+This is a dated migration checkpoint. It records the state needed to resume Phase 16; it does not redefine the current Go adapter semantic contract or mark Phase 16 complete.

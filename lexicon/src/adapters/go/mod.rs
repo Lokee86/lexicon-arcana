@@ -156,7 +156,26 @@ impl LanguageAdapter for GoAdapter {
                 request.repository.display()
             ))
         })?;
+        let discovery_started = crate::perf::start();
         let inventory = discovery::discover(&repository)?;
+        if let Some(discovery_started) = discovery_started {
+            crate::perf::emit(
+                "go.repository_discovery",
+                discovery_started.elapsed(),
+                &[
+                    ("discovered_files", inventory.files.len() as u64),
+                    (
+                        "retained_source_bytes",
+                        inventory
+                            .files
+                            .iter()
+                            .map(|file| file.content.len() as u64)
+                            .sum(),
+                    ),
+                    ("modules", inventory.modules.len() as u64),
+                ],
+            );
+        }
         let wire = semantic_request(&repository, &inventory, request)?;
         let response: protocol::Response = self.helper.run_json(
             &repository,

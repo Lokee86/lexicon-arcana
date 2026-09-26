@@ -129,18 +129,29 @@ fn execute_incremental(
     };
     let fingerprint = host.fingerprint(&plan.language)?;
     let sources = selected_sources(source_root, &plan.changed_files)?;
-    store
-        .build_incremental_language(
-            previous,
-            &analysis,
-            &sources,
-            ANALYSIS_CONFIG_ID,
-            &fingerprint,
-            &plan.changed_files,
-            &plan.removed_files,
-            false,
-        )
-        .map_err(ScanExecutionError::from)
+    let storage_started = if plan.language == "go" {
+        crate::perf::start()
+    } else {
+        None
+    };
+    let result = store.build_incremental_language(
+        previous,
+        &analysis,
+        &sources,
+        ANALYSIS_CONFIG_ID,
+        &fingerprint,
+        &plan.changed_files,
+        &plan.removed_files,
+        false,
+    );
+    if let Some(storage_started) = storage_started {
+        crate::perf::emit(
+            "go.final_serialization_storage",
+            storage_started.elapsed(),
+            &[("final_fact_count", analysis.records.len() as u64)],
+        );
+    }
+    result.map_err(ScanExecutionError::from)
 }
 
 fn apply_full(
@@ -152,13 +163,24 @@ fn apply_full(
 ) -> Result<LanguageEntry, ScanExecutionError> {
     let fingerprint = host.fingerprint(language)?;
     let sources = language_sources(source_root, language)?;
-    store
-        .build_full_language(
-            analysis,
-            &sources,
-            language,
-            ANALYSIS_CONFIG_ID,
-            &fingerprint,
-        )
-        .map_err(ScanExecutionError::from)
+    let storage_started = if language == "go" {
+        crate::perf::start()
+    } else {
+        None
+    };
+    let result = store.build_full_language(
+        analysis,
+        &sources,
+        language,
+        ANALYSIS_CONFIG_ID,
+        &fingerprint,
+    );
+    if let Some(storage_started) = storage_started {
+        crate::perf::emit(
+            "go.final_serialization_storage",
+            storage_started.elapsed(),
+            &[("final_fact_count", analysis.records.len() as u64)],
+        );
+    }
+    result.map_err(ScanExecutionError::from)
 }
