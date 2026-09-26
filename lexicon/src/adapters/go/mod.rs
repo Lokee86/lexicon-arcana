@@ -11,6 +11,7 @@ mod semantic_call_target_support;
 mod semantic_call_targets;
 mod semantic_capture_facts;
 mod semantic_dataflow_facts;
+mod semantic_fact_index;
 mod semantic_facts;
 mod semantic_facts_support;
 mod semantic_relationship_facts;
@@ -122,6 +123,10 @@ impl LanguageAdapter for GoAdapter {
                 (
                     "semantic_dataflow_facts.rs",
                     include_bytes!("semantic_dataflow_facts.rs"),
+                ),
+                (
+                    "semantic_fact_index.rs",
+                    include_bytes!("semantic_fact_index.rs"),
                 ),
                 ("semantic_facts.rs", include_bytes!("semantic_facts.rs")),
                 (

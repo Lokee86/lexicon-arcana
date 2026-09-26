@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use crate::{AdapterError, FactRecord, SourceSpan, UnresolvedRecord};
 
 use super::{
@@ -7,15 +5,15 @@ use super::{
     identities,
     protocol_records::{CallKind, Record, Span, UnresolvedReason},
     semantic_call_targets::{TargetHints, TargetMaterialization, ensure_call_target},
-    semantic_facts_support::{EdgeKey, push_edge},
+    semantic_fact_index::FactIndex,
+    semantic_facts_support::push_edge,
 };
 
 pub(super) fn add(
     record: &Record,
     inventory: &Inventory,
     records: &mut Vec<FactRecord>,
-    nodes: &mut BTreeSet<String>,
-    edges: &mut BTreeSet<EdgeKey>,
+    index: &mut FactIndex,
 ) -> Result<bool, AdapterError> {
     match record {
         Record::Target {
@@ -38,8 +36,7 @@ pub(super) fn add(
                 &mut TargetMaterialization {
                     inventory,
                     records,
-                    nodes,
-                    edges,
+                    index,
                 },
             )?;
             Ok(true)
@@ -58,7 +55,7 @@ pub(super) fn add(
             span,
         } => {
             let source_id = identities::node_id(source)?;
-            if !nodes.contains(&source_id) {
+            if !index.contains_node(&source_id) {
                 return Err(AdapterError::new(format!(
                     "Go semantic call source is not materialized: {source:?}"
                 )));
@@ -76,13 +73,12 @@ pub(super) fn add(
                 &mut TargetMaterialization {
                     inventory,
                     records,
-                    nodes,
-                    edges,
+                    index,
                 },
             )?;
             push_edge(
                 records,
-                edges,
+                index,
                 source_id,
                 target_id,
                 call_relation(*kind),
@@ -103,7 +99,7 @@ pub(super) fn add(
             ..
         } => {
             let source_id = identities::node_id(source)?;
-            if !nodes.contains(&source_id) {
+            if !index.contains_node(&source_id) {
                 return Err(AdapterError::new(format!(
                     "Go semantic unresolved call source is not materialized: {source:?}"
                 )));

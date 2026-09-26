@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use crate::{AdapterError, FactRecord};
 
 use super::{
@@ -8,19 +6,18 @@ use super::{
     semantic_call_target_support::{
         SyntheticNode, ensure_namespace, ensure_node, named_type_identity, namespace_path,
     },
-    semantic_facts_support::EdgeKey,
+    semantic_fact_index::FactIndex,
 };
 
 pub(super) fn ensure_type_target(
     identity: &str,
     inventory: &Inventory,
     records: &mut Vec<FactRecord>,
-    nodes: &mut BTreeSet<String>,
-    edges: &mut BTreeSet<EdgeKey>,
+    index: &mut FactIndex,
 ) -> Result<(), AdapterError> {
     let id = identities::node_id(identity)?;
     if let Some(name) = identity.strip_prefix("type-expression:") {
-        ensure_namespace("go:types", "@types/go", inventory, records, nodes, edges)?;
+        ensure_namespace("go:types", "@types/go", inventory, records, index)?;
         ensure_node(
             SyntheticNode {
                 id,
@@ -30,8 +27,7 @@ pub(super) fn ensure_type_target(
                 namespace: "go:types",
             },
             records,
-            nodes,
-            edges,
+            index,
         )?;
         return Ok(());
     }
@@ -45,7 +41,7 @@ pub(super) fn ensure_type_target(
         )));
     }
     let path = namespace_path(namespace);
-    ensure_namespace(namespace, &path, inventory, records, nodes, edges)?;
+    ensure_namespace(namespace, &path, inventory, records, index)?;
     ensure_node(
         SyntheticNode {
             id,
@@ -55,8 +51,7 @@ pub(super) fn ensure_type_target(
             namespace,
         },
         records,
-        nodes,
-        edges,
+        index,
     )
 }
 
@@ -66,8 +61,7 @@ pub(super) fn ensure_callable(
     name: &str,
     path: &str,
     records: &mut Vec<FactRecord>,
-    nodes: &mut BTreeSet<String>,
-    edges: &mut BTreeSet<EdgeKey>,
+    index: &mut FactIndex,
 ) -> Result<(), AdapterError> {
     let id = identities::node_id(identity)?;
     ensure_node(
@@ -79,7 +73,6 @@ pub(super) fn ensure_callable(
             namespace,
         },
         records,
-        nodes,
-        edges,
+        index,
     )
 }

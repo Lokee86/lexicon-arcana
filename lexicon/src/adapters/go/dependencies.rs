@@ -1,5 +1,4 @@
 use std::{
-    collections::BTreeSet,
     fs,
     path::{Component, Path, PathBuf},
 };
@@ -12,7 +11,7 @@ use super::{
     discovery::{Inventory, Module, SourceFile},
     identities,
     protocol_records::{DeclarationKind, Record},
-    semantic_facts_support::EdgeKey,
+    semantic_fact_index::FactIndex,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -37,8 +36,7 @@ pub(crate) fn add(
     inventory: &Inventory,
     semantic: &[Record],
     records: &mut Vec<FactRecord>,
-    nodes: &mut BTreeSet<String>,
-    edges: &mut BTreeSet<EdgeKey>,
+    index: &mut FactIndex,
 ) -> Result<(), AdapterError> {
     let repository_id = identities::node_id(&identities::repository(&inventory.repository))?;
     let repository_root = fs::canonicalize(&request.repository).map_err(|error| {
@@ -81,10 +79,10 @@ pub(crate) fn add(
             }
 
             let target_id =
-                dependency_node(&target_name, dependency.path, &local_path, records, nodes)?;
+                dependency_node(&target_name, dependency.path, &local_path, records, index)?;
             push_dependency_edge(
                 records,
-                edges,
+                index,
                 repository_id.clone(),
                 target_id,
                 None,
@@ -98,7 +96,7 @@ pub(crate) fn add(
         }
     }
 
-    add_local_imports(inventory, semantic, records, edges)?;
+    add_local_imports(inventory, semantic, records, index)?;
     Ok(())
 }
 
@@ -106,7 +104,7 @@ fn add_local_imports(
     inventory: &Inventory,
     semantic: &[Record],
     records: &mut Vec<FactRecord>,
-    edges: &mut BTreeSet<EdgeKey>,
+    index: &mut FactIndex,
 ) -> Result<(), AdapterError> {
     let packages = package_candidates(semantic)?;
     for record in semantic {
@@ -140,13 +138,10 @@ fn add_local_imports(
         let Some(target) = package_for_namespace(&packages, &inventory.modules, import_path) else {
             continue;
         };
-        let owner = records.iter().find_map(|record| match record {
-            FactRecord::Node(node) if node.id == source => node.owner.clone(),
-            _ => None,
-        });
+        let owner = index.node_owner(&source);
         push_dependency_edge(
             records,
-            edges,
+            index,
             source,
             target,
             owner,
@@ -246,17 +241,18 @@ fn dependency_node(
     local: bool,
     local_path: &str,
     records: &mut Vec<FactRecord>,
-    nodes: &mut BTreeSet<String>,
+    index: &mut FactIndex,
 ) -> Result<String, AdapterError> {
     let identity = format!("package:dependency:go:{name}");
     let id = identities::node_id_for_kind(&identity, "module")?;
-    if nodes.insert(id.clone()) {
-        let path = if local {
-            local_path.to_owned()
-        } else {
-            format!("@dependencies/go/{}", name.replace('\\', "/"))
-        };
-        records.push(FactRecord::Node(NodeRecord {
+    let path = if local {
+        local_path.to_owned()
+    } else {
+        format!("@dependencies/go/{}", name.replace('\\', "/"))
+    };
+    index.push_node(
+        records,
+        NodeRecord {
             attributes: Some(json!({"dependency": true, "ecosystem": "go"})),
             content_id: None,
             id: id.clone(),
@@ -266,8 +262,8 @@ fn dependency_node(
             path: path.clone(),
             qualified_name: format!("{path}::{name}"),
             span: None,
-        }));
-    }
+        },
+    );
     Ok(id)
 }
 
@@ -291,28 +287,23 @@ fn dependency_attributes(
 
 fn push_dependency_edge(
     records: &mut Vec<FactRecord>,
-    seen: &mut BTreeSet<EdgeKey>,
+    index: &mut FactIndex,
     source: String,
     target: String,
     owner: Option<String>,
     attributes: serde_json::Value,
 ) {
-    let key = (
-        source.clone(),
-        target.clone(),
-        "depends-on".into(),
-        String::new(),
-    );
-    if seen.insert(key) {
-        records.push(FactRecord::Edge(EdgeRecord {
+    index.push_edge(
+        records,
+        EdgeRecord {
             attributes: Some(attributes),
             owner,
             relation: "depends-on".into(),
             source,
             span: None,
             target,
-        }));
-    }
+        },
+    );
 }
 
 fn package_candidates(records: &[Record]) -> Result<Vec<PackageCandidate>, AdapterError> {

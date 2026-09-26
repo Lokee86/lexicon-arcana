@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use crate::{AdapterError, FactRecord, NodeRecord, SourceSpan};
 
 use super::{
@@ -8,7 +6,7 @@ use super::{
     protocol_records::CallClass,
     semantic_call_contract_targets::{ensure_callable, ensure_type_target},
     semantic_call_target_support::{callable_identity, ensure_namespace, namespace_path},
-    semantic_facts_support::EdgeKey,
+    semantic_fact_index::FactIndex,
 };
 
 pub(super) struct TargetHints<'a> {
@@ -22,8 +20,7 @@ pub(super) struct TargetHints<'a> {
 pub(super) struct TargetMaterialization<'a> {
     pub inventory: &'a Inventory,
     pub records: &'a mut Vec<FactRecord>,
-    pub nodes: &'a mut BTreeSet<String>,
-    pub edges: &'a mut BTreeSet<EdgeKey>,
+    pub index: &'a mut FactIndex,
 }
 
 pub(super) fn ensure_call_target(
@@ -33,7 +30,7 @@ pub(super) fn ensure_call_target(
     materialization: &mut TargetMaterialization<'_>,
 ) -> Result<String, AdapterError> {
     let id = identities::node_id(identity)?;
-    if materialization.nodes.contains(&id) {
+    if materialization.index.contains_node(&id) {
         return Ok(id);
     }
 
@@ -66,8 +63,7 @@ pub(super) fn ensure_call_target(
                 "@builtin/go",
                 materialization.inventory,
                 materialization.records,
-                materialization.nodes,
-                materialization.edges,
+                materialization.index,
             )?;
             ensure_callable(
                 identity,
@@ -75,8 +71,7 @@ pub(super) fn ensure_call_target(
                 name,
                 "@builtin/go",
                 materialization.records,
-                materialization.nodes,
-                materialization.edges,
+                materialization.index,
             )?;
         }
         CallClass::External => {
@@ -87,8 +82,7 @@ pub(super) fn ensure_call_target(
                 &path,
                 materialization.inventory,
                 materialization.records,
-                materialization.nodes,
-                materialization.edges,
+                materialization.index,
             )?;
             ensure_callable(
                 identity,
@@ -96,8 +90,7 @@ pub(super) fn ensure_call_target(
                 name,
                 &path,
                 materialization.records,
-                materialization.nodes,
-                materialization.edges,
+                materialization.index,
             )?;
         }
         CallClass::Conversion => {
@@ -105,8 +98,7 @@ pub(super) fn ensure_call_target(
                 identity,
                 materialization.inventory,
                 materialization.records,
-                materialization.nodes,
-                materialization.edges,
+                materialization.index,
             )?;
         }
     }
@@ -140,7 +132,7 @@ fn ensure_interface_target(
             ))
         })?;
         let parent = identities::node_id(container)?;
-        if !materialization.nodes.contains(&parent) {
+        if !materialization.index.contains_node(&parent) {
             return Err(AdapterError::new(format!(
                 "Go semantic internal interface container is not materialized: {container:?}"
             )));
@@ -153,8 +145,9 @@ fn ensure_interface_target(
             end_line: span.end_line,
             end_column: span.end_column,
         };
-        if materialization.nodes.insert(id.clone()) {
-            materialization.records.push(FactRecord::Node(NodeRecord {
+        if materialization.index.push_node(
+            materialization.records,
+            NodeRecord {
                 attributes: None,
                 content_id: None,
                 id: id.clone(),
@@ -164,10 +157,11 @@ fn ensure_interface_target(
                 path: owner.into(),
                 qualified_name: format!("{owner}::{name}"),
                 span: Some(location.clone()),
-            }));
+            },
+        ) {
             super::semantic_facts_support::push_edge(
                 materialization.records,
-                materialization.edges,
+                materialization.index,
                 parent,
                 id,
                 "defines",
@@ -183,8 +177,7 @@ fn ensure_interface_target(
         &path,
         materialization.inventory,
         materialization.records,
-        materialization.nodes,
-        materialization.edges,
+        materialization.index,
     )?;
     ensure_callable(
         identity,
@@ -192,8 +185,7 @@ fn ensure_interface_target(
         parsed_name,
         &path,
         materialization.records,
-        materialization.nodes,
-        materialization.edges,
+        materialization.index,
     )
 }
 
@@ -211,8 +203,7 @@ fn ensure_dynamic_target(
             "@types/go",
             materialization.inventory,
             materialization.records,
-            materialization.nodes,
-            materialization.edges,
+            materialization.index,
         )?;
         return super::semantic_call_target_support::ensure_node(
             super::semantic_call_target_support::SyntheticNode {
@@ -223,8 +214,7 @@ fn ensure_dynamic_target(
                 namespace: "go:types",
             },
             materialization.records,
-            materialization.nodes,
-            materialization.edges,
+            materialization.index,
         );
     }
     if identity.starts_with("ssa-function:") {
@@ -256,8 +246,7 @@ fn ensure_dynamic_target(
         &path,
         materialization.inventory,
         materialization.records,
-        materialization.nodes,
-        materialization.edges,
+        materialization.index,
     )?;
     ensure_callable(
         identity,
@@ -265,7 +254,6 @@ fn ensure_dynamic_target(
         name,
         &path,
         materialization.records,
-        materialization.nodes,
-        materialization.edges,
+        materialization.index,
     )
 }

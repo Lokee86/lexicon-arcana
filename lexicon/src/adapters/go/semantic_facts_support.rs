@@ -1,10 +1,8 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use crate::{AdapterError, EdgeRecord, FactRecord, NodeRecord, SourceSpan};
 
-use super::{discovery::Inventory, identities};
-
-pub(super) type EdgeKey = (String, String, String, String);
+use super::{discovery::Inventory, identities, semantic_fact_index::FactIndex};
 
 pub(super) fn container_id(metadata: &BTreeMap<String, String>) -> Result<String, AdapterError> {
     identities::node_id(required(metadata, "container")?)
@@ -32,19 +30,19 @@ pub(super) fn ensure_relationship_target(
     identity: &str,
     inventory: &Inventory,
     records: &mut Vec<FactRecord>,
-    nodes: &mut BTreeSet<String>,
-    edges: &mut BTreeSet<EdgeKey>,
+    index: &mut FactIndex,
 ) -> Result<String, AdapterError> {
     let id = identities::node_id(identity)?;
-    if nodes.contains(&id) {
+    if index.contains_node(&id) {
         return Ok(id);
     }
     let (namespace, name) = external_named_type(identity, inventory)?;
     let path = namespace_path(namespace);
     let namespace_id = identities::node_id(&identities::namespace(namespace))?;
 
-    if nodes.insert(namespace_id.clone()) {
-        records.push(FactRecord::Node(NodeRecord {
+    if index.push_node(
+        records,
+        NodeRecord {
             attributes: None,
             content_id: None,
             id: namespace_id.clone(),
@@ -54,10 +52,11 @@ pub(super) fn ensure_relationship_target(
             path: path.clone(),
             qualified_name: path.clone(),
             span: None,
-        }));
+        },
+    ) {
         push_edge(
             records,
-            edges,
+            index,
             identities::node_id(&identities::repository(&inventory.repository))?,
             namespace_id.clone(),
             "contains",
@@ -65,8 +64,9 @@ pub(super) fn ensure_relationship_target(
             None,
         );
     }
-    if nodes.insert(id.clone()) {
-        records.push(FactRecord::Node(NodeRecord {
+    if index.push_node(
+        records,
+        NodeRecord {
             attributes: None,
             content_id: None,
             id: id.clone(),
@@ -76,10 +76,11 @@ pub(super) fn ensure_relationship_target(
             path: path.clone(),
             qualified_name: format!("{path}::{name}"),
             span: None,
-        }));
+        },
+    ) {
         push_edge(
             records,
-            edges,
+            index,
             namespace_id,
             id.clone(),
             "defines",
@@ -129,45 +130,24 @@ fn is_standard_library_namespace(namespace: &str) -> bool {
     !first.contains('.')
 }
 
-pub(super) fn node_owner(records: &[FactRecord], id: &str) -> Option<String> {
-    records.iter().find_map(|record| match record {
-        FactRecord::Node(node) if node.id == id => node.owner.clone(),
-        _ => None,
-    })
-}
-
 pub(super) fn push_edge(
     records: &mut Vec<FactRecord>,
-    seen: &mut BTreeSet<EdgeKey>,
+    index: &mut FactIndex,
     source: String,
     target: String,
     relation: &str,
     owner: Option<String>,
     span: Option<SourceSpan>,
 ) {
-    let span_key = span
-        .as_ref()
-        .map(|value| {
-            format!(
-                "{}:{}:{}:{}:{}",
-                value.path, value.start_line, value.start_column, value.end_line, value.end_column
-            )
-        })
-        .unwrap_or_default();
-    let key = (
-        source.clone(),
-        target.clone(),
-        relation.to_owned(),
-        span_key,
-    );
-    if seen.insert(key) {
-        records.push(FactRecord::Edge(EdgeRecord {
+    index.push_edge(
+        records,
+        EdgeRecord {
             attributes: None,
             owner,
             relation: relation.into(),
             source,
             span,
             target,
-        }));
-    }
+        },
+    );
 }

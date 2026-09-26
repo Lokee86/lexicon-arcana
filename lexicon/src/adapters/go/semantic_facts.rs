@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use crate::{AdapterError, AdapterRequest, FactRecord, NodeRecord, SourceSpan};
 
 use super::{
@@ -8,7 +6,8 @@ use super::{
     identities,
     protocol_records::{DeclarationKind, Record, Span},
     semantic_call_facts, semantic_capture_facts, semantic_dataflow_facts,
-    semantic_facts_support::{EdgeKey, container_id, parent_id, push_edge, required},
+    semantic_fact_index::FactIndex,
+    semantic_facts_support::{container_id, parent_id, push_edge, required},
     semantic_relationship_facts,
 };
 
@@ -18,29 +17,22 @@ pub(crate) fn add(
     semantic: &[Record],
     records: &mut Vec<FactRecord>,
 ) -> Result<(), AdapterError> {
-    let mut nodes = records
-        .iter()
-        .filter_map(|record| match record {
-            FactRecord::Node(node) => Some(node.id.clone()),
-            _ => None,
-        })
-        .collect::<BTreeSet<_>>();
-    let mut edges = BTreeSet::<EdgeKey>::new();
+    let mut index = FactIndex::from_records(records);
 
     for record in semantic {
         if matches!(record, Record::Diagnostic { .. }) {
             continue;
         }
-        if semantic_capture_facts::add(record, records, &mut nodes, &mut edges)? {
+        if semantic_capture_facts::add(record, records, &mut index)? {
             continue;
         }
-        if semantic_relationship_facts::add(record, inventory, records, &mut nodes, &mut edges)? {
+        if semantic_relationship_facts::add(record, inventory, records, &mut index)? {
             continue;
         }
-        if semantic_call_facts::add(record, inventory, records, &mut nodes, &mut edges)? {
+        if semantic_call_facts::add(record, inventory, records, &mut index)? {
             continue;
         }
-        if semantic_dataflow_facts::add(record, records, &mut nodes, &mut edges)? {
+        if semantic_dataflow_facts::add(record, records, &mut index)? {
             continue;
         }
         let Record::Declaration {
@@ -60,8 +52,9 @@ pub(crate) fn add(
         let id = identities::node_id_for_kind(identity, fact_kind(*kind))?;
         let (path, qualified_name) = node_location(*kind, name, owner, metadata)?;
 
-        if nodes.insert(id.clone()) {
-            records.push(FactRecord::Node(NodeRecord {
+        index.push_node(
+            records,
+            NodeRecord {
                 attributes: None,
                 content_id: None,
                 id: id.clone(),
@@ -71,14 +64,14 @@ pub(crate) fn add(
                 path,
                 qualified_name,
                 span: Some(location.clone()),
-            }));
-        }
+            },
+        );
 
         match kind {
             DeclarationKind::Package => {
                 push_edge(
                     records,
-                    &mut edges,
+                    &mut index,
                     parent_id(owner, inventory)?,
                     id.clone(),
                     "contains",
@@ -87,7 +80,7 @@ pub(crate) fn add(
                 );
                 push_edge(
                     records,
-                    &mut edges,
+                    &mut index,
                     id,
                     identities::node_id(&identities::file(owner))?,
                     "contains",
@@ -98,7 +91,7 @@ pub(crate) fn add(
             DeclarationKind::Import => {
                 push_edge(
                     records,
-                    &mut edges,
+                    &mut index,
                     container_id(metadata)?,
                     id,
                     "imports",
@@ -110,7 +103,7 @@ pub(crate) fn add(
             _ => {
                 push_edge(
                     records,
-                    &mut edges,
+                    &mut index,
                     container_id(metadata)?,
                     id,
                     "defines",
@@ -121,9 +114,7 @@ pub(crate) fn add(
         }
     }
     let dependency_started = crate::perf::start();
-    dependencies::add(
-        request, inventory, semantic, records, &mut nodes, &mut edges,
-    )?;
+    dependencies::add(request, inventory, semantic, records, &mut index)?;
     if let Some(dependency_started) = dependency_started {
         crate::perf::emit(
             "go.dependency_construction",

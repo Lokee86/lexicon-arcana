@@ -1,11 +1,8 @@
-use std::collections::BTreeSet;
-
 use crate::{AdapterError, FactRecord, NodeRecord};
 
 use super::{
-    discovery::Inventory,
-    identities,
-    semantic_facts_support::{EdgeKey, push_edge},
+    discovery::Inventory, identities, semantic_fact_index::FactIndex,
+    semantic_facts_support::push_edge,
 };
 
 pub(super) fn ensure_namespace(
@@ -13,12 +10,12 @@ pub(super) fn ensure_namespace(
     path: &str,
     inventory: &Inventory,
     records: &mut Vec<FactRecord>,
-    nodes: &mut BTreeSet<String>,
-    edges: &mut BTreeSet<EdgeKey>,
+    index: &mut FactIndex,
 ) -> Result<String, AdapterError> {
     let id = identities::node_id(&identities::namespace(namespace))?;
-    if nodes.insert(id.clone()) {
-        records.push(FactRecord::Node(NodeRecord {
+    if index.push_node(
+        records,
+        NodeRecord {
             attributes: None,
             content_id: None,
             id: id.clone(),
@@ -28,10 +25,11 @@ pub(super) fn ensure_namespace(
             path: path.into(),
             qualified_name: path.into(),
             span: None,
-        }));
+        },
+    ) {
         push_edge(
             records,
-            edges,
+            index,
             identities::node_id(&identities::repository(&inventory.repository))?,
             id.clone(),
             "contains",
@@ -53,23 +51,25 @@ pub(super) struct SyntheticNode<'a> {
 pub(super) fn ensure_node(
     node: SyntheticNode<'_>,
     records: &mut Vec<FactRecord>,
-    nodes: &mut BTreeSet<String>,
-    edges: &mut BTreeSet<EdgeKey>,
+    index: &mut FactIndex,
 ) -> Result<(), AdapterError> {
     let namespace_id = identities::node_id(&identities::namespace(node.namespace))?;
-    if nodes.insert(node.id.clone()) {
-        records.push(FactRecord::Node(NodeRecord {
+    let node_id = node.id.clone();
+    if index.push_node(
+        records,
+        NodeRecord {
             attributes: None,
             content_id: None,
-            id: node.id.clone(),
+            id: node.id,
             kind: node.kind.into(),
             name: node.name.into(),
             owner: None,
             path: node.path.into(),
             qualified_name: format!("{}::{}", node.path, node.name),
             span: None,
-        }));
-        push_edge(records, edges, namespace_id, node.id, "defines", None, None);
+        },
+    ) {
+        push_edge(records, index, namespace_id, node_id, "defines", None, None);
     }
     Ok(())
 }

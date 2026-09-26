@@ -1,20 +1,18 @@
-use std::collections::BTreeSet;
-
 use crate::{AdapterError, FactRecord};
 
 use super::{
     discovery::Inventory,
     identities,
     protocol_records::{Record, RelationshipKind},
-    semantic_facts_support::{EdgeKey, ensure_relationship_target, node_owner, push_edge},
+    semantic_fact_index::FactIndex,
+    semantic_facts_support::{ensure_relationship_target, push_edge},
 };
 
 pub(super) fn add(
     record: &Record,
     inventory: &Inventory,
     records: &mut Vec<FactRecord>,
-    nodes: &mut BTreeSet<String>,
-    edges: &mut BTreeSet<EdgeKey>,
+    index: &mut FactIndex,
 ) -> Result<bool, AdapterError> {
     let Record::Relationship {
         source,
@@ -28,7 +26,7 @@ pub(super) fn add(
     };
 
     let source_id = identities::node_id(source)?;
-    if !nodes.contains(&source_id) {
+    if !index.contains_node(&source_id) {
         return Err(AdapterError::new(format!(
             "Go semantic relationship source is not materialized: {source:?}"
         )));
@@ -36,16 +34,16 @@ pub(super) fn add(
     let target = target
         .as_deref()
         .ok_or_else(|| AdapterError::new("Go semantic relationship target is missing"))?;
-    let target_id = ensure_relationship_target(target, inventory, records, nodes, edges)?;
+    let target_id = ensure_relationship_target(target, inventory, records, index)?;
     if matches!(kind, RelationshipKind::Implements) && source_id == target_id {
         return Err(AdapterError::new(
             "Go semantic relationship attempted an implements self-edge",
         ));
     }
-    let edge_owner = node_owner(records, &source_id).or_else(|| Some(owner.clone()));
+    let edge_owner = index.node_owner(&source_id).or_else(|| Some(owner.clone()));
     push_edge(
         records,
-        edges,
+        index,
         source_id,
         target_id,
         relationship_name(*kind),

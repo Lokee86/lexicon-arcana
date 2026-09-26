@@ -1,18 +1,16 @@
-use std::collections::BTreeSet;
-
 use crate::{AdapterError, FactRecord, NodeRecord, SourceSpan};
 
 use super::{
     identities,
     protocol_records::{DataflowKind, Record, Span},
-    semantic_facts_support::{EdgeKey, push_edge},
+    semantic_fact_index::FactIndex,
+    semantic_facts_support::push_edge,
 };
 
 pub(crate) fn add(
     record: &Record,
     records: &mut Vec<FactRecord>,
-    nodes: &mut BTreeSet<String>,
-    edges: &mut BTreeSet<EdgeKey>,
+    index: &mut FactIndex,
 ) -> Result<bool, AdapterError> {
     let Record::Dataflow {
         source,
@@ -28,8 +26,9 @@ pub(crate) fn add(
     let source_id = identities::node_id(source)?;
     let symbol = data_symbol(target)?;
     let target_id = identities::node_id_for_kind(target, symbol.kind)?;
-    if nodes.insert(target_id.clone()) {
-        records.push(FactRecord::Node(NodeRecord {
+    index.push_node(
+        records,
+        NodeRecord {
             attributes: None,
             content_id: None,
             id: target_id.clone(),
@@ -45,8 +44,8 @@ pub(crate) fn add(
                 end_line: symbol.line,
                 end_column: symbol.column.saturating_add(symbol.name.len() as u64),
             }),
-        }));
-    }
+        },
+    );
 
     let relation = match kind {
         DataflowKind::Read => "reads",
@@ -54,7 +53,7 @@ pub(crate) fn add(
     };
     push_edge(
         records,
-        edges,
+        index,
         source_id,
         target_id,
         relation,

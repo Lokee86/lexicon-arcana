@@ -151,6 +151,31 @@ Phase 0 is complete only when:
 
 The intended commit is `Instrument Lexicon analysis performance`.
 
+## Phase 1 — indexed fact materialization
+
+Completed 2026-09-26.
+
+The Go fact materializer now owns a single hash-backed `FactIndex` for node existence, node ownership, and semantic-pass edge deduplication. Node insertion updates the output vector and index together; the output `Vec<FactRecord>` is no longer used as an ownership lookup table. Existing pre-semantic nodes seed the node/owner index, while the edge index intentionally starts empty to preserve the previous semantic-pass deduplication boundary.
+
+Production materialization no longer uses ordered `BTreeSet` membership structures. The remaining `BTreeSet` uses under `lexicon/src/adapters/go` are differential/test machinery, not the materialization hot path. Production owner recovery no longer scans `records.iter()`.
+
+A single controlled Demon Docs run at the same pinned revision and `4 / 8 / 4` execution shape produced byte-identical canonical JSONL to the Phase 0 baseline:
+
+`AE3064C2085AA479B058F026A26D7DC3CE2DD05EBEE036023C94E7543E650F0E`
+
+Measured stage changes from the Phase 0 run were:
+
+| Stage | Phase 0 | Phase 1 |
+| --- | ---: | ---: |
+| Dependency construction | 80.793 ms | 28.081 ms |
+| Fact materialization | 7,086.418 ms | 6,635.411 ms |
+
+Other wall-clock differences in the two single runs are treated as run-to-run noise rather than attributed to Phase 1.
+
+The Rust library suite passed 54/54 after the change, including deterministic parallel execution and both live legacy/native differential fixture gates.
+
+The intended commit is `Restore indexed fact materialization`.
+
 ## Related docs
 
 - [Go adapter Phase 16 freeze](go-adapter-port-freeze-2026-09-26.md)

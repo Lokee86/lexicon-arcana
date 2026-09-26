@@ -1,11 +1,11 @@
-use crate::{AdapterError, FactRecord, NodeRecord};
+use crate::{AdapterError, NodeRecord};
 
 use super::{
     discovery::Inventory,
     identities,
     semantic_call_target_support::{SyntheticNode, ensure_namespace, ensure_node, namespace_path},
     semantic_call_targets::TargetMaterialization,
-    semantic_facts_support::{node_owner, push_edge},
+    semantic_facts_support::push_edge,
 };
 
 pub(super) fn ensure_synthetic_function(
@@ -16,7 +16,7 @@ pub(super) fn ensure_synthetic_function(
     materialization: &mut TargetMaterialization<'_>,
 ) -> Result<(), AdapterError> {
     let id = identities::node_id(identity)?;
-    if materialization.nodes.contains(&id) {
+    if materialization.index.contains_node(&id) {
         return Ok(());
     }
 
@@ -24,7 +24,7 @@ pub(super) fn ensure_synthetic_function(
         let parent = match container {
             Some(identity) => {
                 let candidate = identities::node_id(identity)?;
-                if materialization.nodes.contains(&candidate) {
+                if materialization.index.contains_node(&candidate) {
                     candidate
                 } else {
                     identities::node_id(&identities::repository(
@@ -36,8 +36,9 @@ pub(super) fn ensure_synthetic_function(
                 &materialization.inventory.repository,
             ))?,
         };
-        if materialization.nodes.insert(id.clone()) {
-            materialization.records.push(FactRecord::Node(NodeRecord {
+        if materialization.index.push_node(
+            materialization.records,
+            NodeRecord {
                 attributes: None,
                 content_id: None,
                 id: id.clone(),
@@ -47,11 +48,12 @@ pub(super) fn ensure_synthetic_function(
                 path: path.clone(),
                 qualified_name: format!("{path}::{name}"),
                 span: None,
-            }));
-            let owner = node_owner(materialization.records, &parent);
+            },
+        ) {
+            let owner = materialization.index.node_owner(&parent);
             push_edge(
                 materialization.records,
-                materialization.edges,
+                materialization.index,
                 parent,
                 id,
                 "defines",
@@ -68,8 +70,7 @@ pub(super) fn ensure_synthetic_function(
         &path,
         materialization.inventory,
         materialization.records,
-        materialization.nodes,
-        materialization.edges,
+        materialization.index,
     )?;
     ensure_node(
         SyntheticNode {
@@ -80,8 +81,7 @@ pub(super) fn ensure_synthetic_function(
             namespace,
         },
         materialization.records,
-        materialization.nodes,
-        materialization.edges,
+        materialization.index,
     )
 }
 
@@ -93,7 +93,7 @@ pub(super) fn ensure_generated_internal_function(
     materialization: &mut TargetMaterialization<'_>,
 ) -> Result<(), AdapterError> {
     let id = identities::node_id(identity)?;
-    if materialization.nodes.contains(&id) {
+    if materialization.index.contains_node(&id) {
         return Ok(());
     }
     let path = internal_namespace_path(materialization.inventory, namespace).ok_or_else(|| {
@@ -108,25 +108,27 @@ pub(super) fn ensure_generated_internal_function(
             "Go generated internal target metadata does not match identity: {identity:?}"
         )));
     }
-    materialization.nodes.insert(id.clone());
-    materialization.records.push(FactRecord::Node(NodeRecord {
-        attributes: None,
-        content_id: None,
-        id: id.clone(),
-        kind: identities::lexicon_kind(identity)?.into(),
-        name: name.into(),
-        owner: None,
-        path: path.clone(),
-        qualified_name: format!("{path}::{name}"),
-        span: None,
-    }));
+    materialization.index.push_node(
+        materialization.records,
+        NodeRecord {
+            attributes: None,
+            content_id: None,
+            id: id.clone(),
+            kind: identities::lexicon_kind(identity)?.into(),
+            name: name.into(),
+            owner: None,
+            path: path.clone(),
+            qualified_name: format!("{path}::{name}"),
+            span: None,
+        },
+    );
     if let Some(container) = container.filter(|value| !value.is_empty()) {
         let parent = identities::node_id(container)?;
-        if materialization.nodes.contains(&parent) {
-            let owner = node_owner(materialization.records, &parent);
+        if materialization.index.contains_node(&parent) {
+            let owner = materialization.index.node_owner(&parent);
             push_edge(
                 materialization.records,
-                materialization.edges,
+                materialization.index,
                 parent,
                 id,
                 "defines",
