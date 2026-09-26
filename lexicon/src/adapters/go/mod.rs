@@ -29,6 +29,8 @@ mod discovery_tests;
 #[cfg(test)]
 mod identities_tests;
 #[cfg(test)]
+mod incremental_tests;
+#[cfg(test)]
 mod relationship_tests;
 #[cfg(test)]
 mod semantic_parity_tests;

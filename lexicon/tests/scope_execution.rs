@@ -32,19 +32,27 @@ fn scope_copies_selected_source_and_language_configuration() {
 }
 
 #[test]
-fn scope_expands_go_packages_and_rust_crates() {
+fn scope_expands_go_modules_and_rust_crates() {
     let go = TestDirectory::new("scope-go-source");
     let temporary = TestDirectory::new("scope-go-temp");
     write(&go.path, "go.mod", "module example.com/test\n");
     write(&go.path, "pkg/a.go", "package pkg\n");
     write(&go.path, "pkg/b.go", "package pkg\n");
     write(&go.path, "other/c.go", "package other\n");
+    write(&go.path, "nested/go.mod", "module example.com/nested\n");
+    write(&go.path, "nested/d.go", "package nested\n");
+    write(&go.path, "vendor/ignored.go", "package ignored\n");
+    write(&go.path, ".lexicon/ignored.go", "package ignored\n");
     let repository =
         build_analysis_scope(&go.path, &temporary.path, "go", &["pkg/a.go".into()]).unwrap();
     assert!(repository.join("pkg/a.go").is_file());
     assert!(repository.join("pkg/b.go").is_file());
+    assert!(repository.join("other/c.go").is_file());
     assert!(repository.join("go.mod").is_file());
-    assert!(!repository.join("other/c.go").exists());
+    assert!(repository.join("nested/go.mod").is_file());
+    assert!(!repository.join("nested/d.go").exists());
+    assert!(!repository.join("vendor/ignored.go").exists());
+    assert!(!repository.join(".lexicon/ignored.go").exists());
 
     let rust = TestDirectory::new("scope-rust-source");
     write(&rust.path, "Cargo.toml", "[package]\nname='root'\n");
