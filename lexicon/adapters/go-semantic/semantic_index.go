@@ -34,13 +34,11 @@ type typedTarget struct {
 }
 
 type typedType struct {
-	Identity       string
-	Owner          string
-	Span           span
-	Named          *types.Named
-	Interface      *types.Interface
-	ValueMethods   []string
-	PointerMethods []string
+	Identity  string
+	Owner     string
+	Span      span
+	Named     *types.Named
+	Interface *types.Interface
 }
 
 func loadSemanticIndex(value request) (*semanticIndex, []diagnostic) {

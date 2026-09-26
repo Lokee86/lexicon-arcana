@@ -1,8 +1,10 @@
 package main
 
 import (
+	"go/types"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 )
 
@@ -46,19 +48,24 @@ func TestExternal(t *testing.T) {}
 	if runner.Interface == nil || runner.Interface.NumMethods() != 1 {
 		t.Fatalf("Runner interface = %#v", runner.Interface)
 	}
-	if !containsString(runner.ValueMethods, "interface-method:example.com/typed:Runner.Run") {
-		t.Fatalf("Runner methods = %#v", runner.ValueMethods)
+	runnerMethods := methodSetIdentitiesForTest(index, types.NewMethodSet(runner.Named))
+	if !containsString(runnerMethods, "interface-method:example.com/typed:Runner.Run") {
+		t.Fatalf("Runner methods = %#v", runnerMethods)
 	}
 
 	value := requireType(t, index, "type:example.com/typed:Value")
-	if !containsString(value.ValueMethods, "method:example.com/typed:Value.Run") ||
-		!containsString(value.PointerMethods, "method:example.com/typed:Value.Run") {
-		t.Fatalf("Value method sets = %#v / %#v", value.ValueMethods, value.PointerMethods)
+	valueMethods := methodSetIdentitiesForTest(index, types.NewMethodSet(value.Named))
+	valuePointerMethods := methodSetIdentitiesForTest(index, types.NewMethodSet(types.NewPointer(value.Named)))
+	if !containsString(valueMethods, "method:example.com/typed:Value.Run") ||
+		!containsString(valuePointerMethods, "method:example.com/typed:Value.Run") {
+		t.Fatalf("Value method sets = %#v / %#v", valueMethods, valuePointerMethods)
 	}
 	pointer := requireType(t, index, "type:example.com/typed:Pointer")
-	if containsString(pointer.ValueMethods, "method:example.com/typed:*Pointer.Run") ||
-		!containsString(pointer.PointerMethods, "method:example.com/typed:*Pointer.Run") {
-		t.Fatalf("Pointer method sets = %#v / %#v", pointer.ValueMethods, pointer.PointerMethods)
+	pointerMethods := methodSetIdentitiesForTest(index, types.NewMethodSet(pointer.Named))
+	pointerPointerMethods := methodSetIdentitiesForTest(index, types.NewMethodSet(types.NewPointer(pointer.Named)))
+	if containsString(pointerMethods, "method:example.com/typed:*Pointer.Run") ||
+		!containsString(pointerPointerMethods, "method:example.com/typed:*Pointer.Run") {
+		t.Fatalf("Pointer method sets = %#v / %#v", pointerMethods, pointerPointerMethods)
 	}
 	if _, exists := index.typesByID["type:example.com/typed:Alias"]; exists {
 		t.Fatal("type alias should resolve to its named origin")
@@ -124,6 +131,32 @@ func requireType(t *testing.T, index *semanticIndex, identity string) typedType 
 		t.Fatalf("missing type %q", identity)
 	}
 	return value
+}
+
+func methodSetIdentitiesForTest(index *semanticIndex, set *types.MethodSet) []string {
+	result := make([]string, 0, set.Len())
+	for position := 0; position < set.Len(); position++ {
+		function, ok := set.At(position).Obj().(*types.Func)
+		if !ok {
+			continue
+		}
+		identity := semanticFunctionIdentity(index.request.Modules, function)
+		if target, exists := index.targetsByObject[function]; exists {
+			identity = target.Identity
+		}
+		result = append(result, identity)
+	}
+	sort.Strings(result)
+	if len(result) < 2 {
+		return result
+	}
+	unique := result[:1]
+	for _, value := range result[1:] {
+		if value != unique[len(unique)-1] {
+			unique = append(unique, value)
+		}
+	}
+	return unique
 }
 
 func containsString(values []string, expected string) bool {

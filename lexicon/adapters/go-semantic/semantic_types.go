@@ -39,12 +39,10 @@ func (index *semanticIndex) collectTypes(values []*packages.Package) {
 				continue
 			}
 			entry := typedType{
-				Identity:       identity,
-				Owner:          owner,
-				Span:           pointSpan(position),
-				Named:          named,
-				ValueMethods:   index.methodSetIdentities(pkg, types.NewMethodSet(named)),
-				PointerMethods: index.methodSetIdentities(pkg, types.NewMethodSet(types.NewPointer(named))),
+				Identity: identity,
+				Owner:    owner,
+				Span:     pointSpan(position),
+				Named:    named,
 			}
 			if iface, ok := named.Underlying().(*types.Interface); ok {
 				iface.Complete()
@@ -54,26 +52,6 @@ func (index *semanticIndex) collectTypes(values []*packages.Package) {
 			index.typesByID[identity] = entry
 		}
 	}
-}
-
-func (index *semanticIndex) methodSetIdentities(
-	pkg *packages.Package,
-	set *types.MethodSet,
-) []string {
-	result := make([]string, 0, set.Len())
-	for position := 0; position < set.Len(); position++ {
-		function, ok := set.At(position).Obj().(*types.Func)
-		if !ok || !index.objectIsAllowed(pkg, function) {
-			continue
-		}
-		identity := semanticFunctionIdentity(index.request.Modules, function)
-		if target, exists := index.targetsByObject[function]; exists {
-			identity = target.Identity
-		}
-		result = append(result, identity)
-	}
-	sort.Strings(result)
-	return uniqueStrings(result)
 }
 
 func (index *semanticIndex) ensureInterfaceTargets(
@@ -112,17 +90,4 @@ func (index *semanticIndex) objectIsAllowed(
 	position := pkg.Fset.PositionFor(object.Pos(), false)
 	_, ok := index.ownerForPosition(position.Filename)
 	return ok
-}
-
-func uniqueStrings(values []string) []string {
-	if len(values) < 2 {
-		return values
-	}
-	result := values[:1]
-	for _, value := range values[1:] {
-		if value != result[len(result)-1] {
-			result = append(result, value)
-		}
-	}
-	return result
 }
