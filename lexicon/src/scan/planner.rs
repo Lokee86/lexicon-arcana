@@ -1,9 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::languages::{for_path, language_enabled, owns_source};
+use crate::languages::language_enabled;
 use crate::{SnapshotManifest, StorageError, Store};
 
-use super::{AnalysisPlan, Change, PlanningInput, ScanPlan};
+use super::planner_changes::add_change_plans;
+use super::{AnalysisPlan, PlanningInput, ScanPlan};
 
 pub fn plan_scan(
     store: &Store,
@@ -20,23 +21,33 @@ pub fn plan_scan(
     for language in adapter_drift_languages(&manifest, input)? {
         plans.insert(language.clone(), full_plan(language));
     }
-    add_change_plans(&mut plans, &input.changes, &input.enabled_languages);
+    add_change_plans(&mut plans, input);
 
     let mut analyses = Vec::with_capacity(plans.len());
     for (_, mut plan) in plans {
         if !plan.full {
-            let roots = unique_sorted(&plan.changed_files);
-            match store.incremental_scope(&plan.language, &roots) {
+            let removed = unique_sorted(&plan.removed_files);
+            let mut roots = plan.changed_files.clone();
+            roots.extend(removed.iter().cloned());
+            let roots = unique_sorted(&roots);
+            let added = unique_sorted(&plan.added_files);
+            match store.incremental_scope_with_additions(&plan.language, &roots, &added) {
                 Ok(scope) if !scope.full_required => {
-                    plan.changed_files = scope.emit;
-                    plan.removed_files = Vec::new();
-                    plan.context_files = scope.context;
+                    let mut changed = scope.emit;
+                    changed.extend(added.iter().cloned());
+                    plan.changed_files = without_paths(unique_sorted(&changed), &removed);
+                    plan.added_files = added.clone();
+                    plan.removed_files = removed.clone();
+                    let mut context = scope.context;
+                    context.extend(added);
+                    plan.context_files = without_paths(unique_sorted(&context), &removed);
                 }
                 Ok(_) | Err(_) => plan.full = true,
             }
         }
         if plan.full {
             plan.changed_files.clear();
+            plan.added_files.clear();
             plan.removed_files.clear();
             plan.context_files.clear();
         }
@@ -117,68 +128,47 @@ fn adapter_drift_languages(
     Ok(drift)
 }
 
-fn add_change_plans(
-    plans: &mut BTreeMap<String, AnalysisPlan>,
-    changes: &[Change],
-    enabled: &[String],
-) {
-    for change in changes {
-        for path in [&change.new, &change.old] {
-            if path.is_empty() {
-                continue;
-            }
-            for language in for_path(path) {
-                if !language_enabled(&language, enabled) {
-                    continue;
-                }
-                let plan = plans
-                    .entry(language.clone())
-                    .or_insert_with(|| incremental_plan(language.clone()));
-                if structural_change(change, &language, path) {
-                    plan.full = true;
-                    continue;
-                }
-                if !change.new.is_empty() && owns_source(&language, &change.new) {
-                    plan.changed_files.push(change.new.clone());
-                }
-            }
-        }
-    }
-}
-
-fn structural_change(change: &Change, language: &str, path: &str) -> bool {
-    let status = change.status.trim();
-    status.as_bytes().first().copied() != Some(b'M') || !owns_source(language, path)
-}
-
 fn full_plan(language: String) -> AnalysisPlan {
     AnalysisPlan {
         language,
         full: true,
         known_present: false,
         changed_files: Vec::new(),
+        added_files: Vec::new(),
         removed_files: Vec::new(),
         context_files: Vec::new(),
     }
 }
 
-fn incremental_plan(language: String) -> AnalysisPlan {
+pub(super) fn incremental_plan(language: String) -> AnalysisPlan {
     AnalysisPlan {
         language,
         full: false,
         known_present: false,
         changed_files: Vec::new(),
+        added_files: Vec::new(),
         removed_files: Vec::new(),
         context_files: Vec::new(),
     }
 }
 
-fn unique_sorted(paths: &[String]) -> Vec<String> {
+pub(super) fn unique_sorted(paths: &[String]) -> Vec<String> {
     paths
         .iter()
         .filter(|path| !path.is_empty())
         .map(|path| path.replace('\\', "/"))
         .collect::<BTreeSet<_>>()
         .into_iter()
+        .collect()
+}
+
+fn without_paths(paths: Vec<String>, removed: &[String]) -> Vec<String> {
+    if removed.is_empty() {
+        return paths;
+    }
+    let removed: BTreeSet<&str> = removed.iter().map(String::as_str).collect();
+    paths
+        .into_iter()
+        .filter(|path| !removed.contains(path.as_str()))
         .collect()
 }

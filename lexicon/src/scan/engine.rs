@@ -97,6 +97,11 @@ impl ScanEngine {
             present_languages,
             enabled_languages: self.enabled_languages.clone(),
             adapter_fingerprints: Some(fingerprints),
+            python_project_config_unchanged: super::python_config::project_config_unchanged(
+                &self.git,
+                self.mirror.root(),
+                &changes,
+            ),
         };
         let plan = plan_scan(&self.store, &manifest, &input)?;
         if let Some(planning_started) = planning_started {

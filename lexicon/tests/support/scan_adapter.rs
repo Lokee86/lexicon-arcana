@@ -53,6 +53,7 @@ pub fn full_plan() -> AnalysisPlan {
         full: true,
         known_present: true,
         changed_files: Vec::new(),
+        added_files: Vec::new(),
         removed_files: Vec::new(),
         context_files: Vec::new(),
     }
@@ -64,6 +65,7 @@ pub fn incremental_plan() -> AnalysisPlan {
         full: false,
         known_present: false,
         changed_files: vec!["a.py".into()],
+        added_files: Vec::new(),
         removed_files: Vec::new(),
         context_files: vec!["a.py".into()],
     }

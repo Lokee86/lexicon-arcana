@@ -1,6 +1,7 @@
 mod analysis;
 mod binary;
 mod dependency;
+mod dependency_support;
 mod digest;
 mod error;
 mod export;
@@ -13,6 +14,7 @@ mod io;
 mod lock;
 mod manifest;
 mod materialize;
+mod materialize_merge;
 mod materialize_parallel;
 mod materialize_support;
 mod model;

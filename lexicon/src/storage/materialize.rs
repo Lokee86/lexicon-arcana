@@ -125,7 +125,13 @@ impl Store {
         }
 
         let shared_object_id = if replace_shared {
-            self.write_language_shared_object(&entry, &groups.shared)?
+            self.merge_language_shared_object(
+                &entry,
+                previous,
+                &groups.shared,
+                changed_files,
+                removed_files,
+            )?
         } else {
             previous.shared_object_id.clone()
         };

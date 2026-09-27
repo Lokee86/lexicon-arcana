@@ -186,7 +186,7 @@ fn go_added_deleted_and_manifest_changes_force_full_analysis() {
 }
 
 #[test]
-fn structural_changes_and_adapter_drift_force_full_analysis() {
+fn python_structural_plans_preserve_incremental_add_rename_and_full_drift_boundaries() {
     let directory = TestDirectory::new("scan-plan-full");
     let store = Store::new(&directory.path);
     publish_language(
@@ -196,25 +196,46 @@ fn structural_changes_and_adapter_drift_force_full_analysis() {
     let (_, mut manifest) = store.current().unwrap();
     manifest.languages.as_mut().unwrap()[0].adapter_fingerprint = "old".into();
 
-    for change in [
-        change("M", "", "pyproject.toml"),
-        change("A", "", "new.py"),
-        change("R100", "a.py", "renamed.py"),
-    ] {
-        let plan = plan_scan(
-            &store,
-            &manifest,
-            &PlanningInput {
-                changes: vec![change],
-                present_languages: vec!["python".into()],
-                ..Default::default()
-            },
-        )
-        .unwrap();
-        assert!(plan.analyses[0].full);
-    }
+    let config = plan_scan(
+        &store,
+        &manifest,
+        &PlanningInput {
+            changes: vec![change("M", "", "pyproject.toml")],
+            present_languages: vec!["python".into()],
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert!(config.analyses[0].full);
 
-    let plan = plan_scan(
+    let addition = plan_scan(
+        &store,
+        &manifest,
+        &PlanningInput {
+            changes: vec![change("A", "", "new.py")],
+            present_languages: vec!["python".into()],
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert!(!addition.analyses[0].full);
+    assert_eq!(addition.analyses[0].changed_files, vec!["new.py"]);
+
+    let rename = plan_scan(
+        &store,
+        &manifest,
+        &PlanningInput {
+            changes: vec![change("R100", "a.py", "renamed.py")],
+            present_languages: vec!["python".into()],
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert!(!rename.analyses[0].full);
+    assert_eq!(rename.analyses[0].changed_files, vec!["renamed.py"]);
+    assert_eq!(rename.analyses[0].removed_files, vec!["a.py"]);
+
+    let drift = plan_scan(
         &store,
         &manifest,
         &PlanningInput {
@@ -224,7 +245,7 @@ fn structural_changes_and_adapter_drift_force_full_analysis() {
         },
     )
     .unwrap();
-    assert!(plan.analyses[0].full);
+    assert!(drift.analyses[0].full);
 }
 
 #[test]

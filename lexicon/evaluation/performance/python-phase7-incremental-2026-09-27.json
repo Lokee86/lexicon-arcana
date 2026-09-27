@@ -1,0 +1,70 @@
+{
+  "phase": 7,
+  "date": "2026-09-27",
+  "branch": "perf/phase5-parity-matrix",
+  "parent_commit": "8860ea5bfb9983f89875c3e20501b7c6fbf7362f",
+  "purpose": "Restore bounded incremental analysis behavior from the mature pre-Rust planner without changing canonical results.",
+  "oracle_commits": [
+    "319c4d067eecfb0b2fe2abb5e86f4b6ab848fc10",
+    "de209f7499d2fd365af2ded6688a1070a9f750f7",
+    "16351931d632fdbb1244bd83baaf1b22984b7a55",
+    "fb1b7b35667909d38b0258c44605ff9b535d345e",
+    "20b82617c7174a8c5fa5006920e5d927445f1037",
+    "8ad8782366214af9f7aef7c35b099861a004be0f"
+  ],
+  "restored_behavior": {
+    "dependency_scope": "one-hop reverse dependency emission with one-hop forward context",
+    "python_additions": "incremental unless a new module can satisfy an addition-sensitive unresolved reference",
+    "python_renames": "same-language rename represented as removed old path plus added new path",
+    "python_context": "changed files plus imported modules and package initializers",
+    "pyproject_filtering": "tool-only changes do not schedule Python analysis; project/dependency changes remain structural",
+    "topology_validation": "resolved topology changes validated after scoped analysis rather than forcing full analysis up front",
+    "shared_materialization": "keyed merge of scoped shared updates with prior shared facts, invalidating facts attributable to changed/removed files"
+  },
+  "fixture_equivalence": [
+    {
+      "mutation": "modify pkg/b.py",
+      "full_analysis_plans": 0,
+      "scoped_discovered_python_files": 3,
+      "scoped_source_bytes": 82,
+      "incremental_fact_count": 34,
+      "full_fact_count": 34,
+      "sha256": "7115b1e0de167887a741d1b72d8e28765674675b3f1361977e4f3bee0ebba70d",
+      "exact_equal": true
+    },
+    {
+      "mutation": "add pkg/new.py",
+      "full_analysis_plans": 0,
+      "scoped_discovered_python_files": 2,
+      "scoped_source_bytes": 28,
+      "incremental_fact_count": 41,
+      "full_fact_count": 41,
+      "sha256": "b38c34f100d109678fd46c5063acd6ec166992394405b845852fa47d346ca71b",
+      "exact_equal": true
+    },
+    {
+      "mutation": "rename pkg/c.py to pkg/d.py",
+      "full_analysis_plans": 0,
+      "scoped_discovered_python_files": 2,
+      "scoped_source_bytes": 32,
+      "incremental_fact_count": 41,
+      "full_fact_count": 41,
+      "sha256": "53e1be8cc5a9c77da4488c6a15ebf64b8ee8482e0664a50df2971bafb27a9102",
+      "exact_equal": true
+    }
+  ],
+  "safety_gates": {
+    "tool_only_pyproject_change": {
+      "changed_files": 1,
+      "analysis_plans": 0,
+      "full_analysis_plans": 0
+    },
+    "unresolved_import_satisfied_by_addition": {
+      "example": "from pkg.missing import x, then add pkg/missing.py",
+      "unresolved_reason": "external-target",
+      "analysis_plans": 1,
+      "full_analysis_plans": 1
+    }
+  },
+  "note": "Fixture timings used the repo-built debug lifecycle profiler and are diagnostic only; Phase 7 acceptance is semantic equivalence and bounded planner behavior."
+}

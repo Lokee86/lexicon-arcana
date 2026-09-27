@@ -3,7 +3,7 @@
 Parent index: [Development Documentation](INDEX.md)
 
 **Started:** 2026-09-26  
-**Current phase:** Phase 6 complete — profile-driven remaining core costs reduced; Phase 3 remains pending
+**Current phase:** Phase 7 complete — incremental restoration re-established; Phase 3 remains pending
 **Predecessor:** [Lexicon Go-path performance restoration](lexicon-performance-restoration.md)
 
 ## Purpose
@@ -441,6 +441,46 @@ Phase 6 is complete because the two dominant measured Lexicon-core costs after P
 2. Interstack source/index setup no longer dominates derived-graph refresh.
 
 Python call resolution remains an adapter-specific Phase 2-era cost rather than an unowned core cost, and the owner-partitioned analysis abstraction remains explicitly owned by pending **Phase 3**.
+
+## Phase 7 — incremental restoration
+
+Completed 2026-09-27. **Phase 3 remains pending.**
+
+Phase 7 restores the mature incremental planner and update semantics that existed before the Rust migration. The preserved September 26 optimization history was used directly as the behavior oracle: bounded dependency rescans, Python additions, Python renames, context expansion for new references, resolved-topology acceptance, and final planner alignment.
+
+The restored planner now:
+
+- computes a **one-hop** reverse dependency emission scope instead of a transitive repository closure;
+- keeps safe Python additions incremental while retaining full-analysis fallback for additions that could resolve a previously unresolved repository reference;
+- represents same-language Python renames as removal of the old path plus addition of the new path;
+- expands scoped Python context with imported modules and package `__init__.py` files without emitting context-only ownership;
+- ignores `pyproject.toml` edits outside Python analysis-relevant `project` / dependency configuration;
+- defers topology safety to the scoped result, accepting ordinary resolved relationship changes while retaining fallback for genuinely ambiguous/generated topology.
+
+The Rust materialization path also had one incremental-port regression not present in the mature implementation: `shared_complete=true` replaced the previous shared object with only the scoped shared records. That silently dropped unrelated repository-global module, protocol, package-containment, and dependency facts. Incremental materialization now merges scoped shared updates by canonical record identity and invalidates prior shared records attributable to changed or removed files. Invalidation includes node identities from the previous changed/removed file objects, which removes stale shared relationships during renames.
+
+The current Rust Python adapter emits unresolved local-import candidates as `external-target`. Because adding the matching local module can change that resolution, `external-target` is now addition-sensitive and forces the conservative full-analysis path.
+
+### Incremental equivalence gate
+
+A deterministic Python fixture was scanned incrementally through three sequential mutations and, after each mutation, compared against a fresh full rebuild by exported canonical JSONL hash.
+
+| Mutation | Full plan? | Scoped Python discovery | Incremental / full facts | Canonical SHA-256 | Result |
+| --- | ---: | ---: | ---: | --- | --- |
+| modify `pkg/b.py` | no | **3 files / 82 B** | **34 / 34** | `7115b1e0de167887a741d1b72d8e28765674675b3f1361977e4f3bee0ebba70d` | exact |
+| add `pkg/new.py` | no | **2 files / 28 B** | **41 / 41** | `b38c34f100d109678fd46c5063acd6ec166992394405b845852fa47d346ca71b` | exact |
+| rename `pkg/c.py → pkg/d.py` | no | **2 files / 32 B** | **41 / 41** | `53e1be8cc5a9c77da4488c6a15ebf64b8ee8482e0664a50df2971bafb27a9102` | exact |
+
+Two fallback boundaries were also exercised:
+
+- a tool-only `pyproject.toml` edit produced **0 analysis plans / 0 full plans**;
+- adding `pkg/missing.py` after a prior `from pkg.missing import x` unresolved import produced **1 analysis plan / 1 full plan**, preventing an unsafe scoped update.
+
+The permanent fixture evidence is recorded in `lexicon/evaluation/performance/python-phase7-incremental-2026-09-27.json`.
+
+### Phase 7 gate
+
+Phase 7 is complete because safe modify/add/rename paths remain scoped and are byte-equivalent to clean full rebuilds, while known topology/configuration hazards retain conservative full-analysis behavior. Incremental publication no longer loses unrelated shared facts or preserves stale shared relationships.
 
 ## Execution sequence
 

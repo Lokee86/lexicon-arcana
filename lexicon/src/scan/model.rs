@@ -15,6 +15,7 @@ pub struct AnalysisPlan {
     pub full: bool,
     pub known_present: bool,
     pub changed_files: Vec<String>,
+    pub added_files: Vec<String>,
     pub removed_files: Vec<String>,
     pub context_files: Vec<String>,
 }
@@ -25,6 +26,7 @@ pub struct PlanningInput {
     pub present_languages: Vec<String>,
     pub enabled_languages: Vec<String>,
     pub adapter_fingerprints: Option<BTreeMap<String, String>>,
+    pub python_project_config_unchanged: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

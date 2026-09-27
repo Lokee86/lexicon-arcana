@@ -1,0 +1,151 @@
+use std::collections::{BTreeMap, BTreeSet};
+
+use crate::FactRecord;
+
+use super::analysis::normalized_paths;
+use super::materialize_support::materialization;
+use super::{LanguageEntry, StorageError, Store};
+
+impl Store {
+    pub(crate) fn merge_language_shared_object(
+        &self,
+        entry: &LanguageEntry,
+        previous: &LanguageEntry,
+        updates: &[&FactRecord],
+        changed_files: &[String],
+        removed_files: &[String],
+    ) -> Result<String, StorageError> {
+        if previous.shared_object_id.is_empty() {
+            let mut records = updates.iter().map(|record| (*record).clone()).collect();
+            crate::facts::sort_records(&mut records)
+                .map_err(|error| materialization(error.to_string()))?;
+            return self.write_language_shared_records(entry, &records);
+        }
+
+        let shared = self.load_object(&previous.shared_object_id)?;
+        let mut invalidated: BTreeSet<String> =
+            normalized_paths(changed_files).into_iter().collect();
+        invalidated.extend(normalized_paths(removed_files));
+
+        let mut invalidated_nodes = shared
+            .records
+            .iter()
+            .filter_map(|record| match record {
+                FactRecord::Node(node) if record_touches_paths(record, &invalidated) => {
+                    Some(node.id.clone())
+                }
+                _ => None,
+            })
+            .collect::<BTreeSet<_>>();
+        for file in previous.files.as_deref().unwrap_or_default() {
+            if !invalidated.contains(&file.path) {
+                continue;
+            }
+            let object = self.load_object(&file.object_id)?;
+            invalidated_nodes.extend(object.records.iter().filter_map(|record| match record {
+                FactRecord::Node(node) => Some(node.id.clone()),
+                _ => None,
+            }));
+        }
+
+        let mut merged = BTreeMap::<String, FactRecord>::new();
+        for record in shared.records {
+            if !record_invalidated(&record, &invalidated, &invalidated_nodes) {
+                merged.insert(record_key(&record)?, record);
+            }
+        }
+        for record in updates {
+            merged.insert(record_key(record)?, (*record).clone());
+        }
+
+        let mut records = merged.into_values().collect::<Vec<_>>();
+        crate::facts::sort_records(&mut records)
+            .map_err(|error| materialization(error.to_string()))?;
+        self.write_language_shared_records(entry, &records)
+    }
+}
+
+fn record_invalidated(
+    record: &FactRecord,
+    paths: &BTreeSet<String>,
+    node_ids: &BTreeSet<String>,
+) -> bool {
+    if record_touches_paths(record, paths) {
+        return true;
+    }
+    match record {
+        FactRecord::Node(_) => false,
+        FactRecord::Edge(edge) => {
+            node_ids.contains(&edge.source) || node_ids.contains(&edge.target)
+        }
+        FactRecord::Unresolved(value) => node_ids.contains(&value.source),
+    }
+}
+
+fn record_touches_paths(record: &FactRecord, paths: &BTreeSet<String>) -> bool {
+    let mut candidates = Vec::with_capacity(3);
+    if let Some(owner) = record.owner() {
+        candidates.push(owner);
+    }
+    if let Some(span) = record.span() {
+        candidates.push(span.path.as_str());
+    }
+    if let FactRecord::Node(node) = record {
+        candidates.push(node.path.as_str());
+    }
+    candidates.into_iter().any(|path| {
+        normalized_paths(&[path.to_owned()])
+            .first()
+            .is_some_and(|path| paths.contains(path))
+    })
+}
+
+fn record_key(record: &FactRecord) -> Result<String, StorageError> {
+    let span = record
+        .span()
+        .map(serde_json::to_string)
+        .transpose()?
+        .unwrap_or_default();
+    Ok(match record {
+        FactRecord::Node(node) => format!(
+            "0\0{}\0{}\0{}\0{}",
+            node.id, node.kind, node.path, node.qualified_name
+        ),
+        FactRecord::Edge(edge) => format!(
+            "1\0{}\0{}\0{}\0{}",
+            edge.source, edge.target, edge.relation, span
+        ),
+        FactRecord::Unresolved(value) => format!(
+            "2\0{}\0{}\0{}\0{}\0{}",
+            value.source, value.relation, value.expression, value.reason, span
+        ),
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::record_key;
+    use crate::{FactRecord, NodeRecord};
+
+    #[test]
+    fn node_merge_key_ignores_mutable_payload() {
+        let mut left = NodeRecord {
+            attributes: None,
+            content_id: None,
+            id: "id".into(),
+            kind: "module".into(),
+            name: "name".into(),
+            owner: None,
+            path: "a.py".into(),
+            qualified_name: "a".into(),
+            span: None,
+        };
+        let mut right = left.clone();
+        right.name = "changed".into();
+        left.attributes = Some(serde_json::json!({"old": true}));
+        assert_eq!(
+            record_key(&FactRecord::Node(left)).unwrap(),
+            record_key(&FactRecord::Node(right)).unwrap()
+        );
+    }
+}

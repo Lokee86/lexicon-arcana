@@ -8,7 +8,7 @@ use graph::{edge, incremental_analysis, node, publish_language, unresolved, writ
 use support::TestDirectory;
 
 #[test]
-fn dependency_scope_matches_go_transitive_and_unresolved_behavior() {
+fn dependency_scope_matches_bounded_one_hop_behavior() {
     let directory = TestDirectory::new("dependency-scope");
     let store = Store::new(&directory.path);
     let files = vec![
@@ -58,28 +58,26 @@ fn dependency_scope_matches_go_transitive_and_unresolved_behavior() {
 
     let scope = store.incremental_scope("python", &["a.py".into()]).unwrap();
     assert!(!scope.full_required);
-    assert_eq!(scope.emit, vec!["a.py", "b.py", "c.py", "d.py", "e.py"]);
-    assert_eq!(scope.context, scope.emit);
+    assert_eq!(scope.emit, vec!["a.py", "b.py"]);
+    assert_eq!(scope.context, vec!["a.py", "b.py"]);
 
-    assert!(
-        !store
-            .direct_changes_require_full("python", &["e.py".into()])
-            .unwrap()
-    );
-    assert!(
-        store
-            .direct_changes_require_full("python", &["b.py".into()])
-            .unwrap()
-    );
+    for path in ["b.py", "d.py", "e.py"] {
+        assert!(
+            !store
+                .direct_changes_require_full("python", &[path.into()])
+                .unwrap(),
+            "{path} should be decided after scoped analysis"
+        );
+    }
     assert!(
         store
-            .direct_changes_require_full("python", &["d.py".into()])
+            .direct_changes_require_full("python", &["missing.py".into()])
             .unwrap()
     );
 }
 
 #[test]
-fn new_relationship_topology_requires_full_analysis() {
+fn resolved_relationship_topology_is_accepted_but_sensitive_unresolved_is_not() {
     let directory = TestDirectory::new("topology");
     let store = Store::new(&directory.path);
     publish_language(
@@ -104,10 +102,22 @@ fn new_relationship_topology_requires_full_analysis() {
             .unwrap()
     );
 
-    let changed = incremental_analysis("node-y");
+    let mut resolved = incremental_analysis("node-x");
+    let lexicon::FactRecord::Edge(edge) = &mut resolved.records[1] else {
+        unreachable!()
+    };
+    edge.relation = "references".into();
+    assert!(
+        !store
+            .requires_full_analysis("python", &["a.py".into()], &resolved)
+            .unwrap()
+    );
+
+    let mut sensitive = incremental_analysis("node-x");
+    sensitive.records[1] = unresolved("node-a", "ambiguous-target", "a.py");
     assert!(
         store
-            .requires_full_analysis("python", &["a.py".into()], &changed)
+            .requires_full_analysis("python", &["a.py".into()], &sensitive)
             .unwrap()
     );
 }
