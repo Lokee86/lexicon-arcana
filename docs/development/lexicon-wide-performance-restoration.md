@@ -3,7 +3,7 @@
 Parent index: [Development Documentation](INDEX.md)
 
 **Started:** 2026-09-26  
-**Current phase:** Phase 4 complete — storage/materialization copies removed; Phase 3 remains pending
+**Current phase:** Phase 5 complete — pre-port optimization parity matrix established; Phase 3 remains pending
 **Predecessor:** [Lexicon Go-path performance restoration](lexicon-performance-restoration.md)
 
 ## Purpose
@@ -316,6 +316,37 @@ The no-change warm scan reused the same snapshot with no analysis plan in approx
 ### Phase 4 gate
 
 Phase 4 is complete when the isolated branch gates are green because repository-scale fact/source payload clones are removed, owned-vs-borrowed encoding is byte-identical, Hermes publishes inside the previous timeout, and Phase 3 remains an explicit separate task.
+
+## Phase 5 — permanent pre-port optimization parity matrix
+
+Completed 2026-09-27, out of sequence after Phase 4. **Phase 3 remains pending.**
+
+Phase 5 audits the complete mature performance sequence immediately preceding the Rust migration rather than only the later Go-path restoration. The canonical record is [Lexicon-wide pre-port optimization parity matrix](lexicon-wide-optimization-parity-matrix.md).
+
+The audit covers:
+
+- Python weighted sharding, bounded workers, deterministic fan-in, and file-local semantic extraction;
+- rebuild/publication optimizations including adapter fingerprint scope, node-only Interstack reads, and bounded parallel object writes;
+- streamed Python analysis and owner partitioning;
+- durable binary-v2 compaction;
+- Python retained-state/memory reductions;
+- C# structural fact deduplication;
+- TypeScript dispatch indexing and record-at-a-time output.
+
+The audit found one accidental parity loss: the Rust Interstack port used `Store::load_object` and decoded relationship sections even though Interstack consumes only node facts. Phase 5 restores `Store::load_node_facts` and adds a regression proving node-only v2 decoding does not decode malformed relationship payloads.
+
+The old streamed owner-partitioning optimization remains the only intentionally incomplete item. Native Rust removed the subprocess/JSONL transport cost, and Phase 4 removed duplicate materialization copies, but authoritative `Analysis` is still flat. That boundary remains explicitly owned by **Phase 3**.
+
+All other audited optimizations are now classified as restored, preserved as migration oracles for adapters not yet on the native Rust host path, or structurally superseded by the Rust architecture. There are no unowned parity gaps.
+
+### Phase 5 gate
+
+Phase 5 is complete when:
+
+- every audited pre-port optimization has a permanent matrix row and current owner/status;
+- the Interstack node-only regression is restored and protected by test;
+- Phase 3 is explicitly identified as the remaining owner-partitioned-analysis gap rather than silently treated as complete;
+- the full Rust suite and documentation gates remain green.
 
 ## Execution sequence
 

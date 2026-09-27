@@ -76,16 +76,8 @@ fn collect_nodes(
     object_id: &str,
     nodes: &mut Vec<Node>,
 ) -> Result<(), ScanExecutionError> {
-    let object = store.load_object(object_id)?;
-    nodes.extend(
-        object
-            .records
-            .into_iter()
-            .filter_map(|record| match record {
-                FactRecord::Node(node) => Some(Node::from(node)),
-                _ => None,
-            }),
-    );
+    let (_, loaded) = store.load_node_facts(object_id)?;
+    nodes.extend(loaded.into_iter().map(Node::from));
     Ok(())
 }
 
