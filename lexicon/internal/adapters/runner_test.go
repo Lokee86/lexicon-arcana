@@ -11,7 +11,7 @@ import (
 )
 
 func TestCommandPrefersPackagedExecutables(t *testing.T) {
-	for _, language := range []string{"c-family", "csharp", "go", "gdscript", "java", "kotlin", "lotusscript", "rust"} {
+	for _, language := range []string{"c-family", "csharp", "gdscript", "java", "kotlin", "lotusscript", "rust"} {
 		t.Run(language, func(t *testing.T) {
 			root := t.TempDir()
 			executable := filepath.Join(root, language, "lexicon-"+language)
@@ -40,6 +40,30 @@ func TestCommandPrefersPackagedExecutables(t *testing.T) {
 				t.Fatalf("packaged command arguments = %#v", got)
 			}
 		})
+	}
+}
+
+func TestCommandRejectsLegacyGoRuntimePath(t *testing.T) {
+	root := t.TempDir()
+	executable := filepath.Join(root, "go", "lexicon-go")
+	if runtime.GOOS == "windows" {
+		executable += ".exe"
+	}
+	if err := os.MkdirAll(filepath.Dir(executable), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(executable, []byte("legacy"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := (Runner{Root: root}).command(context.Background(), Request{
+		Language: "go", Repository: "repo", Output: "facts.jsonl",
+	})
+	if err == nil {
+		t.Fatal("legacy Go adapter runtime path was accepted")
+	}
+	if got := err.Error(); got != "go adapter is native Rust-owned; the standalone Go facts-v1 adapter is retained as an oracle only" {
+		t.Fatalf("error = %q", got)
 	}
 }
 

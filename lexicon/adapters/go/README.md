@@ -1,15 +1,17 @@
 # Go adapter
 
-The Go adapter scans a Go module or a repository containing multiple Go modules and emits deterministic Lexicon facts v1 JSONL. It discovers every `go.mod`, assigns each source file to its nearest module root, analyzes modules independently, and merges their facts into one repository graph. Semantic extraction combines `golang.org/x/tools/go/packages`, Go type information, SSA, and variable-type analysis.
+This directory contains the legacy standalone Go facts-v1 adapter retained as the semantic parity oracle. Production Go analysis is owned by the native Rust `GoAdapter` under `src/adapters/go/`, which uses `adapters/go-semantic/` as its private language-native semantic helper. The oracle still scans single- and multi-module repositories with `go/packages`, Go type information, SSA, and variable-type analysis so differential evidence remains available through final cleanup.
 
-## Run
+## Oracle-only execution
+
+The standalone facts-v1 adapter is no longer a Lexicon runtime path after the native Rust Go-adapter cutover. It remains executable only for parity/oracle maintenance:
 
 ```bash
 go run . -repo /path/to/repository -output facts.jsonl
 python ../../tools/validate_jsonl.py facts.jsonl
 ```
 
-The standalone adapter also accepts `-workers`, `-shards`, and `-merge-fan-in`. Lexicon normally selects these values automatically from repository size and the available CPU budget. Semantic files are processed by a bounded worker pool, shard-local facts are combined through a deterministic reduction tree, and the final SSA/VTA pass resolves repository-wide dispatch. Output must remain byte-identical for every worker count and reduction shape.
+The oracle accepts `-workers`, `-shards`, and `-merge-fan-in` so differential tests can preserve the historical execution contract. Semantic files are processed by a bounded worker pool, shard-local facts are combined through a deterministic reduction tree, and the final SSA/VTA pass resolves repository-wide dispatch. Output must remain byte-identical for every worker count and reduction shape.
 
 ## Modeled semantics
 
@@ -85,7 +87,7 @@ Decoding is fail-closed: unsupported protocol versions, unknown fields or record
 
 The Rust `AdapterHost` now registers a native `GoAdapter` at `src/adapters/go/`. The shell retains adapter version `0.1.0`, fingerprints its Rust-side implementation together with the private helper version, and invokes language-native helpers through the shared internal helper runner rather than through the retired subprocess-adapter/facts handoff. Helper discovery is deterministic from an explicit environment override, the configured adapter root, or packaged executable adjacency.
 
-The runner uses a single JSON request/response frame over stdin/stdout, validates the protocol handshake before decoding the typed response, bounds stderr capture, reports non-zero exits, and kills/reaps a helper that emits malformed or incompatible protocol data. Structural declarations, typed relationships, typed direct calls, SSA/VTA higher-order call reconciliation, and closure capture evidence are materialized now; typed dataflow remains on the legacy side until its migration phase.
+The runner uses a single JSON request/response frame over stdin/stdout, validates the protocol handshake before decoding the typed response, bounds stderr capture, reports non-zero exits, and kills/reaps a helper that emits malformed or incompatible protocol data. Structural declarations, typed relationships, typed direct calls, SSA/VTA higher-order call reconciliation, closure capture evidence, dependencies, and typed dataflow are all materialized through the native Rust adapter boundary.
 
 ## Rust repository ownership
 

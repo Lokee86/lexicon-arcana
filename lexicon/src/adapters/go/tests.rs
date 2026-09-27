@@ -4,12 +4,12 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
     sync::{
-        OnceLock,
+        Arc, OnceLock,
         atomic::{AtomicU64, Ordering},
     },
 };
 
-use crate::{AdapterHost, AdapterRequest, LanguageAdapter};
+use crate::{AdapterHost, AdapterRequest, LanguageAdapter, ScanEngine, StateRepository, Store};
 
 use super::{GoAdapter, helper_arguments, helper_environment};
 use crate::adapters::helper::HelperRunner;
@@ -20,6 +20,88 @@ fn adapter_host_registers_go() {
     let host = AdapterHost::new(&root.path);
     assert!(host.has_adapter("go"));
     assert!(host.fingerprint("go").unwrap().starts_with("sha256:"));
+}
+
+#[test]
+fn native_go_adapter_owns_full_and_incremental_scan_path() {
+    let root = TempDirectory::new("cutover-scan");
+    let repository = root.path.join("repository");
+    let state_root = root.path.join("state");
+    let store_root = root.path.join("store");
+    let adapter_root = root.path.join("adapters");
+    fs::create_dir_all(repository.join("a")).unwrap();
+    fs::create_dir_all(repository.join("b")).unwrap();
+    fs::create_dir_all(&adapter_root).unwrap();
+    fs::write(
+        repository.join("go.mod"),
+        "module example.com/cutover\n\ngo 1.22\n",
+    )
+    .unwrap();
+    fs::write(
+        repository.join("a").join("a.go"),
+        "package a\n\nfunc Value() int { return 1 }\n",
+    )
+    .unwrap();
+    fs::write(
+        repository.join("b").join("b.go"),
+        "package b\n\nfunc Stable() int { return 2 }\n",
+    )
+    .unwrap();
+
+    let helper = synthetic_helper(&root.path, r#"{"protocol_version":1,"records":[]}"#);
+    let mut host = AdapterHost::new(&adapter_root);
+    host.register("go", Arc::new(GoAdapter::with_helper(helper)));
+    let git = StateRepository::ensure(&state_root).unwrap();
+    let engine = ScanEngine::new(
+        &repository,
+        git,
+        Store::new(&store_root),
+        host,
+        vec!["go".into()],
+    );
+
+    let full = engine.scan().unwrap();
+    assert_eq!(full.languages, vec!["go"]);
+    let (_, first_manifest) = engine.store().current().unwrap();
+    let first_go = first_manifest.language("go").unwrap();
+    let first_files = first_go.files.as_ref().unwrap();
+    let first_a = first_files
+        .iter()
+        .find(|file| file.path == "a/a.go")
+        .unwrap()
+        .object_id
+        .clone();
+    let first_b = first_files
+        .iter()
+        .find(|file| file.path == "b/b.go")
+        .unwrap()
+        .object_id
+        .clone();
+
+    fs::write(
+        repository.join("a").join("a.go"),
+        "package a\n\nfunc Value() int { return 3 }\n",
+    )
+    .unwrap();
+    let incremental = engine.scan().unwrap();
+    assert_eq!(incremental.languages, vec!["go"]);
+    assert_eq!(incremental.changed.len(), 1);
+    assert_eq!(incremental.changed[0].new, "a/a.go");
+    assert_ne!(incremental.snapshot_id, full.snapshot_id);
+
+    let (_, second_manifest) = engine.store().current().unwrap();
+    let second_go = second_manifest.language("go").unwrap();
+    let second_files = second_go.files.as_ref().unwrap();
+    let second_a = second_files
+        .iter()
+        .find(|file| file.path == "a/a.go")
+        .unwrap();
+    let second_b = second_files
+        .iter()
+        .find(|file| file.path == "b/b.go")
+        .unwrap();
+    assert_ne!(second_a.object_id, first_a);
+    assert_eq!(second_b.object_id, first_b);
 }
 
 #[test]

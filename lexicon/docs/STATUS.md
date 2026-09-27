@@ -26,7 +26,7 @@ Implemented on the active Rust-migration branch:
 - private Go semantic-helper protocol v1 with strict request/response validation, canonical semantic identities, repository-relative owner paths/spans, and no facts-v1/persistence coupling;
 - native Rust `GoAdapter` shell registered in `AdapterHost`, with helper-version-aware fingerprinting and a reusable bounded private-helper process runner;
 - Rust-owned Go repository discovery, permanent exclusions, deterministic `.go`/`go.mod` inventory, nearest-`go.mod` module ownership, root/multi-module repository identity, and direct repository/directory/file fact emission;
-- extracted `adapters/go-semantic/` structural helper for package/import/type/function/method/test/interface-method/closure declarations, including inactive build-tag source; Rust materializes those semantic declarations into exact legacy-compatible structural nodes and containment/import relationships while typed dataflow remains deferred;
+- extracted `adapters/go-semantic/` private semantic helper for package/import/type/function/method/test/interface-method/closure declarations plus typed relationships, calls, SSA/VTA reconciliation, captures, and dataflow; Rust owns repository discovery, canonical identities, fact materialization, validation, storage, and scan orchestration;
 - Rust-owned Go identity authority in `src/adapters/go/identities.rs`, covering the legacy canonical identity vocabulary, semantic-prefix → Lexicon-kind mapping, `_test` namespace normalization, absolute-path rejection, and exact node-SHA parity for every permanent migration fixture;
 - extracted Go typed semantic index in `adapters/go-semantic/` using `go/packages` and `go/types`, with test-enabled `LoadAllSyntax | NeedModule`, deterministic package flattening, generic origins, alias unwrapping, completed interfaces, value/pointer method sets, Rust-inventory ownership filtering, and structured package diagnostics;
 - Go type relationships now cross the semantic-helper boundary as canonical identities and are materialized by Rust with exact legacy `extends`/`implements`/`overrides` semantics, endpoint validation, self-edge rejection, and seven-fixture parity;
@@ -58,7 +58,7 @@ Implemented on the active Rust-migration branch:
 - a separate Rust `lexicon-cli` crate providing the replacement `lexicon` executable over the library, including the existing operational Go command surface, repository discovery, option parsing, signal handling, and formatting.
 - bounded Rust snapshot lookup for deterministic node discovery, exact node resolution, direct references, and direct call evidence; `find`/`show` use node-only object decoding while `refs`/`calls` preserve resolved and unresolved relationship semantics.
 
-The Go application remains the migration parity oracle and current operator recommendation; the replacement executable and reusable integration surface are Rust-owned but not yet performance-ready as the default. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
+The legacy Go application remains a migration/parity reference for historical behavior, but Go-language analysis has cut over to the native Rust `GoAdapter`; the old Go runner no longer dispatches the standalone Go facts-v1 adapter. Packaged deployment of the required private Go semantic helper remains Phase 18 work. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
 
 ## Application
 

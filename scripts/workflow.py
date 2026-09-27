@@ -193,7 +193,7 @@ def package_lexicon_adapters(
             "target", "node_modules", "dist", "runtime.facts.jsonl"
         ),
     )
-    for language in ("c-family", "go", "gdscript", "kotlin", "generic"):
+    for language in ("c-family", "gdscript", "kotlin", "generic"):
         run(
             [
                 "go", "build", "-p", str(jobs), "-trimpath", "-buildvcs=false",

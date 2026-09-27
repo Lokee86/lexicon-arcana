@@ -12,13 +12,13 @@ Freeze the native Rust Go-adapter port so the migration can be resumed without r
 
 ## Overview
 
-Phases 0–15 were complete when this checkpoint was frozen. The separate performance-restoration project subsequently completed, Phase 16 calibration resumed, and Phase 16 is now complete. Later cutover, packaging/runtime, and cleanup phases remain unstarted. See [Go Adapter Phase 16 Calibration — 2026-09-27](go-adapter-phase16-calibration-2026-09-27.md) for the completion evidence.
+Phases 0–15 were complete when this checkpoint was frozen. The separate performance-restoration project subsequently completed, Phase 16 calibration resumed and completed, and Phase 17 cutover is now complete. Packaging/runtime and final cleanup remain unstarted. See [Go Adapter Phase 16 Calibration — 2026-09-27](go-adapter-phase16-calibration-2026-09-27.md) and [Go Adapter Phase 17 Cutover — 2026-09-27](go-adapter-phase17-cutover-2026-09-27.md) for completion evidence.
 
 ## Migration status
 
 - **Phases 0–15:** complete.
 - **Phase 16 — real-repository calibration:** **COMPLETE — 2026-09-27.**
-- **Phase 17 — cutover:** not started.
+- **Phase 17 — cutover:** **COMPLETE — 2026-09-27.**
 - **Phase 18 — packaging/runtime:** not started.
 - **Phase 19 — docs/cleanup:** not started.
 
@@ -33,6 +33,7 @@ Do **not** treat `c8dce3f` alone as completion of Phase 16. It is the durable fr
 | 14 — Deterministic semantic parallelism | `bf18624` | Complete |
 | 15 — Differential parity harness | `cac4aad` | Complete |
 | 16 — Real-repository calibration | `c8dce3f` checkpoint + 2026-09-27 completion change | **Complete** |
+| 17 — Cutover | 2026-09-27 cutover change | **Complete** |
 
 ## What Phase 16 is supposed to prove
 
@@ -128,15 +129,16 @@ Temporary multi-megabyte calibration outputs should remain disposable; preserve 
 
 ## Phase 17 — Cutover
 
-With Phase 16 complete:
+**Complete — 2026-09-27.** See [Go Adapter Phase 17 Cutover](go-adapter-phase17-cutover-2026-09-27.md).
 
-- make the native Rust `GoAdapter` the authoritative Go adapter;
-- remove the runtime path that depends on the standalone legacy Go facts-v1 adapter;
-- retain the private Go semantic helper only for the semantic responsibilities deliberately left there;
-- verify full and incremental scans use the native path;
-- leave the legacy adapter as oracle/history only until cleanup.
+- the native Rust `GoAdapter` is the authoritative Go adapter;
+- the legacy Go application runner refuses the standalone Go facts-v1 adapter runtime path;
+- the root build workflow no longer builds `lexicon-go` as a production adapter;
+- the private Go semantic helper remains the deliberate language-native helper boundary;
+- full and incremental scans are protected by a native `ScanEngine` cutover regression;
+- the standalone legacy adapter remains oracle/history only until cleanup.
 
-**End condition:** the legacy Go adapter is no longer a runtime fallback or production path.
+**End condition satisfied:** the legacy Go adapter is no longer a runtime fallback or production path.
 
 ## Phase 18 — Packaging/runtime
 
@@ -169,7 +171,7 @@ Once cutover and packaging are proven:
 - Preserve the Phase 16 calibration report and focused regressions through cutover.
 - Do not redesign semantics during calibration or optimization.
 - Do not weaken the Phase 15 differential comparator to make a calibration pass.
-- Keep the legacy implementation available as the migration oracle until cutover is proven.
+- Keep the legacy implementation available as oracle/history, but do not restore it as a runtime fallback.
 - Preserve deterministic output across worker/shard/fan-in configurations.
 - Treat the current performance regression as unfinished port work, not an acceptable new baseline.
 

@@ -29,8 +29,6 @@ class WorkflowSmokeTests(unittest.TestCase):
             (build / "bin").mkdir(parents=True)
             (build / "adapters" / "python").mkdir(parents=True)
             (build / "adapters" / "python" / "adapter.py").write_text("pass\n", encoding="utf-8")
-            (build / "adapters" / "go").mkdir()
-            (build / "adapters" / "go" / "lexicon-go.exe").write_bytes(b"adapter")
             (build / "skills" / "lexicon-arcana").mkdir(parents=True)
             (build / "skills" / "lexicon-arcana" / "SKILL.md").write_text(
                 "---\nname: lexicon-arcana\n---\n", encoding="utf-8"
@@ -55,6 +53,7 @@ class WorkflowSmokeTests(unittest.TestCase):
                 self.assertIn("bin/lexicon.exe", names)
                 self.assertIn("bin/arcana.exe", names)
                 self.assertIn("adapters/python/adapter.py", names)
+                self.assertNotIn("adapters/go/lexicon-go.exe", names)
                 self.assertIn("install.py", names)
                 self.assertIn("skills/lexicon-arcana/SKILL.md", names)
                 self.assertNotIn("bin/grimoire.exe", names)
@@ -79,6 +78,28 @@ class WorkflowSmokeTests(unittest.TestCase):
             self.assertTrue((subset / "lexicon.exe").is_file())
             self.assertFalse((subset / "arcana.exe").exists())
             self.assertFalse((subset_skills / "lexicon-arcana" / "SKILL.md").exists())
+
+    def test_lexicon_adapter_packaging_does_not_build_legacy_go_runtime(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="lexicon-adapter-cutover-") as temporary, \
+                mock.patch.object(workflow.shutil, "copytree"), \
+                mock.patch.object(workflow, "run") as run, \
+                mock.patch.object(workflow, "build_java_adapter"), \
+                mock.patch.object(workflow, "build_csharp"), \
+                mock.patch.object(workflow, "copy_file"):
+            workflow.package_lexicon_adapters(
+                Path(temporary) / "build",
+                "cargo",
+                2,
+                {},
+            )
+
+            adapter_root = workflow.ROOT / "lexicon" / "adapters"
+            working_directories = [call.args[1] for call in run.call_args_list]
+            self.assertNotIn(adapter_root / "go", working_directories)
+            self.assertIn(adapter_root / "c-family", working_directories)
+            self.assertIn(adapter_root / "gdscript", working_directories)
+            self.assertIn(adapter_root / "kotlin", working_directories)
+            self.assertIn(adapter_root / "generic", working_directories)
 
     def test_build_defaults_to_surviving_components(self) -> None:
         with tempfile.TemporaryDirectory(prefix="lexicon-arcana-build-") as temporary, \
