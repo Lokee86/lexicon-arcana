@@ -6,7 +6,7 @@ import (
 )
 
 func TestSemanticDataflowPreservesLegacyCompoundAndShadowing(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", "go", "testdata", "oracle", "dataflow"))
+	root, err := filepath.Abs(filepath.Join("..", "..", "testdata", "go_oracle", "repositories", "dataflow"))
 	if err != nil {
 		t.Fatal(err)
 	}

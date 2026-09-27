@@ -12,7 +12,7 @@ Freeze the native Rust Go-adapter port so the migration can be resumed without r
 
 ## Overview
 
-Phases 0–15 were complete when this checkpoint was frozen. The separate performance-restoration project subsequently completed, Phase 16 calibration resumed and completed, Phase 17 cutover completed, and Phase 18 packaging/runtime is now complete. Final cleanup remains unstarted. See [Go Adapter Phase 16 Calibration — 2026-09-27](go-adapter-phase16-calibration-2026-09-27.md), [Go Adapter Phase 17 Cutover — 2026-09-27](go-adapter-phase17-cutover-2026-09-27.md), and [Go Adapter Phase 18 Packaging and Runtime — 2026-09-27](go-adapter-phase18-packaging-runtime-2026-09-27.md) for completion evidence.
+Phases 0–15 were complete when this checkpoint was frozen. The separate performance-restoration project subsequently completed, followed by Phase 16 calibration, Phase 17 cutover, Phase 18 packaging/runtime, and Phase 19 final cleanup. The Go adapter migration is complete. See the Phase 16–19 completion reports for durable evidence.
 
 ## Migration status
 
@@ -20,7 +20,7 @@ Phases 0–15 were complete when this checkpoint was frozen. The separate perfor
 - **Phase 16 — real-repository calibration:** **COMPLETE — 2026-09-27.**
 - **Phase 17 — cutover:** **COMPLETE — 2026-09-27.**
 - **Phase 18 — packaging/runtime:** **COMPLETE — 2026-09-27.**
-- **Phase 19 — docs/cleanup:** not started.
+- **Phase 19 — docs/cleanup:** **COMPLETE — 2026-09-27.**
 
 Do **not** treat `c8dce3f` alone as completion of Phase 16. It is the durable freeze checkpoint; final completion evidence is recorded in [Go Adapter Phase 16 Calibration — 2026-09-27](go-adapter-phase16-calibration-2026-09-27.md).
 
@@ -35,6 +35,7 @@ Do **not** treat `c8dce3f` alone as completion of Phase 16. It is the durable fr
 | 16 — Real-repository calibration | `c8dce3f` checkpoint + 2026-09-27 completion change | **Complete** |
 | 17 — Cutover | 2026-09-27 cutover change | **Complete** |
 | 18 — Packaging/runtime | 2026-09-27 packaging/runtime change | **Complete** |
+| 19 — Final cleanup | 2026-09-27 cleanup change | **Complete** |
 
 ## What Phase 16 is supposed to prove
 
@@ -67,11 +68,7 @@ The first real-repository pass exposed behaviour that the permanent fixture suit
 - generated `*.test` package `main` functions;
 - generated/synthetic function materialization needed by real repositories.
 
-The checkpoint also contains:
-
-- `evaluation/go_adapter_calibration.py` for streaming semantic comparison;
-- `lexicon/examples/go_adapter_snapshot.rs` for producing canonical native Go facts;
-- focused regressions for the real-repository cases above.
+The checkpoint also introduced the temporary streaming calibration comparator and the durable `lexicon/examples/go_adapter_snapshot.rs` native snapshot utility. Phase 19 removed the migration-only comparator after its evidence was captured; focused regressions and the native snapshot utility remain where they still protect production behavior.
 
 ## Last verified state before the freeze
 
@@ -157,14 +154,16 @@ Temporary multi-megabyte calibration outputs should remain disposable; preserve 
 
 ## Phase 19 — Docs/cleanup
 
-Once cutover and packaging are proven:
+**Complete — 2026-09-27.** See [Go Adapter Phase 19 Final Cleanup](go-adapter-phase19-final-cleanup-2026-09-27.md).
 
-- remove the retired legacy runtime adapter;
-- remove migration-only compatibility scaffolding that is no longer useful;
-- retain parity/calibration tests that continue to protect behaviour where appropriate;
-- remove stale docs and dead code;
-- update adapter-development documentation and the behavioural contract matrix;
-- document the final Rust/helper ownership boundary.
+- the retired standalone Go facts implementation is removed from the active source tree;
+- migration-only comparator/compatibility scaffolding is removed;
+- fixture repositories and canonical facts are retained under `lexicon/testdata/go_oracle/` as immutable compatibility evidence;
+- native parity compares complete output directly with those frozen goldens;
+- strict protocol coverage lives with the production `go-semantic` helper;
+- operator, adapter-authoring, release, status, and behavioural-contract documentation now describe the final Rust/private-helper boundary.
+
+**End condition satisfied:** Go has one production adapter implementation, one private language-native helper, one frozen compatibility oracle, and no live legacy facts runtime.
 
 ## Guardrails preserved from resumption
 
@@ -172,7 +171,7 @@ Once cutover and packaging are proven:
 - Preserve the Phase 16 calibration report and focused regressions through cutover.
 - Do not redesign semantics during calibration or optimization.
 - Do not weaken the Phase 15 differential comparator to make a calibration pass.
-- Keep the legacy implementation available as oracle/history, but do not restore it as a runtime fallback.
+- Preserve legacy behavior as immutable goldens/history; do not restore the retired standalone implementation as a runtime or test dependency.
 - Preserve deterministic output across worker/shard/fan-in configurations.
 - Treat the current performance regression as unfinished port work, not an acceptable new baseline.
 
@@ -184,4 +183,4 @@ Once cutover and packaging are proven:
 
 ## Notes
 
-This is a dated migration checkpoint. It records the state needed to resume Phase 16; it does not redefine the current Go adapter semantic contract or mark Phase 16 complete.
+This is a dated Phase 16 freeze record preserved as migration history. Current Go adapter ownership and semantics are documented in [Go adapter](../../lexicon/docs/GO_ADAPTER.md); Phases 16–19 are complete.

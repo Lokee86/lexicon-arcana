@@ -56,7 +56,7 @@ fn basic_oracle_discovery_and_structural_facts_match_legacy() {
     analysis.validate().unwrap();
 
     let legacy = Analysis::parse(include_str!(
-        "../../../adapters/go/testdata/oracle_golden/basic_calls.jsonl"
+        "../../../testdata/go_oracle/golden/basic_calls.jsonl"
     ))
     .unwrap();
     assert_eq!(analysis.records, structural_records(&legacy.records));
@@ -86,7 +86,7 @@ fn all_oracle_repository_facts_match_legacy() {
         )
         .unwrap();
         let golden = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("adapters/go/testdata/oracle_golden")
+            .join("testdata/go_oracle/golden")
             .join(format!("{name}.jsonl"));
         let legacy = Analysis::parse(&fs::read_to_string(golden).unwrap()).unwrap();
         assert_eq!(
@@ -162,7 +162,7 @@ fn structural_records(records: &[FactRecord]) -> Vec<FactRecord> {
 
 fn fixture(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("adapters/go/testdata/oracle")
+        .join("testdata/go_oracle/repositories")
         .join(name)
 }
 

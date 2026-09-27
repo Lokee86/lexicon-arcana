@@ -6,7 +6,7 @@ import (
 )
 
 func TestSSACapturesFreeVariables(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", "go", "testdata", "oracle", "higher_order"))
+	root, err := filepath.Abs(filepath.Join("..", "..", "testdata", "go_oracle", "repositories", "higher_order"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestSSACapturesFreeVariables(t *testing.T) {
 }
 
 func TestSSAResolvesHigherOrderAndClosureCalls(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", "go", "testdata", "oracle", "higher_order"))
+	root, err := filepath.Abs(filepath.Join("..", "..", "testdata", "go_oracle", "repositories", "higher_order"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +122,7 @@ func caller() {
 }
 
 func TestSSAResolvesInterfaceInvokeToConcreteMethods(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", "go", "testdata", "oracle", "relationships"))
+	root, err := filepath.Abs(filepath.Join("..", "..", "testdata", "go_oracle", "repositories", "relationships"))
 	if err != nil {
 		t.Fatal(err)
 	}

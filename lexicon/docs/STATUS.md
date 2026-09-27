@@ -22,7 +22,7 @@ For normal operator use, the recommended Lexicon runtime is the last optimized G
 
 Implemented on the active Rust-migration branch:
 
-- pinned Go parity oracle and migration fixture registry under `evaluation/rust_migration/`, plus the frozen Go-adapter semantic oracle under `adapters/go/testdata/oracle/`;
+- pinned application migration fixture registry under `evaluation/rust_migration/`, plus the frozen Go-language semantic oracle under `testdata/go_oracle/`;
 - private Go semantic-helper protocol v1 with strict request/response validation, canonical semantic identities, repository-relative owner paths/spans, and no facts-v1/persistence coupling;
 - native Rust `GoAdapter` shell registered in `AdapterHost`, with helper-version-aware fingerprinting and a reusable bounded private-helper process runner;
 - Rust-owned Go repository discovery, permanent exclusions, deterministic `.go`/`go.mod` inventory, nearest-`go.mod` module ownership, root/multi-module repository identity, and direct repository/directory/file fact emission;
@@ -58,7 +58,7 @@ Implemented on the active Rust-migration branch:
 - a separate Rust `lexicon-cli` crate providing the replacement `lexicon` executable over the library, including the existing operational Go command surface, repository discovery, option parsing, signal handling, and formatting.
 - bounded Rust snapshot lookup for deterministic node discovery, exact node resolution, direct references, and direct call evidence; `find`/`show` use node-only object decoding while `refs`/`calls` preserve resolved and unresolved relationship semantics.
 
-The legacy Go application remains a migration/parity reference for historical behavior, but Go-language analysis has cut over to the native Rust `GoAdapter`; the old Go runner no longer dispatches the standalone Go facts-v1 adapter. The required private `lexicon-go-semantic[.exe]` helper is now packaged, version-verified, installed, and discovered from the normal adapter-root layout. Typed semantics still require an installed `go` executable because the helper uses `go/packages`; absence fails closed with an actionable runtime diagnostic. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
+The broader Lexicon migration still uses the pinned Go application as historical/parity reference where untranslated behavior remains, and the operator-runtime recommendation above is unchanged. The Go-language adapter migration itself is complete: native Rust `GoAdapter` owns Go analysis; the retired standalone Go facts adapter is removed; immutable compatibility fixtures/goldens live under `testdata/go_oracle/`; and the private `lexicon-go-semantic[.exe]` helper is packaged, version-verified, installed, and discovered from the normal adapter-root layout. Typed Go semantics still require an installed `go` executable because the helper uses `go/packages`; absence fails closed with an actionable runtime diagnostic. See [GO_ADAPTER.md](GO_ADAPTER.md) and [RUST_MIGRATION.md](RUST_MIGRATION.md).
 
 ## Application
 
@@ -167,7 +167,8 @@ Current acceptance mechanisms include:
 - pinned Git, Codebase Memory, LevelDB, fmt, Catch2, and nlohmann/json judgments for the C/C++ shared adapter;
 - call-site, possible-target-fanout, resolution-provenance, macro-expansion-depth, and direct argument-flow reporting for C-family corpus outputs;
 - fixture and application smoke coverage for the C/C++ shared adapter;
-- completed native Go Phase 16 real-repository calibration: exact legacy/native parity on pinned Demon Docs and Space Rocks plus Lexicon self-host, repeated deterministic native output on the pinned repositories, and successful Arcana ingestion/query acceptance.
+- completed native Go Phase 16 real-repository calibration: exact legacy/native parity on pinned Demon Docs and Space Rocks plus Lexicon self-host, repeated deterministic native output on the pinned repositories, and successful Arcana ingestion/query acceptance;
+- completed Go Phase 19 hard cut: live standalone adapter removed, permanent native parity against immutable frozen canonical facts, helper protocol coverage retained with the production helper, and no Go facts-runtime fallback.
 
 See:
 

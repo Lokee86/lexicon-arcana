@@ -85,10 +85,8 @@ class WorkflowSmokeTests(unittest.TestCase):
             self.assertFalse((subset / "arcana.exe").exists())
             self.assertFalse((subset_skills / "lexicon-arcana" / "SKILL.md").exists())
 
-    def test_lexicon_adapter_packaging_builds_semantic_helper_not_legacy_go_runtime(self) -> None:
+    def test_lexicon_adapter_packaging_builds_semantic_helper_runtime_payload(self) -> None:
         def fake_copytree(_source: Path, destination: Path, **_kwargs: object) -> None:
-            (destination / "go").mkdir(parents=True)
-            (destination / "go" / "oracle.go").write_text("package main\n", encoding="utf-8")
             (destination / "go-semantic").mkdir(parents=True)
             (destination / "go-semantic" / "source.go").write_text("package main\n", encoding="utf-8")
 

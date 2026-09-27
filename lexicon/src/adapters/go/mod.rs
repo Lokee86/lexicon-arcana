@@ -28,10 +28,6 @@ mod dataflow_tests;
 #[cfg(test)]
 mod dependencies_tests;
 #[cfg(test)]
-mod differential_compare;
-#[cfg(test)]
-mod differential_tests;
-#[cfg(test)]
 mod discovery_boundary_tests;
 #[cfg(test)]
 mod discovery_tests;
@@ -39,6 +35,10 @@ mod discovery_tests;
 mod identities_tests;
 #[cfg(test)]
 mod incremental_tests;
+#[cfg(test)]
+mod oracle_compare;
+#[cfg(test)]
+mod oracle_parity_tests;
 #[cfg(test)]
 mod relationship_tests;
 #[cfg(test)]

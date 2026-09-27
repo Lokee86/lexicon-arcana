@@ -53,7 +53,7 @@
     }
   },
   "fixture": {
-    "path": "lexicon/adapters/go/testdata/oracle/basic_calls",
+    "path": "lexicon/testdata/go_oracle/repositories/basic_calls",
     "shape": [
       1,
       1,

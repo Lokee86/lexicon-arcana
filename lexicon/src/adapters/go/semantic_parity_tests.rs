@@ -27,7 +27,7 @@ fn all_oracle_through_phase_fourteen_matches_legacy() {
         analysis.validate().unwrap();
 
         let golden = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("adapters/go/testdata/oracle_golden")
+            .join("testdata/go_oracle/golden")
             .join(format!("{name}.jsonl"));
         let legacy = Analysis::parse(
             &fs::read_to_string(golden)
@@ -259,6 +259,6 @@ fn assert_no_implements_self_edges(records: &[FactRecord], fixture: &str) {
 
 fn fixture(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("adapters/go/testdata/oracle")
+        .join("testdata/go_oracle/repositories")
         .join(name)
 }

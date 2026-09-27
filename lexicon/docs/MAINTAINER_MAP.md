@@ -18,7 +18,7 @@ Use this page to select the owning Lexicon document or adapter README. Continue 
 | Scan planning, publication, recovery, and concurrency | [Architecture](ARCHITECTURE.md) | `src/scan/`, `src/repository/`, `src/watch/` |
 | Immutable facts, objects, snapshots, export, and GC | [Architecture](ARCHITECTURE.md), specifications under `spec/` | `src/storage/` |
 | Adapter contract, discovery, and native execution | [Application](APPLICATION.md), [Adapters](../adapters/README.md), [Rust migration](RUST_MIGRATION.md) | `src/adapters/`, `src/languages/` |
-| Language semantics | Owning adapter README and [Rust migration](RUST_MIGRATION.md) | native `src/adapters/<language>/`; transitional/oracle `adapters/<language>/` |
+| Language semantics | Owning adapter README and [Rust migration](RUST_MIGRATION.md); [Go adapter](GO_ADAPTER.md) for the completed Go-language migration | native `src/adapters/<language>/`; transitional/oracle `adapters/<language>/` |
 | Dependency and incremental scope semantics | [Dependency semantics](DEPENDENCY_SEMANTICS.md) | adapter dependency emitters, `src/scan/`, `src/repository/`, `src/scope.rs` |
 | Interstack contracts | [Architecture](ARCHITECTURE.md) | `src/interstack/` |
 | Post-publication consumers | [Application](APPLICATION.md) | `src/consumer/`, `../lexicon-cli/src/commands_consumer.rs` |

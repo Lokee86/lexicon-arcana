@@ -7,7 +7,7 @@ import (
 )
 
 func TestSemanticRelationshipsMatchEmbeddedAndInterfaceSemantics(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", "go", "testdata", "oracle", "relationships"))
+	root, err := filepath.Abs(filepath.Join("..", "..", "testdata", "go_oracle", "repositories", "relationships"))
 	if err != nil {
 		t.Fatal(err)
 	}

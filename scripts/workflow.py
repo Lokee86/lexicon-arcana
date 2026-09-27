@@ -193,10 +193,6 @@ def package_lexicon_adapters(
             "target", "node_modules", "dist", "runtime.facts.jsonl"
         ),
     )
-    legacy_go = destination / "go"
-    if legacy_go.exists():
-        shutil.rmtree(legacy_go)
-
     semantic_runtime = destination / "go-semantic"
     if semantic_runtime.exists():
         shutil.rmtree(semantic_runtime)

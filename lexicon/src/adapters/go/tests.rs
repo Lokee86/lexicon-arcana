@@ -216,7 +216,7 @@ fn helper_invocation_is_deterministic() {
 
 fn fixture(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("adapters/go/testdata/oracle")
+        .join("testdata/go_oracle/repositories")
         .join(name)
 }
 

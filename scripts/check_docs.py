@@ -139,7 +139,7 @@ CODE_MAP_DOCUMENTS = (
     "lexicon/adapters/csharp/README.md",
     "lexicon/adapters/gdscript/README.md",
     "lexicon/adapters/generic/README.md",
-    "lexicon/adapters/go/README.md",
+    "lexicon/docs/GO_ADAPTER.md",
     "lexicon/adapters/java/README.md",
     "lexicon/adapters/kotlin/README.md",
     "lexicon/adapters/lotusscript/README.md",
