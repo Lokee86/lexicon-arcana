@@ -84,6 +84,18 @@ fn execution_plan_matches_go_partitioning_vectors() {
     assert_eq!(execution.merge_fan_in, 2);
     assert_eq!(execution.source_files, 160);
 
+    for index in 160..257 {
+        write(
+            &source.path,
+            &format!("file_{index:03}.py"),
+            "package sample\n",
+        );
+    }
+    let execution = execution_plan_with_limits(&source.path, &plan, 16, None).unwrap();
+    assert_eq!(execution.logical_shards, 8);
+    assert_eq!(execution.active_workers, 4);
+    assert_eq!(execution.merge_fan_in, 4);
+
     assert_eq!(logical_shard_count(536, 0), 16);
     assert_eq!(logical_shard_count(10_000, 0), 512);
     assert_eq!(logical_shard_count(250_000, 0), 4096);

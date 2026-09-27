@@ -371,6 +371,66 @@ Only the measured identity cache remains. Timing changes outside fact materializ
 
 The intended commit is `Memoize Go semantic node identities`.
 
+## Phase 10 — concurrency calibration
+
+Completed 2026-09-26.
+
+Phase 10 calibrated the existing worker, logical-shard, and merge-fan-in planner after the algorithmic restoration. No benchmark framework or new concurrency architecture was added. Calibration used the repository-built development-profile `go_adapter_snapshot` executable directly from `lexicon/target/debug/examples/` and the repository-built private Go semantic helper; no installed Rust binary was used.
+
+The calibration machine exposed **16 logical CPUs** and approximately **15.8 GiB RAM**. Both primary targets independently mapped to eight logical shards under the existing inventory heuristic:
+
+- Demon Docs at `fa5ca9aea12e20c29c378d5d018647958b862cac`: 422 Go source files;
+- Lexicon self-host at the Phase 10 branch head: 412 Go source files.
+
+The bounded matrix was `1/1/2`, `2/8/2`, `4/4/2`, `4/8/2`, `8/8/2`, and `4/8/4` for workers/shards/fan-in.
+
+### Demon Docs
+
+| Execution | Wall clock | Calls/dataflow | Avg. system CPU | Peak process-tree RSS |
+| --- | ---: | ---: | ---: | ---: |
+| 1/1/2, first pass | 39.65 s | 467 ms | 51.9% | 1752 MB |
+| 2/8/2 | 20.67 s | 600 ms | 51.6% | 1649 MB |
+| 4/4/2 | 20.38 s | 425 ms | 49.6% | 1719 MB |
+| 4/8/2 | 19.90 s | 592 ms | 45.1% | 1643 MB |
+| 8/8/2 | 37.36 s | 413 ms | 34.3% | 1644 MB |
+| 4/8/4 | 15.78 s | 420 ms | 33.2% | 1672 MB |
+| 1/1/2, warm check | 16.61 s | 507 ms | 36.6% | 1751 MB |
+
+Every run produced the established Demon Docs canonical SHA-256:
+
+`AE3064C2085AA479B058F026A26D7DC3CE2DD05EBEE036023C94E7543E650F0E`.
+
+### Lexicon self-host
+
+| Execution | Wall clock | Calls/dataflow | Avg. system CPU | Peak process-tree RSS |
+| --- | ---: | ---: | ---: | ---: |
+| 1/1/2 | 30.64 s | 446 ms | 23.3% | 826 MB |
+| 2/8/2 | 21.81 s | 504 ms | 23.9% | 854 MB |
+| 4/4/2 | 24.33 s | 340 ms | 24.4% | 818 MB |
+| 4/8/2 | 21.58 s | 366 ms | 27.4% | 826 MB |
+| 8/8/2 | 25.48 s | 370 ms | 26.8% | 841 MB |
+| 4/8/4 | 21.53 s | 335 ms | 25.3% | 845 MB |
+
+Every self-host configuration produced the same SHA-256:
+
+`F4D4227107F950D5CED50843C5985EF8064554C23DD028D14A226CB8D03827A5`.
+
+Whole-run timings are strongly affected by OS/Go build-cache state. On Demon Docs, for example, `packages.Load` varied by many seconds while the execution knobs do not control that stage. The matrix therefore does not treat run ordering as a precise ranking. The directly affected calls/dataflow stage, deterministic output, worker reservation, and memory behaviour are the primary calibration evidence.
+
+The retained planner policy is deliberately conservative:
+
+- keep the existing logical-shard sizing;
+- keep the non-enterprise active-worker ceiling of half the logical shards, so both calibration repositories select four active workers on a 16-logical-CPU host;
+- keep `LEXICON_MAX_WORKERS` as a lowering override;
+- do not raise the worker ceiling to eight: self-host `8/8/2` was slower than `4/8/2` while calls/dataflow was effectively unchanged;
+- use merge fan-in **4 at eight logical shards**. `4/8/4` did not regress the directly affected stage on either repository and reduced self-host calls/dataflow from 366 ms to 335 ms with essentially identical whole-run wall time.
+
+The only planner code change is therefore the eight-shard fan-in boundary from `> 8` to `>= 8`. A focused execution-plan regression test freezes `8 shards / 4 workers / fan-in 4` for the corresponding non-enterprise inventory shape.
+
+Phase 10 does not add permanent benchmark machinery. That remains Phase 11.
+
+The intended commit is `Calibrate Lexicon concurrency defaults`.
+
 ## Related docs
 
 - [Lexicon optimization parity audit](lexicon-optimization-parity-audit.md)

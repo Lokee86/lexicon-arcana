@@ -80,7 +80,7 @@ pub fn execution_plan_with_limits(
     result.reserved_weight = result.active_workers;
     result.merge_fan_in = match result.logical_shards {
         value if value > 64 => 8,
-        value if value > 8 => 4,
+        value if value >= 8 => 4,
         _ => 2,
     };
     Ok(result)
