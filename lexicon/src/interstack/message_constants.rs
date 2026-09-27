@@ -17,7 +17,7 @@ static CONSTANT_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
     .collect()
 });
 
-impl Resolver {
+impl Resolver<'_> {
     pub(crate) fn collect_constants(&mut self, file: &SourceFile) {
         for line in &file.lines {
             for pattern in CONSTANT_PATTERNS.iter() {

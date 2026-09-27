@@ -1,0 +1,69 @@
+{
+  "schema": "lexicon-wide-performance.phase6.v1",
+  "phase": "profile-driven-core-costs",
+  "completed_date": "2026-09-27",
+  "branch": "perf/phase5-parity-matrix",
+  "base_revision": "f01b4c8731987bba239070a4b7952213eee4e401",
+  "hermes_repository_revision": "7798df0a83721df7ff44b9ba023d56b85b351d1e",
+  "source_inventory": {
+    "phase4_warm_scan_wall_ms": 105956.042,
+    "phase4_source_inventory_ms": 105199,
+    "phase6_mirror_only_ms": 2609.846,
+    "phase6_mirror_stage_ms": 2607.009,
+    "phase6_full_warm_scan_wall_ms": 4525.762,
+    "phase6_full_warm_inventory_ms": 3332.648,
+    "phase6_change_detection_ms": 204.716,
+    "phase6_planning_ms": 246.517,
+    "discovered_files": 11017,
+    "source_bytes": 123089584,
+    "indexed_skips": 11017,
+    "byte_equal_skips": 0,
+    "copied_files": 0,
+    "snapshot_id": "sha256:5fb52466fffc5b204990c53fe4044c5a83dd1cd94a38b2c1e64ffe1301dc57aa",
+    "analysis_plans": 0,
+    "published": 0
+  },
+  "interstack": {
+    "localized_before": {
+      "node_loading_ms": 10272.081,
+      "source_loading_ms": 20790.412,
+      "source_index_ms": 5251.302,
+      "completed_within_60s": false
+    },
+    "phase6": {
+      "wall_ms": 21674.853,
+      "total_ms": 21199.222,
+      "node_loading_ms": 9451.59,
+      "source_loading_ms": 2809.544,
+      "source_index_ms": 1245.601,
+      "contract_detection_ms": 7331.212,
+      "linking_ms": 5.587,
+      "resolution_ms": 11721.825,
+      "materialization_ms": 21.85,
+      "objects": 7117,
+      "nodes_loaded": 858439,
+      "source_files": 2140,
+      "emitted_nodes": 502,
+      "emitted_edges": 951,
+      "emitted_unresolved": 561,
+      "facts": 2014
+    }
+  },
+  "changes": [
+    "Use exact Git index/blob identity to skip rereading unchanged mirrored files.",
+    "Keep byte-for-byte mirror fallback for dirty/unavailable-index states.",
+    "Bound mirror copying and source hashing with worker ceilings.",
+    "Load Interstack CAS node sections in bounded parallel workers.",
+    "Load Interstack source files in bounded parallel workers.",
+    "Build Interstack SourceIndex over borrowed nodes and integer indexes rather than cloned nodes.",
+    "Add focused lifecycle instrumentation and small profiling examples for mirror and Interstack costs."
+  ],
+  "invariants": [
+    "No source change can be skipped solely from filesystem timestamps.",
+    "Dirty or unverifiable mirror state falls back to byte comparison.",
+    "Mirror bytes remain exact source bytes.",
+    "Interstack node ordering is restored deterministically after parallel loads.",
+    "Interstack source-file ordering remains path-sorted.",
+    "Interstack lookup semantics remain unchanged."
+  ]
+}

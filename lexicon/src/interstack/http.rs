@@ -34,7 +34,7 @@ pub(crate) struct HttpProducer {
     pub evidence: String,
 }
 
-impl Resolver {
+impl Resolver<'_> {
     pub(crate) fn resolve_http_producers(&mut self) {
         let mut seen = HashSet::new();
         for producer in self.http_sources.clone() {

@@ -15,7 +15,7 @@ static GO_CLI_COMMAND: LazyLock<Regex> =
 static RUST_CLI_COMMAND: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"cli::Command::([A-Z][A-Za-z0-9]*)").unwrap());
 
-impl Resolver {
+impl Resolver<'_> {
     pub(crate) fn link_command_invocation(
         &mut self,
         owner: &Node,

@@ -24,7 +24,7 @@ static GO_ROUTER: LazyLock<Regex> = LazyLock::new(|| {
     .unwrap()
 });
 
-impl Resolver {
+impl Resolver<'_> {
     pub(crate) fn detect_http_consumers(&mut self, file: &SourceFile) {
         if file.extension == ".rb" && file.path.ends_with("config/routes.rb") {
             self.detect_rails_routes(file);

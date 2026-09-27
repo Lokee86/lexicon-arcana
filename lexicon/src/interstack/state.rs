@@ -12,7 +12,7 @@ struct StateRole {
     relation: &'static str,
 }
 
-impl Resolver {
+impl Resolver<'_> {
     pub(crate) fn detect_state_contracts(&mut self, file: &SourceFile) {
         let path = normalize_source_path(&file.path).to_ascii_lowercase();
         let roles: &[StateRole] = if path.ends_with("lexicon/internal/objectstore/store.go") {

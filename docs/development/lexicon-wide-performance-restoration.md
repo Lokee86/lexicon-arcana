@@ -3,7 +3,7 @@
 Parent index: [Development Documentation](INDEX.md)
 
 **Started:** 2026-09-26  
-**Current phase:** Phase 5 complete — pre-port optimization parity matrix established; Phase 3 remains pending
+**Current phase:** Phase 6 complete — profile-driven remaining core costs reduced; Phase 3 remains pending
 **Predecessor:** [Lexicon Go-path performance restoration](lexicon-performance-restoration.md)
 
 ## Purpose
@@ -347,6 +347,100 @@ Phase 5 is complete when:
 - the Interstack node-only regression is restored and protected by test;
 - Phase 3 is explicitly identified as the remaining owner-partitioned-analysis gap rather than silently treated as complete;
 - the full Rust suite and documentation gates remain green.
+
+## Phase 6 — profile-driven remaining core costs
+
+Completed 2026-09-27 on the same perf/phase5-parity-matrix branch. **Phase 3 remains pending.**
+
+Phase 6 targets the remaining Lexicon-core costs exposed after Python resolution and storage/materialization were restored. It does not reopen Phase 2's Python semantics or Phase 4's storage ownership design.
+
+The post-Phase-4 warm Hermes scan made the first target unambiguous: approximately **105.199 s of a 105.956 s no-change scan** was source inventory. The existing mirror path walked the tree and reread both source and mirror bytes for every relevant file even when Git already knew the private mirror exactly matched the last committed source state.
+
+The restored warm path now:
+
+- verifies the private state mirror is clean before trusting its Git index;
+- compares exact Git blob identities for the current source bytes against the indexed mirror identities;
+- skips destination rereads only for exact identity matches;
+- falls back to the previous byte-for-byte comparison whenever the mirror is dirty, the index cannot be trusted, or the fast path is unavailable;
+- retains bounded parallel copy fallback for files that actually require comparison/replacement.
+
+No timestamp-only or size-only correctness shortcut is used.
+
+### Hermes warm-scan result
+
+On the preserved Phase 4 Hermes state:
+
+| Measurement | Phase 4 | Phase 6 |
+| --- | ---: | ---: |
+| Relevant files | **11,017** | **11,017** |
+| Relevant source bytes | **123,089,584 B** | **123,089,584 B** |
+| Source inventory | **~105.199 s** | **3.333 s** in the full warm scan |
+| Change detection | — | **204.716 ms** |
+| Planning | — | **246.517 ms** |
+| Full no-change warm scan | **105.956 s** | **4.526 s** |
+| Analysis plans | **0** | **0** |
+| Published snapshot | no | no |
+| Snapshot ID | same Phase 4 snapshot | sha256:5fb52466fffc5b204990c53fe4044c5a83dd1cd94a38b2c1e64ffe1301dc57aa |
+
+An isolated mirror profile measured **2.607 s** for the same 11,017 files, with all 11,017 files skipped through exact indexed content identity, zero byte-comparison fallbacks, and zero copies.
+
+The full warm scan therefore falls by approximately **95.7%** while preserving the exact existing snapshot.
+
+### Interstack localization and repair
+
+The next measured core cost was Interstack refresh. Phase 5 had restored node-only object decoding; Phase 6 instruments the remaining stages and removes avoidable serial I/O and node duplication.
+
+The first bounded Hermes profile localized:
+
+- node loading: **10.272 s** for 7,117 CAS objects / 858,439 nodes;
+- source loading: **20.790 s** for 2,140 source files;
+- source-index construction: **5.251 s** for 858,439 nodes;
+- the full refresh did not finish inside the original 60-second bound.
+
+Phase 6 then:
+
+- loads node-only CAS objects with bounded parallel workers while restoring object order before concatenation;
+- loads eligible Interstack source files with bounded parallel workers after deterministic path discovery/sort;
+- changes SourceIndex from multiple cloned Node vectors/maps to one borrowed node set plus integer indexes;
+- keeps lookup results owned at the public resolver boundary, preserving existing call sites and semantics.
+
+The resulting bounded Hermes profile completes:
+
+| Interstack stage | Localized pre-fix | Phase 6 |
+| --- | ---: | ---: |
+| Node loading | **10.272 s** | **9.452 s** |
+| Source loading | **20.790 s** | **2.810 s** |
+| Source-index construction | **5.251 s** | **1.246 s** |
+| Contract detection | not reached before bound | **7.331 s** |
+| Linking | not reached before bound | **5.587 ms** |
+| Resolution total | not completed | **11.722 s** |
+| Materialization | not completed | **21.850 ms** |
+| Interstack total | **>60 s bounded run** | **21.199 s** |
+
+The source-loading reduction is approximately **86.5%**, and source-index construction falls approximately **76.3%**. Node loading is now the dominant Interstack setup cost and remains visible for future profile-driven work rather than being hidden inside publication.
+
+### Phase 6 invariants
+
+The Phase 6 optimizations preserve:
+
+- exact source-byte mirroring;
+- exact Git-content identity rather than timestamp heuristics;
+- dirty/unverifiable mirror fallback to byte comparison;
+- deterministic source-file order;
+- deterministic CAS-object/node order after parallel loading;
+- Interstack lookup and emitted-fact semantics;
+- existing snapshot identity on a no-change scan.
+
+The permanent measurements are recorded in lexicon/evaluation/performance/hermes-rust-phase6-2026-09-27.json.
+
+### Phase 6 gate
+
+Phase 6 is complete because the two dominant measured Lexicon-core costs after Phase 4 are localized and materially reduced:
+
+1. no-change source inventory no longer dominates warm scans;
+2. Interstack source/index setup no longer dominates derived-graph refresh.
+
+Python call resolution remains an adapter-specific Phase 2-era cost rather than an unowned core cost, and the owner-partitioned analysis abstraction remains explicitly owned by pending **Phase 3**.
 
 ## Execution sequence
 

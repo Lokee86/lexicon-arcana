@@ -52,45 +52,48 @@ pub(crate) struct SourceFile {
 }
 
 #[derive(Debug, Clone, Default)]
-pub(crate) struct SourceIndex {
-    callables: HashMap<String, Vec<Node>>,
-    files: HashMap<String, Node>,
-    by_qname: HashMap<String, Vec<Node>>,
-    by_name: HashMap<String, Vec<Node>>,
+pub(crate) struct SourceIndex<'a> {
+    nodes: Vec<&'a Node>,
+    callables: HashMap<String, Vec<usize>>,
+    files: HashMap<String, usize>,
+    by_qname: HashMap<String, Vec<usize>>,
+    by_name: HashMap<String, Vec<usize>>,
 }
 
-impl SourceIndex {
-    pub(crate) fn new(libraries: &[Library]) -> Self {
-        let mut index = Self::default();
+impl<'a> SourceIndex<'a> {
+    pub(crate) fn new(libraries: &'a [Library]) -> Self {
+        let capacity = libraries.iter().map(|library| library.nodes.len()).sum();
+        let mut index = Self {
+            nodes: Vec::with_capacity(capacity),
+            ..Self::default()
+        };
         for library in libraries {
-            for raw in &library.nodes {
-                let mut node = raw.clone();
-                node.path = normalize_source_path(&node.path);
+            for node in &library.nodes {
+                let node_index = index.nodes.len();
                 index
                     .by_qname
                     .entry(node.qualified_name.clone())
                     .or_default()
-                    .push(node.clone());
+                    .push(node_index);
                 index
                     .by_name
                     .entry(node.name.clone())
                     .or_default()
-                    .push(node.clone());
-                if node.kind == "file" && !node.path.is_empty() {
-                    index.files.insert(node.path.clone(), node.clone());
+                    .push(node_index);
+                let path = normalize_source_path(&node.path);
+                if node.kind == "file" && !path.is_empty() {
+                    index.files.insert(path.clone(), node_index);
                 }
-                if is_callable(&node.kind) && !node.path.is_empty() && node.span.is_some() {
-                    index
-                        .callables
-                        .entry(node.path.clone())
-                        .or_default()
-                        .push(node);
+                if is_callable(&node.kind) && !path.is_empty() && node.span.is_some() {
+                    index.callables.entry(path).or_default().push(node_index);
                 }
+                index.nodes.push(node);
             }
         }
+        let nodes = &index.nodes;
         for values in index.callables.values_mut() {
-            values.sort_by_key(|node| {
-                let span = node.span.as_ref().expect("callable span");
+            values.sort_by_key(|node_index| {
+                let span = nodes[*node_index].span.as_ref().expect("callable span");
                 (span.start_line, span.start_column)
             });
         }
@@ -101,23 +104,26 @@ impl SourceIndex {
         let path = normalize_source_path(path);
         let mut nearest = None;
         if let Some(candidates) = self.callables.get(&path) {
-            for candidate in candidates {
+            for node_index in candidates {
+                let candidate = self.nodes[*node_index];
                 let span = candidate.span.as_ref().expect("callable span");
                 if span.start_line > line {
                     break;
                 }
-                nearest = Some(candidate.clone());
+                nearest = Some(*node_index);
                 if span.start_line <= line && span.end_line >= line {
                     return Some(candidate.clone());
                 }
             }
         }
-        nearest.or_else(|| self.files.get(&path).cloned())
+        nearest
+            .or_else(|| self.files.get(&path).copied())
+            .map(|node_index| self.nodes[node_index].clone())
     }
 
     pub(crate) fn exact_qname(&self, name: &str) -> Option<Node> {
         let values = self.by_qname.get(name)?;
-        (values.len() == 1).then(|| values[0].clone())
+        (values.len() == 1).then(|| self.nodes[values[0]].clone())
     }
 
     pub(crate) fn callable_by_name(&self, name: &str, preferred_path: &str) -> Option<Node> {
@@ -127,26 +133,38 @@ impl SourceIndex {
             .parent()
             .map(|path| path.to_string_lossy().replace('\\', "/"))
             .unwrap_or_default();
+        let directory_prefix = (!directory.is_empty()).then(|| format!("{directory}/"));
         let mut best_score = -1_i32;
         let mut best = None;
         let mut tied = false;
-        for candidate in values.iter().filter(|node| is_callable(&node.kind)) {
+        for node_index in values {
+            let candidate = self.nodes[*node_index];
+            if !is_callable(&candidate.kind) {
+                continue;
+            }
             let mut score = 0;
             if component_for_path(&candidate.path) == component {
                 score += 4;
             }
-            if !directory.is_empty() && candidate.path.starts_with(&(directory.clone() + "/")) {
+            if directory_prefix
+                .as_deref()
+                .is_some_and(|prefix| candidate.path.starts_with(prefix))
+            {
                 score += 2;
             }
             if score > best_score {
                 best_score = score;
-                best = Some(candidate.clone());
+                best = Some(*node_index);
                 tied = false;
             } else if score == best_score {
                 tied = true;
             }
         }
-        if best_score >= 0 && !tied { best } else { None }
+        if best_score >= 0 && !tied {
+            best.map(|node_index| self.nodes[node_index].clone())
+        } else {
+            None
+        }
     }
 }
 
