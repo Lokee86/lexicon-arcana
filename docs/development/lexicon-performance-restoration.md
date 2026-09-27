@@ -1,4 +1,4 @@
-# Lexicon Performance Restoration
+# Lexicon Go-Path Performance Restoration
 
 Parent index: [Development Documentation](INDEX.md)
 
@@ -8,7 +8,7 @@ Parent index: [Development Documentation](INDEX.md)
 
 ## Purpose
 
-Restore the performance characteristics lost during the Rust Go-adapter port without changing the frozen semantic contract, and retain measured evidence for each restoration phase.
+Restore the performance characteristics lost specifically in the native Go adapter/helper path during the Rust migration without changing the frozen semantic contract, and retain measured evidence for each restoration phase. This completed project is historical input to the later Lexicon-wide performance restoration; it does not establish Rust-wide performance parity.
 
 ## Overview
 

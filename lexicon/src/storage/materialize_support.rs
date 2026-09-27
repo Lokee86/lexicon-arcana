@@ -8,6 +8,11 @@ use super::{Analysis, FileEntry, LanguageEntry, SourceFile, StorageError, Store}
 pub(crate) fn source_map(
     sources: &[SourceFile],
 ) -> Result<BTreeMap<String, Vec<u8>>, StorageError> {
+    let started = crate::perf::start();
+    let source_bytes = sources
+        .iter()
+        .map(|source| source.content.len() as u64)
+        .sum::<u64>();
     let mut result = BTreeMap::new();
     for source in sources {
         let normalized = normalized_paths(std::slice::from_ref(&source.path));
@@ -26,6 +31,17 @@ pub(crate) fn source_map(
                 source.path
             )));
         }
+    }
+    if let Some(started) = started {
+        crate::perf::emit(
+            "storage.source_copy",
+            started.elapsed(),
+            &[
+                ("source_files", sources.len() as u64),
+                ("source_bytes", source_bytes),
+                ("cloned_source_bytes", source_bytes),
+            ],
+        );
     }
     Ok(result)
 }

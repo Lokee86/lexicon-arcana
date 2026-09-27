@@ -22,11 +22,32 @@ impl SourceMirror {
     }
 
     pub fn sync_all(&self, source: &Path) -> Result<(), RepositoryError> {
+        let started = crate::perf::start();
         let source = absolute(source)?;
         let policy = IgnorePolicy::load(&source)?;
         let desired = relevant_files(&source, &source, &policy)?;
+        let source_bytes = if started.is_some() {
+            desired
+                .values()
+                .filter_map(|path| fs::metadata(path).ok())
+                .map(|metadata| metadata.len())
+                .sum::<u64>()
+        } else {
+            0
+        };
         self.copy_all(&desired)?;
-        self.remove_missing(&desired)
+        self.remove_missing(&desired)?;
+        if let Some(started) = started {
+            crate::perf::emit(
+                "scan.source_inventory",
+                started.elapsed(),
+                &[
+                    ("discovered_files", desired.len() as u64),
+                    ("source_bytes", source_bytes),
+                ],
+            );
+        }
+        Ok(())
     }
 
     pub fn sync_paths(&self, source: &Path, paths: &[PathBuf]) -> Result<(), RepositoryError> {

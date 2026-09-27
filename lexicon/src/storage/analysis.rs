@@ -57,6 +57,7 @@ impl Analysis {
     }
 
     pub(crate) fn groups(&self, allowed: Option<&BTreeSet<String>>) -> RecordGroups {
+        let started = crate::perf::start();
         let node_owners = node_owners(&self.records);
         let mut groups = RecordGroups::default();
         for record in &self.records {
@@ -68,6 +69,24 @@ impl Analysis {
                 continue;
             }
             groups.shared.push(record.clone());
+        }
+        if let Some(started) = started {
+            let owned_records = groups
+                .owned
+                .values()
+                .map(|records| records.len() as u64)
+                .sum::<u64>();
+            crate::perf::emit(
+                &format!("{}.ownership_partitioning", self.header.language),
+                started.elapsed(),
+                &[
+                    ("fact_count", self.records.len() as u64),
+                    ("ownership_partitions", groups.owned.len() as u64),
+                    ("owned_records", owned_records),
+                    ("shared_records", groups.shared.len() as u64),
+                    ("record_clones", self.records.len() as u64),
+                ],
+            );
         }
         groups
     }

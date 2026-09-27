@@ -23,12 +23,37 @@ impl Store {
             ));
         }
         let sources = source_map(sources)?;
+        let source_bytes = sources
+            .values()
+            .map(|source| source.len() as u64)
+            .sum::<u64>();
         let allowed: BTreeSet<String> = sources.keys().cloned().collect();
         let groups = analysis.groups(Some(&allowed));
+        let owned_records = groups
+            .owned
+            .values()
+            .map(|records| records.len() as u64)
+            .sum::<u64>();
+        let shared_records = groups.shared.len() as u64;
         let entry = language_metadata(analysis, analysis_config_id, adapter_fingerprint);
 
+        let objects_started = crate::perf::start();
         let files = write_full_file_objects(self, &entry, sources, &groups)?;
         let shared_object_id = self.write_language_shared_object(&entry, groups.shared)?;
+        if let Some(objects_started) = objects_started {
+            crate::perf::emit(
+                &format!("{}.object_construction_cas", language),
+                objects_started.elapsed(),
+                &[
+                    ("file_objects", files.len() as u64),
+                    ("shared_objects", u64::from(!shared_object_id.is_empty())),
+                    ("owned_records", owned_records),
+                    ("shared_records", shared_records),
+                    ("record_clones", owned_records),
+                    ("source_bytes", source_bytes),
+                ],
+            );
+        }
         Ok(LanguageEntry {
             files: Some(files),
             shared_object_id,

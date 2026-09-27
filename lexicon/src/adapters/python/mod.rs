@@ -108,13 +108,83 @@ impl LanguageAdapter for PythonAdapter {
             )));
         }
 
+        crate::perf::emit(
+            "python.execution_plan",
+            std::time::Duration::ZERO,
+            &[
+                ("workers", request.workers as u64),
+                ("logical_shards", request.shards as u64),
+                ("merge_fan_in", request.merge_fan_in as u64),
+            ],
+        );
+
+        let discovery_started = crate::perf::start();
         let repository = discover(&request.repository)?;
+        if let Some(discovery_started) = discovery_started {
+            let source_bytes = repository
+                .files
+                .iter()
+                .map(|file| file.bytes.len() as u64)
+                .sum::<u64>();
+            let retained_source_bytes = repository
+                .files
+                .iter()
+                .map(|file| (file.bytes.len() + file.source.len()) as u64)
+                .sum::<u64>();
+            let retained_ast_files = repository
+                .files
+                .iter()
+                .filter(|file| file.suite.is_some())
+                .count() as u64;
+            crate::perf::emit(
+                "python.adapter_discovery",
+                discovery_started.elapsed(),
+                &[
+                    ("discovered_files", repository.files.len() as u64),
+                    ("source_bytes", source_bytes),
+                    ("retained_source_bytes", retained_source_bytes),
+                    ("retained_files", repository.files.len() as u64),
+                    ("retained_ast_files", retained_ast_files),
+                ],
+            );
+        }
+
         let mut facts = Facts::new(repository.name.clone());
+        let extraction_started = crate::perf::start();
         extract_repository(&repository, &mut facts)?;
         semantic::emit_semantic_facts(&repository, &mut facts);
+        if let Some(extraction_started) = extraction_started {
+            emit_python_state("python.extraction", extraction_started.elapsed(), &facts);
+        }
+
+        let facts_before_resolution = emitted_fact_count(&facts);
+        let resolution_started = crate::perf::start();
         resolve(&mut facts);
+        if let Some(resolution_started) = resolution_started {
+            let mut counters = python_state_counters(&facts);
+            counters.push(("facts_before_resolution", facts_before_resolution as u64));
+            counters.push(("facts_after_resolution", emitted_fact_count(&facts) as u64));
+            crate::perf::emit(
+                "python.repository_resolution",
+                resolution_started.elapsed(),
+                &counters,
+            );
+        }
+
+        let final_emission_started = crate::perf::start();
+        let call_record_clones = facts.calls.len() as u64;
         semantic::emit_outcome_facts(&facts.calls.clone(), &mut facts);
         dependencies::add_dependency_facts(&repository, &mut facts);
+        if let Some(final_emission_started) = final_emission_started {
+            crate::perf::emit(
+                "python.final_fact_emission",
+                final_emission_started.elapsed(),
+                &[
+                    ("final_fact_count", emitted_fact_count(&facts) as u64),
+                    ("record_clones", call_record_clones),
+                ],
+            );
+        }
 
         let incremental = request.mode == AdapterMode::Incremental;
         let header = FactHeader {
@@ -130,6 +200,51 @@ impl LanguageAdapter for PythonAdapter {
         };
         Ok(Analysis::new(header, facts.into_records()))
     }
+}
+
+fn emitted_fact_count(facts: &Facts) -> usize {
+    facts.nodes.len() + facts.edges.len() + facts.unresolved.len()
+}
+
+fn python_state_counters(facts: &Facts) -> Vec<(&'static str, u64)> {
+    let bindings = facts.module_bindings.len()
+        + facts.scope_bindings.len()
+        + facts.local_assignments.len()
+        + facts.loop_bindings.len()
+        + facts.data_symbols.len();
+    let extraction_state_cardinality = facts.modules.len()
+        + facts.symbols.len()
+        + facts.qnames.len()
+        + facts.imports.len()
+        + facts.inheritances.len()
+        + facts.functions.len()
+        + facts.classes.len()
+        + facts.lambda_ids.len()
+        + facts.calls.len()
+        + facts.local_assignments.len()
+        + facts.loop_bindings.len()
+        + facts.module_bindings.len()
+        + facts.scope_bindings.len()
+        + facts.scope_parents.len()
+        + facts.data_symbols.len();
+
+    vec![
+        ("fact_count", emitted_fact_count(facts) as u64),
+        (
+            "extraction_state_cardinality",
+            extraction_state_cardinality as u64,
+        ),
+        ("calls_retained", facts.calls.len() as u64),
+        ("imports_retained", facts.imports.len() as u64),
+        ("functions_retained", facts.functions.len() as u64),
+        ("classes_retained", facts.classes.len() as u64),
+        ("bindings_retained", bindings as u64),
+    ]
+}
+
+fn emit_python_state(stage: &str, elapsed: std::time::Duration, facts: &Facts) {
+    let counters = python_state_counters(facts);
+    crate::perf::emit(stage, elapsed, &counters);
 }
 
 fn normalized(paths: &[String]) -> Vec<String> {

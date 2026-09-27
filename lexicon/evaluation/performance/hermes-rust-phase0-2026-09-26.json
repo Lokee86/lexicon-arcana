@@ -1,0 +1,80 @@
+{
+  "schema": "lexicon-lifecycle-baseline.v1",
+  "status": "pathological_cutoff",
+  "target": {
+    "repository": "C:\\!bin\\workspace\\hermes-agent",
+    "revision": "7798df0a83721df7ff44b9ba023d56b85b351d1e",
+    "worktree_dirty": true,
+    "language": "python"
+  },
+  "execution": {
+    "build_profile": "release",
+    "repo_built_rust": true,
+    "scratch_state": true,
+    "terminated_after_scan_seconds_lower_bound": 1140
+  },
+  "completed_stages": [
+    {
+      "stage": "scan.source_inventory",
+      "elapsed_ms": 140647.865,
+      "discovered_files": 11017,
+      "source_bytes": 123089584
+    },
+    {
+      "stage": "scan.source_change_detection",
+      "elapsed_ms_original_nested_timer": 170916.440,
+      "exclusive_elapsed_ms_derived": 30268.575,
+      "changed_files": 0,
+      "note": "The initial baseline nested source inventory inside this timer. Final Phase 0 instrumentation separates the timers."
+    },
+    {
+      "stage": "scan.planning",
+      "elapsed_ms": 147.779,
+      "present_languages": 10,
+      "analysis_plans": 1,
+      "full_analysis_plans": 1
+    },
+    {
+      "stage": "python.adapter_discovery",
+      "elapsed_ms": 58080.200,
+      "discovered_files": 7114,
+      "source_bytes": 88964777,
+      "retained_source_bytes": 177929554,
+      "retained_files": 7114,
+      "retained_ast_files": 7114
+    },
+    {
+      "stage": "python.extraction",
+      "elapsed_ms": 86926.433,
+      "fact_count": 2927306,
+      "extraction_state_cardinality": 3070740,
+      "calls_retained": 636923,
+      "imports_retained": 101005,
+      "functions_retained": 137020,
+      "classes_retained": 15735,
+      "bindings_retained": 1013718
+    }
+  ],
+  "failure_boundary": "python.repository_resolution",
+  "observed_rss_bytes_lower_bound": 2937159680,
+  "final": {
+    "snapshot_id": null,
+    "fact_count": null,
+    "sha256": null,
+    "cas_object_count": null,
+    "cas_bytes": null,
+    "warm_scan": null
+  },
+  "oracle": {
+    "python_files": 6694,
+    "source_bytes_approx": 84300000,
+    "workers": 16,
+    "logical_shards": 256,
+    "merge_fan_in": 8,
+    "peak_rss_gib": 3.612,
+    "wall_seconds": 134.574,
+    "jsonl_bytes": 1058412847,
+    "jsonl_lines": 2972095,
+    "sha256": "6f3744688d376e5473bbe6e5f333d63afebc2f0c9a1b95630840ae8eacd6a3a4"
+  }
+}

@@ -78,12 +78,28 @@ impl AdapterHost {
 
         let mut analysis = adapter.analyze(request)?;
         analysis.restrict_incremental_ownership();
+        let canonical_started = crate::perf::start();
         analysis
             .canonicalize()
             .map_err(|error| AdapterError::new(error.to_string()))?;
+        if let Some(canonical_started) = canonical_started {
+            crate::perf::emit(
+                &format!("{}.canonicalization", request.language),
+                canonical_started.elapsed(),
+                &[("fact_count", analysis.records.len() as u64)],
+            );
+        }
+        let validation_started = crate::perf::start();
         analysis
             .validate()
             .map_err(|error| AdapterError::new(error.to_string()))?;
+        if let Some(validation_started) = validation_started {
+            crate::perf::emit(
+                &format!("{}.validation", request.language),
+                validation_started.elapsed(),
+                &[("fact_count", analysis.records.len() as u64)],
+            );
+        }
         if analysis.header.language != request.language {
             return Err(AdapterError::new(format!(
                 "{} adapter emitted language {:?}",

@@ -65,6 +65,7 @@ impl ScanEngine {
         &self,
         synchronize: impl FnOnce(&SourceMirror, &Path) -> Result<(), crate::RepositoryError>,
     ) -> Result<ScanReport, ScanExecutionError> {
+        let scan_started = crate::perf::start();
         let _guard = self.store.lock()?;
         let head = self.git.head_option()?;
         match self.store.recover_pending(head.as_deref())? {
@@ -77,9 +78,18 @@ impl ScanEngine {
         let (current_id, manifest) = self.load_manifest()?;
         let legacy_removed = remove_legacy_library(self.git.root())?;
         synchronize(&self.mirror, &self.repository)?;
+        let change_detection_started = crate::perf::start();
         self.git.stage_source()?;
         let changes = self.git.source_changes()?;
+        if let Some(change_detection_started) = change_detection_started {
+            crate::perf::emit(
+                "scan.source_change_detection",
+                change_detection_started.elapsed(),
+                &[("changed_files", changes.len() as u64)],
+            );
+        }
 
+        let planning_started = crate::perf::start();
         let present_languages = languages_in_tree(self.mirror.root())?;
         let fingerprints = adapter_fingerprints(&self.host, &manifest)?;
         let input = PlanningInput {
@@ -89,6 +99,23 @@ impl ScanEngine {
             adapter_fingerprints: Some(fingerprints),
         };
         let plan = plan_scan(&self.store, &manifest, &input)?;
+        if let Some(planning_started) = planning_started {
+            crate::perf::emit(
+                "scan.planning",
+                planning_started.elapsed(),
+                &[
+                    ("present_languages", input.present_languages.len() as u64),
+                    ("analysis_plans", plan.analyses.len() as u64),
+                    (
+                        "full_analysis_plans",
+                        plan.analyses
+                            .iter()
+                            .filter(|analysis| analysis.full)
+                            .count() as u64,
+                    ),
+                ],
+            );
+        }
 
         let interstack_drift = interstack_drifted(&plan.manifest);
         if !plan.needs_work()
@@ -98,6 +125,13 @@ impl ScanEngine {
             && let Some(id) = current_id
         {
             self.verify_current_state(&plan.manifest)?;
+            if let Some(scan_started) = scan_started {
+                crate::perf::emit(
+                    "scan.total",
+                    scan_started.elapsed(),
+                    &[("analysis_plans", 0), ("published", 0)],
+                );
+            }
             return Ok(ScanReport {
                 changed: Vec::new(),
                 languages: Vec::new(),
@@ -106,7 +140,9 @@ impl ScanEngine {
         }
 
         let languages = plan.languages();
+        let analysis_plan_count = plan.analyses.len() as u64;
         let temporary = self.store.root().join("tmp");
+        let analysis_started = crate::perf::start();
         let manifest = execute_analysis_plans(
             &self.store,
             &self.host,
@@ -115,8 +151,26 @@ impl ScanEngine {
             plan.manifest,
             &plan.analyses,
         )?;
+        if let Some(analysis_started) = analysis_started {
+            crate::perf::emit(
+                "scan.analysis",
+                analysis_started.elapsed(),
+                &[("analysis_plans", analysis_plan_count)],
+            );
+        }
         let (manifest, _) = refresh_interstack(&self.store, self.mirror.root(), manifest)?;
+        let publication_started = crate::perf::start();
         let snapshot_id = self.commit_manifest(manifest)?;
+        if let Some(publication_started) = publication_started {
+            crate::perf::emit("scan.publication", publication_started.elapsed(), &[]);
+        }
+        if let Some(scan_started) = scan_started {
+            crate::perf::emit(
+                "scan.total",
+                scan_started.elapsed(),
+                &[("analysis_plans", analysis_plan_count), ("published", 1)],
+            );
+        }
         Ok(ScanReport {
             changed: changes,
             languages,
