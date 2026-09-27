@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use crate::repository::{NodeKey, RelationKind};
+use crate::repository::RelationKind;
 use crate::synthetic::NodeId;
 
 use super::build::CompactKindIndexRecord;
@@ -9,19 +7,6 @@ use super::{
     CompactEdgeRecord, CompactNodeRecord, CompactUnresolvedRecord, RepositoryStoreWriteError,
     StringId,
 };
-
-pub(super) fn dense_node_ids(
-    nodes: &[CompactNodeRecord],
-) -> Result<HashMap<NodeKey, NodeId>, RepositoryStoreWriteError> {
-    let mut ids = HashMap::with_capacity(nodes.len());
-    for (index, node) in nodes.iter().enumerate() {
-        let id = u32::try_from(index)
-            .map(NodeId)
-            .map_err(|_| RepositoryStoreWriteError::TooManyNodes)?;
-        ids.insert(node.key, id);
-    }
-    Ok(ids)
-}
 
 pub(super) fn sorted_dense_ids(
     nodes: &[CompactNodeRecord],
@@ -97,6 +82,8 @@ fn optional(id: StringId) -> Option<StringId> {
 
 #[cfg(test)]
 mod tests {
+    use crate::repository::NodeKey;
+
     use super::super::format::relation_code;
     use super::*;
 

@@ -7,6 +7,7 @@ use sha2::{Digest, Sha256};
 
 use super::snapshot::load as load_rich;
 use super::snapshot_compact::{load_and_write_compact, load_compact};
+use crate::repository::{compile_compact_repository_graph, compile_repository_graph};
 use crate::repository_store::{CompactRepositoryBuild, write_repository_store};
 
 const GOLDEN_V2_HEX: &str = "4c584f424a00020001010900000005312e302e30000964656d6f2e6d61696e010d796e616d69632d746172676574000166010228290002676f00046d61696e04032e676f060801bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0101cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc007a020001bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0111111111111111111111111111111111111111111111111111111111111111110308010101000000000122222222222222222222222222222222222222222222222222222222222222220b0701010002010802010202090100010100020000010b0100040005010304000200";
@@ -67,6 +68,10 @@ fn v2_snapshot_streams_directly_to_the_phase3_compact_oracle() {
         compact_write.header.file_len,
         fs::metadata(&compact_store).unwrap().len()
     );
+
+    let rich_graph = compile_repository_graph(rich.facts()).unwrap();
+    let compact_graph = compile_compact_repository_graph(&compact.repository).unwrap();
+    assert_eq!(compact_graph, rich_graph);
 }
 
 #[test]

@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-
 use crate::repository::{NodeKey, RepositoryFacts};
 use crate::synthetic::NodeId;
 
-use super::build_indexes::{dense_node_ids, sorted_dense_ids, sorted_kind_index};
+use super::build_indexes::{sorted_dense_ids, sorted_kind_index};
 use super::build_ownership::build_ownership;
 use super::canonical::Contribution;
 use super::{
@@ -36,7 +34,6 @@ pub(crate) struct CompactRepositoryBuild {
     pub name_index: Vec<NodeId>,
     pub path_index: Vec<NodeId>,
     pub kind_index: Vec<CompactKindIndexRecord>,
-    pub(super) node_ids: HashMap<NodeKey, NodeId>,
 }
 
 impl CompactRepositoryBuild {
@@ -76,8 +73,7 @@ impl CompactRepositoryBuild {
         edges: Vec<CompactEdgeRecord>,
         unresolved: Vec<CompactUnresolvedRecord>,
     ) -> Result<Self, RepositoryStoreWriteError> {
-        let node_ids = dense_node_ids(&nodes)?;
-        validate_references(&node_ids, &edges, &unresolved)?;
+        validate_references(&nodes, &edges, &unresolved)?;
         let name_index = sorted_dense_ids(&nodes, |record| record.name)?;
         let path_index = sorted_dense_ids(&nodes, |record| record.path)?;
         let kind_index = sorted_kind_index(&nodes)?;
@@ -92,37 +88,44 @@ impl CompactRepositoryBuild {
             name_index,
             path_index,
             kind_index,
-            node_ids,
         };
         (build.ownership, build.contributions) = build_ownership(&build)?;
         Ok(build)
     }
 
     pub(crate) fn node_id(&self, key: NodeKey) -> Option<NodeId> {
-        self.node_ids.get(&key).copied()
+        self.nodes
+            .binary_search_by_key(&key, |node| node.key)
+            .ok()
+            .and_then(|index| u32::try_from(index).ok())
+            .map(NodeId)
     }
 }
 
 fn validate_references(
-    node_ids: &HashMap<NodeKey, NodeId>,
+    nodes: &[CompactNodeRecord],
     edges: &[CompactEdgeRecord],
     unresolved: &[CompactUnresolvedRecord],
 ) -> Result<(), RepositoryStoreWriteError> {
     for edge in edges {
         for key in [edge.source, edge.target] {
-            if !node_ids.contains_key(&key) {
+            if !contains_node(nodes, key) {
                 return Err(RepositoryStoreWriteError::MissingEdgeEndpoint { key });
             }
         }
     }
     for reference in unresolved {
-        if !node_ids.contains_key(&reference.source) {
+        if !contains_node(nodes, reference.source) {
             return Err(RepositoryStoreWriteError::MissingUnresolvedSource {
                 key: reference.source,
             });
         }
     }
     Ok(())
+}
+
+fn contains_node(nodes: &[CompactNodeRecord], key: NodeKey) -> bool {
+    nodes.binary_search_by_key(&key, |node| node.key).is_ok()
 }
 
 #[cfg(test)]

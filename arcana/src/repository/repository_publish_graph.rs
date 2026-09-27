@@ -95,7 +95,7 @@ fn validate_store_graph(
 
 fn compiled_node_key_checksum(compiled: &CompiledRepositoryGraph) -> u64 {
     let mut hasher = StableHasher::new();
-    for (key, _) in &compiled.node_ids {
+    for key in &compiled.node_keys {
         hasher.update(&key.0.to_le_bytes());
     }
     hasher.finish()

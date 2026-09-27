@@ -128,7 +128,7 @@ pub fn plan_file_update_from_verified_base(
     let current_keys = node_keys(&current_facts);
     let facts = replace_changed_files_owned_base(current_facts, replacement_facts, changed_paths)?;
     let graph = compile_repository_graph(&facts)?;
-    let updated_keys = graph.node_ids.keys().copied().collect::<Vec<_>>();
+    let updated_keys = graph.node_keys.clone();
 
     if current_keys != updated_keys {
         let (added, removed) = key_difference(&current_keys, &updated_keys);

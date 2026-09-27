@@ -51,6 +51,8 @@ pub use compiler::{
 pub use fact_encode::{encode_facts, encode_unresolved_facts};
 pub use fact_file::{FACT_SCHEMA_VERSION, parse_facts};
 pub use fact_file_error::FactFileError;
+#[allow(unused_imports)]
+pub(crate) use graph_compile::compile_compact_repository_graph;
 pub use graph_compile::{CompiledRepositoryGraph, compile_repository_graph};
 pub use incremental::{
     IncrementalError, IncrementalUpdate, plan_file_update, plan_file_update_from_verified_base,
