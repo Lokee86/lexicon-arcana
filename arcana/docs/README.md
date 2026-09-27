@@ -19,6 +19,10 @@ This directory is the authoritative documentation set for Arcana's current appli
 - [Repository snapshots](repository-snapshots.md) — standalone snapshot artifacts, manifests, overlays, and changed-file updates.
 - [Vector index](vector-index.md) — optional semantic graph documents, cache, index identity, build, resume, and query behavior.
 
+## Field evidence
+
+- [Hermes Arcana field evidence — 2026-09-25](../evaluation/results/hermes-arcana-field-evidence-2026-09-25/report.md) — retrospective observations from real Hermes maintenance and refactoring, including positive, boundary, and low-benefit cases.
+
 ## Related documentation
 
 - [Arcana README](../README.md) — product overview, quick examples, graph workload rationale, and licensing.

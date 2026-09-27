@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "title": "Hermes Arcana field evidence",
+  "date": "2026-09-25",
+  "evidence_type": "observational_retrospective",
+  "repository_under_study": "NousResearch/hermes-agent",
+  "product": "Lexicon + Arcana",
+  "causal_claims": false,
+  "quantitative_savings_claimed": false,
+  "working_hypothesis": "Lexicon + Arcana appears most useful when repository uncertainty is structural, and adds little once the working set is already narrow and directly searchable.",
+  "positive_or_boundary_cases": [
+    {
+      "issue": 119195,
+      "pr": 119238,
+      "task_class": "cross-boundary runtime diagnosis",
+      "contribution": "connected duplicated fallback policy and credential-pool state across Desktop and live-agent paths"
+    },
+    {
+      "issue": 119664,
+      "task_class": "cross-language writer diagnosis",
+      "contribution": "narrowed writer class and exposed missing TypeScript callable/call graph coverage"
+    },
+    {
+      "issue": 119003,
+      "pr": 122050,
+      "task_class": "cross-boundary corruption diagnosis",
+      "contribution": "eliminated ordinary static write paths and justified switch to runtime SQL tracing"
+    },
+    {
+      "pr": 122491,
+      "task_class": "architectural ownership refactor",
+      "contribution": "mapped Gateway-to-CLI ownership coupling and migration seams"
+    },
+    {
+      "issue": 118481,
+      "pr": 119500,
+      "task_class": "persistence-path diagnosis",
+      "contribution": "supported verification of micro-compaction persistence/call structure"
+    }
+  ],
+  "low_benefit_or_control_cases": [
+    {
+      "issue": 97898,
+      "pr": 119632,
+      "task_class": "focused local guard",
+      "observation": "direct source inspection sufficient while Lexicon/Arcana unavailable"
+    },
+    {
+      "issue": 120558,
+      "pr": 120680,
+      "task_class": "local provider-id condition",
+      "observation": "compact working set; structured graph discovery not materially necessary"
+    },
+    {
+      "issue": 120526,
+      "pr": 120678,
+      "task_class": "local config transformation",
+      "observation": "localized behavior; direct inspection and regression test sufficient"
+    },
+    {
+      "task": "early nous_cli strangler setup",
+      "task_class": "small bounded refactor setup",
+      "observation": "full structural machinery unnecessary until ownership analysis became the bottleneck"
+    }
+  ],
+  "prospective_target_tasks": "20-30 substantial Hermes investigations",
+  "required_future_fields": [
+    "date_and_task",
+    "repository_revision",
+    "task_class",
+    "initial_uncertainty",
+    "arcana_use",
+    "direct_inspection",
+    "novel_evidence",
+    "eliminated_candidates",
+    "decision_change",
+    "failure_or_boundary",
+    "outcome",
+    "verification",
+    "counterfactual_note",
+    "evidence_status"
+  ],
+  "limitations": [
+    "initial cases reconstructed retrospectively",
+    "standardized per-query telemetry absent",
+    "varying prior repository familiarity",
+    "tasks not randomly sampled",
+    "public outcomes do not isolate causal contribution",
+    "investigations mixed Arcana with ordinary developer tools"
+  ]
+}
