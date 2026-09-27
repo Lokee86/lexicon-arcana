@@ -10,6 +10,15 @@ func (s Store) DirectChangesRequireFull(language string, roots []string) (bool, 
 	return fullRequired, err
 }
 
+func repositorySensitiveUnresolved(reason string) bool {
+	switch reason {
+	case "missing-target", "ambiguous-target", "generated-target":
+		return true
+	default:
+		return false
+	}
+}
+
 type topologyRecord struct {
 	Record        string `json:"record"`
 	Source        string `json:"source"`
@@ -37,12 +46,19 @@ func (s Store) RequiresFullAnalysis(language string, changedFiles []string, anal
 		files[file.Path] = file
 	}
 	selected := make(map[string]struct{}, len(changedFiles))
+	added := make(map[string]struct{})
 	previous := make(map[string]map[string]struct{}, len(changedFiles))
 	for _, path := range changedFiles {
+		path = normalizeOwner(path)
+		if path == "" {
+			return true, nil
+		}
 		selected[path] = struct{}{}
 		file, ok := files[path]
 		if !ok {
-			return true, nil
+			added[path] = struct{}{}
+			previous[path] = map[string]struct{}{}
+			continue
 		}
 		object, err := s.LoadObject(file.ObjectID)
 		if err != nil {
@@ -68,6 +84,9 @@ func (s Store) RequiresFullAnalysis(language string, changedFiles []string, anal
 		}
 		if _, ok := selected[owner]; !ok {
 			return true, nil
+		}
+		if _, isAdded := added[owner]; isAdded {
+			continue
 		}
 		if _, existed := previous[owner][key]; !existed {
 			return true, nil

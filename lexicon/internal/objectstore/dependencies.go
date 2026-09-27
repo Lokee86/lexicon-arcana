@@ -3,25 +3,32 @@ package objectstore
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"sort"
+	"strings"
 )
 
 type dependencyRecord struct {
-	Record   string `json:"record"`
-	ID       string `json:"id"`
-	Source   string `json:"source"`
-	Target   string `json:"target"`
-	Relation string `json:"relation"`
-	Path     string `json:"path"`
+	Record        string `json:"record"`
+	ID            string `json:"id"`
+	Source        string `json:"source"`
+	Target        string `json:"target"`
+	Relation      string `json:"relation"`
+	Path          string `json:"path"`
+	Reason        string `json:"reason"`
+	CandidateName string `json:"candidate_name"`
 }
 
-// IncrementalScope loads the current language objects once and computes the
-// incremental emission and context closures from the previous dependency view.
-// Semantic topology safety is checked after scoped analysis by
-// RequiresFullAnalysis; the previous graph alone cannot tell whether an
-// existing cross-file relationship or unresolved reference actually changed.
+// IncrementalScope computes the bounded dependency scope for existing roots.
 func (s Store) IncrementalScope(language string, roots []string) (bool, []string, []string, error) {
-	_, objects, nodeOwners, err := s.dependencyData(language)
+	return s.IncrementalScopeWithAdditions(language, roots, nil)
+}
+
+// IncrementalScopeWithAdditions also validates whether newly-added Python
+// modules could satisfy repository-sensitive unresolved imports in the prior
+// snapshot. If so, the caller must fall back to full analysis.
+func (s Store) IncrementalScopeWithAdditions(language string, roots, additions []string) (bool, []string, []string, error) {
+	_, objects, nodeOwners, unresolvedCandidates, err := s.dependencyData(language)
 	if err != nil {
 		return true, nil, nil, err
 	}
@@ -53,6 +60,23 @@ func (s Store) IncrementalScope(language string, roots []string) (bool, []string
 		}
 	}
 	fullRequired := len(foundRoots) != len(rootSet)
+	if len(additions) > 0 {
+		if language != "python" {
+			fullRequired = true
+		} else {
+			for _, path := range additions {
+				candidate, ok := pythonModuleCandidate(path)
+				if !ok {
+					fullRequired = true
+					break
+				}
+				if _, exists := unresolvedCandidates[candidate]; exists {
+					fullRequired = true
+					break
+				}
+			}
+		}
+	}
 	emit := oneHopClosure(roots, reverse)
 	context := oneHopClosure(emit, forward)
 	return fullRequired, emit, context, nil
@@ -68,44 +92,50 @@ func (s Store) ImpactedFiles(language string, roots []string) ([]string, error) 
 	return emit, err
 }
 
-func (s Store) dependencyData(language string) (LanguageEntry, map[string]FactObject, map[string]string, error) {
+func (s Store) dependencyData(language string) (LanguageEntry, map[string]FactObject, map[string]string, map[string]struct{}, error) {
 	_, manifest, err := s.Current()
 	if err != nil {
-		return LanguageEntry{}, nil, nil, err
+		return LanguageEntry{}, nil, nil, nil, err
 	}
 	entry, ok := languageEntry(manifest, language)
 	if !ok {
-		return LanguageEntry{}, nil, nil, fmt.Errorf("snapshot has no %s analysis", language)
+		return LanguageEntry{}, nil, nil, nil, fmt.Errorf("snapshot has no %s analysis", language)
 	}
 	objects := make(map[string]FactObject, len(entry.Files))
 	nodeOwners := make(map[string]string)
+	unresolvedCandidates := make(map[string]struct{})
 	knownPaths := make(map[string]struct{}, len(entry.Files))
 	for _, file := range entry.Files {
 		knownPaths[file.Path] = struct{}{}
 		object, err := s.LoadObject(file.ObjectID)
 		if err != nil {
-			return LanguageEntry{}, nil, nil, err
+			return LanguageEntry{}, nil, nil, nil, err
 		}
 		objects[file.Path] = object
 		for _, raw := range object.Records {
 			var record dependencyRecord
 			if err := json.Unmarshal(raw, &record); err != nil {
-				return LanguageEntry{}, nil, nil, fmt.Errorf("decode %s dependency record: %w", file.Path, err)
+				return LanguageEntry{}, nil, nil, nil, fmt.Errorf("decode %s dependency record: %w", file.Path, err)
 			}
 			if record.Record == "node" && record.ID != "" {
 				nodeOwners[record.ID] = file.Path
+			}
+			if record.Record == "unresolved" && repositorySensitiveUnresolved(record.Reason) {
+				if candidate := strings.TrimSpace(record.CandidateName); candidate != "" {
+					unresolvedCandidates[candidate] = struct{}{}
+				}
 			}
 		}
 	}
 	if entry.SharedObjectID != "" {
 		shared, err := s.LoadObject(entry.SharedObjectID)
 		if err != nil {
-			return LanguageEntry{}, nil, nil, err
+			return LanguageEntry{}, nil, nil, nil, err
 		}
 		for _, raw := range shared.Records {
 			var record dependencyRecord
 			if err := json.Unmarshal(raw, &record); err != nil {
-				return LanguageEntry{}, nil, nil, fmt.Errorf("decode shared %s dependency record: %w", language, err)
+				return LanguageEntry{}, nil, nil, nil, fmt.Errorf("decode shared %s dependency record: %w", language, err)
 			}
 			if record.Record != "node" || record.ID == "" {
 				continue
@@ -116,7 +146,26 @@ func (s Store) dependencyData(language string) (LanguageEntry, map[string]FactOb
 			}
 		}
 	}
-	return entry, objects, nodeOwners, nil
+	return entry, objects, nodeOwners, unresolvedCandidates, nil
+}
+
+func pythonModuleCandidate(path string) (string, bool) {
+	path = filepath.ToSlash(filepath.Clean(filepath.FromSlash(path)))
+	if !strings.EqualFold(filepath.Ext(path), ".py") {
+		return "", false
+	}
+	path = strings.TrimSuffix(path, filepath.Ext(path))
+	parts := strings.Split(path, "/")
+	if len(parts) == 0 {
+		return "", false
+	}
+	if parts[len(parts)-1] == "__init__" {
+		parts = parts[:len(parts)-1]
+	}
+	if len(parts) == 0 {
+		return "", false
+	}
+	return strings.Join(parts, "."), true
 }
 
 func addRelation(graph map[string]map[string]struct{}, source, target string) {

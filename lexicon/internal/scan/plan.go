@@ -15,6 +15,7 @@ type analysisPlan struct {
 	Full         bool
 	KnownPresent bool
 	ChangedFiles []string
+	AddedFiles   []string
 	RemovedFiles []string
 	ContextFiles []string
 	Execution    ExecutionPlan
@@ -26,26 +27,27 @@ func (s *Scanner) plansFor(changes []state.Change, drift []string) ([]analysisPl
 		plans[language] = &analysisPlan{Language: language, Full: true}
 	}
 	for _, change := range changes {
-		paths := []string{change.New}
-		if change.Old != "" {
-			paths = append(paths, change.Old)
+		status := strings.TrimSpace(change.Status)
+		if status == "" {
+			continue
 		}
-		for _, path := range paths {
-			for _, language := range lexfiles.Languages(path) {
-				if !s.languageEnabled(language) {
-					continue
-				}
-				plan := plans[language]
-				if plan == nil {
-					plan = &analysisPlan{Language: language}
-					plans[language] = plan
-				}
-				if structuralChange(change, language, path) {
+		switch status[0] {
+		case 'M':
+			s.addIncrementalPath(plans, change.New, false)
+		case 'A':
+			s.addIncrementalPath(plans, change.New, true)
+		default:
+			paths := []string{change.New}
+			if change.Old != "" {
+				paths = append(paths, change.Old)
+			}
+			for _, path := range paths {
+				for _, language := range lexfiles.Languages(path) {
+					if !s.languageEnabled(language) {
+						continue
+					}
+					plan := ensurePlan(plans, language)
 					plan.Full = true
-					continue
-				}
-				if change.New != "" && languageOwnsSource(language, change.New) {
-					plan.ChangedFiles = append(plan.ChangedFiles, change.New)
 				}
 			}
 		}
@@ -55,17 +57,27 @@ func (s *Scanner) plansFor(changes []state.Change, drift []string) ([]analysisPl
 	for _, plan := range plans {
 		if !plan.Full {
 			roots := uniqueSorted(plan.ChangedFiles)
-			fullRequired, impacted, context, err := s.Store.IncrementalScope(plan.Language, roots)
-			if err != nil || fullRequired {
+			var impacted, context []string
+			fullRequired := false
+			if len(roots) > 0 {
+				var err error
+				fullRequired, impacted, context, err = s.Store.IncrementalScopeWithAdditions(plan.Language, roots, uniqueSorted(plan.AddedFiles))
+				if err != nil {
+					fullRequired = true
+				}
+			}
+			if fullRequired {
 				plan.Full = true
 			} else {
-				plan.ChangedFiles = impacted
+				added := uniqueSorted(plan.AddedFiles)
+				plan.ChangedFiles = uniqueSorted(append(impacted, added...))
 				plan.RemovedFiles = []string{}
-				plan.ContextFiles = context
+				plan.ContextFiles = uniqueSorted(append(context, added...))
 			}
 		}
 		if plan.Full {
 			plan.ChangedFiles = nil
+			plan.AddedFiles = nil
 			plan.RemovedFiles = nil
 			plan.ContextFiles = nil
 		}
@@ -77,12 +89,35 @@ func (s *Scanner) plansFor(changes []state.Change, drift []string) ([]analysisPl
 	return result, nil
 }
 
-func structuralChange(change state.Change, language, path string) bool {
-	status := strings.TrimSpace(change.Status)
-	if status == "" || status[0] != 'M' {
-		return true
+func (s *Scanner) addIncrementalPath(plans map[string]*analysisPlan, path string, added bool) {
+	for _, language := range lexfiles.Languages(path) {
+		if !s.languageEnabled(language) {
+			continue
+		}
+		plan := ensurePlan(plans, language)
+		if added && language != "python" {
+			plan.Full = true
+			continue
+		}
+		if !languageOwnsSource(language, path) {
+			plan.Full = true
+			continue
+		}
+		if added {
+			plan.AddedFiles = append(plan.AddedFiles, path)
+		} else {
+			plan.ChangedFiles = append(plan.ChangedFiles, path)
+		}
 	}
-	return !languageOwnsSource(language, path)
+}
+
+func ensurePlan(plans map[string]*analysisPlan, language string) *analysisPlan {
+	plan := plans[language]
+	if plan == nil {
+		plan = &analysisPlan{Language: language}
+		plans[language] = plan
+	}
+	return plan
 }
 
 func languageOwnsSource(language, path string) bool {

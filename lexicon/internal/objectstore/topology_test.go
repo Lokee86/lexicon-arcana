@@ -84,3 +84,62 @@ func writeTopologyStream(t *testing.T, path, target string) {
 		t.Fatal(err)
 	}
 }
+
+func TestRequiresFullAnalysisAllowsUnrelatedPythonAddition(t *testing.T) {
+	store := Store{Root: t.TempDir()}
+	configID := "sha256:config"
+	existingID, err := store.WriteObject(FactObject{
+		Language: "python", Owner: "existing.py", SourceContentID: ContentID([]byte("existing")),
+		AdapterVersion: "test", SchemaVersion: 1, AnalysisConfigID: configID,
+		Records: records(
+			`{"id":"node-existing","kind":"function","owner":"existing.py","record":"node"}`,
+			`{"candidate_name":"other.module","expression":"import other.module","owner":"existing.py","reason":"missing-target","record":"unresolved","relation":"imports","source":"node-existing"}`,
+		),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = store.Publish(Manifest{StateCommit: "state", Languages: []LanguageEntry{{
+		Language: "python", AdapterVersion: "test", SchemaVersion: 1,
+		Repository: "repo", AnalysisConfigID: configID,
+		Files: []FileEntry{{Path: "existing.py", Language: "python", ObjectID: existingID}},
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	path := filepath.Join(t.TempDir(), "added.jsonl")
+	writeAddedPythonStream(t, path, "new.module")
+	analysis, err := ReadAnalysis(path, "python")
+	if err != nil {
+		t.Fatal(err)
+	}
+	full, err := store.RequiresFullAnalysis("python", []string{"new.py"}, analysis)
+	if err != nil || full {
+		t.Fatalf("unrelated addition required full analysis: full=%v err=%v", full, err)
+	}
+}
+
+func writeAddedPythonStream(t *testing.T, path, module string) {
+	t.Helper()
+	values := []map[string]any{
+		{"adapter_version": "test", "changed_files": []string{"new.py"}, "language": "python", "mode": "incremental", "record": "lexicon", "removed_files": []string{}, "repository": "repo", "schema_version": 1, "shared_complete": true},
+		{"id": "file-new", "kind": "file", "name": "new.py", "path": "new.py", "qualified_name": "new.py", "record": "node"},
+		{"id": "module-new", "kind": "module", "name": "module", "path": "new.py", "qualified_name": module, "record": "node"},
+		{"record": "edge", "relation": "contains", "source": "file-new", "target": "module-new"},
+	}
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoder := json.NewEncoder(file)
+	for _, value := range values {
+		if err := encoder.Encode(value); err != nil {
+			_ = file.Close()
+			t.Fatal(err)
+		}
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+}

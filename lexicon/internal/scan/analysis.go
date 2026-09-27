@@ -154,6 +154,7 @@ func (s *Scanner) analyzePlan(
 	if err != nil {
 		return objectstore.Manifest{}, err
 	}
+	replaceShared := analysis.Header.SharedComplete != nil && *analysis.Header.SharedComplete
 	entry, err := s.Store.BuildIncrementalLanguage(
 		previous,
 		analysis,
@@ -162,7 +163,7 @@ func (s *Scanner) analyzePlan(
 		fingerprint,
 		plan.ChangedFiles,
 		plan.RemovedFiles,
-		false,
+		replaceShared,
 	)
 	if err != nil {
 		return objectstore.Manifest{}, err

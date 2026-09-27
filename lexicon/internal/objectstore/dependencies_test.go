@@ -99,6 +99,53 @@ func TestDependencyScopeOwnsSharedModuleNodesByPath(t *testing.T) {
 	}
 }
 
+func TestIncrementalScopeWithAdditionsChecksUnresolvedPythonModules(t *testing.T) {
+	store := Store{Root: t.TempDir()}
+	object := FactObject{
+		Language: "python", Owner: "existing.py", SourceContentID: ContentID([]byte("existing")),
+		AdapterVersion: "test", SchemaVersion: 1, AnalysisConfigID: "sha256:config",
+		Records: records(
+			`{"id":"node-existing","kind":"function","record":"node"}`,
+			`{"candidate_name":"plugin_runtime.capabilities","reason":"missing-target","record":"unresolved","relation":"imports","source":"node-existing"}`,
+		),
+	}
+	id, err := store.WriteObject(object)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = store.Publish(Manifest{StateCommit: "state", Languages: []LanguageEntry{{
+		Language: "python", AdapterVersion: "test", SchemaVersion: 1,
+		Repository: "repo", AnalysisConfigID: "sha256:config",
+		Files: []FileEntry{{Path: "existing.py", Language: "python", ObjectID: id}},
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	full, _, _, err := store.IncrementalScopeWithAdditions("python", nil, []string{"plugin_runtime/state.py"})
+	if err != nil || full {
+		t.Fatalf("unrelated addition required full analysis: full=%v err=%v", full, err)
+	}
+	full, _, _, err = store.IncrementalScopeWithAdditions("python", nil, []string{"plugin_runtime/capabilities.py"})
+	if err != nil || !full {
+		t.Fatalf("matching unresolved module did not require full analysis: full=%v err=%v", full, err)
+	}
+}
+
+func TestPythonModuleCandidate(t *testing.T) {
+	cases := map[string]string{
+		"plugin_runtime/state.py":    "plugin_runtime.state",
+		"plugin_runtime/__init__.py": "plugin_runtime",
+		"module.py":                  "module",
+	}
+	for path, want := range cases {
+		got, ok := pythonModuleCandidate(path)
+		if !ok || got != want {
+			t.Fatalf("pythonModuleCandidate(%q) = %q, %v; want %q, true", path, got, ok, want)
+		}
+	}
+}
+
 func records(values ...string) []json.RawMessage {
 	result := make([]json.RawMessage, len(values))
 	for i, v := range values {
