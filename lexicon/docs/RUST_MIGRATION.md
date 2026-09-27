@@ -10,6 +10,8 @@ Define the active parity-first migration boundary from the Go Lexicon applicatio
 
 The migration keeps the existing Go implementation as the behavioral reference until each Rust slice reaches its applicable parity gate. Versioned contracts under `spec/` remain authoritative; migration fixtures are verification evidence, not new product contracts.
 
+The Rust implementation is not yet the recommended operator runtime because optimization work remains incomplete. Until that performance gap is closed, user-facing documentation should direct normal users to the last optimized Go reference revision, `758af9daf6e71fc0a7ebb837875efe366f6403fd`.
+
 ## Current migration boundary
 
 The existing Go implementation remains the behavioral parity oracle during migration. The Rust `lexicon` library and separate `lexicon-cli` crate now own the replacement executable surface.

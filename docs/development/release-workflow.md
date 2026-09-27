@@ -8,12 +8,14 @@ Define the build, test, packaging, installation, verification, and GitHub releas
 
 ## Overview
 
-The root workflow composes two independently owned products:
+The root workflow currently composes the Rust Lexicon migration target and Arcana for integration/release testing:
 
-- Lexicon: Rust library and CLI plus runtime language adapters;
+- Lexicon migration target: Rust library and CLI plus runtime language adapters;
 - Arcana: Rust application and `arcana.query.v1` protocol.
 
-Grimoire, its MCP/discovery runtime, its skill, and Lodestone are not active release inputs. Historical Grimoire source and benchmark evidence may remain in the repository during retirement, but the release workflow does not build or package them.
+For normal Lexicon operator use, the recommended runtime remains the last optimized Go implementation pinned at `758af9daf6e71fc0a7ebb837875efe366f6403fd`. The Rust Lexicon binary produced here is not yet the operator default because optimization work remains incomplete.
+
+Grimoire, its MCP/discovery runtime, its skill, and Lodestone are not active release inputs.
 
 ## Requirements
 
@@ -97,9 +99,11 @@ Lexicon CLI receives the requested release version through `LEXICON_VERSION`. Ar
 
 After Arcana is built, the workflow creates a minimal temporary snapshot and requires compatible `arcana.query.v1` capability negotiation. A protocol-incompatible Arcana binary therefore fails the build.
 
-## Local installation
+## Local migration installation
 
-Install both products:
+The following installs the Rust migration build, not the recommended Go Lexicon runtime.
+
+Install both migration products:
 
 ```bash
 python scripts/workflow.py install --source build --bin-dir /path/on/your/PATH
@@ -114,11 +118,13 @@ python scripts/workflow.py install --source build --bin-dir /path/on/your/PATH -
 
 Selecting Lexicon also installs its runtime adapter tree. When Lexicon and Arcana are installed together, the installer writes the production `lexicon-arcana` skill to `~/.agents/skills` and `~/.hermes/skills` by default. Use repeatable `--skills-dir` options to choose other roots or `--skip-skills` to omit it. Installing only one component does not install the combined skill. The installer does not modify `PATH` and never installs a Grimoire skill or MCP server.
 
-## Release packaging
+## Rust migration release packaging
 
 ```bash
 python scripts/workflow.py release --version 1.2.3 --output dist
 ```
+
+These archives package the Rust Lexicon migration executable. Do not publish or document them as the preferred Lexicon runtime until the optimization gap is closed.
 
 The release directory contains:
 

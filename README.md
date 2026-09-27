@@ -38,7 +38,9 @@ Lexicon owns language semantics. Arcana owns graph semantics. Keeping those doma
 
 ## Quick start
 
-Build Lexicon and Arcana from this checkout:
+For normal use, use the last optimized Go Lexicon implementation. The Rust port is still under active migration and is not yet the recommended operator path because its optimization work is incomplete.
+
+The pinned Go reference revision is `758af9daf6e71fc0a7ebb837875efe366f6403fd`. From that checkout:
 
 ```text
 cd lexicon
@@ -67,6 +69,8 @@ Later semantic updates use the normal Lexicon lifecycle:
 ```text
 bin/lexicon scan --repo /path/to/repository
 ```
+
+See the [installation guide](docs/reference/installation.md) for the supported Go operator path and the separate Rust migration/development path.
 
 For the day-to-day operator workflow, generated-state guidance, and troubleshooting, see the [Lexicon how-to](lexicon/docs/HOWTO.md) and [Arcana how-to](arcana/docs/HOWTO.md).
 

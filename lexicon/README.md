@@ -43,17 +43,20 @@ Adapter-specific behavior and limits are indexed in [adapters/README.md](adapter
 
 ## Quick start
 
-Build the application from the repository root:
+For normal operator use, build the last optimized Go Lexicon implementation. The Rust port is still under active migration and is not yet the recommended runtime because its optimization work is incomplete.
+
+The pinned Go reference revision is `758af9daf6e71fc0a7ebb837875efe366f6403fd`. From its `lexicon/` directory:
 
 ```text
-go build -o bin/lexicon ./cmd/lexicon
+go build -o ../bin/lexicon ./cmd/lexicon
 ```
 
-Initialize a source repository using this checkout's adapters:
+Initialize and verify a source repository:
 
 ```text
-bin/lexicon init --repo /path/to/repository --adapters ./adapters
+bin/lexicon init --repo /path/to/repository --adapters ./lexicon/adapters
 bin/lexicon status --repo /path/to/repository
+bin/lexicon doctor --repo /path/to/repository
 ```
 
 Subsequent scans reuse unchanged immutable objects and narrow analysis when the previous snapshot makes that safe:
@@ -63,7 +66,7 @@ bin/lexicon scan --repo /path/to/repository
 bin/lexicon export --repo /path/to/repository --output /path/to/export
 ```
 
-A packaged release places the executable beside its adapter directory, so `--adapters` is normally unnecessary. Run `install.ps1` on Windows or `install.sh` on Unix-like systems to install the complete extracted package for the current user. Source checkouts can also set `LEXICON_ADAPTERS`.
+For the practical day-to-day workflow, generated-state guidance, Arcana registration, and troubleshooting, see the [operator how-to](docs/HOWTO.md). Rust build/test instructions remain in [Rust migration](docs/RUST_MIGRATION.md) and [Development](docs/DEVELOPMENT.md).
 
 ## Commands
 
@@ -80,6 +83,8 @@ A packaged release places the executable beside its adapter directory, so `--ada
 | `gc` | Remove unreachable snapshots and fact objects while respecting retention and consumer pins |
 | `consumer` | List, register, remove, or invoke deterministic post-publication consumers |
 | `version` | Print the application version |
+
+The Rust migration CLI additionally exposes `find`, `show`, `refs`, and `calls`. Those commands are not present in the recommended Go runtime at `758af9d`; normal users should use Arcana for graph/query work.
 
 The complete flag reference and state layout are in [docs/APPLICATION.md](docs/APPLICATION.md).
 
@@ -129,6 +134,7 @@ Lexicon does not own:
 
 ## Documentation
 
+- [Operator how-to](docs/HOWTO.md)
 - [Documentation index and rules](docs/README.md)
 - [Application and operations](docs/APPLICATION.md)
 - [Architecture](docs/ARCHITECTURE.md)
@@ -157,9 +163,9 @@ python evaluation/run_validation.py --jobs 3
 
 Detailed prerequisites, focused commands, race checks, validation rules, and documentation requirements are in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Grimoire and the Warlock toolchain
+## Lexicon + Arcana and the Warlock toolchain
 
-Lexicon is independently usable, but its canonical source now shares the Grimoire repository with Arcana and Grimoire's discovery application. Arcana consumes Lexicon snapshots to build queryable graphs; Grimoire and other Warlock tools can consume the same facts without maintaining duplicate language adapters. Repository consolidation does not make Lexicon depend on either downstream component.
+Lexicon is independently usable and shares the `lexicon-arcana` repository with Arcana. Arcana consumes Lexicon snapshots to build queryable graphs; Warlock, Pitlord, and other consumers may use the same deterministic facts without owning language parsers. Grimoire is retired and is not an active runtime dependency or command-routing layer. Repository co-location does not make Lexicon depend on Arcana or any higher-level consumer.
 
 ## License
 

@@ -9,7 +9,7 @@ Lexicon documentation follows these rules:
 - describe implemented behavior as present tense;
 - label dated measurements and validation records with their execution date;
 - separate current guarantees from limitations and future possibilities;
-- keep command and flag references synchronized with `internal/cli`;
+- keep command and flag references synchronized with the Rust `lexicon-cli/src/` host;
 - keep storage and exchange-format claims synchronized with `spec/` and `internal/objectstore`;
 - state ownership boundaries explicitly instead of using broad subsystem descriptions;
 - link to the owning document rather than duplicating detailed rules across files;
@@ -21,6 +21,8 @@ Lexicon documentation follows these rules:
 | File | Responsibility |
 | --- | --- |
 | [HOWTO.md](HOWTO.md) | Practical installation, repository setup, semantic querying, refresh, Arcana registration, generated-state guidance, and troubleshooting |
+| [ADAPTER_AUTHORING.md](ADAPTER_AUTHORING.md) | Main contributor guide for designing, implementing, registering, testing, and validating native language adapters |
+| [ADAPTER_GO_COMPATIBILITY.md](ADAPTER_GO_COMPATIBILITY.md) | Temporary compatibility guide for adapters that must also run in the currently recommended optimized Go Lexicon |
 | [APPLICATION.md](APPLICATION.md) | CLI flags, repository discovery, state layout, scan behavior, watch mode, consumers, export, garbage collection, and recovery |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System ownership, components, analysis lifecycle, incremental boundaries, concurrency, storage, and consumer integration |
 | [MAINTAINER_MAP.md](MAINTAINER_MAP.md) | Short routing map from common changes to canonical documents and implementation boundaries |

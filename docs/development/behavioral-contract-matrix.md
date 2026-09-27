@@ -29,7 +29,7 @@ The matrix protects independently usable component boundaries, immutable publica
 | Go migration differential parity executes the live legacy adapter and native Rust+helper adapter against the same fixture repository and execution plan; after transport/header normalization, nodes, IDs, attributes, edges, relations, spans, unresolved reasons, and ownership must match exactly, with categorized divergence reports | `lexicon/src/adapters/go/differential_tests.rs` over the complete permanent Go oracle fixture suite plus serial/parallel reduction shapes |
 | Lexicon snapshots are immutable, content-addressed, and crash-safe | Go object-store/pending/recovery tests plus Rust `publication.rs` and `recovery.rs` parity tests |
 | Fact-object binary encoding is deterministic, semantic-preserving, and backward-readable across v2, v1, and legacy JSON | Go `binary_codec_test.go` / `binary_golden_test.go` / `nodes_test.go`, Rust `storage_binary.rs` / `storage_compat.rs`, and Arcana `lexicon::binary_tests` |
-| Lexicon consumers are bounded and cannot corrupt a valid publication | `lexicon/internal/consumer/runner_test.go` and scan/publication tests |
+| Lexicon consumers are bounded and cannot corrupt a valid publication | `lexicon/tests/consumer_execution.rs` and Rust scan/publication tests |
 | Arcana consumes verified Lexicon state rather than duplicating language parsers | Arcana Lexicon-ingestion and repository tests |
 | Arcana preserves the consumed Lexicon snapshot identity | repository manifest and snapshot tests |
 | Arcana publishes complete graph generations before replacing active state | repository/snapshot publication-failure tests |
@@ -58,7 +58,7 @@ python scripts/check_docs.py
 
 | Matrix concern | Primary implementation or artifact | Protecting tests/gates |
 | --- | --- | --- |
-| Lexicon semantics/publication | `lexicon/adapters/`, `lexicon/internal/scan/`, `lexicon/internal/objectstore/` | Lexicon complete test matrix |
+| Lexicon semantics/publication | `lexicon/src/adapters/`, `lexicon/src/scan/`, `lexicon/src/storage/`; transitional/oracle `lexicon/adapters/` | Lexicon Rust parity/oracle and complete test matrix |
 | Lexicon Rust migration parity | `lexicon/src/`, `lexicon/evaluation/rust_migration/` | Rust fmt/test/clippy, facts/storage/publication/recovery/materialization/dependency/topology/scan-planning/config/repository-state/adapter-host/scope/execution/scan-engine parity tests, Arcana Lexicon compatibility tests, Go planner/fingerprint oracles, Go state/config/adapter/scope/scan tests, and migration comparator |
 | Arcana graph publication/traversal | `arcana/src/repository/`, `arcana/src/storage/`, `arcana/src/snapshot/`, `arcana/src/protocol/` | Arcana Cargo test suite |
 | Documentation/change impact | `.standards/docs_policy/`, `scripts/check_docs.py` | documentation-standard workflow |

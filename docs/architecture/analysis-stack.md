@@ -130,9 +130,9 @@ Historical benchmark results remain evidence and should retain their original co
 
 | Boundary | Primary implementation | Related tests |
 | --- | --- | --- |
-| Lexicon application and scan lifecycle | `lexicon/cmd/lexicon/`, `lexicon/internal/cli/`, `lexicon/internal/scan/` | package-local Go tests |
-| Lexicon semantic adapters | `lexicon/adapters/` | adapter-owned tests and evaluation corpora |
-| Lexicon immutable objects and snapshots | `lexicon/internal/objectstore/` | object-store and publication tests |
+| Lexicon CLI and scan lifecycle | `lexicon-cli/src/`, `lexicon/src/api/`, `lexicon/src/scan/` | Rust CLI, public API, scan, and migration-parity tests |
+| Lexicon semantic adapters | native `lexicon/src/adapters/`; transitional/oracle `lexicon/adapters/` | adapter-owned parity/oracle tests and evaluation corpora |
+| Lexicon immutable objects and snapshots | `lexicon/src/storage/`, publication/recovery support in `lexicon/src/repository/` and `lexicon/src/scan/` | storage, publication, and recovery tests |
 | Arcana Lexicon ingestion | `arcana/src/lexicon/`, `arcana/src/repository/` | Lexicon ingestion and repository tests |
 | Arcana packed graph state | `arcana/src/storage/`, `arcana/src/snapshot/` | storage, overlay, snapshot, and compaction tests |
 | Arcana graph protocol | `arcana/src/protocol/` | protocol and traversal tests |

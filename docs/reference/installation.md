@@ -8,50 +8,54 @@ Define installation and source-build behavior for the active Lexicon + Arcana pr
 
 ## Overview
 
-The supported shared distribution installs Lexicon and Arcana directly. It contains no Grimoire runtime, MCP server, Grimoire skill, or Lodestone native library.
+For normal Lexicon use, use the last optimized Go implementation pinned at `758af9daf6e71fc0a7ebb837875efe366f6403fd`. The Rust Lexicon port is still under active migration and is not yet the recommended operator runtime because its optimization work is incomplete.
+
+Arcana remains the current Rust graph component. Grimoire itself is retired and is not required at runtime.
 
 ## Prerequisites
 
-Release installation requires Python 3.12 or newer, a writable binary directory, and permission to add that directory to `PATH`. Source builds additionally require Rust 1.90 or newer, Go 1.26.5 for the remaining Go-based runtime adapters and parity tests, and Node.js 22 for the TypeScript adapter.
+The recommended Go Lexicon source build requires Go 1.26.5 plus the language runtimes needed by its adapters. Arcana requires Rust 1.90 or newer. Node.js 22 is required for the TypeScript adapter, with the other adapter-specific runtimes documented by Lexicon.
 
-## Release installation
+The shared root packaging workflow currently produces the Rust Lexicon migration binary; do not treat that bundle as the preferred Lexicon runtime until the optimization gap is closed.
 
-Download and extract the combined bundle for the target platform:
+## Recommended Lexicon installation
 
-```text
-lexicon-arcana-bundle-<version>-<platform>-<arch>.zip
-```
-
-The bundle contains:
+Check out the pinned optimized Go revision:
 
 ```text
-bin/                    Lexicon and Arcana executables
-adapters/               Lexicon runtime adapters
-skills/lexicon-arcana/  Production agent skill
-install.py              Standalone installer
-VERSION                  Bundle version
+758af9daf6e71fc0a7ebb837875efe366f6403fd
 ```
 
-Run:
+From that checkout, build Lexicon from `lexicon/`:
 
 ```bash
-python install.py --bin-dir /path/on/your/PATH
+go build -o ../bin/lexicon ./cmd/lexicon
 ```
 
-On Windows, `py -3` may be the configured Python launcher.
+Build Arcana separately from the repository root:
 
-The installer does not modify `PATH`.
+```bash
+cargo build --release --locked --manifest-path arcana/Cargo.toml
+```
+
+Place the resulting `lexicon` and `arcana` executables on `PATH` or invoke them by explicit path. Keep the Lexicon adapter tree available through the checkout, an adjacent packaged layout, `--adapters`, or `LEXICON_ADAPTERS`.
+
+## Rust migration bundle
+
+The current shared `scripts/workflow.py` build/release path packages the Rust Lexicon migration binary together with Arcana. It remains useful for migration testing and integration work, but it is not the recommended Lexicon runtime until its optimization work is complete.
 
 ## Component selection
 
-Omitting `--component` installs Lexicon + Arcana. Either product can also be installed independently:
+Arcana may be built and installed independently of Lexicon. For Lexicon, prefer the pinned Go runtime above rather than the current Rust bundle.
+
+The shared migration installer still supports component selection for development/testing:
 
 ```bash
 python install.py --bin-dir /path/on/your/PATH --component lexicon
 python install.py --bin-dir /path/on/your/PATH --component arcana
 ```
 
-Selecting Lexicon also installs its runtime adapter tree. When both Lexicon and Arcana are selected, the installer also installs `lexicon-arcana/SKILL.md` to `~/.agents/skills` and `~/.hermes/skills` by default. Repeat `--skills-dir PATH` to choose explicit agent skill roots, or use `--skip-skills` for binaries/adapters only. A single-component installation does not install the combined skill. `grimoire` is not a valid component and no Grimoire binary, MCP server, native Lodestone library, or Grimoire skill is installed.
+A `lexicon` installed this way is the Rust migration binary, not the current operator recommendation. `grimoire` is not a valid component and no Grimoire runtime is installed.
 
 ## Verify the installation
 
@@ -86,47 +90,31 @@ Arcana can also be synchronized explicitly when needed.
 
 ## Source build
 
-Requirements:
-
-- Python 3.12 or newer;
-- Go 1.26.5;
-- Rust 1.90 or newer;
-- Node.js 22 for the TypeScript adapter.
-
-From the repository root:
+Recommended Lexicon runtime:
 
 ```bash
-python scripts/workflow.py build --version 0.1.0-dev
-python scripts/workflow.py install --source build --bin-dir /path/on/your/PATH
+git checkout 758af9daf6e71fc0a7ebb837875efe366f6403fd
+cd lexicon
+go build -o ../bin/lexicon ./cmd/lexicon
 ```
-
-Run verification with:
-
-```bash
-python scripts/workflow.py smoke
-python scripts/workflow.py test
-```
-
-The workflow defaults to one worker across Go and Cargo. Use `--jobs N` only when additional concurrency is intentional.
-
-## Direct component builds
-
-Lexicon:
-
-```bash
-cargo build --release --locked --manifest-path lexicon-cli/Cargo.toml
-cargo test --all-targets --locked --manifest-path lexicon/Cargo.toml
-cargo test --all-targets --locked --manifest-path lexicon-cli/Cargo.toml
-```
-
-The Go Lexicon application remains in-tree as the migration parity oracle; Go is also still required to build several packaged runtime adapters.
 
 Arcana:
 
 ```bash
+cd ..
 cargo build --release --locked --manifest-path arcana/Cargo.toml
 cargo test --all-targets --locked --manifest-path arcana/Cargo.toml
 ```
+
+For Rust Lexicon migration development, use the current branch and run:
+
+```bash
+python scripts/workflow.py build --version 0.1.0-dev --component lexicon
+cargo test --all-targets --locked --manifest-path lexicon/Cargo.toml
+cargo test --all-targets --locked --manifest-path lexicon-cli/Cargo.toml
+```
+
+The migration workflow defaults to one worker across Go and Cargo. Use `--jobs N` only when additional concurrency is intentional.
 
 ## Agent integration
 

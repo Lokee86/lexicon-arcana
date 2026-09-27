@@ -14,16 +14,16 @@ Use this page to select the owning Lexicon document or adapter README. Continue 
 
 | Change area | Canonical documentation | Primary implementation boundary |
 | --- | --- | --- |
-| Commands and operator behavior | [Application](APPLICATION.md) | `cmd/lexicon/`, `internal/cli/` |
-| Scan planning, publication, recovery, and concurrency | [Architecture](ARCHITECTURE.md) | `internal/scan/`, `internal/lock/`, `internal/watch/` |
-| Immutable facts, objects, snapshots, export, and GC | [Architecture](ARCHITECTURE.md), specifications under `spec/` | `internal/objectstore/` |
-| Adapter discovery and execution | [Application](APPLICATION.md), [Adapters](../adapters/README.md) | `internal/adapters/`, `internal/languages/` |
-| Language semantics | Owning adapter README | `adapters/<language>/` |
-| Dependency and incremental scope semantics | [Dependency semantics](DEPENDENCY_SEMANTICS.md) | adapter dependency emitters, `internal/objectstore/dependencies.go`, `internal/scan/plan.go` |
-| Interstack contracts | [Architecture](ARCHITECTURE.md) | `internal/interstack/`, `internal/scan/interstack.go` |
-| Post-publication consumers | [Application](APPLICATION.md) | `internal/consumer/`, `internal/cli/consumers.go` |
-| Build, tests, corpora, and semantic validation | [Development](DEVELOPMENT.md) | `evaluation/`, adapter tests, `tools/` |
-| Release bundles and installer verification | [Release packaging](RELEASE_PACKAGING.md) | `tools/package_release.py`, packaging smoke tests |
+| Commands and operator behavior | [Application](APPLICATION.md) | `../lexicon-cli/src/` |
+| Scan planning, publication, recovery, and concurrency | [Architecture](ARCHITECTURE.md) | `src/scan/`, `src/repository/`, `src/watch/` |
+| Immutable facts, objects, snapshots, export, and GC | [Architecture](ARCHITECTURE.md), specifications under `spec/` | `src/storage/` |
+| Adapter contract, discovery, and native execution | [Application](APPLICATION.md), [Adapters](../adapters/README.md), [Rust migration](RUST_MIGRATION.md) | `src/adapters/`, `src/languages/` |
+| Language semantics | Owning adapter README and [Rust migration](RUST_MIGRATION.md) | native `src/adapters/<language>/`; transitional/oracle `adapters/<language>/` |
+| Dependency and incremental scope semantics | [Dependency semantics](DEPENDENCY_SEMANTICS.md) | adapter dependency emitters, `src/scan/`, `src/repository/`, `src/scope.rs` |
+| Interstack contracts | [Architecture](ARCHITECTURE.md) | `src/interstack/` |
+| Post-publication consumers | [Application](APPLICATION.md) | `src/consumer/`, `../lexicon-cli/src/commands_consumer.rs` |
+| Build, tests, corpora, and semantic validation | [Development](DEVELOPMENT.md) | `tests/`, `evaluation/`, adapter parity/oracle tests |
+| Release bundles and installer verification | [Release packaging](RELEASE_PACKAGING.md) | `../scripts/workflow.py`, `../scripts/test_workflow.py` |
 
 ## Boundaries
 

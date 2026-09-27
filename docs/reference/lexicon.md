@@ -4,53 +4,61 @@ Parent index: [Reference](INDEX.md)
 
 ## Purpose
 
-This document defines Lexicon's product-facing commands, state, scan lifecycle, adapters, normalized contracts, consumers, diagnostics, and Grimoire integration boundary.
+Define the current direct Lexicon command surface, generated repository state, scan lifecycle, semantic lookup workflow, Arcana handoff, and implementation ownership during the Rust migration.
 
 ## Overview
 
-Lexicon converts repository source into immutable normalized facts. Grimoire normally prepares and consumes those snapshots automatically, while direct commands remain available for operation, debugging, export, and adapter development.
+Lexicon converts repository source into immutable normalized semantic facts. For normal operator use, the recommended runtime is the last optimized Go implementation, pinned at `758af9daf6e71fc0a7ebb837875efe366f6403fd`. The Rust `lexicon` + `lexicon-cli` implementation is the active migration target, but its optimization work is incomplete and it is not yet the recommended runtime.
 
-Lexicon is the language-analysis component in the Grimoire bundle. It converts repository source into normalized, immutable symbols, relationships, unresolved references, source spans, and dependency evidence.
+Grimoire is retired. Operators and consumers invoke Lexicon directly, and Arcana consumes published Lexicon snapshots through the explicit snapshot/consumer boundary.
 
-Grimoire normally prepares and consumes Lexicon automatically. Direct Lexicon commands are for operators, adapter developers, debugging, export, garbage collection, and consumer management.
+For a task-oriented first-use guide, start with the [Lexicon operator how-to](../../lexicon/docs/HOWTO.md). For exact command semantics, use [Lexicon application](../../lexicon/docs/APPLICATION.md).
 
 ## Command access
 
-Use either the standalone executable:
+Use the standalone executable:
 
 ```text
 lexicon <command> ...
 ```
 
-or Grimoire's forwarding namespace:
-
-```text
-grimoire lexicon <command> ...
-```
-
-`grimoire lexicon check` reports the resolved executable and version. Forwarded commands preserve the provider's process output and exit status.
-
-## Primary commands
+The active command families are:
 
 | Command | Purpose |
 | --- | --- |
-| `init` | Initialize `.lexicon/`, choose languages/adapters, analyze the repository, and publish the first snapshot. |
-| `scan` | Reconcile current relevant source with the previous snapshot and publish a new snapshot when needed. |
+| `init` | Initialize `.lexicon/`, select languages, analyze the repository, and publish the first snapshot. |
+| `scan` | Reconcile source changes and publish or confirm the current immutable snapshot. |
 | `rebuild` | Force complete analysis for all or selected enabled languages. |
-| `demon` | Optional filesystem watch process that schedules the same locked scan transaction. |
-| `languages` / `languages set` | Inspect or change enabled languages. |
-| `status` | Report repository, current snapshot, detected/enabled languages, and consumers. |
-| `doctor` | Validate configuration, private mirror, objects, adapters, runtimes, and consumer commands. |
-| `export` | Reconstruct verified standalone JSONL libraries from an immutable snapshot. |
-| `gc` | Remove unreachable snapshots and objects while preserving retention and consumer pins. |
-| `consumer list|add|remove|run` | Manage deterministic post-publication consumers such as Arcana. |
-| `find` | Find snapshot nodes by name, qualified name, path, or kind. |
-| `show` | Show one exact snapshot node, rejecting ambiguous selectors. |
-| `refs` | Show bounded direct incoming/outgoing relationships and unresolved evidence. |
-| `calls` | Show bounded definite, possible, endpoint, and unresolved call evidence without graph traversal. |
+| `demon` | Optionally watch the repository and feed changes into the same scan transaction. |
+| `languages` | Inspect or change enabled languages. |
+| `status` | Report repository, snapshot, enabled/detected languages, and consumers. |
+| `doctor` | Validate repository state, adapters, storage, and consumer configuration. |
+| `export` | Reconstruct verified JSONL from an immutable snapshot. |
+| `gc` | Remove unreachable immutable state while preserving current/retained/pinned snapshots. |
+| `consumer` | Manage deterministic post-publication consumers such as Arcana. |
 | `version` | Report build identity. |
 
-The exact flags and operational semantics are maintained in [`lexicon/docs/APPLICATION.md`](../../lexicon/docs/APPLICATION.md).
+The Rust migration CLI additionally provides `find`, `show`, `refs`, and `calls`. Those commands are not available in the recommended Go runtime at `758af9d`.
+
+For the recommended runtime, use Arcana for symbol resolution, relationships, traversal, reachability, impact, paths, call chains, and architecture-community analysis.
+
+## Normal operator path
+
+First use:
+
+```text
+lexicon init --repo /path/to/repository
+lexicon status --repo /path/to/repository
+lexicon doctor --repo /path/to/repository
+```
+
+After source changes:
+
+```text
+lexicon scan --repo /path/to/repository
+```
+
+For semantic inspection, synchronize Arcana from the published Lexicon snapshot and use Arcana's validated query protocol. The recommended Go Lexicon runtime does not expose direct snapshot lookup commands.
 
 ## State layout
 
@@ -69,108 +77,72 @@ The exact flags and operational semantics are maintained in [`lexicon/docs/APPLI
     source/
 ```
 
-`CURRENT` names the published immutable snapshot. Readers load the manifest and referenced objects; they do not read adapter transport files or the mutable private source mirror.
+`.lexicon/` is generated Lexicon state and should normally be ignored by the source repository. A repository-root `.lexiconignore` is different: it is authored repository configuration and may be committed when its exclusions are shared project policy.
 
-`PENDING` supports crash recovery. `LOCK` serializes writers. Consumer state can pin older snapshots so garbage collection does not remove state still in use.
+`CURRENT` names the published immutable snapshot. Readers resolve it and then read the referenced manifest and objects. They do not depend on the mutable private source mirror.
 
 ## Scan lifecycle
 
-1. Resolve the repository and enabled languages.
-2. Mirror relevant current files into Lexicon's private state repository.
-3. Compare with the last successful state.
-4. Select complete-language or impacted-file analysis.
-5. Run language adapters under the bounded resource scheduler.
-6. Validate and store immutable fact objects.
-7. Publish the snapshot manifest and atomically advance `CURRENT`.
-8. Invoke registered consumers in deterministic order.
+A normal scan:
 
-A consumer failure does not invalidate the already-published Lexicon snapshot. It is retried on a later scan.
+1. resolves the repository and configuration;
+2. mirrors relevant source into Lexicon-owned private state;
+3. calculates source/configuration changes;
+4. selects complete or safely scoped analysis;
+5. executes the Go runtime's registered language adapters;
+6. validates and materializes immutable fact objects;
+7. publishes or confirms the immutable snapshot;
+8. advances `CURRENT` atomically when publication changes;
+9. invokes registered consumers in deterministic order.
 
-## Incremental correctness boundary
+A consumer failure does not invalidate the already-published Lexicon snapshot.
 
-Lexicon reuses unaffected immutable objects when a scoped analysis is safe. It expands modified files through previous dependency information and includes conservative unresolved-reference owners.
+## Arcana handoff
 
-It falls back to complete affected-language analysis for additions, deletions, renames, copies, configuration changes, missing prior dependency data, structural changes, uncertain relationship changes, or scoped adapter failure.
-
-Go scopes expand to packages and Rust scopes expand to crates. Identical source, schema, configuration, and adapter versions must produce deterministic facts regardless of valid concurrency.
-
-## Adapters
-
-Adapter implementations live under [`lexicon/adapters/`](../../lexicon/adapters/). The adapter index identifies supported languages and links language-specific behavior.
-
-Adapters own:
-
-- file discovery for the language;
-- declaration and source-span extraction;
-- calls, dependencies, inheritance, implementation, and other supported relationships;
-- unresolved evidence;
-- normalized fact emission.
-
-Adapters do not own snapshot publication, global object retention, consumer execution, or Arcana graph storage.
-
-## Normalized contracts
-
-Normative cross-component contracts live under [`lexicon/spec/`](../../lexicon/spec/):
-
-- fact records;
-- binary object encoding;
-- snapshot manifests;
-- runtime evidence.
-
-Changes to these contracts require coordinated compatibility work in Lexicon consumers, especially Arcana and Grimoire's Lexicon reader.
-
-## Arcana consumer
-
-Arcana can be registered as a post-publication consumer. After each successful Lexicon scan, the consumer invokes one bounded Arcana synchronization against the published snapshot.
+Register Arcana after Lexicon has a valid snapshot:
 
 ```text
-arcana sync --register
+arcana sync \
+  --lexicon /path/to/repository/.lexicon \
+  --state /path/to/repository/.arcana \
+  --register
 ```
 
-The concrete consumer definition is stored under `.lexicon/consumers/`, and the last successful consumed snapshot is recorded under `.lexicon/consumer-state/`.
+Later successful Lexicon scans can invoke the registered one-shot Arcana sync. Explicit `arcana sync` remains valid.
 
-## Common diagnostics
+`.arcana/` is Arcana-owned generated state and should also normally be ignored.
 
-### No current snapshot
+## Runtime recommendation and Rust migration
 
-Run `status`, then `doctor`. Initialize the repository if `.lexicon/config.json` does not exist; otherwise run `scan` or `rebuild` according to the reported failure.
+The optimized Go implementation is the recommended operator runtime for now. Its pinned reference revision is `758af9daf6e71fc0a7ebb837875efe366f6403fd`.
 
-### Adapter cannot start
+The Rust `lexicon` crate and separate `lexicon-cli` crate are the replacement implementation under active migration. Their semantic parity work is substantial, but optimization is not yet complete. Use them for migration development, parity testing, and performance work rather than as the default user-facing runtime.
 
-`doctor` checks adapter paths and required runtimes. Release bundles place adapters beside the Lexicon installation; source checkouts resolve them from the configured adapter root.
-
-### Scan reports busy
-
-Another writer owns `.lexicon/LOCK`. Manual scans and the watch process use the same transaction lock. Confirm the existing process is healthy rather than starting competing refresh loops.
-
-### Arcana did not update
-
-Inspect `consumer list`, the Arcana consumer definition, and its consumer-state file. A Lexicon snapshot may be current even when the Arcana consumer failed.
-
-### Export or garbage collection fails
-
-Both operations validate immutable manifests and objects. Malformed consumer pins, missing referenced snapshots, checksum failures, or a changing `CURRENT` abort the operation rather than deleting or exporting uncertain state.
+Exact migration status belongs in [Rust migration](../../lexicon/docs/RUST_MIGRATION.md).
 
 ## Code map
 
-| Documented concern | Primary implementation | Related tests |
+| Concern | Current implementation | Verification |
 | --- | --- | --- |
-| Grimoire snapshot/fact integration | `internal/lexiconfacts/`, `internal/structure/` | `internal/lexiconfacts/*_test.go` |
-| Lexicon command surface | `lexicon/cmd/lexicon/main.go`, `lexicon/internal/cli/` | Lexicon CLI tests |
-| Scan and publication lifecycle | `lexicon/internal/scan/`, `lexicon/internal/objectstore/` | scan and object-store tests |
-| Adapter execution | `lexicon/internal/adapters/`, `lexicon/internal/languages/` | adapter runner/registry tests |
-| Language semantics | `lexicon/adapters/<language>/` | owning adapter test suite |
-| Consumers and Arcana handoff | `lexicon/internal/consumer/`, `lexicon/internal/scan/interstack.go` | consumer and integration tests |
-
-Grimoire consumes immutable Lexicon facts. It does not invoke parsers or mutate Lexicon's private state directly.
+| CLI host and command dispatch | `lexicon-cli/src/` | `lexicon-cli/tests/`, module tests |
+| Public library and repository lifecycle | `lexicon/src/api/`, `lexicon/src/repository/`, `lexicon/src/scan/` | `lexicon/tests/public_api.rs`, scan/repository tests |
+| Configuration and repository policy | `lexicon/src/config/`, `lexicon/src/repository/` | config/private-state/repository-policy tests |
+| Immutable objects, snapshots, export, GC | `lexicon/src/storage/` | storage/publication/recovery/export/GC tests |
+| Consumers | `lexicon/src/consumer/`, `lexicon-cli/src/commands_consumer.rs` | consumer execution and CLI tests |
+| Semantic lookup | `lexicon/src/lookup/`, `lexicon-cli/src/commands_lookup.rs` | lookup tests |
+| Native language adapters | `lexicon/src/adapters/` | adapter-specific Rust parity tests |
+| Legacy/parity adapter sources | `lexicon/adapters/` | existing adapter oracle suites during migration |
+| Versioned contracts | `lexicon/spec/` | contract/golden compatibility tests |
 
 ## Related docs
 
+- [Lexicon operator how-to](../../lexicon/docs/HOWTO.md)
 - [Lexicon application](../../lexicon/docs/APPLICATION.md)
 - [Lexicon architecture](../../lexicon/docs/ARCHITECTURE.md)
-- [Lexicon maintainer map](../../lexicon/docs/MAINTAINER_MAP.md)
-- [Analysis stack](../architecture/analysis-stack.md)
+- [Rust migration](../../lexicon/docs/RUST_MIGRATION.md)
+- [Arcana operator how-to](../../arcana/docs/HOWTO.md)
+- [Installation](installation.md)
 
 ## Notes
 
-Use the owning adapter README for language-specific code maps and semantic limits.
+Direct source inspection remains authoritative for implementation details. Lexicon supplies deterministic semantic evidence; Arcana owns graph traversal; higher-level agent/task orchestration belongs to consumers such as Warlock.

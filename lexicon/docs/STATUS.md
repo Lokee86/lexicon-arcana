@@ -14,6 +14,10 @@ Status date: September 25, 2026.
 
 This document describes the implementation in the current source tree. Dated validation reports record evidence from specific runs and should not be treated as permanent performance guarantees.
 
+## Runtime recommendation
+
+For normal operator use, the recommended Lexicon runtime is the last optimized Go implementation pinned at `758af9daf6e71fc0a7ebb837875efe366f6403fd`. The Rust port is the active replacement implementation, but its optimization work is not yet complete, so it should currently be treated as a migration/development target rather than the default runtime.
+
 ## Rust migration foundation
 
 Implemented on the active Rust-migration branch:
@@ -54,7 +58,7 @@ Implemented on the active Rust-migration branch:
 - a separate Rust `lexicon-cli` crate providing the replacement `lexicon` executable over the library, including the existing operational Go command surface, repository discovery, option parsing, signal handling, and formatting.
 - bounded Rust snapshot lookup for deterministic node discovery, exact node resolution, direct references, and direct call evidence; `find`/`show` use node-only object decoding while `refs`/`calls` preserve resolved and unresolved relationship semantics.
 
-The Go application remains the migration parity oracle; the active replacement executable and reusable integration surface are Rust-owned. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
+The Go application remains the migration parity oracle and current operator recommendation; the replacement executable and reusable integration surface are Rust-owned but not yet performance-ready as the default. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
 
 ## Application
 

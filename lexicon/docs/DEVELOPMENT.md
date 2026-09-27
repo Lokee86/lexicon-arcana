@@ -4,313 +4,184 @@ Parent index: [Lexicon Documentation](README.md)
 
 ## Purpose
 
-This document defines Lexicon's build, focused-test, complete-test, semantic-validation, adapter-development, contract-change, documentation, smoke-test, and packaging workflows.
+Define the current source-build, focused-test, migration-parity, documentation, and release verification workflow for Lexicon.
 
 ## Overview
 
-Verification combines application tests, independently owned adapter suites, real-repository corpora, contract validation, smoke operations, and release-layout checks.
+The Rust `lexicon` library plus the separate Rust `lexicon-cli` host are the active replacement implementation under migration. The recommended operator runtime remains the last optimized Go Lexicon revision, `758af9daf6e71fc0a7ebb837875efe366f6403fd`, because Rust optimization is not yet complete.
 
-This document defines the supported source-development workflow and the minimum verification expected for changes.
+The root `scripts/workflow.py` command remains the canonical composition point for testing migration work and the current Lexicon + Arcana checkout.
 
 ## Prerequisites
 
-The complete repository uses several runtimes because each language adapter is self-contained:
+The complete shared build currently requires:
 
-- Go 1.26 or newer plus a working CGO C compiler for the application, C/C++ adapter, Go adapter, GDScript adapter, LotusScript adapter, and generic adapter;
-- Python 3 with `pytest` for the Python adapter and evaluation tools;
-- Ruby for the Ruby adapter;
-- Rust and Cargo for the Rust adapter;
-- JDK 21 or newer for Java compiler-backed analysis and Java release packaging;
-- a .NET SDK for the C# Roslyn/MSBuild adapter;
-- Node.js and npm for the JavaScript, TypeScript, and Svelte adapter.
+- Python 3.12 or newer for the root workflow and validation tooling;
+- Rust 1.90 or newer for the Lexicon library/CLI and Arcana;
+- Go 1.26.5 for remaining parity/runtime adapters and their tests;
+- Node.js 22 for the TypeScript adapter;
+- JDK 21 or newer for Java analysis/release packaging;
+- a compatible .NET SDK for the C# adapter;
+- Ruby when exercising the Ruby oracle/runtime paths.
 
-A focused change only requires the runtimes used by the affected component. A full release or complete test matrix requires all of them.
+A focused change only needs the runtimes used by the affected component.
 
-## Build the application
+## Build the recommended Go runtime
 
-From the repository root:
-
-```text
-go build -o bin/lexicon ./cmd/lexicon
-```
-
-For source-tree execution, point initialization at this checkout's adapter directory:
+For operator/performance validation, use the pinned Go reference revision `758af9daf6e71fc0a7ebb837875efe366f6403fd` and build from its `lexicon/` directory:
 
 ```text
-bin/lexicon init --repo /path/to/repository --adapters ./adapters
+go build -o ../bin/lexicon ./cmd/lexicon
 ```
 
-`LEXICON_ADAPTERS` may be used instead of repeating `--adapters`.
-
-## Focused test commands
-
-### Application
-
-Go remains the reference application during the parity-first Rust migration:
+Verify it with:
 
 ```text
-go test ./...
-go test -race ./...
+../bin/lexicon version
 ```
 
-The Rust library foundation is verified independently:
+## Build the Rust migration target
+
+For migration development from the current shared repository root:
 
 ```text
-cargo fmt -- --check
-cargo test
-cargo clippy --all-targets -- -D warnings
+python scripts/workflow.py build --version 0.1.0-dev --component lexicon
 ```
 
-Migration parity fixtures and the pinned Go oracle are documented in [RUST_MIGRATION.md](RUST_MIGRATION.md).
+This produces the Rust migration executable under `build/bin/lexicon`. Use it for parity, optimization, and migration verification rather than as the default operator build until the optimization gap is closed.
 
-### C and C++ adapter
+## Focused Rust verification
+
+Lexicon library:
 
 ```text
-cd adapters/c-family
-go test ./...
-go test -race ./...
+cargo fmt --manifest-path lexicon/Cargo.toml -- --check
+cargo test --all-targets --locked --manifest-path lexicon/Cargo.toml
+cargo clippy --manifest-path lexicon/Cargo.toml --all-targets -- -D warnings
 ```
 
-### Go adapter
+Lexicon CLI:
 
 ```text
-cd adapters/go
-go test ./...
-go test -race ./...
+cargo fmt --manifest-path lexicon-cli/Cargo.toml -- --check
+cargo test --all-targets --locked --manifest-path lexicon-cli/Cargo.toml
+cargo clippy --manifest-path lexicon-cli/Cargo.toml --all-targets -- -D warnings
 ```
 
-### GDScript adapter
+Migration parity fixtures and the pinned Go oracle are documented in [Rust migration](RUST_MIGRATION.md). When changing a migrated language adapter, run its Rust parity tests. When changing a still-transitional runtime/oracle path, also run the owning legacy suite.
+
+## Complete repository verification
+
+The canonical bounded root suite is:
 
 ```text
-cd adapters/gdscript
-go test ./...
+python scripts/workflow.py test
 ```
 
-### C# adapter
+It validates Pitlord policy, documentation governance, the remaining Go/oracle suites, C#/Java/Kotlin integration paths, and the Rust Lexicon, Lexicon CLI, and Arcana crates.
+
+Use `--jobs N` only when additional concurrency is intentional:
 
 ```text
-python adapters/csharp/tests/test_adapter.py
+python scripts/workflow.py test --jobs 2
 ```
 
-This script builds the Roslyn adapter, verifies file-mode and restored MSBuild project analysis, and checks determinism and incremental output.
+## Adapter development
 
-### Java adapter
-
-```text
-cd adapters/java
-go test ./...
-```
-
-Set `LEXICON_JDK_HOME` when the JDK is not available through `JAVA_HOME`, `PATH`, or the repository-local `.tools/jdk` location.
-
-### Kotlin adapter
-
-```text
-cd adapters/kotlin
-go test ./...
-```
-
-### LotusScript adapter
-
-```text
-cd adapters/lotusscript
-go test ./...
-```
-
-### Python adapter
-
-```text
-cd adapters/python
-python -m pytest
-```
-
-### Ruby adapter
-
-```text
-cd adapters/ruby
-ruby test/test_adapter.rb
-```
-
-### Rust adapter
-
-```text
-cargo fmt --manifest-path adapters/rust/Cargo.toml -- --check
-cargo test --manifest-path adapters/rust/Cargo.toml
-cargo clippy --manifest-path adapters/rust/Cargo.toml --all-targets -- -D warnings
-```
-
-For Rust semantic-performance changes, also run a full rebuild on a representative real repository rather than relying only on fixtures. Dated evidence from 2026-08-07: rebuilding Arcana's 121 Rust source files (about 929 functions) completed in about 52 seconds after removing whole-AST/per-merge cloning from the fixed-point hot path; the prior path exceeded 180 seconds in the same local audit.
-
-### JavaScript, TypeScript, and Svelte adapter
-
-```text
-npm --prefix adapters/typescript install
-npm --prefix adapters/typescript run build
-npm --prefix adapters/typescript test
-```
-
-## Complete test matrix
-
-The canonical complete suite is:
-
-```text
-python evaluation/run_tests.py
-```
-
-It runs the root Go suite and every adapter suite with the repository's expected commands. It is the preferred final verification after cross-cutting changes.
-
-Concurrency changes must also run both available race suites:
-
-```text
-go test -race ./...
-go -C adapters/go test -race ./...
-```
+For a new language adapter or a substantial semantic expansion, start with [Adapter authoring](ADAPTER_AUTHORING.md). New long-lived first-party adapter work targets the native Rust `LanguageAdapter` contract. If the adapter must also work in the currently recommended Go runtime, implement the legacy executable/facts-v1 compatibility boundary described there.
 
 ## Semantic acceptance
 
-Parser completion or nonzero output is not sufficient. Semantic changes must satisfy the observable gates in [SEMANTIC_ACCEPTANCE.md](SEMANTIC_ACCEPTANCE.md).
-
-At minimum, affected streams must verify:
+Parser completion or nonzero output is not sufficient. Semantic changes must preserve:
 
 - deterministic stable identities;
-- canonical record and key ordering;
-- correct definite versus possible relationships;
-- explicit unresolved evidence instead of fabricated targets;
+- canonical ordering;
+- definite versus possible relationships;
+- explicit unresolved evidence rather than invented targets;
 - source ownership and spans;
-- positive fixture coverage for promised relationships;
+- positive fixtures for promised behavior;
 - negative gates for relationships that must not be emitted;
-- byte-identical repeated output.
+- deterministic output across repeat runs.
 
-Validate a generated adapter stream with:
+The detailed semantic contract is [Semantic acceptance](SEMANTIC_ACCEPTANCE.md). Versioned exchange/storage contracts live under [`spec/`](../spec/README.md).
 
-```text
-python tools/validate_jsonl.py /path/to/facts.jsonl
-python tools/semantic_report.py /path/to/facts.jsonl
-```
+## Rust migration workflow
 
-Compare repeat runs with:
+The migration rule is parity first:
 
-```text
-python evaluation/compare_jsonl.py LEFT.jsonl RIGHT.jsonl
-```
+1. identify the current legacy/oracle behavior for the slice;
+2. port ownership into the Rust `LanguageAdapter`/library boundary;
+3. compare deterministic observable output;
+4. keep the legacy implementation only while it still owns untranslated behavior or serves as the explicit oracle;
+5. remove production dependence on the old path once its parity gate is satisfied;
+6. update [Rust migration](RUST_MIGRATION.md), [Status](STATUS.md), and the owning adapter documentation.
 
-## Real-repository corpus
+Do not add a compatibility bridge merely to preserve obsolete process/JSONL mechanics. The Rust adapter contract returns typed facts directly.
 
-Restore externally pinned corpus inputs when required:
+## Repository smoke path
 
-```text
-python evaluation/bootstrap_corpus.py
-```
-
-Run the full corpus:
+After a CLI, scan, storage, consumer, or adapter change, exercise a real repository:
 
 ```text
-python evaluation/run_validation.py --jobs 3
+build/bin/lexicon init --repo /path/to/repository
+build/bin/lexicon status --repo /path/to/repository
+build/bin/lexicon doctor --repo /path/to/repository
+build/bin/lexicon scan --repo /path/to/repository
 ```
 
-Useful focused forms include:
-
-```text
-python evaluation/run_validation.py --adapter gdscript
-python evaluation/run_validation.py --case gdscript-space-rocks-client --jobs 1
-```
-
-A complete passing run may replace `evaluation/validation/baseline.json`. Generated outputs under `evaluation/validation/generated/` are evidence artifacts and remain ignored by Git.
-
-## Application smoke tests
-
-The Python smoke tools exercise packaged application operations and runtime reconciliation:
-
-```text
-python tools/smoke_app.py
-python tools/smoke_operations.py
-python tools/test_reconcile_runtime.py
-python tools/test_semantic_report.py
-```
-
-Use them when changing CLI operations, snapshot publication, export, consumers, garbage collection, or runtime-evidence tooling.
-
-## Adding or expanding an adapter
-
-A language adapter belongs under `adapters/<language>/` and remains executable without importing application internals.
-
-Required work includes:
-
-1. define the language's canonical identities while using common facts-v1 kinds and relations where semantics align;
-2. implement deterministic discovery and permanent exclusions;
-3. emit complete facts-v1 streams before adding incremental scope support;
-4. preserve file ownership for every replaceable record;
-5. classify unsupported forms explicitly;
-6. add focused declaration, relationship, dataflow, dependency, unresolved, and determinism fixtures;
-7. register the language with the application runner and language registry;
-8. document setup, modeled semantics, canonical identities, conservative boundaries, dependency behavior, dataflow behavior, and tests in the adapter README;
-9. add representative corpus coverage when a suitable repository exists;
-10. update [STATUS.md](STATUS.md), [adapters/README.md](../adapters/README.md), and affected contracts.
-
-Adapters must not introduce Arcana, higher-level discovery/workflow, documentation-policy, or other consumer-specific behavior.
-
-## Contract changes
-
-Changes to `spec/` require explicit compatibility analysis. Do not silently change record meaning, identity payloads, ownership rules, sorting, binary object bytes, manifest hashing, or runtime-evidence reconciliation.
-
-A contract change must include:
-
-- specification updates;
-- encoder and decoder changes;
-- validator updates;
-- golden or compatibility fixtures;
-- migration behavior where existing snapshots or objects remain readable;
-- consumer coordination when the change crosses repository boundaries.
-
-See [spec/README.md](../spec/README.md).
+Use `find`, `show`, `refs`, and `calls` to verify semantic lookup behavior when affected.
 
 ## Documentation checks
 
-Documentation is part of the change, not a later cleanup task.
+From the shared repository root:
 
-Before completion:
+```text
+python .standards/docs_policy/check.py --repo .
+python .standards/docs_policy/check.py --repo . --config docs-standard.lexicon.json
+python .standards/docs_policy/check.py --repo . --config docs-standard.arcana.json
+python scripts/check_docs.py
+```
 
-- update the root README when entry-point behavior or support changes;
-- update `docs/APPLICATION.md` for CLI, state, or operational changes;
-- update `docs/ARCHITECTURE.md` for ownership, lifecycle, concurrency, or storage changes;
-- update `docs/STATUS.md` for capability or limitation changes;
-- update the owning adapter README for language behavior;
-- update `spec/` for normative format changes;
-- mark measurements as dated evidence rather than timeless current performance;
-- verify every new document is linked from the appropriate folder index.
+Update documentation in the same change when ownership, commands, state, contracts, adapters, performance guidance, or supported behavior change. Operator-facing docs should continue to recommend the pinned Go runtime until the Rust optimization gap is explicitly closed; implementation-facing migration docs should point to the current Rust owner where appropriate.
 
 ## Release packaging
 
-Build a distribution with:
+Build a disposable distribution:
 
 ```text
-python tools/package_release.py --output release --version <version>
+python scripts/workflow.py build --version <version>
 ```
 
-Omit `--version` only for local packaging tests where `lexicon version` may report `dev`. Then run the packaged smoke path against a temporary repository before publishing. Distribution contents and runtime requirements are documented in [RELEASE_PACKAGING.md](RELEASE_PACKAGING.md).
+Create release archives and checksums:
+
+```text
+python scripts/workflow.py release --version <version>
+```
+
+See [Release packaging](RELEASE_PACKAGING.md) and the shared [installation guide](../../docs/reference/installation.md).
 
 ## Code map
 
-| Development concern | Primary implementation or artifact | Related verification |
+| Concern | Current owner | Verification |
 | --- | --- | --- |
-| Application build and tests | root `go.mod`, `cmd/`, `internal/` | package-local Go tests |
-| Adapter test matrix | `evaluation/run_tests.py` | all language adapter suites, including C#, Java, and Kotlin |
-| Real-repository corpus validation | `evaluation/run_validation.py`, `corpus.json`, `validation/` | repeat-run summaries and baselines |
-| Smoke tests and operations | `tools/smoke_app.py`, `smoke_operations.py`, `smoke_installers.py` | packaged application checks |
-| Semantic report tooling | `tools/semantic_report.py`, `semantic_depth.py`, `call_resolution_metrics.py` | corresponding tool tests |
-| Release packaging | `tools/package_release.py` | `tools/test_package_release.py` |
-| Adapter contracts | `spec/`, `internal/objectstore/analysis.go`, `ingest_parse.go`, `records.go` | contract and object-store tests |
-| Documentation | `docs/`, adapter READMEs, root documentation checker | root and component documentation gates |
-
-Generated validation output and packaged binaries are evidence or build products, not source owners.
+| Reusable Lexicon library | `src/` | `tests/`, module tests |
+| CLI host | `../lexicon-cli/src/` | `../lexicon-cli/tests/`, module tests |
+| Native adapters | `src/adapters/` | adapter-specific Rust parity tests |
+| Legacy/parity adapter sources | `adapters/` | owning oracle/runtime suites while migration remains |
+| Migration comparator | `evaluation/rust_migration/` | pinned fixture comparisons |
+| Versioned contracts | `spec/` | contract/golden tests |
+| Root build/test/release composition | `../scripts/workflow.py` | `../scripts/test_workflow.py` |
+| Documentation policy | `../.standards/docs_policy/`, `../docs-standard.lexicon.json` | documentation checks above |
 
 ## Related docs
 
+- [Operator how-to](HOWTO.md)
 - [Lexicon architecture](ARCHITECTURE.md)
-- [Semantic acceptance gates](SEMANTIC_ACCEPTANCE.md)
-- [Semantic corpus validation](SEMANTIC_CORPUS_VALIDATION.md)
+- [Rust migration](RUST_MIGRATION.md)
+- [Status](STATUS.md)
+- [Semantic acceptance](SEMANTIC_ACCEPTANCE.md)
 - [Release packaging](RELEASE_PACKAGING.md)
 
 ## Notes
 
-Generated validation results and packaged artifacts are evidence or build outputs, not implementation owners.
+The presence of a legacy Go or external adapter source tree does not by itself make that path the current product owner. Use [Rust migration](RUST_MIGRATION.md) and the current source tree to determine ownership.

@@ -41,19 +41,18 @@ Arcana may consume Lexicon snapshots, but Lexicon remains independently executab
 ## Component map
 
 ```text
-cmd/lexicon
-    -> internal/cli
-        -> internal/scan
-            -> internal/files and internal/state
-            -> internal/scope
-            -> internal/adapters
-            -> internal/objectstore
-            -> internal/interstack
-            -> internal/consumer
-        -> internal/watch
+lexicon-cli/src
+    -> lexicon public API
+        -> src/repository + src/config
+        -> src/scan + src/scope
+        -> src/adapters
+        -> src/storage
+        -> src/interstack
+        -> src/consumer
+        -> src/watch
 
 language adapters
-    -> versioned typed fact contract
+    -> versioned typed LanguageAdapter contract
 
 .lexicon/
     -> immutable objects and manifests
@@ -62,13 +61,13 @@ language adapters
 
 ### CLI
 
-`cmd/lexicon` delegates command behavior to `internal/cli`. The CLI resolves a repository, loads its configuration, and invokes one bounded operation. `lexicon demon` is the exception: it remains active only to convert filesystem events into the same scan transaction used by `lexicon scan`.
+The separate Rust `lexicon-cli` crate is a thin host over the Rust `lexicon` library. It resolves command-line inputs and invokes one bounded library operation. `lexicon demon` is the exception: it remains active only to convert filesystem events into the same scan transaction used by `lexicon scan`.
 
 ### Repository state and file discovery
 
-`internal/files` defines relevant source discovery and permanent exclusions. `.lexiconignore` adds repository-specific gitignore-compatible exclusions but cannot re-include permanent state, dependency, or build directories.
+The Rust repository/configuration modules define relevant source discovery and permanent exclusions. `.lexiconignore` adds repository-specific gitignore-compatible exclusions but cannot re-include permanent state, dependency, or build directories.
 
-`internal/state` maintains a private source mirror beneath `.lexicon/repo`. Its Git repository is a change detector between successful Lexicon publications. It is deliberately not a second user-facing source history.
+The Rust repository state layer maintains a private source mirror beneath `.lexicon/repo`. Its Git repository is a change detector between successful Lexicon publications. It is deliberately not a second user-facing source history.
 
 ### Adapter orchestration
 
@@ -78,7 +77,7 @@ Adapters do not write Lexicon snapshots directly and do not contain consumer-spe
 
 ### Cross-stack resolution
 
-`internal/interstack` runs after the selected language adapters have produced a complete candidate manifest. It consumes their immutable facts, maps framework and transport declarations back to existing language-owned nodes, and emits one synthetic `interstack` facts library.
+`src/interstack/` runs after the selected language adapters have produced a complete candidate manifest. It consumes their immutable facts, maps framework and transport declarations back to existing language-owned nodes, and emits one synthetic `interstack` facts library.
 
 The initial resolver covers HTTP requests and routes, packet/message producers and consumers, and shared environment/configuration keys. Its synthetic nodes are contracts, not replacements for language symbols. Cross-stack edges retain source evidence, confidence, and unresolved outcomes rather than converting ambiguous string matches into definite graph relationships.
 
@@ -86,7 +85,7 @@ Arcana stores and traverses these relationships. Lexicon owns discovering them b
 
 ### Analysis planning
 
-`internal/scan` compares the current relevant source tree with the last successfully published source state. It selects either:
+`src/scan/` compares the current relevant source tree with the last successfully published source state. It selects either:
 
 - complete-language analysis; or
 - a scoped analysis containing impacted owners, required dependency context, and language configuration files.
@@ -106,7 +105,7 @@ A snapshot manifest references every object required for one complete repository
 
 ### Consumers
 
-`internal/consumer` manages deterministic one-shot consumers registered under `.lexicon/consumers/`. Consumers run after successful publication or confirmation of the current snapshot. A consumer failure does not invalidate the already-published Lexicon snapshot.
+`src/consumer/` manages deterministic one-shot consumers registered under `.lexicon/consumers/`. Consumers run after successful publication or confirmation of the current snapshot. A consumer failure does not invalidate the already-published Lexicon snapshot.
 
 Consumers receive the repository, state root, and snapshot ID through environment variables and should read only the immutable manifest and objects referenced by that snapshot.
 
@@ -200,20 +199,21 @@ Internal package structure, private mirror implementation, scheduling heuristics
 
 | Architecture boundary | Primary implementation | Related tests |
 | --- | --- | --- |
-| Scan lifecycle and planning | `internal/scan/` | `internal/scan/*_test.go` |
-| Adapter registry, fingerprinting, and execution | `internal/adapters/`, `internal/languages/` | package-local tests |
-| Scoped repositories and dependency expansion | `internal/scope/`, `internal/objectstore/dependencies.go`, `internal/scan/plan.go` | scope, dependency, and plan tests |
-| Immutable objects, manifests, and recovery | `internal/objectstore/` | `internal/objectstore/*_test.go` |
-| Private mirror and Git-backed change detection | `internal/state/`, `internal/files/` | state and files tests |
-| Interstack contracts | `internal/interstack/`, `internal/scan/interstack.go` | interstack and scan integration tests |
-| Consumer publication boundary | `internal/consumer/` | consumer tests |
-| Concurrency and writer safety | `internal/scan/resource_scheduler.go`, `parallel_plan.go`, `internal/lock/` | scheduler, parallel-plan, and lock tests |
+| CLI host | `../lexicon-cli/src/` | `../lexicon-cli/tests/`, module tests |
+| Scan lifecycle and planning | `src/scan/`, public entry points in `src/api/` | scan-engine, scan-execution, planning, transaction, and public-API tests |
+| Adapter contract, registry, fingerprinting, and native execution | `src/adapters/`, `src/languages/` | adapter-host/registry and language tests |
+| Scoped repositories and dependency expansion | `src/scan/`, `src/repository/`, `src/scope.rs` | scope-execution, dependency-topology, and planning tests |
+| Immutable objects, manifests, and recovery | `src/storage/`, publication/recovery support in `src/repository/` and `src/scan/` | storage, publication, and recovery tests |
+| Private mirror and Git-backed change detection | `src/repository/` | private-state/source-mirror tests |
+| Interstack contracts | `src/interstack/` | interstack boundary/build/resolve tests |
+| Consumer publication boundary | `src/consumer/` | consumer-execution tests |
+| Watch and cancellation | `src/watch/` | watch-daemon tests |
 
 Adapters own parsing and semantic resolution. Arcana owns graph compilation and queries. Lexicon architecture ends at normalized immutable facts and consumer publication.
 
 ## Tests
 
-Architecture invariants are protected by package-local tests under `internal/scan/`, `internal/objectstore/`, `internal/state/`, `internal/files/`, `internal/scope/`, `internal/watch/`, `internal/lock/`, `internal/consumer/`, and `internal/interstack/`, plus the complete adapter test matrix.
+Architecture invariants are protected by Rust integration/module tests across `tests/`, `src/scan/`, `src/storage/`, `src/repository/`, `src/watch/`, `src/consumer/`, `src/interstack/`, and `src/adapters/`, plus the remaining parity-oracle suites documented in `RUST_MIGRATION.md`.
 
 ## Related docs
 

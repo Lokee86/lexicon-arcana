@@ -11,11 +11,15 @@
   "required_paths": [
     "lexicon/README.md",
     "lexicon/docs/README.md",
+    "lexicon/docs/HOWTO.md",
+    "lexicon/docs/ADAPTER_AUTHORING.md",
+    "lexicon/docs/ADAPTER_GO_COMPATIBILITY.md",
     "lexicon/docs/APPLICATION.md",
     "lexicon/docs/ARCHITECTURE.md",
     "lexicon/docs/MAINTAINER_MAP.md",
     "lexicon/docs/DEVELOPMENT.md",
-    "lexicon/docs/STATUS.md"
+    "lexicon/docs/STATUS.md",
+    "lexicon/docs/RUST_MIGRATION.md"
   ],
   "index_exempt_directories": [
     "stubs"
@@ -32,53 +36,47 @@
   "coverage": [
     {
       "paths": [
-        "lexicon/cmd/**",
-        "lexicon/internal/cli/**",
-        "lexicon/internal/config/**"
+        "lexicon-cli/**",
+        "lexicon/src/api/**",
+        "lexicon/src/config/**",
+        "lexicon/src/repository/**"
       ],
       "docs": [
+        "lexicon/docs/HOWTO.md",
         "lexicon/docs/APPLICATION.md",
-        "lexicon/docs/DEVELOPMENT.md"
+        "lexicon/docs/DEVELOPMENT.md",
+        "lexicon/docs/RUST_MIGRATION.md"
       ]
     },
     {
       "paths": [
-        "lexicon/internal/scan/**",
-        "lexicon/internal/objectstore/**",
-        "lexicon/internal/state/**",
-        "lexicon/internal/files/**",
-        "lexicon/internal/scope/**",
-        "lexicon/internal/watch/**",
-        "lexicon/internal/lock/**",
-        "lexicon/internal/consumer/**"
+        "lexicon/src/scan/**",
+        "lexicon/src/storage/**",
+        "lexicon/src/watch/**",
+        "lexicon/src/consumer/**",
+        "lexicon/src/lookup/**",
+        "lexicon/src/interstack/**",
+        "lexicon/src/scope.rs"
       ],
       "docs": [
         "lexicon/docs/ARCHITECTURE.md",
         "lexicon/docs/APPLICATION.md",
-        "lexicon/docs/DEVELOPMENT.md"
+        "lexicon/docs/DEVELOPMENT.md",
+        "lexicon/docs/RUST_MIGRATION.md"
       ]
     },
     {
       "paths": [
-        "lexicon/internal/adapters/**",
-        "lexicon/internal/languages/**",
+        "lexicon/src/adapters/**",
+        "lexicon/src/languages/**",
         "lexicon/adapters/**"
       ],
       "docs": [
         "lexicon/adapters/README.md",
         "lexicon/docs/ARCHITECTURE.md",
         "lexicon/docs/SEMANTIC_ACCEPTANCE.md",
-        "lexicon/docs/STATUS.md"
-      ]
-    },
-    {
-      "paths": [
-        "lexicon/internal/interstack/**"
-      ],
-      "docs": [
-        "lexicon/docs/ARCHITECTURE.md",
-        "lexicon/docs/DEPENDENCY_SEMANTICS.md",
-        "lexicon/docs/STATUS.md"
+        "lexicon/docs/STATUS.md",
+        "lexicon/docs/RUST_MIGRATION.md"
       ]
     },
     {
@@ -94,7 +92,8 @@
     {
       "paths": [
         "lexicon/evaluation/**",
-        "lexicon/tools/**"
+        "lexicon/tools/**",
+        "scripts/workflow.py"
       ],
       "docs": [
         "lexicon/docs/DEVELOPMENT.md",
@@ -106,37 +105,39 @@
   "change_rules": [
     {
       "paths": [
-        "lexicon/cmd/**",
-        "lexicon/internal/cli/**",
-        "lexicon/internal/config/**"
+        "lexicon-cli/**",
+        "lexicon/src/api/**",
+        "lexicon/src/config/**",
+        "lexicon/src/repository/**"
       ],
       "docs": [
         "lexicon/docs/APPLICATION.md",
         "lexicon/docs/DEVELOPMENT.md",
+        "lexicon/docs/RUST_MIGRATION.md",
         "docs/reference/lexicon.md"
       ]
     },
     {
       "paths": [
-        "lexicon/internal/scan/**",
-        "lexicon/internal/objectstore/**",
-        "lexicon/internal/state/**",
-        "lexicon/internal/files/**",
-        "lexicon/internal/scope/**",
-        "lexicon/internal/watch/**",
-        "lexicon/internal/lock/**",
-        "lexicon/internal/consumer/**"
+        "lexicon/src/scan/**",
+        "lexicon/src/storage/**",
+        "lexicon/src/watch/**",
+        "lexicon/src/consumer/**",
+        "lexicon/src/lookup/**",
+        "lexicon/src/interstack/**",
+        "lexicon/src/scope.rs"
       ],
       "docs": [
         "lexicon/docs/ARCHITECTURE.md",
         "lexicon/docs/APPLICATION.md",
+        "lexicon/docs/RUST_MIGRATION.md",
         "docs/development/behavioral-contract-matrix.md"
       ]
     },
     {
       "paths": [
-        "lexicon/internal/adapters/**",
-        "lexicon/internal/languages/**",
+        "lexicon/src/adapters/**",
+        "lexicon/src/languages/**",
         "lexicon/adapters/**"
       ],
       "docs": [
@@ -144,17 +145,8 @@
         "lexicon/adapters/README.md",
         "lexicon/docs/SEMANTIC_ACCEPTANCE.md",
         "lexicon/docs/STATUS.md",
+        "lexicon/docs/RUST_MIGRATION.md",
         "docs/reference/lexicon.md"
-      ]
-    },
-    {
-      "paths": [
-        "lexicon/internal/interstack/**"
-      ],
-      "docs": [
-        "lexicon/docs/ARCHITECTURE.md",
-        "lexicon/docs/DEPENDENCY_SEMANTICS.md",
-        "docs/development/behavioral-contract-matrix.md"
       ]
     },
     {
@@ -171,7 +163,8 @@
     {
       "paths": [
         "lexicon/evaluation/**",
-        "lexicon/tools/**"
+        "lexicon/tools/**",
+        "scripts/workflow.py"
       ],
       "docs": [
         "lexicon/docs/DEVELOPMENT.md",

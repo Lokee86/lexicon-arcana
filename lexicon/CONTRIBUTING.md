@@ -4,14 +4,15 @@ Lexicon changes must preserve deterministic semantic evidence and explicit owner
 
 ## Before changing code
 
+If you are adding a language or substantially changing an adapter, read [docs/ADAPTER_AUTHORING.md](docs/ADAPTER_AUTHORING.md) first. It defines the current Rust-native authoring target and the additional compatibility work required when the adapter must run in the recommended Go Lexicon.
+
 Identify the owning layer:
 
-- language extraction belongs in `adapters/<language>/`;
-- adapter process discovery and invocation belongs in `internal/adapters`;
-- scan planning and incremental fallback belong in `internal/scan`;
-- immutable objects, manifests, export, and garbage collection belong in `internal/objectstore`;
-- CLI behavior belongs in `internal/cli`;
-- watch behavior belongs in `internal/watch`;
+- native language extraction belongs in `src/adapters/<language>/`;
+- Go-runtime compatibility/parity implementations belong in `adapters/<language>/`;
+- native adapter registration belongs in `src/adapters/host.rs` and `src/languages/`;
+- scan planning, storage, consumers, and watch behavior belong to their Rust library modules rather than adapters;
+- Rust CLI presentation belongs in `../lexicon-cli/`;
 - public format meaning belongs in `spec/`.
 
 Do not add consumer-specific graph, ranking, or documentation policy to Lexicon facts or adapters.
