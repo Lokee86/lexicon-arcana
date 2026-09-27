@@ -13,7 +13,8 @@ Development documentation defines current L+A verification/release practice and 
 - [Lexicon-wide pre-port optimization parity matrix](lexicon-wide-optimization-parity-matrix.md) — permanent Phase 5 audit of the mature pre-Rust performance sequence and current ownership/status.
 - [Lexicon Go-path performance restoration](lexicon-performance-restoration.md) — completed Go adapter/helper optimization project retained as historical evidence.
 - [Lexicon optimization parity audit](lexicon-optimization-parity-audit.md) — Go-path Phase 8 comparison with the mature Go optimization oracle.
-- [Go adapter Phase 16 freeze](go-adapter-port-freeze-2026-09-26.md) — paused migration checkpoint and resumption guardrails.
+- [Go adapter Phase 16 calibration](go-adapter-phase16-calibration-2026-09-27.md) — completed pinned real-repository, determinism, and Arcana acceptance evidence.
+- [Go adapter Phase 16 freeze](go-adapter-port-freeze-2026-09-26.md) — historical checkpoint and resumption guardrails.
 
 ## Research and historical evidence
 

@@ -86,7 +86,10 @@ func scanStructuralWithProfile(value request, profile *performanceProfile) (resp
 		if profile != nil {
 			ssaStarted = time.Now()
 		}
-		state.addSSARecords(index.mergeSSASemantics(collection.calls.records()))
+		state.addSSARecords(index.mergeSSASemantics(
+			collection.calls.records(),
+			state.resolvedCallsites(),
+		))
 		if profile != nil {
 			profile.SSAVTA += time.Since(ssaStarted)
 		}

@@ -23,19 +23,21 @@ type captureKey struct {
 }
 
 type semanticRepositoryState struct {
-	directBeforeSSA directCallAccumulator
-	dataflow        dataflowAccumulator
-	finalCalls      directCallAccumulator
-	relationships   map[relationshipKey]relationship
-	targets         map[string]targetObservation
-	captures        map[captureKey]relationship
+	directBeforeSSA      directCallAccumulator
+	dataflow             dataflowAccumulator
+	finalCalls           directCallAccumulator
+	resolvedCallsiteKeys map[string]bool
+	relationships        map[relationshipKey]relationship
+	targets              map[string]targetObservation
+	captures             map[captureKey]relationship
 }
 
 func newSemanticRepositoryState() *semanticRepositoryState {
 	return &semanticRepositoryState{
-		relationships: make(map[relationshipKey]relationship),
-		targets:       make(map[string]targetObservation),
-		captures:      make(map[captureKey]relationship),
+		resolvedCallsiteKeys: make(map[string]bool),
+		relationships:        make(map[relationshipKey]relationship),
+		targets:              make(map[string]targetObservation),
+		captures:             make(map[captureKey]relationship),
 	}
 }
 
@@ -57,10 +59,17 @@ func (state *semanticRepositoryState) addCollection(collection semanticCollectio
 	state.dataflow.merge(collection.dataflow)
 }
 
+func (state *semanticRepositoryState) resolvedCallsites() map[string]bool {
+	return state.resolvedCallsiteKeys
+}
+
 func (state *semanticRepositoryState) addSSARecords(values []semanticRecord) {
 	for _, value := range values {
 		switch record := value.(type) {
-		case callObservation, unresolvedObservation:
+		case callObservation:
+			state.finalCalls.addWithoutCounting(record)
+			state.resolvedCallsiteKeys[recordCallsiteKey(record)] = true
+		case unresolvedObservation:
 			state.finalCalls.addWithoutCounting(record)
 		case targetObservation:
 			if _, exists := state.targets[record.Identity]; !exists {

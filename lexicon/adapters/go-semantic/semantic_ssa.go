@@ -24,7 +24,10 @@ type ssaTarget struct {
 	Generated bool
 }
 
-func (index *semanticIndex) mergeSSASemantics(direct []semanticRecord) []semanticRecord {
+func (index *semanticIndex) mergeSSASemantics(
+	direct []semanticRecord,
+	previouslyResolved map[string]bool,
+) []semanticRecord {
 	if len(index.roots) == 0 {
 		return direct
 	}
@@ -90,7 +93,7 @@ func (index *semanticIndex) mergeSSASemantics(direct []semanticRecord) []semanti
 		})
 	}
 	if len(direct) != 0 {
-		result = append(result, mergeSSAOutcomes(direct, outcomes)...)
+		result = append(result, mergeSSAOutcomes(direct, outcomes, previouslyResolved)...)
 	}
 	result = append(result, captures...)
 	return result
@@ -99,6 +102,7 @@ func (index *semanticIndex) mergeSSASemantics(direct []semanticRecord) []semanti
 func mergeSSAOutcomes(
 	direct []semanticRecord,
 	outcomes map[string]*ssaOutcome,
+	previouslyResolved map[string]bool,
 ) []semanticRecord {
 	byKey := make(map[string][]semanticRecord)
 	for _, record := range direct {
@@ -116,7 +120,7 @@ func mergeSSAOutcomes(
 			continue
 		}
 		outcome := outcomes[key]
-		if !outcome.Invoke && hasResolvedCall(existing) {
+		if !outcome.Invoke && (hasResolvedCall(existing) || previouslyResolved[key]) {
 			continue
 		}
 		targets := sortedSSATargets(outcome.Targets)
@@ -134,15 +138,20 @@ func mergeSSAOutcomes(
 			class = "interface"
 		}
 		replacement := make([]semanticRecord, 0, len(targets)+len(existing))
+		hasConcreteExisting := false
 		if outcome.Invoke {
 			for _, record := range existing {
 				call, resolved := record.(callObservation)
 				if resolved && !strings.HasPrefix(call.Target, "interface-method:") {
 					replacement = append(replacement, record)
+					hasConcreteExisting = true
 				}
 			}
 		}
 		for _, target := range targets {
+			if outcome.Invoke && hasConcreteExisting && strings.HasPrefix(target.Identity, "interface-method:") {
+				continue
+			}
 			replacement = append(replacement, callRecordWithTarget(
 				source, target.Identity, kind, class,
 				target.Name, target.Namespace, target.Container, owner, location,

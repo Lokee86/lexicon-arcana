@@ -10,7 +10,7 @@ This document records Lexicon's current implemented capabilities, adapter covera
 
 Status claims distinguish implemented behavior, measured evidence, and explicit non-claims. Future possibilities remain outside this document until implementation exists.
 
-Status date: September 25, 2026.
+Status date: September 27, 2026.
 
 This document describes the implementation in the current source tree. Dated validation reports record evidence from specific runs and should not be treated as permanent performance guarantees.
 
@@ -167,7 +167,7 @@ Current acceptance mechanisms include:
 - pinned Git, Codebase Memory, LevelDB, fmt, Catch2, and nlohmann/json judgments for the C/C++ shared adapter;
 - call-site, possible-target-fanout, resolution-provenance, macro-expansion-depth, and direct argument-flow reporting for C-family corpus outputs;
 - fixture and application smoke coverage for the C/C++ shared adapter;
-- separate dated Go real-repository validation.
+- completed native Go Phase 16 real-repository calibration: exact legacy/native parity on pinned Demon Docs and Space Rocks plus Lexicon self-host, repeated deterministic native output on the pinned repositories, and successful Arcana ingestion/query acceptance.
 
 See:
 

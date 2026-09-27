@@ -12,17 +12,17 @@ Freeze the native Rust Go-adapter port so the migration can be resumed without r
 
 ## Overview
 
-Phases 0–15 are complete and Phase 16 real-repository calibration is paused. The separate performance-restoration project must complete before repeated Phase 16 calibration resumes; later cutover, packaging/runtime, and cleanup phases remain unstarted.
+Phases 0–15 were complete when this checkpoint was frozen. The separate performance-restoration project subsequently completed, Phase 16 calibration resumed, and Phase 16 is now complete. Later cutover, packaging/runtime, and cleanup phases remain unstarted. See [Go Adapter Phase 16 Calibration — 2026-09-27](go-adapter-phase16-calibration-2026-09-27.md) for the completion evidence.
 
 ## Migration status
 
 - **Phases 0–15:** complete.
-- **Phase 16 — real-repository calibration:** **INCOMPLETE / PAUSED.**
+- **Phase 16 — real-repository calibration:** **COMPLETE — 2026-09-27.**
 - **Phase 17 — cutover:** not started.
 - **Phase 18 — packaging/runtime:** not started.
 - **Phase 19 — docs/cleanup:** not started.
 
-Do **not** treat `c8dce3f` as completion of Phase 16. It is a durable checkpoint containing the Phase 16 fixes discovered so far.
+Do **not** treat `c8dce3f` alone as completion of Phase 16. It is the durable freeze checkpoint; final completion evidence is recorded in [Go Adapter Phase 16 Calibration — 2026-09-27](go-adapter-phase16-calibration-2026-09-27.md).
 
 ## Recent phase checkpoints
 
@@ -32,7 +32,7 @@ Do **not** treat `c8dce3f` as completion of Phase 16. It is a durable checkpoint
 | 13 — Incremental ownership | `16f8769` | Complete |
 | 14 — Deterministic semantic parallelism | `bf18624` | Complete |
 | 15 — Differential parity harness | `cac4aad` | Complete |
-| 16 — Real-repository calibration | `c8dce3f` | **Checkpoint only; incomplete** |
+| 16 — Real-repository calibration | `c8dce3f` checkpoint + 2026-09-27 completion change | **Complete** |
 
 ## What Phase 16 is supposed to prove
 
@@ -128,7 +128,7 @@ Temporary multi-megabyte calibration outputs should remain disposable; preserve 
 
 ## Phase 17 — Cutover
 
-After Phase 16 is complete:
+With Phase 16 complete:
 
 - make the native Rust `GoAdapter` the authoritative Go adapter;
 - remove the runtime path that depends on the standalone legacy Go facts-v1 adapter;
@@ -163,10 +163,10 @@ Once cutover and packaging are proven:
 - update adapter-development documentation and the behavioural contract matrix;
 - document the final Rust/helper ownership boundary.
 
-## Guardrails when resuming
+## Guardrails preserved from resumption
 
-- Do not skip directly to Phase 17.
-- Do not declare Phase 16 complete from fixture parity alone.
+- Phase 17 must build on the completed Phase 16 real-repository evidence, not fixture parity alone.
+- Preserve the Phase 16 calibration report and focused regressions through cutover.
 - Do not redesign semantics during calibration or optimization.
 - Do not weaken the Phase 15 differential comparator to make a calibration pass.
 - Keep the legacy implementation available as the migration oracle until cutover is proven.
