@@ -14,6 +14,8 @@ import tempfile
 import time
 from pathlib import Path
 
+from lexicon_perf_multilang import multilang_gate
+
 ROOT = Path(__file__).resolve().parents[1]
 LEXICON = ROOT / "lexicon"
 CONFIG = json.loads((ROOT / "scripts/lexicon_perf_baselines.json").read_text())
@@ -133,7 +135,7 @@ def selected_repositories(args: argparse.Namespace) -> dict[str, tuple[Path, dic
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--tier", choices=("quick", "micro", "fixture", "repositories", "all"), default="quick")
+    parser.add_argument("--tier", choices=("quick", "micro", "multilang", "fixture", "repositories", "all"), default="quick")
     parser.add_argument("--demon-docs")
     parser.add_argument("--space-rocks")
     args = parser.parse_args()
@@ -144,29 +146,46 @@ def main() -> int:
         failures += found
         print("micro", json.dumps(result, sort_keys=True))
 
-    if args.tier in {"quick", "fixture", "repositories", "all"}:
-        executable = build_example("go_adapter_snapshot")
+    if args.tier in {"quick", "multilang", "fixture", "repositories", "all"}:
         with tempfile.TemporaryDirectory(prefix="lexicon-perf-regression-") as raw:
             temp = Path(raw)
             helper = build_helper(temp)
-            if args.tier in {"quick", "fixture", "all"}:
-                spec = CONFIG["fixture"]
-                result = snapshot("fixture", ROOT / spec["path"], spec, executable, helper, temp)
-                failures += check_limits("fixture", spec, result)
-                print("fixture", result["sha256"], f"{result['wall_ms']:.0f} ms")
-            if args.tier in {"repositories", "all"}:
-                for name, (path, spec) in selected_repositories(args).items():
-                    if not path.is_dir():
-                        failures.append(f"{name}: repository not found: {path}")
-                        continue
-                    if expected := spec.get("revision"):
-                        actual = revision(path)
-                        if actual != expected:
-                            failures.append(f"{name}: revision {actual} != pinned {expected}")
+
+            if args.tier in {"quick", "multilang", "all"}:
+                executable = build_example("multilang_perf")
+                result, found = multilang_gate(
+                    ROOT, executable, helper, CONFIG["multilang"]
+                )
+                failures += found
+                summary = ", ".join(f"{name}={row['fact_count']}" for name, row in sorted(result.items()))
+                print("multilang", summary)
+
+            if args.tier in {"quick", "fixture", "repositories", "all"}:
+                executable = build_example("go_adapter_snapshot")
+                if args.tier in {"quick", "fixture", "all"}:
+                    spec = CONFIG["fixture"]
+                    result = snapshot(
+                        "fixture", ROOT / spec["path"], spec, executable, helper, temp
+                    )
+                    failures += check_limits("fixture", spec, result)
+                    print("fixture", result["sha256"], f"{result['wall_ms']:.0f} ms")
+                if args.tier in {"repositories", "all"}:
+                    for name, (path, spec) in selected_repositories(args).items():
+                        if not path.is_dir():
+                            failures.append(f"{name}: repository not found: {path}")
                             continue
-                    result = snapshot(name, path, spec, executable, helper, temp)
-                    failures += check_limits(name, spec, result)
-                    print(name, result["sha256"], f"{result['wall_ms']:.0f} ms")
+                        if expected := spec.get("revision"):
+                            actual = revision(path)
+                            if actual != expected:
+                                failures.append(
+                                    f"{name}: revision {actual} != pinned {expected}"
+                                )
+                                continue
+                        result = snapshot(name, path, spec, executable, helper, temp)
+                        failures += check_limits(name, spec, result)
+                        print(
+                            name, result["sha256"], f"{result['wall_ms']:.0f} ms"
+                        )
 
     if failures:
         print("performance regression gate failed:", file=sys.stderr)

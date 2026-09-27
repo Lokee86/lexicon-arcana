@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
@@ -79,11 +80,19 @@ fn execute_plan(
     let repository = if plan.full {
         source_root.to_path_buf()
     } else {
+        let mut context: BTreeSet<String> = plan.context_files.iter().cloned().collect();
+        if plan.language == "python" && !plan.changed_files.is_empty() {
+            context.extend(super::python_scope::changed_context(
+                source_root,
+                &plan.changed_files,
+            )?);
+        }
+        let context = context.into_iter().collect::<Vec<_>>();
         build_analysis_scope(
             source_root,
             &temporary_root.join("scopes"),
             &plan.language,
-            &plan.context_files,
+            &context,
         )?
     };
     let request = request_for_plan(plan, execution, repository);
@@ -134,6 +143,7 @@ fn execute_incremental(
     } else {
         None
     };
+    let replace_shared = analysis.header.shared_complete.unwrap_or(false);
     let result = store.build_incremental_language(
         previous,
         &analysis,
@@ -142,7 +152,7 @@ fn execute_incremental(
         &fingerprint,
         &plan.changed_files,
         &plan.removed_files,
-        false,
+        replace_shared,
     );
     if let Some(storage_started) = storage_started {
         crate::perf::emit(

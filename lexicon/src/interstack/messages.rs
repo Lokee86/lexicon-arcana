@@ -32,7 +32,7 @@ static REGISTRATION: LazyLock<Regex> = LazyLock::new(|| {
     .unwrap()
 });
 
-impl Resolver {
+impl Resolver<'_> {
     pub(crate) fn detect_message_producers(&mut self, file: &SourceFile) {
         for (index, line) in file.lines.iter().enumerate() {
             let Some(owner) = self.index.owner_at(&file.path, (index + 1) as u64) else {

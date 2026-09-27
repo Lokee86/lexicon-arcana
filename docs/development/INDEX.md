@@ -9,7 +9,8 @@ Development documentation defines current L+A verification/release practice and 
 - [Behavioral contract matrix](behavioral-contract-matrix.md) — active L+A invariants and protecting tests.
 - [Release workflow](release-workflow.md) — root L+A build, install, packaging, protocol verification, and release artifacts.
 - [Testing and benchmarks](testing-and-benchmarks.md) — component/evaluation procedures and retained report artifacts.
-- [Lexicon-wide performance restoration](lexicon-wide-performance-restoration.md) — active Rust-wide restoration project; Phase 0 lifecycle profile and Hermes pathological baseline.
+- [Lexicon-wide performance restoration](lexicon-wide-performance-restoration.md) — active Rust-wide restoration project; Phases 0, 1, 2, 4, 5, 6, 7, and 8 complete, with Phase 3 still pending.
+- [Lexicon-wide pre-port optimization parity matrix](lexicon-wide-optimization-parity-matrix.md) — permanent Phase 5 audit of the mature pre-Rust performance sequence and current ownership/status.
 - [Lexicon Go-path performance restoration](lexicon-performance-restoration.md) — completed Go adapter/helper optimization project retained as historical evidence.
 - [Lexicon optimization parity audit](lexicon-optimization-parity-audit.md) — Go-path Phase 8 comparison with the mature Go optimization oracle.
 - [Go adapter Phase 16 freeze](go-adapter-port-freeze-2026-09-26.md) — paused migration checkpoint and resumption guardrails.

@@ -1,5 +1,6 @@
 use super::common::{NODE_KINDS, RELATIONS, code, collect_span, is_sha256};
-use crate::{FactObject, FactRecord};
+use super::view::ObjectView;
+use crate::FactRecord;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 pub(crate) struct Table {
@@ -13,15 +14,15 @@ pub(crate) struct References {
     pub(crate) external_index: HashMap<String, u64>,
 }
 
-pub(crate) fn build(object: &FactObject) -> (Table, References) {
+pub(crate) fn build(object: &ObjectView<'_>) -> (Table, References) {
     let local = local_ids(object);
     let mut strings = BTreeSet::new();
-    for value in [&object.language, &object.owner, &object.adapter_version] {
-        strings.insert(value.clone());
+    for value in [object.language, object.owner, object.adapter_version] {
+        strings.insert(value.to_owned());
     }
-    for value in [&object.source_content_id, &object.analysis_config_id] {
+    for value in [object.source_content_id, object.analysis_config_id] {
         if !is_sha256(value) {
-            strings.insert(value.clone());
+            strings.insert(value.to_owned());
         }
     }
     collect_record_strings(&mut strings, object, &local);
@@ -45,7 +46,7 @@ pub(crate) fn build(object: &FactObject) -> (Table, References) {
     )
 }
 
-fn local_ids(object: &FactObject) -> HashMap<String, u64> {
+fn local_ids(object: &ObjectView<'_>) -> HashMap<String, u64> {
     object
         .records
         .iter()
@@ -60,10 +61,10 @@ fn local_ids(object: &FactObject) -> HashMap<String, u64> {
 
 fn collect_record_strings(
     strings: &mut BTreeSet<String>,
-    object: &FactObject,
+    object: &ObjectView<'_>,
     local: &HashMap<String, u64>,
 ) {
-    for record in &object.records {
+    for record in object.records.iter() {
         match record {
             FactRecord::Node(node) => {
                 for identity in [&node.content_id, &Some(node.id.clone())]
@@ -78,8 +79,8 @@ fn collect_record_strings(
                     strings.insert(node.kind.clone());
                 }
                 strings.insert(node.name.clone());
-                insert_factored(strings, node.owner.as_deref().unwrap_or(""), &object.owner);
-                insert_factored(strings, &node.path, &object.owner);
+                insert_factored(strings, node.owner.as_deref().unwrap_or(""), object.owner);
+                insert_factored(strings, &node.path, object.owner);
                 if node.qualified_name != node.name
                     && node.qualified_name != node.path
                     && node.qualified_name != object.owner
@@ -89,7 +90,7 @@ fn collect_record_strings(
                 collect_span(strings, node.span.as_ref());
             }
             FactRecord::Edge(edge) => {
-                insert_factored(strings, edge.owner.as_deref().unwrap_or(""), &object.owner);
+                insert_factored(strings, edge.owner.as_deref().unwrap_or(""), object.owner);
                 insert_relation(strings, &edge.relation);
                 insert_external_identity(strings, local, &edge.source);
                 insert_external_identity(strings, local, &edge.target);
@@ -104,7 +105,7 @@ fn collect_record_strings(
                 ] {
                     strings.insert(text.to_owned());
                 }
-                insert_factored(strings, value.owner.as_deref().unwrap_or(""), &object.owner);
+                insert_factored(strings, value.owner.as_deref().unwrap_or(""), object.owner);
                 insert_relation(strings, &value.relation);
                 insert_external_identity(strings, local, &value.source);
                 collect_span(strings, value.span.as_ref());
@@ -136,7 +137,7 @@ fn insert_external_identity(
 }
 
 fn external_refs(
-    object: &FactObject,
+    object: &ObjectView<'_>,
     local: &HashMap<String, u64>,
 ) -> (Vec<String>, HashMap<String, u64>) {
     let mut values = Vec::new();
@@ -148,7 +149,7 @@ fn external_refs(
         index.insert(value.to_owned(), values.len() as u64);
         values.push(value.to_owned());
     };
-    for record in &object.records {
+    for record in object.records.iter() {
         match record {
             FactRecord::Edge(edge) => {
                 add(&edge.source);

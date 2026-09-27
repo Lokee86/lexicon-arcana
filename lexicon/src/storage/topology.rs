@@ -28,18 +28,21 @@ impl Store {
             .collect();
 
         let selected: BTreeSet<String> = normalized_paths(changed_files).into_iter().collect();
+        let mut added = BTreeSet::new();
         let mut previous = BTreeMap::new();
         for path in &selected {
-            let Some(object_id) = files.get(path.as_str()) else {
-                return Ok(true);
-            };
-            let object = self.load_object(object_id)?;
-            previous.insert(path.clone(), relation_keys(&object.records)?);
+            if let Some(object_id) = files.get(path.as_str()) {
+                let object = self.load_object(object_id)?;
+                previous.insert(path.clone(), relation_keys(&object.records)?);
+            } else {
+                added.insert(path.clone());
+                previous.insert(path.clone(), BTreeSet::new());
+            }
         }
 
         let groups = analysis.groups(None);
         for (owner, records) in groups.owned {
-            if !records.iter().any(is_relationship) {
+            if !records.iter().copied().any(is_relationship) {
                 continue;
             }
             if !selected.contains(&owner) {
@@ -47,16 +50,32 @@ impl Store {
             }
             let known = previous
                 .get(&owner)
-                .expect("selected owner has previous keys");
-            for record in records.iter().filter(|record| is_relationship(record)) {
+                .expect("selected owner has previous topology");
+            for record in records
+                .iter()
+                .copied()
+                .filter(|record| is_relationship(record))
+            {
                 let key = relation_key(record)?;
-                if !known.contains(&key) {
+                if known.contains(&key) {
+                    continue;
+                }
+                if let FactRecord::Unresolved(value) = record
+                    && topology_sensitive_unresolved(&value.reason)
+                {
                     return Ok(true);
+                }
+                if added.contains(&owner) {
+                    continue;
                 }
             }
         }
         Ok(false)
     }
+}
+
+fn topology_sensitive_unresolved(reason: &str) -> bool {
+    matches!(reason, "ambiguous-target" | "generated-target")
 }
 
 fn relation_keys(records: &[FactRecord]) -> Result<BTreeSet<String>, StorageError> {

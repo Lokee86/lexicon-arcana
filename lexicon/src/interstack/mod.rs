@@ -8,6 +8,7 @@ mod http_util;
 mod message_constants;
 mod messages;
 mod model;
+mod node_loading;
 mod paths;
 mod process;
 mod process_commands;

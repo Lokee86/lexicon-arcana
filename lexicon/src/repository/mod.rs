@@ -2,6 +2,8 @@ mod error;
 mod git;
 mod ignore;
 mod mirror;
+mod mirror_copy;
+mod mirror_index;
 mod state_fs;
 mod walk;
 

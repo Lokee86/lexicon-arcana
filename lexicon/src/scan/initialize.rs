@@ -29,6 +29,7 @@ impl ScanEngine {
                 full: true,
                 known_present: true,
                 changed_files: Vec::new(),
+                added_files: Vec::new(),
                 removed_files: Vec::new(),
                 context_files: Vec::new(),
             })

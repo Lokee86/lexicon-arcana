@@ -1,13 +1,14 @@
 use std::collections::BTreeMap;
 
-use crate::{FactObject, FactRecord, content_id};
+use crate::{FactRecord, content_id};
 
 use super::analysis::normalized_paths;
+use super::binary::{ObjectView, RecordSelection};
 use super::{Analysis, FileEntry, LanguageEntry, SourceFile, StorageError, Store};
 
-pub(crate) fn source_map(
-    sources: &[SourceFile],
-) -> Result<BTreeMap<String, Vec<u8>>, StorageError> {
+pub(crate) fn source_map<'a>(
+    sources: &'a [SourceFile],
+) -> Result<BTreeMap<&'a str, &'a [u8]>, StorageError> {
     let started = crate::perf::start();
     let source_bytes = sources
         .iter()
@@ -23,7 +24,7 @@ pub(crate) fn source_map(
             )));
         }
         if result
-            .insert(source.path.clone(), source.content.clone())
+            .insert(source.path.as_str(), source.content.as_slice())
             .is_some()
         {
             return Err(materialization(format!(
@@ -39,7 +40,7 @@ pub(crate) fn source_map(
             &[
                 ("source_files", sources.len() as u64),
                 ("source_bytes", source_bytes),
-                ("cloned_source_bytes", source_bytes),
+                ("cloned_source_bytes", 0),
             ],
         );
     }
@@ -101,18 +102,17 @@ impl Store {
         entry: &LanguageEntry,
         path: &str,
         source: &[u8],
-        records: Vec<FactRecord>,
+        records: &[&FactRecord],
     ) -> Result<FileEntry, StorageError> {
         let source_content_id = content_id(source);
-        let object_id = self.write_object(&FactObject {
-            version: super::OBJECT_VERSION,
-            language: entry.language.clone(),
-            owner: path.to_owned(),
-            source_content_id: source_content_id.clone(),
-            adapter_version: entry.adapter_version.clone(),
+        let object_id = self.write_object_view(&ObjectView {
+            language: &entry.language,
+            owner: path,
+            source_content_id: &source_content_id,
+            adapter_version: &entry.adapter_version,
             schema_version: entry.schema_version,
-            analysis_config_id: entry.analysis_config_id.clone(),
-            records,
+            analysis_config_id: &entry.analysis_config_id,
+            records: RecordSelection::Refs(records),
         })?;
         Ok(FileEntry {
             path: path.to_owned(),
@@ -125,19 +125,34 @@ impl Store {
     pub(crate) fn write_language_shared_object(
         &self,
         entry: &LanguageEntry,
-        records: Vec<FactRecord>,
+        records: &[&FactRecord],
+    ) -> Result<String, StorageError> {
+        self.write_language_shared_selection(entry, RecordSelection::Refs(records))
+    }
+
+    pub(crate) fn write_language_shared_records(
+        &self,
+        entry: &LanguageEntry,
+        records: &[FactRecord],
+    ) -> Result<String, StorageError> {
+        self.write_language_shared_selection(entry, RecordSelection::Direct(records))
+    }
+
+    fn write_language_shared_selection(
+        &self,
+        entry: &LanguageEntry,
+        records: RecordSelection<'_>,
     ) -> Result<String, StorageError> {
         if records.is_empty() {
             return Ok(String::new());
         }
-        self.write_object(&FactObject {
-            version: super::OBJECT_VERSION,
-            language: entry.language.clone(),
-            owner: String::new(),
-            source_content_id: String::new(),
-            adapter_version: entry.adapter_version.clone(),
+        self.write_object_view(&ObjectView {
+            language: &entry.language,
+            owner: "",
+            source_content_id: "",
+            adapter_version: &entry.adapter_version,
             schema_version: entry.schema_version,
-            analysis_config_id: entry.analysis_config_id.clone(),
+            analysis_config_id: &entry.analysis_config_id,
             records,
         })
     }

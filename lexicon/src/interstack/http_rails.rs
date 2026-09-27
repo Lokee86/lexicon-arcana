@@ -28,7 +28,7 @@ static RAILS_ROUTE: LazyLock<Regex> = LazyLock::new(|| {
     .unwrap()
 });
 
-impl Resolver {
+impl Resolver<'_> {
     pub(crate) fn detect_rails_routes(&mut self, file: &SourceFile) {
         let mut stack = Vec::<RailsNamespace>::new();
         let mut depth = 0_usize;

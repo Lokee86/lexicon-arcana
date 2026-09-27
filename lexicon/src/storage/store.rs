@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::binary::is_binary_object;
+use super::binary::{ObjectView, encode_view, is_binary_object};
 use super::io::{write_atomic, write_immutable};
 use super::snapshot::snapshot_id_bytes;
 use super::{
@@ -29,6 +29,18 @@ impl Store {
 
     pub fn write_object(&self, object: &FactObject) -> Result<String, StorageError> {
         let encoded = encode_object(object)?;
+        self.write_encoded_object(encoded)
+    }
+
+    pub(crate) fn write_object_view(
+        &self,
+        object: &ObjectView<'_>,
+    ) -> Result<String, StorageError> {
+        let encoded = encode_view(object)?;
+        self.write_encoded_object(encoded)
+    }
+
+    fn write_encoded_object(&self, encoded: Vec<u8>) -> Result<String, StorageError> {
         let id = object_id(&encoded);
         write_immutable(&self.object_path(&id), &encoded)?;
         Ok(id)

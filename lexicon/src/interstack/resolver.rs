@@ -35,8 +35,8 @@ pub struct ResolveResult {
     pub summary: Summary,
 }
 
-pub(crate) struct Resolver {
-    pub(crate) index: SourceIndex,
+pub(crate) struct Resolver<'a> {
+    pub(crate) index: SourceIndex<'a>,
     pub(crate) result: ResolveResult,
     pub(crate) nodes: HashMap<String, Node>,
     pub(crate) edges: HashMap<String, EdgeRecord>,
@@ -55,7 +55,15 @@ pub fn resolve(
         .iter()
         .map(|library| library.language.clone())
         .collect::<HashSet<_>>();
+    let source_started = crate::perf::start();
     let files = collect_source_files(source_root, &allowed_languages)?;
+    if let Some(source_started) = source_started {
+        crate::perf::emit(
+            "interstack.source_loading",
+            source_started.elapsed(),
+            &[("files", files.len() as u64)],
+        );
+    }
     let repository = libraries
         .iter()
         .find_map(|library| (!library.repository.is_empty()).then(|| library.repository.clone()))
@@ -66,8 +74,26 @@ pub fn resolve(
                 .unwrap_or("repository")
                 .to_owned()
         });
+    let index_started = crate::perf::start();
+    let index = SourceIndex::new(libraries);
+    if let Some(index_started) = index_started {
+        crate::perf::emit(
+            "interstack.source_index",
+            index_started.elapsed(),
+            &[
+                ("libraries", libraries.len() as u64),
+                (
+                    "nodes",
+                    libraries
+                        .iter()
+                        .map(|library| library.nodes.len() as u64)
+                        .sum(),
+                ),
+            ],
+        );
+    }
     let mut resolver = Resolver {
-        index: SourceIndex::new(libraries),
+        index,
         result: ResolveResult {
             repository,
             nodes: Vec::new(),
@@ -84,6 +110,7 @@ pub fn resolve(
         http_providers: HashMap::new(),
     };
 
+    let detection_started = crate::perf::start();
     for file in &files {
         resolver.collect_constants(file);
     }
@@ -102,12 +129,32 @@ pub fn resolve(
         resolver.detect_process_contracts(file);
         resolver.detect_state_contracts(file);
     }
+    if let Some(detection_started) = detection_started {
+        crate::perf::emit(
+            "interstack.contract_detection",
+            detection_started.elapsed(),
+            &[("files", files.len() as u64)],
+        );
+    }
+
+    let linking_started = crate::perf::start();
     resolver.resolve_http_producers();
     resolver.finish();
+    if let Some(linking_started) = linking_started {
+        crate::perf::emit(
+            "interstack.linking",
+            linking_started.elapsed(),
+            &[
+                ("nodes", resolver.result.nodes.len() as u64),
+                ("edges", resolver.result.edges.len() as u64),
+                ("unresolved", resolver.result.unresolved.len() as u64),
+            ],
+        );
+    }
     Ok(resolver.result)
 }
 
-impl Resolver {
+impl Resolver<'_> {
     fn finish(&mut self) {
         self.result.nodes = self.nodes.values().cloned().collect();
         self.result.edges = self.edges.values().cloned().collect();

@@ -45,7 +45,7 @@ const BOUNDARY_CONFIG_KEYS: &[&str] = &[
     "GRIMOIRE_HOME",
 ];
 
-impl Resolver {
+impl Resolver<'_> {
     pub(crate) fn detect_config_reads(&mut self, file: &SourceFile) {
         for (index, line) in file.lines.iter().enumerate() {
             let Some(owner) = self.index.owner_at(&file.path, (index + 1) as u64) else {

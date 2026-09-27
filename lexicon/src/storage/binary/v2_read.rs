@@ -146,3 +146,55 @@ fn decode_nodes(
     reader.finish("node section")?;
     Ok(records)
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{EdgeRecord, FactObject, FactRecord, NodeRecord};
+
+    use super::{decode, decode_nodes_only, parts};
+    #[test]
+    fn nodes_only_decode_skips_relationship_payloads() {
+        let object = FactObject {
+            version: 1,
+            language: "python".into(),
+            owner: "a.py".into(),
+            source_content_id: String::new(),
+            adapter_version: "test".into(),
+            schema_version: 1,
+            analysis_config_id: "config".into(),
+            records: vec![
+                FactRecord::Node(NodeRecord {
+                    attributes: None,
+                    content_id: None,
+                    id: "node:a".into(),
+                    kind: "function".into(),
+                    name: "run".into(),
+                    owner: Some("a.py".into()),
+                    path: "a.py".into(),
+                    qualified_name: "a.run".into(),
+                    span: None,
+                }),
+                FactRecord::Edge(EdgeRecord {
+                    attributes: None,
+                    owner: Some("a.py".into()),
+                    relation: "calls".into(),
+                    source: "node:a".into(),
+                    span: None,
+                    target: "node:a".into(),
+                }),
+            ],
+        };
+        let mut encoded = super::super::v2_write::encode(&object).expect("encode object");
+        let edge_start = {
+            let parsed = parts(&encoded).expect("split object");
+            assert_eq!(parsed.edges.first().copied(), Some(1));
+            parsed.edges.as_ptr() as usize - encoded.as_ptr() as usize
+        };
+
+        encoded[edge_start] = 2;
+        assert!(decode(&encoded).is_err());
+        let (_, nodes) = decode_nodes_only(&encoded).expect("decode nodes only");
+        assert_eq!(nodes.len(), 1);
+        assert_eq!(nodes[0].id, "node:a");
+    }
+}

@@ -1,10 +1,15 @@
 use super::common::{NODE_KINDS, RELATIONS, attributes_bytes};
 use super::v2_table::{References, Table, build};
+use super::view::ObjectView;
 use super::write;
 use super::{MAGIC_V2, MAX_EXTERNAL_REFERENCES};
 use crate::{FactObject, FactRecord, StorageError};
 
 pub(crate) fn encode(object: &FactObject) -> Result<Vec<u8>, StorageError> {
+    encode_view(&ObjectView::from(object))
+}
+
+pub(crate) fn encode_view(object: &ObjectView<'_>) -> Result<Vec<u8>, StorageError> {
     validate_metadata(object)?;
     let (table, references) = build(object);
     if references.external.len() as u64 > MAX_EXTERNAL_REFERENCES {
@@ -18,11 +23,11 @@ pub(crate) fn encode(object: &FactObject) -> Result<Vec<u8>, StorageError> {
     write::uvarint(&mut output, super::super::OBJECT_VERSION);
     write::uvarint(&mut output, object.schema_version);
     write_string_table(&mut output, &table);
-    write::string_ref(&mut output, &table.index, &object.language);
-    write::string_ref(&mut output, &table.index, &object.owner);
-    write::identity(&mut output, &table.index, &object.source_content_id);
-    write::string_ref(&mut output, &table.index, &object.adapter_version);
-    write::identity(&mut output, &table.index, &object.analysis_config_id);
+    write::string_ref(&mut output, &table.index, object.language);
+    write::string_ref(&mut output, &table.index, object.owner);
+    write::identity(&mut output, &table.index, object.source_content_id);
+    write::string_ref(&mut output, &table.index, object.adapter_version);
+    write::identity(&mut output, &table.index, object.analysis_config_id);
     write::uvarint(&mut output, references.external.len() as u64);
     for value in &references.external {
         write::identity(&mut output, &table.index, value);
@@ -34,7 +39,7 @@ pub(crate) fn encode(object: &FactObject) -> Result<Vec<u8>, StorageError> {
     Ok(output)
 }
 
-fn validate_metadata(object: &FactObject) -> Result<(), StorageError> {
+fn validate_metadata(object: &ObjectView<'_>) -> Result<(), StorageError> {
     if object.language.is_empty() {
         return Err(StorageError::InvalidObject("language"));
     }
@@ -62,15 +67,19 @@ fn write_string_table(output: &mut Vec<u8>, table: &Table) {
     }
 }
 
-fn nodes(object: &FactObject, table: &Table) -> Result<Vec<u8>, StorageError> {
-    let records: Vec<_> = object
+fn nodes(object: &ObjectView<'_>, table: &Table) -> Result<Vec<u8>, StorageError> {
+    let count = object
         .records
         .iter()
         .filter(|record| matches!(record, FactRecord::Node(_)))
-        .collect();
+        .count();
     let mut output = Vec::new();
-    write::uvarint(&mut output, records.len() as u64);
-    for record in records {
+    write::uvarint(&mut output, count as u64);
+    for record in object
+        .records
+        .iter()
+        .filter(|record| matches!(record, FactRecord::Node(_)))
+    {
         let FactRecord::Node(node) = record else {
             unreachable!()
         };
@@ -87,16 +96,16 @@ fn nodes(object: &FactObject, table: &Table) -> Result<Vec<u8>, StorageError> {
             &mut output,
             &table.index,
             node.owner.as_deref().unwrap_or(""),
-            &object.owner,
+            object.owner,
         );
-        write::factored(&mut output, &table.index, &node.path, &object.owner);
+        write::factored(&mut output, &table.index, &node.path, object.owner);
         write::qname(
             &mut output,
             &table.index,
             &node.qualified_name,
             &node.name,
             &node.path,
-            &object.owner,
+            object.owner,
         );
         write::span(&mut output, &table.index, node.span.as_ref());
     }
@@ -104,18 +113,22 @@ fn nodes(object: &FactObject, table: &Table) -> Result<Vec<u8>, StorageError> {
 }
 
 fn edges(
-    object: &FactObject,
+    object: &ObjectView<'_>,
     table: &Table,
     references: &References,
 ) -> Result<Vec<u8>, StorageError> {
-    let records: Vec<_> = object
+    let count = object
         .records
         .iter()
         .filter(|record| matches!(record, FactRecord::Edge(_)))
-        .collect();
+        .count();
     let mut output = Vec::new();
-    write::uvarint(&mut output, records.len() as u64);
-    for record in records {
+    write::uvarint(&mut output, count as u64);
+    for record in object
+        .records
+        .iter()
+        .filter(|record| matches!(record, FactRecord::Edge(_)))
+    {
         let FactRecord::Edge(edge) = record else {
             unreachable!()
         };
@@ -124,7 +137,7 @@ fn edges(
             &mut output,
             &table.index,
             edge.owner.as_deref().unwrap_or(""),
-            &object.owner,
+            object.owner,
         );
         write::code_or_string(&mut output, &table.index, &edge.relation, RELATIONS);
         node_ref(&mut output, references, &edge.source);
@@ -135,18 +148,22 @@ fn edges(
 }
 
 fn unresolved(
-    object: &FactObject,
+    object: &ObjectView<'_>,
     table: &Table,
     references: &References,
 ) -> Result<Vec<u8>, StorageError> {
-    let records: Vec<_> = object
+    let count = object
         .records
         .iter()
         .filter(|record| matches!(record, FactRecord::Unresolved(_)))
-        .collect();
+        .count();
     let mut output = Vec::new();
-    write::uvarint(&mut output, records.len() as u64);
-    for record in records {
+    write::uvarint(&mut output, count as u64);
+    for record in object
+        .records
+        .iter()
+        .filter(|record| matches!(record, FactRecord::Unresolved(_)))
+    {
         let FactRecord::Unresolved(value) = record else {
             unreachable!()
         };
@@ -162,7 +179,7 @@ fn unresolved(
             &mut output,
             &table.index,
             value.owner.as_deref().unwrap_or(""),
-            &object.owner,
+            object.owner,
         );
         write::string_ref(&mut output, &table.index, &value.reason);
         write::code_or_string(&mut output, &table.index, &value.relation, RELATIONS);

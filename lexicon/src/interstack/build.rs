@@ -3,11 +3,14 @@ use std::path::Path;
 use serde_json::{Map, Value};
 
 use crate::{
-    ANALYSIS_CONFIG_ID, Analysis, FactHeader, FactRecord, FactStream, LanguageEntry, NodeRecord,
+    ANALYSIS_CONFIG_ID, Analysis, FactHeader, FactRecord, FactStream, NodeRecord,
     ScanExecutionError, SnapshotManifest, Store,
 };
 
-use super::{ADAPTER_VERSION, LANGUAGE, Library, Node, Summary, adapter_fingerprint, resolve};
+use super::{
+    ADAPTER_VERSION, LANGUAGE, Summary, adapter_fingerprint, node_loading::library_from_entry,
+    resolve,
+};
 
 pub fn interstack_drifted(manifest: &SnapshotManifest) -> bool {
     let languages = manifest.languages.as_deref().unwrap_or_default();
@@ -32,6 +35,7 @@ pub fn refresh_interstack(
     source_root: &Path,
     manifest: SnapshotManifest,
 ) -> Result<(SnapshotManifest, Summary), ScanExecutionError> {
+    let total_started = crate::perf::start();
     let ordinary = manifest
         .languages
         .as_deref()
@@ -44,49 +48,71 @@ pub fn refresh_interstack(
         return Ok((manifest.without_language(LANGUAGE), Summary::default()));
     }
 
+    let load_started = crate::perf::start();
+    let object_count = ordinary
+        .iter()
+        .map(|entry| {
+            entry.files.as_deref().unwrap_or_default().len()
+                + usize::from(!entry.shared_object_id.is_empty())
+        })
+        .sum::<usize>();
     let libraries = ordinary
         .iter()
         .map(|entry| library_from_entry(store, entry))
         .collect::<Result<Vec<_>, _>>()?;
+    let node_count = libraries
+        .iter()
+        .map(|library| library.nodes.len())
+        .sum::<usize>();
+    if let Some(load_started) = load_started {
+        crate::perf::emit(
+            "interstack.node_loading",
+            load_started.elapsed(),
+            &[
+                ("languages", libraries.len() as u64),
+                ("objects", object_count as u64),
+                ("nodes", node_count as u64),
+            ],
+        );
+    }
+
+    let resolve_started = crate::perf::start();
     let result = resolve(source_root, &libraries)?;
+    if let Some(resolve_started) = resolve_started {
+        crate::perf::emit(
+            "interstack.resolution",
+            resolve_started.elapsed(),
+            &[
+                ("nodes", result.nodes.len() as u64),
+                ("edges", result.edges.len() as u64),
+                ("unresolved", result.unresolved.len() as u64),
+            ],
+        );
+    }
+
     let summary = result.summary.clone();
+    let materialize_started = crate::perf::start();
     let analysis = analysis_from_result(result)?;
     let entry =
         store.build_shared_language(&analysis, ANALYSIS_CONFIG_ID, &adapter_fingerprint())?;
+    if let Some(materialize_started) = materialize_started {
+        crate::perf::emit(
+            "interstack.materialization",
+            materialize_started.elapsed(),
+            &[("facts", analysis.records.len() as u64)],
+        );
+    }
+    if let Some(total_started) = total_started {
+        crate::perf::emit(
+            "interstack.total",
+            total_started.elapsed(),
+            &[
+                ("objects", object_count as u64),
+                ("nodes", node_count as u64),
+            ],
+        );
+    }
     Ok((manifest.with_language(entry), summary))
-}
-
-fn library_from_entry(store: &Store, entry: &LanguageEntry) -> Result<Library, ScanExecutionError> {
-    let mut nodes = Vec::new();
-    for file in entry.files.as_deref().unwrap_or_default() {
-        collect_nodes(store, &file.object_id, &mut nodes)?;
-    }
-    if !entry.shared_object_id.is_empty() {
-        collect_nodes(store, &entry.shared_object_id, &mut nodes)?;
-    }
-    Ok(Library {
-        language: entry.language.clone(),
-        repository: entry.repository.clone(),
-        nodes,
-    })
-}
-
-fn collect_nodes(
-    store: &Store,
-    object_id: &str,
-    nodes: &mut Vec<Node>,
-) -> Result<(), ScanExecutionError> {
-    let object = store.load_object(object_id)?;
-    nodes.extend(
-        object
-            .records
-            .into_iter()
-            .filter_map(|record| match record {
-                FactRecord::Node(node) => Some(Node::from(node)),
-                _ => None,
-            }),
-    );
-    Ok(())
 }
 
 fn analysis_from_result(result: super::ResolveResult) -> Result<Analysis, ScanExecutionError> {

@@ -4,7 +4,7 @@ use super::model::{Node, SourceFile};
 use super::paths::synthetic_path;
 use super::resolver::Resolver;
 
-impl Resolver {
+impl Resolver<'_> {
     pub(crate) fn detect_arcana_protocol(&mut self, file: &SourceFile) {
         let path = file.path.replace('\\', "/").to_ascii_lowercase();
         let producer = path.ends_with("internal/arcanagraph/protocol.go");

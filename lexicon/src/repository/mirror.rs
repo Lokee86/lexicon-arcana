@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 
 use crate::languages::for_path;
 
+use super::mirror_copy::{copy_all, copy_one};
+use super::mirror_index::unchanged_files;
 use super::walk::relevant_files;
 use super::{IgnorePolicy, RepositoryError};
 
@@ -35,7 +37,9 @@ impl SourceMirror {
         } else {
             0
         };
-        self.copy_all(&desired)?;
+        let indexed = unchanged_files(&self.root, &source, &desired);
+        let indexed_skips = indexed.as_ref().map_or(0, std::collections::BTreeSet::len);
+        let (copied_files, byte_equal_skips) = copy_all(&self.root, &desired, indexed.as_ref())?;
         self.remove_missing(&desired)?;
         if let Some(started) = started {
             crate::perf::emit(
@@ -44,6 +48,9 @@ impl SourceMirror {
                 &[
                     ("discovered_files", desired.len() as u64),
                     ("source_bytes", source_bytes),
+                    ("indexed_skips", indexed_skips as u64),
+                    ("byte_equal_skips", byte_equal_skips as u64),
+                    ("copied_files", copied_files as u64),
                 ],
             );
         }
@@ -86,7 +93,7 @@ impl SourceMirror {
             {
                 let _ = fs::remove_file(self.root.join(relative));
             } else {
-                self.copy(relative, &absolute)?;
+                copy_one(&self.root, relative, &absolute)?;
             }
         }
         Ok(())
@@ -99,40 +106,8 @@ impl SourceMirror {
         policy: &IgnorePolicy,
     ) -> Result<(), RepositoryError> {
         let desired = relevant_files(source, &source.join(relative), policy)?;
-        for (path, source_path) in &desired {
-            self.copy(path, source_path)?;
-        }
+        copy_all(&self.root, &desired, None)?;
         self.remove_missing_under(relative, &desired)
-    }
-
-    fn copy_all(&self, desired: &BTreeMap<PathBuf, PathBuf>) -> Result<(), RepositoryError> {
-        for (relative, source) in desired {
-            self.copy(relative, source)?;
-        }
-        Ok(())
-    }
-
-    fn copy(&self, relative: &Path, source: &Path) -> Result<(), RepositoryError> {
-        let data = fs::read(source)?;
-        let destination = self.root.join(relative);
-        if fs::read(&destination).is_ok_and(|existing| existing == data) {
-            return Ok(());
-        }
-        if let Some(parent) = destination.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        let temporary = PathBuf::from(format!("{}.lexicon-tmp", destination.display()));
-        fs::write(&temporary, data)?;
-        if let Err(first) = fs::rename(&temporary, &destination) {
-            let _ = fs::remove_file(&destination);
-            fs::rename(&temporary, &destination).map_err(|retry| {
-                RepositoryError::new(format!(
-                    "replace mirror file {}: {retry}; initial error: {first}",
-                    destination.display()
-                ))
-            })?;
-        }
-        Ok(())
     }
 
     fn remove_missing(&self, desired: &BTreeMap<PathBuf, PathBuf>) -> Result<(), RepositoryError> {

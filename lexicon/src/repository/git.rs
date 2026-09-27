@@ -79,6 +79,17 @@ impl StateRepository {
         }
     }
 
+    pub fn head_source(&self, path: &str) -> Result<Vec<u8>, RepositoryError> {
+        if !self.has_head() {
+            return Err(RepositoryError::new(
+                "Lexicon state repository has no commit",
+            ));
+        }
+        let normalized = path.replace('\\', "/");
+        let spec = format!("HEAD:source/{normalized}");
+        self.output_bytes(&["show", &spec])
+    }
+
     pub fn has_staged_changes(&self) -> bool {
         match Command::new("git")
             .args(["diff", "--cached", "--quiet"])

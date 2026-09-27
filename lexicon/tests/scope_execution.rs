@@ -118,6 +118,7 @@ fn unsupported_adapter_skips_inventory_and_incremental_inventory_is_deduplicated
         full: false,
         known_present: false,
         changed_files: vec!["a.py".into(), "missing.py".into()],
+        added_files: Vec::new(),
         removed_files: Vec::new(),
         context_files: vec!["a.py".into(), "b.py".into()],
     };
@@ -153,6 +154,7 @@ fn full_plan(language: &str) -> AnalysisPlan {
         full: true,
         known_present: false,
         changed_files: Vec::new(),
+        added_files: Vec::new(),
         removed_files: Vec::new(),
         context_files: Vec::new(),
     }

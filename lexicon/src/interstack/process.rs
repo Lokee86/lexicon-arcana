@@ -53,7 +53,7 @@ pub(crate) fn boundary_commands() -> HashMap<&'static str, HashSet<&'static str>
     ])
 }
 
-impl Resolver {
+impl Resolver<'_> {
     pub(crate) fn detect_process_contracts(&mut self, file: &SourceFile) {
         self.detect_process_invocations(file);
         self.detect_cli_command_ownership(file);

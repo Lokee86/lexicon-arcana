@@ -11,7 +11,7 @@ use super::http_util::{
 use super::model::SourceFile;
 use super::resolver::{Resolver, attributes, line_span};
 
-impl Resolver {
+impl Resolver<'_> {
     pub(crate) fn collect_http_path_providers(&mut self, file: &SourceFile) {
         if file.extension == ".rb" && file.path.ends_with("config/routes.rb") {
             return;

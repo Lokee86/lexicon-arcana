@@ -5,9 +5,60 @@
     "max_large_ms": 5000,
     "max_scale_ratio": 10.0
   },
+  "multilang": {
+    "c-family": {
+      "sha256": "6F0A4E03F0EC14B803E978D832D8266C359159AA192C0D84C4C8630A34080FFD",
+      "fact_count": 8,
+      "max_wall_ms": 5000
+    },
+    "python": {
+      "sha256": "9C9DB95CE689D8138FE53AA6A624857D9B9999086B21693301CD991D2529559C",
+      "fact_count": 29,
+      "max_wall_ms": 5000
+    },
+    "gdscript": {
+      "sha256": "C9348E2F13716FB51CB56E2E99502EB87B327EE9CD440219ED7AD7C6CB69C7CB",
+      "fact_count": 20,
+      "max_wall_ms": 5000
+    },
+    "go": {
+      "sha256": "678CA328E09D7F688B83ECAAED37CCE6B22534E2414C76767304B8EBCBBC1BD0",
+      "fact_count": 15,
+      "max_wall_ms": 30000
+    },
+    "lotusscript": {
+      "sha256": "9CEBDD9BA78467005DC2E36B3E00C75A305CB24E3C5ABE8A1856C71670936816",
+      "fact_count": 12,
+      "max_wall_ms": 5000
+    },
+    "kotlin": {
+      "sha256": "9828B26C26AE5BE89DFB4232EB7A2F01BA95E2D94DF71027D4440908504353A0",
+      "fact_count": 29,
+      "max_wall_ms": 5000
+    },
+    "rust": {
+      "sha256": "7557A31B1AE57DB39FB22458C5884D1AA2F0655F860AEDF2595A1866DC5013F9",
+      "fact_count": 15,
+      "max_wall_ms": 10000
+    },
+    "ruby": {
+      "sha256": "116E775A46312FBFDA8AD90AC72BB4767619665C53083AFD607B30DBA5852F53",
+      "fact_count": 17,
+      "max_wall_ms": 5000
+    },
+    "generic-lua": {
+      "sha256": "60CD2887800F5FB11E25A6D1E8EDDC7AA3EFDE1D470D4E764E69849D003FB424",
+      "fact_count": 10,
+      "max_wall_ms": 5000
+    }
+  },
   "fixture": {
     "path": "lexicon/adapters/go/testdata/oracle/basic_calls",
-    "shape": [1, 1, 2],
+    "shape": [
+      1,
+      1,
+      2
+    ],
     "sha256": "596A04253AA5A427EF56F374C1FF97A6929719D9401B8E15C6E5DF3D1D5FA8B7",
     "max_wall_ms": 30000,
     "max": {
@@ -25,7 +76,11 @@
     "demon-docs": {
       "sibling": "demon-docs",
       "revision": "fa5ca9aea12e20c29c378d5d018647958b862cac",
-      "shape": [4, 8, 4],
+      "shape": [
+        4,
+        8,
+        4
+      ],
       "sha256": "AE3064C2085AA479B058F026A26D7DC3CE2DD05EBEE036023C94E7543E650F0E",
       "max_wall_ms": 120000,
       "max": {
@@ -43,7 +98,11 @@
     "space-rocks": {
       "sibling": "space-rocks",
       "revision": "431625042dbdb1a884954cab6ec726413aa36e2b",
-      "shape": [8, 16, 4],
+      "shape": [
+        8,
+        16,
+        4
+      ],
       "sha256": "B512DE8B69B50467C30D7886A6DB65D6652BC53C623C63DCF703CFE3C7E76D43",
       "max_wall_ms": 180000,
       "max": {
@@ -63,7 +122,11 @@
     },
     "lexicon-self": {
       "path": ".",
-      "shape": [4, 8, 4],
+      "shape": [
+        4,
+        8,
+        4
+      ],
       "max_wall_ms": 180000,
       "max": {
         "go.repository_discovery.retained_source_bytes": 65536,

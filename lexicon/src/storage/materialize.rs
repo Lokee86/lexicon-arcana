@@ -27,7 +27,7 @@ impl Store {
             .values()
             .map(|source| source.len() as u64)
             .sum::<u64>();
-        let allowed: BTreeSet<String> = sources.keys().cloned().collect();
+        let allowed: BTreeSet<String> = sources.keys().map(|path| (*path).to_owned()).collect();
         let groups = analysis.groups(Some(&allowed));
         let owned_records = groups
             .owned
@@ -39,7 +39,7 @@ impl Store {
 
         let objects_started = crate::perf::start();
         let files = write_full_file_objects(self, &entry, sources, &groups)?;
-        let shared_object_id = self.write_language_shared_object(&entry, groups.shared)?;
+        let shared_object_id = self.write_language_shared_object(&entry, &groups.shared)?;
         if let Some(objects_started) = objects_started {
             crate::perf::emit(
                 &format!("{}.object_construction_cas", language),
@@ -49,7 +49,8 @@ impl Store {
                     ("shared_objects", u64::from(!shared_object_id.is_empty())),
                     ("owned_records", owned_records),
                     ("shared_records", shared_records),
-                    ("record_clones", owned_records),
+                    ("record_clones", 0),
+                    ("record_references", owned_records + shared_records),
                     ("source_bytes", source_bytes),
                 ],
             );
@@ -73,8 +74,7 @@ impl Store {
             ));
         }
         let entry = language_metadata(analysis, analysis_config_id, adapter_fingerprint);
-        let shared_object_id =
-            self.write_language_shared_object(&entry, analysis.records.clone())?;
+        let shared_object_id = self.write_language_shared_records(&entry, &analysis.records)?;
         Ok(LanguageEntry {
             files: Some(Vec::new()),
             shared_object_id,
@@ -113,19 +113,25 @@ impl Store {
 
         for path in changed.iter().filter(|path| !removed.contains(*path)) {
             let source = sources
-                .get(path)
+                .get(path.as_str())
                 .ok_or_else(|| materialization(format!("missing changed source {path:?}")))?;
-            let file = self.write_language_file_object(
-                &entry,
-                path,
-                source,
-                groups.owned.get(path).cloned().unwrap_or_default(),
-            )?;
+            let records = groups
+                .owned
+                .get(path)
+                .map(Vec::as_slice)
+                .unwrap_or_default();
+            let file = self.write_language_file_object(&entry, path, source, records)?;
             files.insert(path.clone(), file);
         }
 
         let shared_object_id = if replace_shared {
-            self.write_language_shared_object(&entry, groups.shared)?
+            self.merge_language_shared_object(
+                &entry,
+                previous,
+                &groups.shared,
+                changed_files,
+                removed_files,
+            )?
         } else {
             previous.shared_object_id.clone()
         };
