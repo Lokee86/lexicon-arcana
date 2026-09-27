@@ -41,3 +41,19 @@ func TestAddIncrementalPathAllowsPythonAddition(t *testing.T) {
 		t.Fatalf("typescript addition must remain conservative: %#v", typescript)
 	}
 }
+
+func TestAddRenameKeepsPythonIncremental(t *testing.T) {
+	scanner := Scanner{EnabledLanguages: []string{"python", "typescript"}}
+	plans := map[string]*analysisPlan{}
+	scanner.addRename(plans, "hermes_cli/plugin_capabilities.py", "plugin_runtime/capabilities.py")
+	plan := plans["python"]
+	if plan == nil || plan.Full {
+		t.Fatalf("python rename unexpectedly required full analysis: %#v", plan)
+	}
+	if len(plan.RemovedFiles) != 1 || plan.RemovedFiles[0] != "hermes_cli/plugin_capabilities.py" {
+		t.Fatalf("removed files = %v", plan.RemovedFiles)
+	}
+	if len(plan.AddedFiles) != 1 || plan.AddedFiles[0] != "plugin_runtime/capabilities.py" {
+		t.Fatalf("added files = %v", plan.AddedFiles)
+	}
+}

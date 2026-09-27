@@ -36,6 +36,8 @@ func (s *Scanner) plansFor(changes []state.Change, drift []string) ([]analysisPl
 			s.addIncrementalPath(plans, change.New, false)
 		case 'A':
 			s.addIncrementalPath(plans, change.New, true)
+		case 'R':
+			s.addRename(plans, change.Old, change.New)
 		default:
 			paths := []string{change.New}
 			if change.Old != "" {
@@ -56,10 +58,11 @@ func (s *Scanner) plansFor(changes []state.Change, drift []string) ([]analysisPl
 	result := make([]analysisPlan, 0, len(plans))
 	for _, plan := range plans {
 		if !plan.Full {
-			roots := uniqueSorted(plan.ChangedFiles)
+			removed := uniqueSorted(plan.RemovedFiles)
+			roots := uniqueSorted(append(append([]string(nil), plan.ChangedFiles...), removed...))
 			var impacted, context []string
 			fullRequired := false
-			if len(roots) > 0 {
+			if len(roots) > 0 || len(plan.AddedFiles) > 0 {
 				var err error
 				fullRequired, impacted, context, err = s.Store.IncrementalScopeWithAdditions(plan.Language, roots, uniqueSorted(plan.AddedFiles))
 				if err != nil {
@@ -70,9 +73,9 @@ func (s *Scanner) plansFor(changes []state.Change, drift []string) ([]analysisPl
 				plan.Full = true
 			} else {
 				added := uniqueSorted(plan.AddedFiles)
-				plan.ChangedFiles = uniqueSorted(append(impacted, added...))
-				plan.RemovedFiles = []string{}
-				plan.ContextFiles = uniqueSorted(append(context, added...))
+				plan.ChangedFiles = withoutPaths(uniqueSorted(append(impacted, added...)), removed)
+				plan.RemovedFiles = removed
+				plan.ContextFiles = withoutPaths(uniqueSorted(append(context, added...)), removed)
 			}
 		}
 		if plan.Full {
@@ -109,6 +112,45 @@ func (s *Scanner) addIncrementalPath(plans map[string]*analysisPlan, path string
 			plan.ChangedFiles = append(plan.ChangedFiles, path)
 		}
 	}
+}
+
+func (s *Scanner) addRename(plans map[string]*analysisPlan, oldPath, newPath string) {
+	oldPython := languageOwnsSource("python", oldPath)
+	newPython := languageOwnsSource("python", newPath)
+	if s.languageEnabled("python") && (oldPython || newPython) {
+		plan := ensurePlan(plans, "python")
+		if oldPython && newPython {
+			plan.RemovedFiles = append(plan.RemovedFiles, oldPath)
+			plan.AddedFiles = append(plan.AddedFiles, newPath)
+		} else {
+			plan.Full = true
+		}
+	}
+	for _, path := range []string{oldPath, newPath} {
+		for _, language := range lexfiles.Languages(path) {
+			if language == "python" || !s.languageEnabled(language) {
+				continue
+			}
+			ensurePlan(plans, language).Full = true
+		}
+	}
+}
+
+func withoutPaths(paths, removed []string) []string {
+	if len(removed) == 0 {
+		return paths
+	}
+	blocked := make(map[string]struct{}, len(removed))
+	for _, path := range removed {
+		blocked[filepath.ToSlash(path)] = struct{}{}
+	}
+	result := make([]string, 0, len(paths))
+	for _, path := range paths {
+		if _, drop := blocked[filepath.ToSlash(path)]; !drop {
+			result = append(result, path)
+		}
+	}
+	return result
 }
 
 func ensurePlan(plans map[string]*analysisPlan, language string) *analysisPlan {
