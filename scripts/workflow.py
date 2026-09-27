@@ -193,6 +193,26 @@ def package_lexicon_adapters(
             "target", "node_modules", "dist", "runtime.facts.jsonl"
         ),
     )
+    legacy_go = destination / "go"
+    if legacy_go.exists():
+        shutil.rmtree(legacy_go)
+
+    semantic_runtime = destination / "go-semantic"
+    if semantic_runtime.exists():
+        shutil.rmtree(semantic_runtime)
+    semantic_runtime.mkdir(parents=True)
+    copy_file(source / "go-semantic" / "VERSION", semantic_runtime / "VERSION")
+    semantic_helper = semantic_runtime / executable_name("lexicon-go-semantic")
+    run(
+        [
+            "go", "build", "-p", str(jobs), "-trimpath", "-buildvcs=false",
+            "-o", str(semantic_helper), ".",
+        ],
+        source / "go-semantic",
+        environment,
+    )
+    verify_go_semantic_helper(semantic_helper)
+
     for language in ("c-family", "gdscript", "kotlin", "generic"):
         run(
             [
@@ -226,6 +246,29 @@ def package_lexicon_adapters(
             raise FileNotFoundError("npm executable not found on PATH")
         run([npm, "ci", "--silent"], typescript, environment)
         run([npm, "run", "build", "--silent"], typescript, environment)
+
+
+def go_semantic_helper_version() -> str:
+    version = (ROOT / "lexicon" / "adapters" / "go-semantic" / "VERSION").read_text(
+        encoding="utf-8"
+    ).strip()
+    if not version:
+        raise RuntimeError("Go semantic helper VERSION is empty")
+    return version
+
+
+def verify_go_semantic_helper(helper: Path) -> None:
+    expected = f"lexicon-go-semantic {go_semantic_helper_version()}"
+    completed = subprocess.run(
+        [helper, "--version"],
+        cwd=helper.parent,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    actual = completed.stdout.strip()
+    if actual != expected:
+        raise RuntimeError(f"{helper} reported {actual!r}; expected {expected!r}")
 
 
 def verify_versions(build_root: Path, version: str, components: Sequence[str] = ("lexicon", "arcana")) -> None:

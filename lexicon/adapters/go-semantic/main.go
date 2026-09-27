@@ -11,9 +11,19 @@ import (
 
 func main() {
 	version := flag.Uint("protocol-version", 0, "private Go semantic protocol version")
+	expectedHelperVersion := flag.String("helper-version", "", "expected private Go semantic helper version")
+	showVersion := flag.Bool("version", false, "print helper version")
 	flag.Parse()
+	if *showVersion {
+		fmt.Printf("lexicon-go-semantic %s\n", helperVersion)
+		return
+	}
 	if uint32(*version) != protocolVersion {
 		fmt.Fprintf(os.Stderr, "unsupported protocol version %d\n", *version)
+		os.Exit(2)
+	}
+	if err := validateHelperVersion(*expectedHelperVersion); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
 
@@ -27,6 +37,12 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "decode semantic request: %v\n", err)
 		os.Exit(1)
+	}
+	if len(value.Modules) > 0 {
+		if err := requireGoToolchain(); err != nil {
+			fmt.Fprintf(os.Stderr, "Go semantic helper runtime unavailable: %v\n", err)
+			os.Exit(1)
+		}
 	}
 	profiling := performanceEnabled()
 	var result response

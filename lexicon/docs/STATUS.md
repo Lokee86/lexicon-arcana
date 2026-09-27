@@ -58,7 +58,7 @@ Implemented on the active Rust-migration branch:
 - a separate Rust `lexicon-cli` crate providing the replacement `lexicon` executable over the library, including the existing operational Go command surface, repository discovery, option parsing, signal handling, and formatting.
 - bounded Rust snapshot lookup for deterministic node discovery, exact node resolution, direct references, and direct call evidence; `find`/`show` use node-only object decoding while `refs`/`calls` preserve resolved and unresolved relationship semantics.
 
-The legacy Go application remains a migration/parity reference for historical behavior, but Go-language analysis has cut over to the native Rust `GoAdapter`; the old Go runner no longer dispatches the standalone Go facts-v1 adapter. Packaged deployment of the required private Go semantic helper remains Phase 18 work. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
+The legacy Go application remains a migration/parity reference for historical behavior, but Go-language analysis has cut over to the native Rust `GoAdapter`; the old Go runner no longer dispatches the standalone Go facts-v1 adapter. The required private `lexicon-go-semantic[.exe]` helper is now packaged, version-verified, installed, and discovered from the normal adapter-root layout. Typed semantics still require an installed `go` executable because the helper uses `go/packages`; absence fails closed with an actionable runtime diagnostic. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
 
 ## Application
 

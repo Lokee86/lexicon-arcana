@@ -5,7 +5,7 @@ use crate::adapters::helper::ProtocolResponse;
 use super::protocol_records::Record;
 
 pub(crate) const PROTOCOL_VERSION: u32 = 1;
-pub(crate) const HELPER_VERSION: &str = "0.13.0";
+pub(crate) const HELPER_VERSION: &str = include_str!("../../../adapters/go-semantic/VERSION");
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

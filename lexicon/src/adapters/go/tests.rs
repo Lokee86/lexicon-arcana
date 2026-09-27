@@ -195,7 +195,12 @@ fn semantic_request_preserves_execution_plan() {
 fn helper_invocation_is_deterministic() {
     assert_eq!(
         helper_arguments(),
-        vec![OsString::from("--protocol-version"), OsString::from("1")]
+        vec![
+            OsString::from("--protocol-version"),
+            OsString::from("1"),
+            OsString::from("--helper-version"),
+            OsString::from(super::protocol::HELPER_VERSION),
+        ]
     );
     assert_eq!(
         helper_environment().into_iter().collect::<Vec<_>>(),

@@ -83,6 +83,17 @@ impl GoAdapter {
     }
 }
 
+pub(crate) fn verify_runtime_helper(adapter_root: &Path) -> Result<(), AdapterError> {
+    HelperRunner::discover(
+        adapter_root,
+        HELPER_DIRECTORY,
+        HELPER_EXECUTABLE,
+        HELPER_ENVIRONMENT,
+    )
+    .resolve()
+    .map(|_| ())
+}
+
 impl LanguageAdapter for GoAdapter {
     fn implementation_version(&self) -> &'static str {
         ADAPTER_VERSION
@@ -220,6 +231,8 @@ fn helper_arguments() -> Vec<OsString> {
     vec![
         OsString::from("--protocol-version"),
         OsString::from(protocol::PROTOCOL_VERSION.to_string()),
+        OsString::from("--helper-version"),
+        OsString::from(protocol::HELPER_VERSION),
     ]
 }
 

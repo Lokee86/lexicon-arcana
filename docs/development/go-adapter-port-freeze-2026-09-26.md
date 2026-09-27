@@ -12,14 +12,14 @@ Freeze the native Rust Go-adapter port so the migration can be resumed without r
 
 ## Overview
 
-Phases 0–15 were complete when this checkpoint was frozen. The separate performance-restoration project subsequently completed, Phase 16 calibration resumed and completed, and Phase 17 cutover is now complete. Packaging/runtime and final cleanup remain unstarted. See [Go Adapter Phase 16 Calibration — 2026-09-27](go-adapter-phase16-calibration-2026-09-27.md) and [Go Adapter Phase 17 Cutover — 2026-09-27](go-adapter-phase17-cutover-2026-09-27.md) for completion evidence.
+Phases 0–15 were complete when this checkpoint was frozen. The separate performance-restoration project subsequently completed, Phase 16 calibration resumed and completed, Phase 17 cutover completed, and Phase 18 packaging/runtime is now complete. Final cleanup remains unstarted. See [Go Adapter Phase 16 Calibration — 2026-09-27](go-adapter-phase16-calibration-2026-09-27.md), [Go Adapter Phase 17 Cutover — 2026-09-27](go-adapter-phase17-cutover-2026-09-27.md), and [Go Adapter Phase 18 Packaging and Runtime — 2026-09-27](go-adapter-phase18-packaging-runtime-2026-09-27.md) for completion evidence.
 
 ## Migration status
 
 - **Phases 0–15:** complete.
 - **Phase 16 — real-repository calibration:** **COMPLETE — 2026-09-27.**
 - **Phase 17 — cutover:** **COMPLETE — 2026-09-27.**
-- **Phase 18 — packaging/runtime:** not started.
+- **Phase 18 — packaging/runtime:** **COMPLETE — 2026-09-27.**
 - **Phase 19 — docs/cleanup:** not started.
 
 Do **not** treat `c8dce3f` alone as completion of Phase 16. It is the durable freeze checkpoint; final completion evidence is recorded in [Go Adapter Phase 16 Calibration — 2026-09-27](go-adapter-phase16-calibration-2026-09-27.md).
@@ -34,6 +34,7 @@ Do **not** treat `c8dce3f` alone as completion of Phase 16. It is the durable fr
 | 15 — Differential parity harness | `cac4aad` | Complete |
 | 16 — Real-repository calibration | `c8dce3f` checkpoint + 2026-09-27 completion change | **Complete** |
 | 17 — Cutover | 2026-09-27 cutover change | **Complete** |
+| 18 — Packaging/runtime | 2026-09-27 packaging/runtime change | **Complete** |
 
 ## What Phase 16 is supposed to prove
 
@@ -142,17 +143,17 @@ Temporary multi-megabyte calibration outputs should remain disposable; preserve 
 
 ## Phase 18 — Packaging/runtime
 
-Make the native adapter + private semantic helper deployable outside the development checkout:
+**Complete — 2026-09-27.** See [Go Adapter Phase 18 Packaging and Runtime](go-adapter-phase18-packaging-runtime-2026-09-27.md).
 
-- helper discovery;
-- executable naming;
-- build/install layout;
-- helper/adapter fingerprinting and version behaviour;
-- platform/runtime handling;
-- useful failure diagnostics;
-- packaged-runtime tests.
+- `lexicon-go-semantic[.exe]` is built, version-verified, packaged, installed, and discovered from the normal adapter-root layout;
+- `LEXICON_GO_SEMANTIC_HELPER` remains an explicit override with actionable missing-helper diagnostics;
+- one checked-in `VERSION` file drives the helper's reported version, Rust's expected helper version, and the adapter fingerprint input;
+- Rust passes the expected helper version on every invocation and a stale helper fails before semantic work;
+- `lexicon doctor` validates the native Go helper rather than the retired standalone adapter directory;
+- packaged-runtime tests exercise the real helper from an adapter root, and installed-tree acceptance proves executable-adjacent discovery without a source checkout;
+- missing `go` tooling fails closed with an explicit `go/packages`/`PATH` diagnostic.
 
-**End condition:** users do not need a Go development environment or repository-local build artifacts to use the Go adapter.
+**End condition satisfied for packaging:** users need no Go source checkout or repository-local helper build artifact; the packaged helper is installed and discovered automatically. An installed `go` executable remains an explicit runtime prerequisite because `go/packages` delegates typed package loading to Go tooling.
 
 ## Phase 19 — Docs/cleanup
 
