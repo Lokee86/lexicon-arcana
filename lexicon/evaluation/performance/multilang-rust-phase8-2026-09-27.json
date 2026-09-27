@@ -1,0 +1,81 @@
+{
+  "schema": "lexicon-wide-performance.phase8.v1",
+  "phase": "permanent-multilanguage-regression-suite",
+  "completed_date": "2026-09-27",
+  "branch": "perf/phase5-parity-matrix",
+  "base_revision": "ac7d18625a0c107883597b90a13ddd42106ce8d4",
+  "determinism_runs": 2,
+  "quick_tier": [
+    "synthetic fact-ordering micro gate",
+    "registered-adapter multi-language semantic/performance matrix",
+    "frozen Go oracle fixture"
+  ],
+  "registered_host_matrix": {
+    "c-family": {
+      "fact_count": 8,
+      "observed_wall_ms": 3.8078,
+      "max_wall_ms": 5000,
+      "sha256": "6F0A4E03F0EC14B803E978D832D8266C359159AA192C0D84C4C8630A34080FFD"
+    },
+    "python": {
+      "fact_count": 29,
+      "observed_wall_ms": 3.0807,
+      "max_wall_ms": 5000,
+      "sha256": "9C9DB95CE689D8138FE53AA6A624857D9B9999086B21693301CD991D2529559C"
+    },
+    "gdscript": {
+      "fact_count": 20,
+      "observed_wall_ms": 1.0612,
+      "max_wall_ms": 5000,
+      "sha256": "C9348E2F13716FB51CB56E2E99502EB87B327EE9CD440219ED7AD7C6CB69C7CB"
+    },
+    "go": {
+      "fact_count": 15,
+      "observed_wall_ms": 744.595,
+      "max_wall_ms": 30000,
+      "sha256": "678CA328E09D7F688B83ECAAED37CCE6B22534E2414C76767304B8EBCBBC1BD0"
+    },
+    "lotusscript": {
+      "fact_count": 12,
+      "observed_wall_ms": 9.8125,
+      "max_wall_ms": 5000,
+      "sha256": "9CEBDD9BA78467005DC2E36B3E00C75A305CB24E3C5ABE8A1856C71670936816"
+    },
+    "kotlin": {
+      "fact_count": 29,
+      "observed_wall_ms": 1.7015,
+      "max_wall_ms": 5000,
+      "sha256": "9828B26C26AE5BE89DFB4232EB7A2F01BA95E2D94DF71027D4440908504353A0"
+    },
+    "rust": {
+      "fact_count": 15,
+      "observed_wall_ms": 51.4062,
+      "max_wall_ms": 10000,
+      "sha256": "7557A31B1AE57DB39FB22458C5884D1AA2F0655F860AEDF2595A1866DC5013F9"
+    },
+    "ruby": {
+      "fact_count": 17,
+      "observed_wall_ms": 4.3524,
+      "max_wall_ms": 5000,
+      "sha256": "116E775A46312FBFDA8AD90AC72BB4767619665C53083AFD607B30DBA5852F53"
+    },
+    "generic-lua": {
+      "fact_count": 10,
+      "observed_wall_ms": 11.1121,
+      "max_wall_ms": 5000,
+      "sha256": "60CD2887800F5FB11E25A6D1E8EDDC7AA3EFDE1D470D4E764E69849D003FB424"
+    }
+  },
+  "excluded_from_registered_host_matrix": {
+    "java": "not registered by current Rust AdapterHost",
+    "csharp": "not registered by current Rust AdapterHost",
+    "typescript": "not registered by current Rust AdapterHost"
+  },
+  "invariants": [
+    "canonical adapter fact streams remain byte-stable",
+    "fact cardinality remains stable",
+    "registered host adapter set cannot change silently",
+    "runtime ceilings are deliberately loose and catch pathological regressions, not machine noise",
+    "Go helper is built in a temporary directory and no Lexicon binary is installed"
+  ]
+}

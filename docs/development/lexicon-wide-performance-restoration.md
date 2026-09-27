@@ -3,7 +3,7 @@
 Parent index: [Development Documentation](INDEX.md)
 
 **Started:** 2026-09-26  
-**Current phase:** Phase 7 complete — incremental restoration re-established; Phase 3 remains pending
+**Current phase:** Phase 8 complete — permanent multi-language regression coverage established; Phase 3 remains pending
 **Predecessor:** [Lexicon Go-path performance restoration](lexicon-performance-restoration.md)
 
 ## Purpose
@@ -481,6 +481,72 @@ The permanent fixture evidence is recorded in `lexicon/evaluation/performance/py
 ### Phase 7 gate
 
 Phase 7 is complete because safe modify/add/rename paths remain scoped and are byte-equivalent to clean full rebuilds, while known topology/configuration hazards retain conservative full-analysis behavior. Incremental publication no longer loses unrelated shared facts or preserves stale shared relationships.
+
+## Phase 8 — permanent multi-language regression suite
+
+Completed 2026-09-27. **Phase 3 remains pending.**
+
+Phase 8 converts the restoration evidence into a permanent fast regression gate instead of leaving performance parity dependent on dated one-off measurements.
+
+The existing `scripts/lexicon_perf_regression.py` runner now has a `multilang` tier backed by the repository-built `multilang_perf` Rust example. The fixture matrix exercises every adapter currently registered by the Rust `AdapterHost`, plus the generic fallback:
+
+- C-family;
+- Python;
+- GDScript;
+- Go;
+- LotusScript;
+- Kotlin;
+- Rust;
+- Ruby;
+- generic Lua.
+
+Each fixture is deterministic and intentionally small. The gate requires:
+
+- the exact canonical JSONL SHA-256;
+- the exact fact count;
+- the exact registered-adapter set;
+- a deliberately loose wall-time ceiling that catches pathological behavior without treating normal machine variance as a regression.
+
+Two independent baseline runs produced identical hashes and fact counts for all nine cases.
+
+| Adapter | Facts | Representative wall | Ceiling |
+| --- | ---: | ---: | ---: |
+| C-family | **8** | **3.8 ms** | **5 s** |
+| Python | **29** | **3.1 ms** | **5 s** |
+| GDScript | **20** | **1.1 ms** | **5 s** |
+| Go | **15** | **744.6 ms** | **30 s** |
+| LotusScript | **12** | **9.8 ms** | **5 s** |
+| Kotlin | **29** | **1.7 ms** | **5 s** |
+| Rust | **15** | **51.4 ms** | **10 s** |
+| Ruby | **17** | **4.4 ms** | **5 s** |
+| generic Lua | **10** | **11.1 ms** | **5 s** |
+
+The exact hashes, ceilings, and observed Phase 8 sample are preserved in:
+
+- `scripts/lexicon_perf_baselines.json`;
+- `lexicon/evaluation/performance/multilang-rust-phase8-2026-09-27.json`.
+
+The default `quick` performance tier now runs three complementary gates:
+
+1. synthetic production fact-ordering/cardinality scaling;
+2. the nine-language registered-host semantic/performance matrix;
+3. the frozen Go oracle fixture with detailed helper/lifetime metrics.
+
+The existing `repositories` tier remains the explicit larger-corpus gate for Demon Docs, Space Rocks, and Lexicon self-analysis.
+
+Java, C#, and TypeScript are not silently represented as Rust-host coverage: they are not registered by the current `AdapterHost`. Their existing adapter-specific suites remain migration oracles until those adapters join the native host path, at which point they must be added to the Phase 8 matrix.
+
+### Phase 8 gate
+
+Phase 8 is complete because the restored performance architecture now has a permanent cross-language guardrail that detects:
+
+- semantic-output drift;
+- fact-cardinality drift;
+- accidental loss/addition of a registered host adapter;
+- catastrophic per-adapter runtime regression;
+- regression of the older Go-specific performance invariants.
+
+This closes the planned restoration sequence except for the deliberately deferred **Phase 3 — partitioned analysis core abstraction**.
 
 ## Execution sequence
 

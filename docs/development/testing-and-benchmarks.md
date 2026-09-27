@@ -90,7 +90,15 @@ Run the fast local tier with:
 python scripts/lexicon_perf_regression.py --tier quick
 ```
 
-It exercises the production fact-ordering path with synthetic cardinality scaling and scans the frozen small Go fixture with `LEXICON_PERF` enabled.
+It exercises three permanent fast gates: production fact-ordering/cardinality scaling, a deterministic nine-language matrix across every adapter currently registered by the Rust host plus generic fallback, and the frozen small Go oracle fixture with `LEXICON_PERF` enabled.
+
+Run only the registered-host matrix with:
+
+```bash
+python scripts/lexicon_perf_regression.py --tier multilang
+```
+
+That tier freezes canonical hashes and fact counts for C-family, Python, GDScript, Go, LotusScript, Kotlin, Rust, Ruby, and generic Lua. Its wall-time ceilings are intentionally loose and exist to catch pathological regressions rather than machine noise. Java, C#, and TypeScript are not registered by the current Rust host and remain covered by their adapter-specific migration suites.
 
 Run the real-repository tier when changing scan complexity, semantic cardinality, helper IPC, materialization, canonicalization, or execution planning:
 
@@ -100,9 +108,9 @@ python scripts/lexicon_perf_regression.py --tier repositories
 
 That tier expects sibling Demon Docs and Space Rocks checkouts at their pinned revisions and also scans the current Lexicon checkout. Use `--demon-docs PATH` or `--space-rocks PATH` when the pinned checkouts live elsewhere. `--tier all` runs both tiers.
 
-The thresholds in `scripts/lexicon_perf_baselines.json` intentionally prefer deterministic hashes and cardinality/lifetime ceilings over tight wall-clock assertions. Rust examples are built and run directly from this repository and the private Go helper is built into a temporary directory; the regression runner does not install Lexicon.
+The thresholds in `scripts/lexicon_perf_baselines.json` intentionally prefer deterministic hashes, exact small-fixture fact counts, and cardinality/lifetime ceilings over tight wall-clock assertions. Rust examples are built and run directly from this repository and the private Go helper is built into a temporary directory; the regression runner does not install Lexicon.
 
-See [Lexicon Performance Restoration](lexicon-performance-restoration.md) for baseline measurements and the rationale for each protected regression class.
+See [Lexicon-wide Performance Restoration](lexicon-wide-performance-restoration.md) for the Rust-wide restoration measurements and Phase 8 regression coverage. The older [Go-path Performance Restoration](lexicon-performance-restoration.md) remains historical evidence for the Go-specific gates.
 
 ## Repository-agent benchmark
 
@@ -188,7 +196,7 @@ Historical Grimoire results remain useful specifically as evidence for why the u
 | Architecture policy | `tools/pitlord/policy.json`, `tools/pitlord/repository.json` | root workflow and standards CI |
 | Documentation governance | `scripts/check_docs.py`, `.standards/docs_policy/` | root and component documentation checks |
 | Lexicon correctness | `lexicon/` | package, adapter, corpus, and publication tests |
-| Lexicon performance regression | `scripts/lexicon_perf_regression.py`, `scripts/lexicon_perf_baselines.json`, `lexicon/examples/fact_stream_perf.rs` | quick fixture/micro gate plus explicit pinned repository gate |
+| Lexicon performance regression | `scripts/lexicon_perf_regression.py`, `scripts/lexicon_perf_multilang.py`, `scripts/lexicon_perf_baselines.json`, `lexicon/examples/fact_stream_perf.rs`, `lexicon/examples/multilang_perf.rs` | quick micro + nine-language semantic matrix + Go oracle gate, plus explicit pinned repository tier |
 | Arcana correctness | `arcana/` | Cargo storage, snapshot, ingestion, traversal, protocol, and vector tests |
 | Current agent benchmark | `evaluation/run_agent_benchmark.py`, `benchmark_runner.py`, `benchmark_component_ablation.py` | preflight/provenance and grounding validation |
 | Historical result compatibility | `evaluation/benchmark_grounding.py`, `revalidate_agent_benchmark.py`, `import_agent_benchmark_run.py` | frozen saved reports and pinned checkout reconstruction |
