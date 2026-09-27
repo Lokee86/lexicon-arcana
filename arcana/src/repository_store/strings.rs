@@ -43,33 +43,39 @@ impl StringTableBuilder {
         self.strings.insert(value.into());
     }
 
+    pub(crate) fn insert_ref(&mut self, value: &str) {
+        if !self.strings.contains(value) {
+            self.strings.insert(value.to_owned());
+        }
+    }
+
     pub fn collect_facts(&mut self, facts: &RepositoryFacts) {
         for node in &facts.nodes {
-            self.insert(&node.path);
-            self.insert(&node.name);
-            self.insert(&node.qualified_name);
+            self.insert_ref(&node.path);
+            self.insert_ref(&node.name);
+            self.insert_ref(&node.qualified_name);
             if let Some(span) = &node.span {
-                self.insert(&span.path);
+                self.insert_ref(&span.path);
             }
         }
         for edge in &facts.edges {
             if let Some(span) = &edge.span {
-                self.insert(&span.path);
+                self.insert_ref(&span.path);
             }
         }
         for reference in &facts.unresolved {
-            self.insert(&reference.expression);
+            self.insert_ref(&reference.expression);
             if let Some(value) = &reference.candidate_namespace {
-                self.insert(value);
+                self.insert_ref(value);
             }
             if let Some(value) = &reference.candidate_name {
-                self.insert(value);
+                self.insert_ref(value);
             }
             if let UnresolvedReason::Unknown(value) = &reference.reason {
-                self.insert(value);
+                self.insert_ref(value);
             }
             if let Some(span) = &reference.span {
-                self.insert(&span.path);
+                self.insert_ref(&span.path);
             }
         }
     }

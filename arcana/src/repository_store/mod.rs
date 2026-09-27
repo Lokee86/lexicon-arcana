@@ -1,6 +1,8 @@
 //! Canonical binary repository-store contract and compact value codecs.
 
 mod borrowed_strings;
+#[allow(dead_code)]
+mod build;
 mod canonical;
 mod edge_record;
 mod error;
