@@ -72,9 +72,7 @@ Arcana publishes generated state under `.arcana/`:
       graph.arcana
       overlay.arcana              # optional
       graph.manifest
-      catalogue.tsv
-      unresolved.tsv
-      facts.tsv
+      repository.arcana
       repository.manifest
       lexicon.snapshot
       compatibility.warnings      # optional
@@ -109,11 +107,11 @@ The protocol validates the complete repository snapshot and is overlay-aware. Co
 ```text
 arcana query \
   --graph <snapshot>/graph.arcana \
-  --catalogue <snapshot>/catalogue.tsv \
+  --catalogue <debug-catalogue.tsv> \
   --name ExactSymbolName
 ```
 
-It reads the packed base directly and does not merge `overlay.arcana`. Use `protocol` for normal managed snapshots.
+It reads the packed base plus an explicitly supplied debug/export TSV catalogue and does not merge `overlay.arcana`. Published snapshots use `repository.arcana`; use `protocol` for normal managed snapshots.
 
 ## Lexicon boundary
 

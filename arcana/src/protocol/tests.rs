@@ -8,8 +8,9 @@ use serde_json::{Value, json};
 use crate::repository::{
     ContentId, EdgeFact, NodeFact, NodeKey, NodeKind, PublishRepositorySnapshot, RelationKind,
     RepositoryFacts, UnresolvedReason, UnresolvedReferenceFact, compile_repository_facts,
-    publish_repository_snapshot, relation_to_edge_kind, write_catalogue,
+    publish_repository_snapshot, relation_to_edge_kind,
 };
+use crate::repository_store::write_repository_store;
 use crate::snapshot::{OverlayChanges, publish_snapshot, write_overlay};
 use crate::storage::{PackedGraph, write_packed};
 use crate::synthetic::{Edge, NodeId};
@@ -797,21 +798,15 @@ fn write_overlay_snapshot(path: &Path) {
 
 fn write_repository_metadata(
     path: &Path,
-    compiled: &crate::repository::CompiledRepository,
+    _compiled: &crate::repository::CompiledRepository,
     facts: &RepositoryFacts,
 ) {
-    write_catalogue(path.join("catalogue.tsv"), &compiled.catalogue).unwrap();
-    let unresolved =
-        RepositoryFacts::with_unresolved(Vec::new(), Vec::new(), compiled.unresolved.clone());
-    fs::write(path.join("unresolved.tsv"), unresolved.encode()).unwrap();
-    fs::write(path.join("facts.tsv"), facts.encode()).unwrap();
+    write_repository_store(path.join("repository.arcana"), facts).unwrap();
     publish_repository_snapshot(
         path.join("repository.manifest"),
         PublishRepositorySnapshot {
             graph_manifest_file: Path::new("graph.manifest"),
-            catalogue_file: Path::new("catalogue.tsv"),
-            unresolved_file: Path::new("unresolved.tsv"),
-            facts_file: Path::new("facts.tsv"),
+            repository_store_file: Path::new("repository.arcana"),
             adapter_name: "test",
             adapter_version: "1",
             created_unix_seconds: 1,

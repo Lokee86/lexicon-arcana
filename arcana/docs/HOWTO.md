@@ -151,12 +151,12 @@ The human-readable command is:
 ```text
 arcana query \
   --graph <snapshot>/graph.arcana \
-  --catalogue <snapshot>/catalogue.tsv \
+  --catalogue <debug-catalogue.tsv> \
   --name ExactSymbolName \
   --relation calls
 ```
 
-Important: `arcana query` opens the packed graph directly and does not apply an overlay. Use `protocol` when the managed snapshot may contain `overlay.arcana`.
+Important: `arcana query` opens the packed graph plus an explicitly supplied debug/export TSV catalogue and does not apply an overlay. Published snapshots use `repository.arcana` instead of `catalogue.tsv`; use `protocol` for normal managed snapshots.
 
 ## 8. Refresh after repository changes
 

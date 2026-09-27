@@ -131,7 +131,82 @@ pub fn replace_changed_files(
     Ok(merged)
 }
 
-fn node_owner(node: &NodeFact) -> Result<Option<String>, FactOwnershipError> {
+/// Replaces changed-file facts while moving every unchanged base record into
+/// the result. Only shared and changed-file records selected from the
+/// replacement set are cloned.
+pub fn replace_changed_files_owned_base(
+    mut base: RepositoryFacts,
+    replacement: &RepositoryFacts,
+    changed_paths: &[String],
+) -> Result<RepositoryFacts, FactOwnershipError> {
+    let changed = changed_paths
+        .iter()
+        .map(|path| normalize_repository_path(path).map_err(FactOwnershipError::InvalidPath))
+        .collect::<Result<BTreeSet<_>, _>>()?;
+    let base_owners = collect_node_owners(&base.nodes)?;
+    let replacement_owners = collect_node_owners(&replacement.nodes)?;
+    let mut merged = RepositoryFacts::default();
+
+    for node in base.nodes.drain(..) {
+        if node_owner(&node)?.is_some_and(|path| !changed.contains(&path)) {
+            merged.nodes.push(node);
+        }
+    }
+    for edge in base.edges.drain(..) {
+        if edge_owner(&edge, &base_owners)?.is_some_and(|path| !changed.contains(&path)) {
+            merged.edges.push(edge);
+        }
+    }
+    for reference in base.unresolved.drain(..) {
+        if unresolved_owner(&reference, &base_owners)?.is_some_and(|path| !changed.contains(&path))
+        {
+            merged.unresolved.push(reference);
+        }
+    }
+
+    for node in &replacement.nodes {
+        let owner = node_owner(node)?;
+        if owner.as_ref().is_none_or(|path| changed.contains(path)) {
+            merged.nodes.push(node.clone());
+        }
+    }
+    for edge in &replacement.edges {
+        let owner = edge_owner(edge, &replacement_owners)?;
+        if owner.as_ref().is_none_or(|path| changed.contains(path)) {
+            merged.edges.push(edge.clone());
+        }
+    }
+    for reference in &replacement.unresolved {
+        let owner = unresolved_owner(reference, &replacement_owners)?;
+        if owner.as_ref().is_none_or(|path| changed.contains(path)) {
+            merged.unresolved.push(reference.clone());
+        }
+    }
+
+    canonicalize(&mut merged);
+    Ok(merged)
+}
+
+pub(crate) fn collect_node_owners(
+    nodes: &[NodeFact],
+) -> Result<BTreeMap<NodeKey, String>, FactOwnershipError> {
+    let mut owners = BTreeMap::new();
+    for node in nodes {
+        if let Some(path) = node_owner(node)?
+            && let Some(previous) = owners.insert(node.key, path.clone())
+            && previous != path
+        {
+            return Err(FactOwnershipError::DuplicateNodeOwner {
+                key: node.key,
+                first: previous,
+                second: path,
+            });
+        }
+    }
+    Ok(owners)
+}
+
+pub(crate) fn node_owner(node: &NodeFact) -> Result<Option<String>, FactOwnershipError> {
     if let Some(span) = &node.span {
         return normalize_repository_path(&span.path)
             .map(Some)
@@ -149,7 +224,7 @@ fn node_owner(node: &NodeFact) -> Result<Option<String>, FactOwnershipError> {
         .map_err(FactOwnershipError::InvalidPath)
 }
 
-fn edge_owner(
+pub(crate) fn edge_owner(
     edge: &EdgeFact,
     node_owners: &BTreeMap<NodeKey, String>,
 ) -> Result<Option<String>, FactOwnershipError> {
@@ -164,7 +239,7 @@ fn edge_owner(
         .cloned())
 }
 
-fn unresolved_owner(
+pub(crate) fn unresolved_owner(
     reference: &UnresolvedReferenceFact,
     node_owners: &BTreeMap<NodeKey, String>,
 ) -> Result<Option<String>, FactOwnershipError> {

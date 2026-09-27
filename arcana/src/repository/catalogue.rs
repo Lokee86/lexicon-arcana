@@ -18,12 +18,15 @@ pub struct CatalogueEntry {
 }
 
 /// An immutable, validated index of compiled repository node metadata.
+///
+/// Name and path indexes store only dense node IDs. Their strings remain owned
+/// once by catalogue entries instead of being cloned into B-tree map keys.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RepositoryCatalogue {
     entries: Vec<CatalogueEntry>,
     node_ids_by_key: BTreeMap<NodeKey, NodeId>,
-    node_ids_by_name: BTreeMap<String, Vec<NodeId>>,
-    node_ids_by_path: BTreeMap<String, Vec<NodeId>>,
+    node_ids_by_name: Vec<NodeId>,
+    node_ids_by_path: Vec<NodeId>,
     node_ids_by_kind: BTreeMap<NodeKind, Vec<NodeId>>,
 }
 
@@ -47,25 +50,38 @@ impl RepositoryCatalogue {
                 });
             }
         }
+
         let mut node_ids_by_key = BTreeMap::new();
-        let mut node_ids_by_name = BTreeMap::new();
-        let mut node_ids_by_path = BTreeMap::new();
-        let mut node_ids_by_kind = BTreeMap::new();
-        for entry in &entries {
-            node_ids_by_key.insert(entry.fact.key, entry.node_id);
-            node_ids_by_name
-                .entry(entry.fact.name.clone())
-                .or_insert_with(Vec::new)
-                .push(entry.node_id);
-            node_ids_by_path
-                .entry(entry.fact.path.clone())
-                .or_insert_with(Vec::new)
-                .push(entry.node_id);
-            node_ids_by_kind
-                .entry(entry.fact.kind.clone())
-                .or_insert_with(Vec::new)
-                .push(entry.node_id);
+        for item in &entries {
+            node_ids_by_key.insert(item.fact.key, item.node_id);
         }
+
+        let mut node_ids_by_name = dense_ids(entries.len())?;
+        node_ids_by_name.sort_unstable_by(|left, right| {
+            entry(&entries, *left)
+                .fact
+                .name
+                .cmp(&entry(&entries, *right).fact.name)
+                .then_with(|| left.cmp(right))
+        });
+
+        let mut node_ids_by_path = dense_ids(entries.len())?;
+        node_ids_by_path.sort_unstable_by(|left, right| {
+            entry(&entries, *left)
+                .fact
+                .path
+                .cmp(&entry(&entries, *right).fact.path)
+                .then_with(|| left.cmp(right))
+        });
+
+        let mut node_ids_by_kind = BTreeMap::new();
+        for item in &entries {
+            node_ids_by_kind
+                .entry(item.fact.kind.clone())
+                .or_insert_with(Vec::new)
+                .push(item.node_id);
+        }
+
         Ok(Self {
             entries,
             node_ids_by_key,
@@ -113,32 +129,51 @@ impl RepositoryCatalogue {
     }
 
     pub fn node_ids_by_name(&self, name: &str) -> &[NodeId] {
-        self.node_ids_by_name.get(name).map_or(&[], Vec::as_slice)
+        let start = self
+            .node_ids_by_name
+            .partition_point(|id| self.entry_unchecked(*id).fact.name.as_str() < name);
+        let end = start
+            + self.node_ids_by_name[start..]
+                .partition_point(|id| self.entry_unchecked(*id).fact.name.as_str() == name);
+        &self.node_ids_by_name[start..end]
     }
 
     pub fn node_ids_by_path(&self, path: &str) -> Result<&[NodeId], CatalogueError> {
         let path = normalize_repository_path(path).map_err(CatalogueError::InvalidPath)?;
-        Ok(self.node_ids_by_path.get(&path).map_or(&[], Vec::as_slice))
+        let start = self
+            .node_ids_by_path
+            .partition_point(|id| self.entry_unchecked(*id).fact.path.as_str() < path.as_str());
+        let end = start
+            + self.node_ids_by_path[start..].partition_point(|id| {
+                self.entry_unchecked(*id).fact.path.as_str() == path.as_str()
+            });
+        Ok(&self.node_ids_by_path[start..end])
     }
 
     pub fn node_ids_by_kind(&self, kind: &NodeKind) -> &[NodeId] {
         self.node_ids_by_kind.get(kind).map_or(&[], Vec::as_slice)
     }
 
-    /// Returns IDs for a path and its descendants using a bounded B-tree range.
+    /// Returns IDs for a path and its descendants using the sorted path index.
     pub fn node_ids_by_path_prefix(&self, prefix: &str) -> Result<Vec<NodeId>, CatalogueError> {
         let prefix = normalize_repository_path(prefix).map_err(CatalogueError::InvalidPath)?;
         let upper_bound = format!("{prefix}0");
-        let mut node_ids = self
+        let start = self
             .node_ids_by_path
-            .range(prefix.clone()..upper_bound)
-            .filter(|(path, _)| {
-                path.as_str() == prefix
+            .partition_point(|id| self.entry_unchecked(*id).fact.path.as_str() < prefix.as_str());
+        let end = self.node_ids_by_path.partition_point(|id| {
+            self.entry_unchecked(*id).fact.path.as_str() < upper_bound.as_str()
+        });
+        let mut node_ids = self.node_ids_by_path[start..end]
+            .iter()
+            .copied()
+            .filter(|id| {
+                let path = self.entry_unchecked(*id).fact.path.as_str();
+                path == prefix
                     || path
                         .strip_prefix(&prefix)
                         .is_some_and(|suffix| suffix.starts_with('/'))
             })
-            .flat_map(|(_, node_ids)| node_ids.iter().copied())
             .collect::<Vec<_>>();
         node_ids.sort_unstable();
         Ok(node_ids)
@@ -148,6 +183,10 @@ impl RepositoryCatalogue {
         self.entries
             .get(node_id.0 as usize)
             .filter(|entry| entry.node_id == node_id)
+    }
+
+    fn entry_unchecked(&self, node_id: NodeId) -> &CatalogueEntry {
+        &self.entries[node_id.0 as usize]
     }
 
     pub fn encode(&self) -> Result<String, CatalogueError> {
@@ -176,6 +215,20 @@ pub fn write_catalogue(
 
 pub fn read_catalogue(path: impl AsRef<Path>) -> Result<RepositoryCatalogue, CatalogueError> {
     RepositoryCatalogue::read(path)
+}
+
+fn dense_ids(count: usize) -> Result<Vec<NodeId>, CatalogueError> {
+    (0..count)
+        .map(|index| {
+            u32::try_from(index)
+                .map(NodeId)
+                .map_err(|_| CatalogueError::NodeIdOverflow)
+        })
+        .collect()
+}
+
+fn entry(entries: &[CatalogueEntry], id: NodeId) -> &CatalogueEntry {
+    &entries[id.0 as usize]
 }
 
 fn validate_fact(fact: &NodeFact) -> Result<(), CatalogueError> {

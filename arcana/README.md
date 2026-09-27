@@ -136,9 +136,9 @@ or expose a partial publication.
 The compiled output contains:
 
 - `graph.arcana` — packed forward and reverse adjacency;
-- `catalogue.tsv` — dense node IDs mapped back to full Lexicon identities,
-  compact stable keys, paths, names, kinds, content IDs, and source spans;
-- `unresolved.tsv` — unresolved-reference evidence keyed back to catalogue nodes.
+- `graph.manifest` — the immutable graph publication record;
+- `repository.arcana` — canonical compact node metadata, occurrence facts, unresolved evidence, ownership, and query indexes;
+- `repository.manifest` — manifest v2 binding the graph and repository store into one verified generation.
 
 ```text
 arcana sync --lexicon /path/to/repository/.lexicon \

@@ -1,0 +1,43 @@
+{
+  "command": [
+    "C:\\!bin\\workspace\\lexicon-arcana\\arcana\\target\\release\\arcana.exe",
+    "sync",
+    "--lexicon",
+    "C:\\!bin\\workspace\\hermes-phase8-lexicon-delta",
+    "--state",
+    "C:\\!bin\\workspace\\arcana-phase8-overlay-state"
+  ],
+  "peak_process_tree_rss_bytes": 2219360256,
+  "snapshot": {
+    "current": "sha256:464297ebc1d48a2b54b3279b07d6db181e665ad7a85b7ab096d203196b01cfa5",
+    "directory": "C:\\!bin\\workspace\\arcana-phase8-overlay-state\\snapshots\\464297ebc1d48a2b54b3279b07d6db181e665ad7a85b7ab096d203196b01cfa5",
+    "files": {
+      "graph.arcana": 46411248,
+      "graph.manifest": 279,
+      "lexicon.snapshot": 72,
+      "repository.arcana": 489778032,
+      "repository.manifest": 494
+    },
+    "manifest": {
+      "adapter_name": "lexicon",
+      "adapter_version": "sha256:464297ebc1d48a2b54b3279b07d6db181e665ad7a85b7ab096d203196b01cfa5",
+      "created_unix_seconds": "1790525766",
+      "edge_count": "2367423",
+      "graph_manifest_checksum": "cab550f62ae99fd2",
+      "graph_manifest_file": "graph.manifest",
+      "graph_snapshot_id": "c8ff2f646b932c40",
+      "node_count": "1125126",
+      "repository_id": "342a2379cc36c43c",
+      "repository_store_checksum": "342a2379cc36c43c",
+      "repository_store_file": "repository.arcana",
+      "repository_store_version": "1",
+      "snapshot_id": "8bcfa75258f2660a",
+      "unresolved_count": "699349",
+      "version": "2"
+    },
+    "total_bytes": 536190125
+  },
+  "stderr": "",
+  "stdout": "synced Lexicon snapshot sha256:464297ebc1d48a2b54b3279b07d6db181e665ad7a85b7ab096d203196b01cfa5 mode=overlay registered=false compatibility_warnings=0\n",
+  "wall_seconds": 201.96560279998812
+}

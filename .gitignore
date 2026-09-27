@@ -22,3 +22,7 @@ coverage.out
 /lexicon-cli/target/
 __pycache__/
 *.pyc
+/fixtures/local/experiments/arcana-hermes-phase8-20260927/arcana-base/
+/fixtures/local/experiments/arcana-hermes-phase8-20260927/arcana-overlay-0/
+/fixtures/local/experiments/arcana-hermes-phase8-20260927/arcana-clean/
+/fixtures/local/experiments/arcana-hermes-phase8-20260927/arcana-overlay-edge/

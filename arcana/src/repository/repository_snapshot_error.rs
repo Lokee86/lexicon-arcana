@@ -1,6 +1,7 @@
 use std::fmt;
 use std::io;
 
+use crate::repository_store::RepositoryStoreReadError;
 use crate::snapshot::SnapshotError;
 
 use super::{CatalogueError, FactFileError, RepositoryCompileError};
@@ -14,7 +15,8 @@ pub enum RepositorySnapshotError {
     Compile(RepositoryCompileError),
     MalformedManifest(&'static str),
     UnsupportedManifestVersion(u64),
-    UnsupportedFactSchema(u64),
+    UnsupportedRepositoryStoreVersion(u16),
+    RepositoryStore(RepositoryStoreReadError),
     InvalidTextField(&'static str),
     InvalidComponentPath(&'static str),
     ArtifactMismatch {
@@ -44,10 +46,11 @@ impl fmt::Display for RepositorySnapshotError {
                 formatter,
                 "repository manifest version {version} is unsupported"
             ),
-            Self::UnsupportedFactSchema(version) => write!(
+            Self::UnsupportedRepositoryStoreVersion(version) => write!(
                 formatter,
-                "repository fact schema version {version} is unsupported"
+                "repository store version {version} is unsupported"
             ),
+            Self::RepositoryStore(error) => error.fmt(formatter),
             Self::InvalidTextField(field) => {
                 write!(formatter, "repository manifest field '{field}' is invalid")
             }
@@ -89,3 +92,4 @@ conversion!(Graph, SnapshotError);
 conversion!(Catalogue, CatalogueError);
 conversion!(Facts, FactFileError);
 conversion!(Compile, RepositoryCompileError);
+conversion!(RepositoryStore, RepositoryStoreReadError);

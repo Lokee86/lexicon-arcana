@@ -22,6 +22,7 @@ This directory is the authoritative documentation set for Arcana's current appli
 ## Field evidence
 
 - [Hermes Arcana field evidence — 2026-09-25](../evaluation/results/hermes-arcana-field-evidence-2026-09-25/report.md) — retrospective observations from real Hermes maintenance and refactoring, including positive, boundary, and low-benefit cases.
+- [Hermes Arcana storage and sync performance — 2026-09-27](../evaluation/results/hermes-arcana-storage-performance-2026-09-27/report.md) — same-generation storage parity plus repo-built Hermes rebuild/managed-sync wall-time and RSS measurements.
 
 ## Related documentation
 

@@ -73,8 +73,8 @@ The command:
 2. Reads the complete fact file as UTF-8 text and parses Arcana’s canonical TSV fact schema.
 3. Compiles stable node keys into deterministic snapshot-local dense IDs and packed edges.
 4. Creates the output directory.
-5. Writes `graph.arcana`, then `graph.manifest`, `catalogue.tsv`, `unresolved.tsv`, and `facts.tsv`.
-6. Publishes `repository.manifest` after the component files have been written and validated.
+5. Writes `graph.arcana`, `graph.manifest`, and the canonical binary `repository.arcana` metadata store.
+6. Publishes manifest v2 as `repository.manifest` after the graph and repository store have been written and validated.
 
 Success output reports node, edge, and unresolved counts plus packed, metadata, and total byte counts. The resulting directory is standalone; the command does not create or update `.arcana/CURRENT`.
 
@@ -167,13 +167,13 @@ Registration is a trigger path, not state transfer. Explicit `arcana sync` remai
 ```text
 arcana query \
   --graph <graph.arcana> \
-  --catalogue <catalogue.tsv> \
+  --catalogue <debug-catalogue.tsv> \
   --name <EXACT-NAME> \
   [--reverse] \
   [--relation <RELATION>]
 ```
 
-This is a small human-readable inspection command. It opens the packed graph and catalogue directly, looks up every exact name match, and prints each matching node followed by forward neighbors or, with `--reverse`, reverse neighbors. `--relation` filters the displayed adjacency.
+This is a small human-readable inspection command. It opens the packed graph and an explicitly supplied TSV catalogue directly, looks up every exact name match, and prints each matching node followed by forward neighbors or, with `--reverse`, reverse neighbors. `--relation` filters the displayed adjacency. Published snapshots no longer contain a catalogue TSV; this command is retained for standalone/debug exports. Use `protocol` for canonical `repository.arcana` snapshots.
 
 The CLI parser currently accepts these relation filters:
 
@@ -288,9 +288,7 @@ A sync-managed state root has this shape; optional files/directories are marked:
       graph.arcana
       overlay.arcana              # optional
       graph.manifest
-      catalogue.tsv
-      unresolved.tsv
-      facts.tsv
+      repository.arcana
       repository.manifest
       lexicon.snapshot
       compatibility.warnings      # optional

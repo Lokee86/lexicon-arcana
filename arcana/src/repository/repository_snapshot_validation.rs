@@ -6,54 +6,11 @@ use crate::snapshot::GraphSnapshot;
 use crate::storage::{StableHasher, dataset_checksum};
 
 use super::{
-    CompiledRepository, NodeKind, RepositoryCatalogue, RepositoryFacts, RepositorySnapshotError,
-    RepositorySnapshotManifest, compile_repository_facts,
+    CompiledRepository, NodeKind, RepositoryFacts, RepositorySnapshotError,
+    RepositorySnapshotManifest,
 };
 
-pub(super) fn validate_components(
-    manifest: &RepositorySnapshotManifest,
-    graph: &GraphSnapshot,
-    catalogue: &RepositoryCatalogue,
-    facts: &RepositoryFacts,
-    unresolved: &RepositoryFacts,
-) -> Result<(), RepositorySnapshotError> {
-    if !unresolved.nodes.is_empty() || !unresolved.edges.is_empty() {
-        return Err(RepositorySnapshotError::InvalidUnresolvedArtifact);
-    }
-    let compiled = compile_repository_facts(facts)?;
-    validate_compiled_components(manifest, graph, &compiled, repository_identity(facts))?;
-    if &compiled.catalogue != catalogue {
-        return Err(RepositorySnapshotError::ArtifactMismatch {
-            field: "catalogue_contents",
-            expected: manifest.catalogue_checksum,
-            actual: 0,
-        });
-    }
-    if compiled.unresolved != unresolved.unresolved {
-        return Err(RepositorySnapshotError::ArtifactMismatch {
-            field: "unresolved_contents",
-            expected: manifest.unresolved_checksum,
-            actual: 0,
-        });
-    }
-    Ok(())
-}
-
-pub(super) fn validate_precompiled_components(
-    manifest: &RepositorySnapshotManifest,
-    graph: &GraphSnapshot,
-    compiled: &CompiledRepository,
-    facts: &RepositoryFacts,
-) -> Result<(), RepositorySnapshotError> {
-    validate_compiled_components(
-        manifest,
-        graph,
-        compiled,
-        repository_identity_from_checksum(facts, manifest.facts_checksum),
-    )
-}
-
-fn validate_compiled_components(
+pub(super) fn validate_compiled_components(
     manifest: &RepositorySnapshotManifest,
     graph: &GraphSnapshot,
     compiled: &CompiledRepository,
@@ -94,15 +51,11 @@ fn validate_compiled_components(
     Ok(())
 }
 
-pub(super) fn repository_identity(facts: &RepositoryFacts) -> u64 {
-    unique_repository_identity(facts).unwrap_or_else(|| checksum(facts.encode().as_bytes()))
-}
-
 pub(super) fn repository_identity_from_checksum(
     facts: &RepositoryFacts,
-    facts_checksum: u64,
+    repository_store_checksum: u64,
 ) -> u64 {
-    unique_repository_identity(facts).unwrap_or(facts_checksum)
+    unique_repository_identity(facts).unwrap_or(repository_store_checksum)
 }
 
 fn unique_repository_identity(facts: &RepositoryFacts) -> Option<u64> {
@@ -151,11 +104,6 @@ pub(super) fn checksum(bytes: &[u8]) -> u64 {
     let mut hasher = StableHasher::new();
     hasher.update(bytes);
     hasher.finish()
-}
-
-pub(super) fn text(bytes: &[u8]) -> Result<&str, RepositorySnapshotError> {
-    std::str::from_utf8(bytes)
-        .map_err(|_| RepositorySnapshotError::MalformedManifest("artifact is not UTF-8"))
 }
 
 pub(super) fn write_immutable(path: &Path, bytes: &[u8]) -> Result<(), RepositorySnapshotError> {

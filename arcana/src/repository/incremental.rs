@@ -1,18 +1,20 @@
-use std::collections::BTreeSet;
 use std::fmt;
 
+use crate::repository_store::RepositoryStoreReadError;
 use crate::snapshot::OverlayChanges;
-use crate::synthetic::{Edge, GraphDataset};
+use crate::synthetic::GraphDataset;
+
+use super::incremental_diff::{edge_difference, key_difference};
 
 use super::{
-    CompiledRepository, FactOwnershipError, NodeKey, RepositoryCompileError, RepositoryFacts,
-    compile_repository_facts, replace_changed_files,
+    CompiledRepositoryGraph, FactOwnershipError, NodeKey, RepositoryCompileError, RepositoryFacts,
+    compile_repository_graph, replace_changed_files_owned_base,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IncrementalUpdate {
     pub facts: RepositoryFacts,
-    pub compiled: CompiledRepository,
+    pub graph: CompiledRepositoryGraph,
     pub changes: OverlayChanges,
     changed_file_count: usize,
 }
@@ -21,11 +23,26 @@ impl IncrementalUpdate {
     pub const fn changed_file_count(&self) -> usize {
         self.changed_file_count
     }
+
+    pub(crate) fn new(
+        facts: RepositoryFacts,
+        graph: CompiledRepositoryGraph,
+        changes: OverlayChanges,
+        changed_file_count: usize,
+    ) -> Self {
+        Self {
+            facts,
+            graph,
+            changes,
+            changed_file_count,
+        }
+    }
 }
 
 #[derive(Debug)]
 pub enum IncrementalError {
     Ownership(FactOwnershipError),
+    Store(RepositoryStoreReadError),
     Compile(RepositoryCompileError),
     NodeSetChanged {
         added: Vec<NodeKey>,
@@ -41,6 +58,7 @@ impl fmt::Display for IncrementalError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Ownership(error) => error.fmt(formatter),
+            Self::Store(error) => error.fmt(formatter),
             Self::Compile(error) => error.fmt(formatter),
             Self::NodeSetChanged { added, removed } => write!(
                 formatter,
@@ -60,6 +78,7 @@ impl std::error::Error for IncrementalError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Ownership(error) => Some(error),
+            Self::Store(error) => Some(error),
             Self::Compile(error) => Some(error),
             _ => None,
         }
@@ -69,6 +88,12 @@ impl std::error::Error for IncrementalError {
 impl From<FactOwnershipError> for IncrementalError {
     fn from(error: FactOwnershipError) -> Self {
         Self::Ownership(error)
+    }
+}
+
+impl From<RepositoryStoreReadError> for IncrementalError {
+    fn from(error: RepositoryStoreReadError) -> Self {
+        Self::Store(error)
     }
 }
 
@@ -84,43 +109,50 @@ pub fn plan_file_update(
     changed_paths: &[String],
     packed_base: &GraphDataset,
 ) -> Result<IncrementalUpdate, IncrementalError> {
-    let facts = replace_changed_files(current_facts, replacement_facts, changed_paths)?;
-    let current = compile_repository_facts(current_facts)?;
-    let compiled = compile_repository_facts(&facts)?;
-    if current.node_ids != compiled.node_ids {
-        let current_keys = current.node_ids.keys().copied().collect::<BTreeSet<_>>();
-        let updated_keys = compiled.node_ids.keys().copied().collect::<BTreeSet<_>>();
-        return Err(IncrementalError::NodeSetChanged {
-            added: updated_keys.difference(&current_keys).copied().collect(),
-            removed: current_keys.difference(&updated_keys).copied().collect(),
-        });
+    plan_file_update_from_verified_base(
+        current_facts.clone(),
+        replacement_facts,
+        changed_paths,
+        packed_base,
+    )
+}
+
+/// Plans an update from an already verified prior snapshot while transferring
+/// ownership of unchanged prior facts into the merged result.
+pub fn plan_file_update_from_verified_base(
+    current_facts: RepositoryFacts,
+    replacement_facts: &RepositoryFacts,
+    changed_paths: &[String],
+    packed_base: &GraphDataset,
+) -> Result<IncrementalUpdate, IncrementalError> {
+    let current_keys = node_keys(&current_facts);
+    let facts = replace_changed_files_owned_base(current_facts, replacement_facts, changed_paths)?;
+    let graph = compile_repository_graph(&facts)?;
+    let updated_keys = graph.node_ids.keys().copied().collect::<Vec<_>>();
+
+    if current_keys != updated_keys {
+        let (added, removed) = key_difference(&current_keys, &updated_keys);
+        return Err(IncrementalError::NodeSetChanged { added, removed });
     }
-    if packed_base.node_count != compiled.dataset.node_count {
+    if packed_base.node_count != graph.dataset.node_count {
         return Err(IncrementalError::BaseNodeCountMismatch {
-            expected: compiled.dataset.node_count,
+            expected: graph.dataset.node_count,
             actual: packed_base.node_count,
         });
     }
 
-    let base = packed_base
-        .edges
-        .iter()
-        .copied()
-        .collect::<BTreeSet<Edge>>();
-    let visible = compiled
-        .dataset
-        .edges
-        .iter()
-        .copied()
-        .collect::<BTreeSet<Edge>>();
-    let changes = OverlayChanges {
-        added: visible.difference(&base).copied().collect(),
-        removed: base.difference(&visible).copied().collect(),
-    };
-    Ok(IncrementalUpdate {
+    let changes = edge_difference(&packed_base.edges, &graph.dataset.edges);
+    Ok(IncrementalUpdate::new(
         facts,
-        compiled,
+        graph,
         changes,
-        changed_file_count: changed_paths.len(),
-    })
+        changed_paths.len(),
+    ))
+}
+
+fn node_keys(facts: &RepositoryFacts) -> Vec<NodeKey> {
+    let mut keys = facts.nodes.iter().map(|node| node.key).collect::<Vec<_>>();
+    keys.sort_unstable();
+    keys.dedup();
+    keys
 }

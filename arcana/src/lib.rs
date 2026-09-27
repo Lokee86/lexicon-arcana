@@ -7,6 +7,7 @@ pub mod benchmark;
 pub mod lexicon;
 pub mod protocol;
 pub mod repository;
+pub mod repository_store;
 pub mod snapshot;
 pub mod storage;
 pub mod synthetic;

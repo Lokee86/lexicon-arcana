@@ -1,0 +1,47 @@
+{
+  "base_snapshot": "sha256:a73b0627eeea8f66a9e71af9f275d39f96796d320194dc8908f817fc8cd583cc",
+  "synthetic_snapshot": "sha256:f443eb55a8a001995b941f5f6a9d40a4d918def8e79773280bca0ab4ba67de46",
+  "changed_file": {
+    "language": "typescript",
+    "path": "apps/desktop/electron/oauth-net-request.ts"
+  },
+  "base_rebuild": {
+    "mode": "rebuild",
+    "wall_seconds": 130.774508100003,
+    "peak_process_tree_rss_bytes": 1601445888
+  },
+  "overlay": {
+    "mode": "overlay",
+    "wall_seconds": 120.6233853000158,
+    "peak_process_tree_rss_bytes": 2001457152
+  },
+  "clean_rebuild": {
+    "mode": "rebuild",
+    "wall_seconds": 96.94710170000326,
+    "peak_process_tree_rss_bytes": 1606561792
+  },
+  "base_storage": {
+    "node_count": 1136365,
+    "visible_edge_count": 2401702,
+    "unresolved_count": 697792,
+    "graph_arcana_bytes": 47002416,
+    "repository_arcana_bytes": 494198208,
+    "generation_total_bytes": 541201469,
+    "visible_dataset_checksum": "4de9550e3a439add",
+    "repository_arcana_sha256": "2bcc0812c1e91e16caf4bedb4156e4629180668763bb487c2f3143510dd58d63"
+  },
+  "target_storage": {
+    "graph_arcana_bytes": 47002416,
+    "repository_arcana_bytes": 494198208,
+    "generation_total_bytes": 541201469,
+    "visible_dataset_checksum": "4de9550e3a439add",
+    "repository_arcana_sha256": "148ba91709d03328e98a3f139fc0a814ca9585b08eafa024fe8fa348ec99c409"
+  },
+  "parity": {
+    "repository_store_sha256_equal": true,
+    "visible_graph_checksum_equal": true,
+    "node_count_equal": true,
+    "visible_edge_count_equal": true
+  },
+  "note": "Controlled one-file successor preserves the stable node set and exercises managed sync mode=overlay; this particular file change is graph-neutral, so no overlay.arcana payload is required."
+}

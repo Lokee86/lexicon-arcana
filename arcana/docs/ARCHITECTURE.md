@@ -118,7 +118,7 @@ Evidence: [`snapshot/graph.rs`](../src/snapshot/graph.rs), [`snapshot/overlay.rs
 
 ### Repository snapshots
 
-A repository snapshot binds `graph.manifest`, `catalogue.tsv`, `unresolved.tsv`, and `facts.tsv` under `repository.manifest`. Publication validates graph and metadata consistency and writes the repository manifest last. Opening rechecks component checksums and cross-artifact invariants before exposing graph, catalogue, facts, or unresolved records.
+A repository snapshot binds `graph.manifest` and the canonical binary `repository.arcana` metadata store under manifest v2 in `repository.manifest`. Publication validates graph/store consistency and writes the repository manifest last. Opening rechecks the manifest-bound store checksum, the store's internal section/payload checksums, and graph/store invariants before exposing repository data.
 
 Full compilation writes a new packed base and base-only graph manifest. Changed-file updates copy the original packed base, optionally write a cumulative overlay, and publish new metadata describing the visible generation. Neither path mutates its source generation.
 

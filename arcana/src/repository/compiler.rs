@@ -1,10 +1,11 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use crate::synthetic::{Edge, EdgeKind, GraphDataset, NodeId};
+use crate::synthetic::{Edge, GraphDataset, NodeId};
 
 use super::catalogue::{CatalogueEntry, CatalogueError, RepositoryCatalogue};
-use super::{NodeFact, NodeKey, RelationKind, RepositoryFacts, UnresolvedReferenceFact};
+use super::relation_codes::relation_to_edge_kind;
+use super::{EdgeFact, NodeFact, NodeKey, RelationKind, RepositoryFacts, UnresolvedReferenceFact};
 
 #[cfg(test)]
 std::thread_local! {
@@ -79,28 +80,95 @@ impl std::error::Error for RepositoryCompileError {
     }
 }
 
-/// Compiles facts into a deterministic dense graph and catalogue.
+/// Compiles borrowed facts into a deterministic dense graph and catalogue.
+///
+/// This compatibility path preserves the caller's facts, so catalogue node
+/// metadata and unresolved references must be cloned into the compiled result.
+/// Full rebuilds should prefer the consuming compiler.
 pub fn compile_repository_facts(
     facts: &RepositoryFacts,
 ) -> Result<CompiledRepository, RepositoryCompileError> {
-    #[cfg(test)]
-    COMPILE_INVOCATIONS.with(|count| count.set(count.get() + 1));
+    count_compile();
+    let nodes = unique_node_refs(&facts.nodes)?;
+    let node_ids = dense_node_ids(nodes.keys().copied())?;
+    let graph_edges = compile_edges(&node_ids, &facts.edges)?;
+    let mut unresolved = facts.unresolved.clone();
+    validate_unresolved(&node_ids, &mut unresolved)?;
 
-    let nodes = unique_nodes(&facts.nodes)?;
+    let entries = nodes
+        .into_iter()
+        .map(|(key, fact)| CatalogueEntry {
+            node_id: node_ids[&key],
+            fact: fact.clone(),
+        })
+        .collect();
+    finish_compile(node_ids, graph_edges, entries, unresolved)
+}
+
+/// Compiles and consumes a complete fact set without cloning node metadata or
+/// unresolved-reference strings into the compiled representation.
+pub fn compile_repository_facts_owned(
+    facts: RepositoryFacts,
+) -> Result<CompiledRepository, RepositoryCompileError> {
+    count_compile();
+    let RepositoryFacts {
+        nodes,
+        edges,
+        mut unresolved,
+    } = facts;
+    let nodes = unique_nodes_owned(nodes)?;
+    let node_ids = dense_node_ids(nodes.keys().copied())?;
+    let graph_edges = compile_edges(&node_ids, &edges)?;
+    validate_unresolved(&node_ids, &mut unresolved)?;
+
+    let entries = nodes
+        .into_iter()
+        .map(|(key, fact)| CatalogueEntry {
+            node_id: node_ids[&key],
+            fact,
+        })
+        .collect();
+    finish_compile(node_ids, graph_edges, entries, unresolved)
+}
+
+fn finish_compile(
+    node_ids: BTreeMap<NodeKey, NodeId>,
+    graph_edges: Vec<Edge>,
+    entries: Vec<CatalogueEntry>,
+    unresolved: Vec<UnresolvedReferenceFact>,
+) -> Result<CompiledRepository, RepositoryCompileError> {
     let node_count =
-        u32::try_from(nodes.len()).map_err(|_| RepositoryCompileError::NodeIdOverflow)?;
-    let node_ids = nodes
-        .keys()
-        .enumerate()
+        u32::try_from(node_ids.len()).map_err(|_| RepositoryCompileError::NodeIdOverflow)?;
+    let catalogue = RepositoryCatalogue::new(entries).map_err(RepositoryCompileError::Catalogue)?;
+    Ok(CompiledRepository {
+        dataset: GraphDataset {
+            node_count,
+            edges: graph_edges,
+        },
+        node_ids,
+        catalogue,
+        unresolved,
+    })
+}
+
+fn dense_node_ids(
+    keys: impl Iterator<Item = NodeKey>,
+) -> Result<BTreeMap<NodeKey, NodeId>, RepositoryCompileError> {
+    keys.enumerate()
         .map(|(index, key)| {
             u32::try_from(index)
-                .map(|value| (*key, NodeId(value)))
+                .map(|value| (key, NodeId(value)))
                 .map_err(|_| RepositoryCompileError::NodeIdOverflow)
         })
-        .collect::<Result<BTreeMap<_, _>, _>>()?;
+        .collect()
+}
 
-    let mut graph_edges = Vec::with_capacity(facts.edges.len());
-    for edge in &facts.edges {
+fn compile_edges(
+    node_ids: &BTreeMap<NodeKey, NodeId>,
+    edges: &[EdgeFact],
+) -> Result<Vec<Edge>, RepositoryCompileError> {
+    let mut graph_edges = Vec::with_capacity(edges.len());
+    for edge in edges {
         let source = *node_ids
             .get(&edge.source)
             .ok_or(RepositoryCompileError::MissingEdgeEndpoint { key: edge.source })?;
@@ -114,38 +182,59 @@ pub fn compile_repository_facts(
         });
     }
     graph_edges.sort_unstable();
-    // Lexicon records one relationship fact per source occurrence. Arcana's dense
-    // graph stores reachability, so repeated call sites collapse to one edge.
     graph_edges.dedup();
+    Ok(graph_edges)
+}
 
-    let mut unresolved = facts.unresolved.clone();
+fn validate_unresolved(
+    node_ids: &BTreeMap<NodeKey, NodeId>,
+    unresolved: &mut Vec<UnresolvedReferenceFact>,
+) -> Result<(), RepositoryCompileError> {
     unresolved.sort_unstable();
     unresolved.dedup();
-    for reference in &unresolved {
+    for reference in unresolved {
         if !node_ids.contains_key(&reference.source) {
             return Err(RepositoryCompileError::MissingUnresolvedSource {
                 key: reference.source,
             });
         }
     }
+    Ok(())
+}
 
-    let entries = nodes
-        .into_iter()
-        .map(|(key, fact)| CatalogueEntry {
-            node_id: node_ids[&key],
-            fact,
-        })
-        .collect();
-    let catalogue = RepositoryCatalogue::new(entries).map_err(RepositoryCompileError::Catalogue)?;
-    Ok(CompiledRepository {
-        dataset: GraphDataset {
-            node_count,
-            edges: graph_edges,
-        },
-        node_ids,
-        catalogue,
-        unresolved,
-    })
+fn unique_node_refs(
+    nodes: &[NodeFact],
+) -> Result<BTreeMap<NodeKey, &NodeFact>, RepositoryCompileError> {
+    let mut unique = BTreeMap::new();
+    for node in nodes {
+        if let Some(previous) = unique.get(&node.key)
+            && *previous != node
+        {
+            return Err(RepositoryCompileError::DuplicateConflictingNode { key: node.key });
+        }
+        unique.entry(node.key).or_insert(node);
+    }
+    Ok(unique)
+}
+
+fn unique_nodes_owned(
+    nodes: Vec<NodeFact>,
+) -> Result<BTreeMap<NodeKey, NodeFact>, RepositoryCompileError> {
+    let mut unique = BTreeMap::new();
+    for node in nodes {
+        if let Some(previous) = unique.get(&node.key)
+            && previous != &node
+        {
+            return Err(RepositoryCompileError::DuplicateConflictingNode { key: node.key });
+        }
+        unique.entry(node.key).or_insert(node);
+    }
+    Ok(unique)
+}
+
+fn count_compile() {
+    #[cfg(test)]
+    COMPILE_INVOCATIONS.with(|count| count.set(count.get() + 1));
 }
 
 #[cfg(test)]
@@ -163,94 +252,4 @@ pub fn compile_facts(
     facts: &RepositoryFacts,
 ) -> Result<CompiledRepository, RepositoryCompileError> {
     compile_repository_facts(facts)
-}
-
-/// Maps every repository relation to its stable nonzero graph edge code.
-pub fn relation_to_edge_kind(relation: &RelationKind) -> EdgeKind {
-    EdgeKind(match relation {
-        RelationKind::Contains => 1,
-        RelationKind::Defines => 2,
-        RelationKind::References => 3,
-        RelationKind::Imports => 4,
-        RelationKind::Calls => 5,
-        RelationKind::Implements => 6,
-        RelationKind::Extends => 7,
-        RelationKind::Includes => 8,
-        RelationKind::DependsOn => 9,
-        RelationKind::Tests => 10,
-        RelationKind::Documents => 11,
-        RelationKind::Generates => 12,
-        RelationKind::PossibleCalls => 13,
-        RelationKind::ConvertsTo => 14,
-        RelationKind::UsesTrait => 15,
-        RelationKind::Overrides => 16,
-        RelationKind::Reads => 17,
-        RelationKind::Writes => 18,
-        RelationKind::Annotates => 19,
-        RelationKind::PassesTo => 20,
-        RelationKind::ObservedCalls => 21,
-        RelationKind::RoutesTo => 22,
-        RelationKind::CommunicatesWith => 23,
-        RelationKind::SimilarTo => 24,
-        RelationKind::CallsEndpoint => 25,
-        RelationKind::HandledBy => 26,
-        RelationKind::Publishes => 27,
-        RelationKind::Consumes => 28,
-        RelationKind::ReadsConfig => 29,
-        RelationKind::InvokesProcess => 30,
-        RelationKind::ProducesMessage => 31,
-        RelationKind::ConsumesMessage => 32,
-    })
-}
-
-/// Converts a stable graph edge code back to its repository relation.
-pub fn edge_kind_to_relation(kind: EdgeKind) -> Option<RelationKind> {
-    Some(match kind.0 {
-        1 => RelationKind::Contains,
-        2 => RelationKind::Defines,
-        3 => RelationKind::References,
-        4 => RelationKind::Imports,
-        5 => RelationKind::Calls,
-        6 => RelationKind::Implements,
-        7 => RelationKind::Extends,
-        8 => RelationKind::Includes,
-        9 => RelationKind::DependsOn,
-        10 => RelationKind::Tests,
-        11 => RelationKind::Documents,
-        12 => RelationKind::Generates,
-        13 => RelationKind::PossibleCalls,
-        14 => RelationKind::ConvertsTo,
-        15 => RelationKind::UsesTrait,
-        16 => RelationKind::Overrides,
-        17 => RelationKind::Reads,
-        18 => RelationKind::Writes,
-        19 => RelationKind::Annotates,
-        20 => RelationKind::PassesTo,
-        21 => RelationKind::ObservedCalls,
-        22 => RelationKind::RoutesTo,
-        23 => RelationKind::CommunicatesWith,
-        24 => RelationKind::SimilarTo,
-        25 => RelationKind::CallsEndpoint,
-        26 => RelationKind::HandledBy,
-        27 => RelationKind::Publishes,
-        28 => RelationKind::Consumes,
-        29 => RelationKind::ReadsConfig,
-        30 => RelationKind::InvokesProcess,
-        31 => RelationKind::ProducesMessage,
-        32 => RelationKind::ConsumesMessage,
-        _ => return None,
-    })
-}
-
-fn unique_nodes(nodes: &[NodeFact]) -> Result<BTreeMap<NodeKey, NodeFact>, RepositoryCompileError> {
-    let mut unique = BTreeMap::new();
-    for node in nodes {
-        if let Some(previous) = unique.get(&node.key)
-            && previous != node
-        {
-            return Err(RepositoryCompileError::DuplicateConflictingNode { key: node.key });
-        }
-        unique.entry(node.key).or_insert_with(|| node.clone());
-    }
-    Ok(unique)
 }

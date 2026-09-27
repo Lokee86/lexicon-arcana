@@ -42,7 +42,7 @@ Evidence: [`storage/format.rs`](../src/storage/format.rs), [`storage/writer.rs`]
 
 ### Graph and repository snapshots
 
-A graph snapshot composes one validated packed base with zero or one overlay under `graph.manifest`. A repository snapshot binds that graph manifest to `catalogue.tsv`, `unresolved.tsv`, and `facts.tsv` under an immutable `repository.manifest`. Repository opening verifies component checksums and cross-artifact consistency before exposing data; full publication writes the repository manifest last.
+A graph snapshot composes one validated packed base with zero or one overlay under `graph.manifest`. A repository snapshot binds that graph manifest to canonical `repository.arcana` metadata under immutable manifest v2 in `repository.manifest`. Repository opening verifies the bound store checksum, the store's internal checksums, and graph/store consistency before exposing data; full publication writes the repository manifest last.
 
 Published generations are not edited in place. Managed `sync` builds under a temporary directory, renames the verified generation into its digest path, and atomically replaces `.arcana/CURRENT`. Protocol sessions open and pin one repository generation at startup.
 
@@ -154,6 +154,7 @@ Evidence: [analysis-stack.md](../../docs/architecture/analysis-stack.md), [Arcan
 - **Compaction has no CLI command.** `compact_snapshot` is a tested library operation; `arcana compact` is not part of the current command parser.
 - **Compatibility degradation can reduce graph completeness.** Unknown relationship labels are skipped with persistent warnings rather than assigned invented semantics.
 - **Packed reads are not memory-mapped.** The current safe reader loads packed bytes into memory. Arcana makes no claim of lazy sharding or a resident graph service for arbitrarily large repositories.
+- **Managed overlay peak memory remains high on Hermes.** The 2026-09-27 field run measured ~1.59 GB peak RSS for rebuild and ~2.0–2.22 GB for overlay. The old previous-generation fact/TSV materialization is removed, but overlay still retains the complete compact `repository.arcana` byte backing while current Lexicon facts are materialized. See the [Hermes storage/sync report](../evaluation/results/hermes-arcana-storage-performance-2026-09-27/report.md).
 - **Semantic search is optional, selective, and exact-scan.** It indexes only policy-eligible entry points, depends on an external plain-HTTP embedding endpoint, scans stored `f32` vectors rather than using an ANN index, and does not establish relationship truth.
 - **Vector absence is not graph staleness.** Missing, stale, corrupt, or unavailable vector state blocks or degrades semantic retrieval only; it does not invalidate deterministic synchronization or exact protocol queries.
 - **Synthetic scale is not production scalability proof.** Supported generator tiers and passing correctness tests do not establish latency, memory, or throughput guarantees for real repositories.

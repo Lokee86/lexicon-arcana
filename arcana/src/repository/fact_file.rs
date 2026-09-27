@@ -12,103 +12,53 @@ const HEADER_V3: &str = "version\t3";
 pub const FACT_SCHEMA_VERSION: u64 = 4;
 const HEADER_V4: &str = "version\t4";
 
-/// Encodes repository facts as canonical tab-separated UTF-8 lines.
-pub fn encode_facts(facts: &RepositoryFacts) -> String {
-    // Sort lightweight references instead of cloning every owned string in the
-    // normalized fact set. The encoded order and bytes remain unchanged.
-    let mut nodes = facts.nodes.iter().collect::<Vec<_>>();
-    let mut edges = facts.edges.iter().collect::<Vec<_>>();
-    let mut unresolved = facts.unresolved.iter().collect::<Vec<_>>();
-    nodes.sort_unstable();
-    edges.sort_unstable();
-    unresolved.sort_unstable();
-
-    let mut output = String::from(HEADER_V4);
-    output.push('\n');
-    for node in nodes {
-        output.push_str("N\t");
-        push_field(&mut output, &format_id(node.key.0));
-        output.push('\t');
-        push_optional_field(&mut output, node.external_identity.as_deref());
-        output.push('\t');
-        push_field(&mut output, node.kind.as_str());
-        output.push('\t');
-        push_field(&mut output, &node.path);
-        output.push('\t');
-        push_field(&mut output, &node.name);
-        output.push('\t');
-        push_field(&mut output, &node.qualified_name);
-        output.push('\t');
-        let content_id = node
-            .content_id
-            .map_or_else(|| "-".to_owned(), |id| format_id(id.0));
-        push_field(&mut output, &content_id);
-        push_span(&mut output, node.span.as_ref());
-        output.push('\n');
-    }
-    for edge in edges {
-        output.push_str("E\t");
-        push_field(&mut output, &format_id(edge.source.0));
-        output.push('\t');
-        push_field(&mut output, &format_id(edge.target.0));
-        output.push('\t');
-        push_field(&mut output, edge.relation.as_str());
-        push_span(&mut output, edge.span.as_ref());
-        output.push('\n');
-    }
-    for reference in unresolved {
-        output.push_str("U\t");
-        push_field(&mut output, &format_id(reference.source.0));
-        output.push('\t');
-        push_field(&mut output, reference.relation.as_str());
-        output.push('\t');
-        push_field(&mut output, reference.reason.as_str());
-        output.push('\t');
-        push_field(&mut output, &reference.expression);
-        output.push('\t');
-        push_optional_field(&mut output, reference.candidate_namespace.as_deref());
-        output.push('\t');
-        push_optional_field(&mut output, reference.candidate_name.as_deref());
-        push_span(&mut output, reference.span.as_ref());
-        output.push('\n');
-    }
-    output
-}
-
 /// Parses the canonical tab-separated repository fact format.
 pub fn parse_facts(input: &str) -> Result<RepositoryFacts, FactFileError> {
     if input.trim_start().starts_with('{') {
         return lexicon_fact_file::parse_lexicon_facts(input);
     }
     let mut lines = input.lines();
-    let version = match lines.next() {
-        Some(HEADER_V1) => 1,
-        Some(HEADER_V2) => 2,
-        Some(HEADER_V3) => 3,
-        Some(HEADER_V4) => 4,
-        _ => return Err(FactFileError::InvalidHeader),
-    };
+    let version = parse_header(lines.next().ok_or(FactFileError::InvalidHeader)?)?;
 
     let mut facts = RepositoryFacts::default();
     for (index, line) in lines.enumerate() {
-        let line_number = index + 2;
-        if line.is_empty() {
-            return Err(FactFileError::MalformedLine { line: line_number });
-        }
-        let fields = line
-            .split('\t')
-            .map(|field| unescape(field, line_number))
-            .collect::<Result<Vec<_>, _>>()?;
-        match fields.first().map(String::as_str) {
-            Some("N") => facts.nodes.push(parse_node(&fields, line_number, version)?),
-            Some("E") => facts.edges.push(parse_edge(&fields, line_number)?),
-            Some("U") if version >= 2 => facts
-                .unresolved
-                .push(parse_unresolved(&fields, line_number)?),
-            _ => return Err(FactFileError::UnknownRecord { line: line_number }),
-        }
+        parse_record_line(line, index + 2, version, &mut facts)?;
     }
     Ok(facts)
+}
+
+pub(super) fn parse_header(line: &str) -> Result<u64, FactFileError> {
+    match line {
+        HEADER_V1 => Ok(1),
+        HEADER_V2 => Ok(2),
+        HEADER_V3 => Ok(3),
+        HEADER_V4 => Ok(4),
+        _ => Err(FactFileError::InvalidHeader),
+    }
+}
+
+pub(super) fn parse_record_line(
+    line: &str,
+    line_number: usize,
+    version: u64,
+    facts: &mut RepositoryFacts,
+) -> Result<(), FactFileError> {
+    if line.is_empty() {
+        return Err(FactFileError::MalformedLine { line: line_number });
+    }
+    let fields = line
+        .split('\t')
+        .map(|field| unescape(field, line_number))
+        .collect::<Result<Vec<_>, _>>()?;
+    match fields.first().map(String::as_str) {
+        Some("N") => facts.nodes.push(parse_node(&fields, line_number, version)?),
+        Some("E") => facts.edges.push(parse_edge(&fields, line_number)?),
+        Some("U") if version >= 2 => facts
+            .unresolved
+            .push(parse_unresolved(&fields, line_number)?),
+        _ => return Err(FactFileError::UnknownRecord { line: line_number }),
+    }
+    Ok(())
 }
 
 fn parse_node(fields: &[String], line: usize, version: u64) -> Result<NodeFact, FactFileError> {
@@ -246,42 +196,8 @@ fn parse_u32(value: &str, line: usize) -> Result<u32, FactFileError> {
         .map_err(|_| FactFileError::InvalidNumber { line })
 }
 
-fn push_span(output: &mut String, span: Option<&SourceSpan>) {
-    if let Some(span) = span {
-        for field in [
-            span.path.as_str(),
-            &span.start_line.to_string(),
-            &span.start_column.to_string(),
-            &span.end_line.to_string(),
-            &span.end_column.to_string(),
-        ] {
-            output.push('\t');
-            push_field(output, field);
-        }
-    } else {
-        output.push_str("\t-\t-\t-\t-\t-");
-    }
-}
-
-fn push_optional_field(output: &mut String, value: Option<&str>) {
-    push_field(output, value.unwrap_or("-"));
-}
-
 fn parse_optional_field(value: &str) -> Option<String> {
     (value != "-").then(|| value.to_owned())
-}
-
-fn push_field(output: &mut String, value: &str) {
-    for character in value.chars() {
-        match character {
-            '\\' => output.push_str("\\\\"),
-            '\t' => output.push_str("\\t"),
-            '\n' => output.push_str("\\n"),
-            '\r' => output.push_str("\\r"),
-            '\0' => output.push_str("\\0"),
-            character => output.push(character),
-        }
-    }
 }
 
 fn unescape(value: &str, line: usize) -> Result<String, FactFileError> {
@@ -308,8 +224,4 @@ fn unescape(value: &str, line: usize) -> Result<String, FactFileError> {
         return Err(FactFileError::InvalidEscape { line });
     }
     Ok(output)
-}
-
-fn format_id(value: u64) -> String {
-    format!("{value:016x}")
 }

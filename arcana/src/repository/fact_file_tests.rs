@@ -1,4 +1,5 @@
-use super::fact_file::{encode_facts, parse_facts};
+use super::fact_encode::encode_facts;
+use super::fact_file::parse_facts;
 use super::{
     ContentId, EdgeFact, NodeFact, NodeKey, NodeKind, RelationKind, RepositoryFacts, SourceSpan,
     UnresolvedReason, UnresolvedReferenceFact,

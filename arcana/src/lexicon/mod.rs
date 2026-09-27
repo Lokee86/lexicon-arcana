@@ -1,6 +1,5 @@
 //! Reader for immutable Lexicon snapshot storage.
 
-use std::collections::BTreeMap;
 use std::fmt;
 use std::io;
 
@@ -12,16 +11,22 @@ mod binary_v2_reader;
 mod format;
 #[cfg(test)]
 mod format_tests;
+mod metadata;
 mod object;
 mod records;
+#[cfg(test)]
+mod records_tests;
 mod snapshot;
+mod snapshot_support;
+mod stream_records;
 
 #[cfg(test)]
 mod binary_tests;
 #[cfg(test)]
 mod tests;
 
-pub use snapshot::{current, load};
+pub use metadata::{LexiconPathChanges, LexiconSnapshotMetadata};
+pub use snapshot::{current, current_metadata, load, load_metadata};
 
 const SNAPSHOT_VERSION: u64 = 1;
 const OBJECT_VERSION: u64 = 1;
@@ -30,10 +35,8 @@ const FACT_SCHEMA_VERSION: u64 = 1;
 /// One complete, immutable Lexicon analysis state.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LexiconSnapshot {
-    id: String,
+    metadata: LexiconSnapshotMetadata,
     facts: RepositoryFacts,
-    files: BTreeMap<(String, String), String>,
-    shared_objects: BTreeMap<String, Option<String>>,
     compatibility_warnings: Vec<String>,
 }
 
@@ -48,14 +51,24 @@ impl LexiconSnapshot {
         snapshot::load(root, id)
     }
 
+    /// Returns the verified snapshot manifest metadata used by this state.
+    pub const fn metadata(&self) -> &LexiconSnapshotMetadata {
+        &self.metadata
+    }
+
     /// Returns the SHA-256 snapshot identity, including its `sha256:` prefix.
     pub fn id(&self) -> &str {
-        &self.id
+        self.metadata.id()
     }
 
     /// Returns all fact records materialized from the snapshot's objects.
     pub const fn facts(&self) -> &RepositoryFacts {
         &self.facts
+    }
+
+    /// Transfers ownership of the materialized facts without cloning them.
+    pub fn into_facts(self) -> RepositoryFacts {
+        self.facts
     }
 
     /// Returns compatibility degradations accepted while reading the snapshot.
@@ -65,47 +78,13 @@ impl LexiconSnapshot {
 
     /// Reports whether any language-level shared fact object changed.
     pub fn shared_objects_changed(&self, previous: &Self) -> bool {
-        self.shared_objects != previous.shared_objects
+        self.metadata.shared_objects_changed(&previous.metadata)
     }
 
     /// Compares file object identities against an earlier snapshot.
     pub fn changed_paths(&self, previous: &Self) -> LexiconPathChanges {
-        let mut added = Vec::new();
-        let mut changed = Vec::new();
-        let mut removed = Vec::new();
-
-        for ((language, path), object_id) in &self.files {
-            match previous.files.get(&(language.clone(), path.clone())) {
-                None => added.push(path.clone()),
-                Some(previous_id) if previous_id != object_id => changed.push(path.clone()),
-                Some(_) => {}
-            }
-        }
-        for (language, path) in previous.files.keys() {
-            if !self.files.contains_key(&(language.clone(), path.clone())) {
-                removed.push(path.clone());
-            }
-        }
-        added.sort_unstable();
-        added.dedup();
-        changed.sort_unstable();
-        changed.dedup();
-        removed.sort_unstable();
-        removed.dedup();
-        LexiconPathChanges {
-            added,
-            changed,
-            removed,
-        }
+        self.metadata.changed_paths(&previous.metadata)
     }
-}
-
-/// File paths whose content-addressed fact objects differ between snapshots.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct LexiconPathChanges {
-    pub added: Vec<String>,
-    pub changed: Vec<String>,
-    pub removed: Vec<String>,
 }
 
 /// An error while reading or validating a Lexicon snapshot.

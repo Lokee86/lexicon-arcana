@@ -1,68 +1,70 @@
 use std::fs;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::snapshot::publish_snapshot;
-use crate::storage::write_packed;
-
+use super::repository_snapshot_test_support::{
+    request, sample_facts, test_directory, write_artifacts,
+};
 use super::*;
 
 #[test]
-fn binds_graph_catalogue_unresolved_and_source_facts() {
+fn binds_graph_and_canonical_repository_store() {
     let directory = test_directory();
     let facts = sample_facts();
-    let compiled = compile_repository_facts(&facts).unwrap();
-    write_packed(directory.join("graph.arcana"), &compiled.dataset).unwrap();
-    publish_snapshot(directory.join("graph.manifest"), "graph.arcana", None, 7).unwrap();
-    write_catalogue(directory.join("catalogue.tsv"), &compiled.catalogue).unwrap();
-    fs::write(
-        directory.join("unresolved.tsv"),
-        RepositoryFacts::with_unresolved(vec![], vec![], compiled.unresolved.clone()).encode(),
-    )
-    .unwrap();
-    fs::write(directory.join("facts.tsv"), facts.encode()).unwrap();
-    publish_repository_snapshot(
-        directory.join(REPOSITORY_MANIFEST_FILE),
-        PublishRepositorySnapshot {
-            graph_manifest_file: std::path::Path::new("graph.manifest"),
-            catalogue_file: std::path::Path::new("catalogue.tsv"),
-            unresolved_file: std::path::Path::new("unresolved.tsv"),
-            facts_file: std::path::Path::new("facts.tsv"),
-            adapter_name: "test",
-            adapter_version: "1",
-            created_unix_seconds: 7,
-        },
-    )
-    .unwrap();
+    write_artifacts(&directory, &facts);
+    publish_repository_snapshot(directory.join(REPOSITORY_MANIFEST_FILE), request()).unwrap();
+
     let snapshot = RepositorySnapshot::open(directory.join(REPOSITORY_MANIFEST_FILE)).unwrap();
     assert_eq!(snapshot.catalogue().len(), 3);
     assert_eq!(snapshot.graph().edge_count(), 1);
-    fs::write(directory.join("catalogue.tsv"), "tampered\n").unwrap();
+    assert_eq!(snapshot.facts(), &facts);
+    assert!(directory.join("repository.arcana").is_file());
+    for legacy in ["catalogue.tsv", "unresolved.tsv", "facts.tsv"] {
+        assert!(!directory.join(legacy).exists());
+    }
+
+    let mut bytes = fs::read(directory.join("repository.arcana")).unwrap();
+    *bytes.last_mut().unwrap() ^= 1;
+    fs::write(directory.join("repository.arcana"), bytes).unwrap();
     assert!(RepositorySnapshot::open(directory.join(REPOSITORY_MANIFEST_FILE)).is_err());
     fs::remove_dir_all(directory).unwrap();
 }
 
 #[test]
-fn precompiled_publication_matches_standalone_validation_without_recompiling() {
-    let legacy = test_directory();
+fn manifest_v2_binds_only_graph_and_repository_store() {
+    let directory = test_directory();
+    let facts = sample_facts();
+    write_artifacts(&directory, &facts);
+    publish_repository_snapshot(directory.join(REPOSITORY_MANIFEST_FILE), request()).unwrap();
+
+    let text = fs::read_to_string(directory.join(REPOSITORY_MANIFEST_FILE)).unwrap();
+    assert!(text.starts_with("version=2\n"));
+    assert!(text.contains("repository_store_version=1\n"));
+    assert!(text.contains("repository_store_file=repository.arcana\n"));
+    for legacy in ["catalogue_file=", "unresolved_file=", "facts_file="] {
+        assert!(!text.contains(legacy));
+    }
+    fs::remove_dir_all(directory).unwrap();
+}
+
+#[test]
+fn precompiled_publication_matches_standalone_without_recompiling() {
+    let standalone = test_directory();
     let optimized = test_directory();
     let facts = sample_facts();
+
     compiler::reset_compile_invocation_count();
-    let compiled = compile_repository_facts(&facts).unwrap();
+    let (compiled, standalone_checksums) = write_artifacts(&standalone, &facts);
     assert_eq!(compiler::compile_invocation_count(), 1);
-
-    let legacy_checksums = write_compiled_artifacts(&legacy, &compiled, &facts);
-    let optimized_checksums = write_compiled_artifacts(&optimized, &compiled, &facts);
-    assert_eq!(optimized_checksums, legacy_checksums);
-
-    let request = || PublishRepositorySnapshot {
-        graph_manifest_file: std::path::Path::new("graph.manifest"),
-        catalogue_file: std::path::Path::new("catalogue.tsv"),
-        unresolved_file: std::path::Path::new("unresolved.tsv"),
-        facts_file: std::path::Path::new("facts.tsv"),
-        adapter_name: "test",
-        adapter_version: "1",
-        created_unix_seconds: 7,
+    crate::storage::write_packed(optimized.join("graph.arcana"), &compiled.dataset).unwrap();
+    crate::snapshot::publish_snapshot(optimized.join("graph.manifest"), "graph.arcana", None, 7)
+        .unwrap();
+    crate::repository_store::write_repository_store(optimized.join("repository.arcana"), &facts)
+        .unwrap();
+    let optimized_checksums = RepositoryArtifactChecksums {
+        repository_store: repository_artifact_file_checksum(optimized.join("repository.arcana"))
+            .unwrap(),
     };
+    assert_eq!(optimized_checksums, standalone_checksums);
+
     let optimized_manifest = publish_precompiled_repository_snapshot(
         optimized.join(REPOSITORY_MANIFEST_FILE),
         request(),
@@ -71,61 +73,88 @@ fn precompiled_publication_matches_standalone_validation_without_recompiling() {
         optimized_checksums,
     )
     .unwrap();
-    assert_eq!(
-        compiler::compile_invocation_count(),
-        1,
-        "precompiled publication must reuse the caller's compilation"
-    );
+    assert_eq!(compiler::compile_invocation_count(), 1);
 
-    let legacy_manifest =
-        publish_repository_snapshot(legacy.join(REPOSITORY_MANIFEST_FILE), request()).unwrap();
+    let standalone_manifest =
+        publish_repository_snapshot(standalone.join(REPOSITORY_MANIFEST_FILE), request()).unwrap();
     assert_eq!(compiler::compile_invocation_count(), 2);
-    assert_eq!(optimized_manifest, legacy_manifest);
+    assert_eq!(optimized_manifest, standalone_manifest);
     for file in [
         "graph.arcana",
         "graph.manifest",
-        "catalogue.tsv",
-        "unresolved.tsv",
-        "facts.tsv",
+        "repository.arcana",
         REPOSITORY_MANIFEST_FILE,
     ] {
         assert_eq!(
             fs::read(optimized.join(file)).unwrap(),
-            fs::read(legacy.join(file)).unwrap(),
+            fs::read(standalone.join(file)).unwrap(),
             "{file} differs"
         );
     }
 
-    RepositorySnapshot::open(optimized.join(REPOSITORY_MANIFEST_FILE)).unwrap();
-    fs::remove_dir_all(legacy).unwrap();
+    fs::remove_dir_all(standalone).unwrap();
     fs::remove_dir_all(optimized).unwrap();
 }
 
 #[test]
-fn protocol_parts_transfer_owned_components() {
+fn update_base_defers_repository_store_until_facts_are_requested() {
     let directory = test_directory();
     let facts = sample_facts();
-    let compiled = compile_repository_facts(&facts).unwrap();
-    write_packed(directory.join("graph.arcana"), &compiled.dataset).unwrap();
-    publish_snapshot(directory.join("graph.manifest"), "graph.arcana", None, 7).unwrap();
-    write_catalogue(directory.join("catalogue.tsv"), &compiled.catalogue).unwrap();
-    fs::write(
-        directory.join("unresolved.tsv"),
-        RepositoryFacts::with_unresolved(vec![], vec![], compiled.unresolved.clone()).encode(),
+    let (compiled, checksums) = write_artifacts(&directory, &facts);
+    publish_precompiled_repository_snapshot(
+        directory.join(REPOSITORY_MANIFEST_FILE),
+        request(),
+        &compiled,
+        &facts,
+        checksums,
     )
     .unwrap();
-    fs::write(directory.join("facts.tsv"), facts.encode()).unwrap();
-    publish_repository_snapshot(
+
+    let base = RepositoryUpdateBase::open(directory.join(REPOSITORY_MANIFEST_FILE)).unwrap();
+    fs::remove_file(directory.join("repository.arcana")).unwrap();
+    assert!(base.load_facts().is_err());
+    fs::remove_dir_all(directory).unwrap();
+}
+
+#[test]
+fn update_base_detects_repository_store_checksum_corruption() {
+    let directory = test_directory();
+    let facts = sample_facts();
+    let (compiled, checksums) = write_artifacts(&directory, &facts);
+    publish_precompiled_repository_snapshot(
         directory.join(REPOSITORY_MANIFEST_FILE),
-        PublishRepositorySnapshot {
-            graph_manifest_file: std::path::Path::new("graph.manifest"),
-            catalogue_file: std::path::Path::new("catalogue.tsv"),
-            unresolved_file: std::path::Path::new("unresolved.tsv"),
-            facts_file: std::path::Path::new("facts.tsv"),
-            adapter_name: "test",
-            adapter_version: "1",
-            created_unix_seconds: 7,
-        },
+        request(),
+        &compiled,
+        &facts,
+        checksums,
+    )
+    .unwrap();
+
+    let base = RepositoryUpdateBase::open(directory.join(REPOSITORY_MANIFEST_FILE)).unwrap();
+    let mut bytes = fs::read(directory.join("repository.arcana")).unwrap();
+    bytes[600] ^= 1;
+    fs::write(directory.join("repository.arcana"), bytes).unwrap();
+    assert!(matches!(
+        base.load_facts(),
+        Err(RepositorySnapshotError::ArtifactMismatch {
+            field: "repository_store_checksum",
+            ..
+        })
+    ));
+    fs::remove_dir_all(directory).unwrap();
+}
+
+#[test]
+fn protocol_parts_materialize_from_repository_store() {
+    let directory = test_directory();
+    let facts = sample_facts();
+    let (compiled, checksums) = write_artifacts(&directory, &facts);
+    publish_precompiled_repository_snapshot(
+        directory.join(REPOSITORY_MANIFEST_FILE),
+        request(),
+        &compiled,
+        &facts,
+        checksums,
     )
     .unwrap();
 
@@ -135,88 +164,4 @@ fn protocol_parts_transfer_owned_components() {
     assert_eq!(catalogue.len(), 3);
     assert_eq!(unresolved.unresolved, compiled.unresolved);
     fs::remove_dir_all(directory).unwrap();
-}
-
-fn write_compiled_artifacts(
-    directory: &std::path::Path,
-    compiled: &CompiledRepository,
-    facts: &RepositoryFacts,
-) -> RepositoryArtifactChecksums {
-    write_packed(directory.join("graph.arcana"), &compiled.dataset).unwrap();
-    publish_snapshot(directory.join("graph.manifest"), "graph.arcana", None, 7).unwrap();
-
-    let catalogue = compiled.catalogue.encode().unwrap();
-    let catalogue_checksum = repository_artifact_checksum(catalogue.as_bytes());
-    fs::write(directory.join("catalogue.tsv"), catalogue).unwrap();
-
-    let unresolved =
-        RepositoryFacts::with_unresolved(vec![], vec![], compiled.unresolved.clone()).encode();
-    let unresolved_checksum = repository_artifact_checksum(unresolved.as_bytes());
-    fs::write(directory.join("unresolved.tsv"), unresolved).unwrap();
-
-    let encoded_facts = facts.encode();
-    let facts_checksum = repository_artifact_checksum(encoded_facts.as_bytes());
-    fs::write(directory.join("facts.tsv"), encoded_facts).unwrap();
-
-    RepositoryArtifactChecksums {
-        catalogue: catalogue_checksum,
-        unresolved: unresolved_checksum,
-        facts: facts_checksum,
-    }
-}
-
-fn sample_facts() -> RepositoryFacts {
-    RepositoryFacts {
-        nodes: vec![
-            NodeFact {
-                key: NodeKey::from_u64(1),
-                external_identity: None,
-                kind: NodeKind::Repository,
-                path: "repo".to_owned(),
-                name: "repo".to_owned(),
-                qualified_name: "repo".to_owned(),
-                content_id: None,
-                span: None,
-            },
-            NodeFact {
-                key: NodeKey::from_u64(2),
-                external_identity: None,
-                kind: NodeKind::Function,
-                path: "a.go".to_owned(),
-                name: "a".to_owned(),
-                qualified_name: "a".to_owned(),
-                content_id: None,
-                span: None,
-            },
-            NodeFact {
-                key: NodeKey::from_u64(3),
-                external_identity: None,
-                kind: NodeKind::Function,
-                path: "b.go".to_owned(),
-                name: "b".to_owned(),
-                qualified_name: "b".to_owned(),
-                content_id: None,
-                span: None,
-            },
-        ],
-        edges: vec![EdgeFact {
-            source: NodeKey::from_u64(2),
-            target: NodeKey::from_u64(3),
-            relation: RelationKind::Calls,
-            span: None,
-        }],
-        unresolved: vec![],
-    }
-}
-
-fn test_directory() -> std::path::PathBuf {
-    static SEQUENCE: AtomicUsize = AtomicUsize::new(0);
-    let path = std::env::temp_dir().join(format!(
-        "arcana-repository-snapshot-{}-{}",
-        std::process::id(),
-        SEQUENCE.fetch_add(1, Ordering::Relaxed)
-    ));
-    let _ = fs::remove_dir_all(&path);
-    fs::create_dir(&path).unwrap();
-    path
 }

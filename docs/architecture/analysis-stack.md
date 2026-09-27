@@ -50,9 +50,8 @@ Lexicon may invoke registered post-publication consumers. Arcana registration us
 Arcana reads and verifies one immutable Lexicon snapshot, compacts durable Lexicon identities into snapshot-local node IDs, and publishes:
 
 - `graph.arcana` — packed forward/reverse adjacency;
-- `catalogue.tsv` — graph IDs mapped to Lexicon identities, paths, kinds, names, content identities, and spans;
-- `unresolved.tsv` — unresolved-reference evidence;
-- a repository manifest bound to the consumed Lexicon snapshot.
+- `repository.arcana` — canonical compact metadata, source occurrence facts, unresolved evidence, ownership, and persisted indexes;
+- manifest v2 in `repository.manifest`, binding the repository store and graph to the consumed Lexicon snapshot.
 
 When the node set remains stable, Arcana can represent relationship changes as an immutable overlay over the packed base. Node-set or shared-fact changes rebuild the base. Compaction creates a new immutable base without mutating the source snapshot.
 

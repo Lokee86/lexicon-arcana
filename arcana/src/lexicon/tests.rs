@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
-use super::LexiconSnapshot;
+use super::{LexiconSnapshot, LexiconSnapshotMetadata};
 
 #[test]
 fn reads_multi_language_snapshot_and_deduplicates_shared_nodes() {
@@ -65,9 +65,38 @@ fn rejects_modified_content_addressed_manifest() {
 }
 
 #[test]
-fn detects_language_shared_object_changes() {
-    let mut previous = synthetic_snapshot(BTreeMap::new());
-    let mut current = synthetic_snapshot(BTreeMap::new());
+fn metadata_load_does_not_read_referenced_fact_objects() {
+    let directory = TestDirectory::new();
+    let root = directory.path.join(".lexicon");
+    fs::create_dir_all(root.join("snapshots")).unwrap();
+
+    let missing_object = sha_id("missing-object");
+    let manifest = json!({
+        "version": 1,
+        "state_commit": "state",
+        "languages": [{
+            "language": "go",
+            "adapter_version": "1",
+            "adapter_fingerprint": sha_id("adapter"),
+            "schema_version": 1,
+            "repository": "repo",
+            "analysis_config_id": sha_id("config"),
+            "shared_object_id": missing_object,
+            "files": []
+        }]
+    });
+    let snapshot_id = write_snapshot(&root, &manifest);
+    fs::write(root.join("CURRENT"), format!("{snapshot_id}\n")).unwrap();
+
+    let metadata = LexiconSnapshotMetadata::current(&root).unwrap();
+    assert_eq!(metadata.id(), snapshot_id);
+    assert!(LexiconSnapshot::current(&root).is_err());
+}
+
+#[test]
+fn detects_language_shared_object_changes_from_metadata() {
+    let mut previous = synthetic_metadata(BTreeMap::new());
+    let mut current = synthetic_metadata(BTreeMap::new());
     previous
         .shared_objects
         .insert("go".to_owned(), Some(sha_id("shared-1")));
@@ -78,12 +107,12 @@ fn detects_language_shared_object_changes() {
 }
 
 #[test]
-fn reports_added_changed_and_removed_file_objects() {
-    let previous = synthetic_snapshot(BTreeMap::from([
+fn reports_added_changed_and_removed_file_objects_from_metadata() {
+    let previous = synthetic_metadata(BTreeMap::from([
         (("go".to_owned(), "a.go".to_owned()), sha_id("a1")),
         (("go".to_owned(), "gone.go".to_owned()), sha_id("gone")),
     ]));
-    let current = synthetic_snapshot(BTreeMap::from([
+    let current = synthetic_metadata(BTreeMap::from([
         (("go".to_owned(), "a.go".to_owned()), sha_id("a2")),
         (("go".to_owned(), "new.go".to_owned()), sha_id("new")),
     ]));
@@ -93,13 +122,11 @@ fn reports_added_changed_and_removed_file_objects() {
     assert_eq!(changes.removed, vec!["gone.go"]);
 }
 
-fn synthetic_snapshot(files: BTreeMap<(String, String), String>) -> LexiconSnapshot {
-    LexiconSnapshot {
+fn synthetic_metadata(files: BTreeMap<(String, String), String>) -> LexiconSnapshotMetadata {
+    LexiconSnapshotMetadata {
         id: sha_id("snapshot"),
-        facts: Default::default(),
         files,
         shared_objects: Default::default(),
-        compatibility_warnings: Vec::new(),
     }
 }
 

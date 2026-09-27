@@ -4,29 +4,29 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use arcana::lexicon::{LexiconSnapshot, LexiconSnapshotError};
-use arcana::repository::{RepositorySnapshot, compile_repository_facts, plan_file_update};
+use arcana::lexicon::{LexiconSnapshotError, LexiconSnapshotMetadata};
+use arcana::repository::RepositorySnapshot;
 
 use crate::cli::SyncCommand;
-use crate::cli_commands::{CliCommandError, write_compiled};
+use crate::cli_commands::CliCommandError;
+use crate::cli_sync_build::{SnapshotWrite, build_snapshot, read_compatibility_warnings};
 use crate::cli_sync_state::{SyncLock, replace_file};
-use crate::cli_update::write_update;
 use crate::repository_state;
 
 pub fn run_sync(command: &SyncCommand) -> Result<String, SyncError> {
     let lexicon_root = storage_root(&command.lexicon, ".lexicon");
     repository_state::prepare(&command.state, &lexicon_root)?;
     let _lock = SyncLock::acquire(&command.state)?;
-    let current = LexiconSnapshot::current(&lexicon_root)?;
-    for warning in current.compatibility_warnings() {
-        eprintln!("arcana sync WARNING: {warning}");
-    }
+    let current = LexiconSnapshotMetadata::current(&lexicon_root)?;
     fs::create_dir_all(command.state.join("snapshots"))?;
 
     let output = snapshot_directory(&command.state, current.id())?;
     let previous_id = read_current(&command.state)?;
-    let mode = if complete_snapshot(&output, current.id()) {
-        "existing"
+    let result = if complete_snapshot(&output, current.id()) {
+        SnapshotWrite {
+            mode: "existing",
+            compatibility_warnings: read_compatibility_warnings(&output)?,
+        }
     } else {
         if output.try_exists()? {
             fs::remove_dir_all(&output)?;
@@ -39,6 +39,9 @@ pub fn run_sync(command: &SyncCommand) -> Result<String, SyncError> {
             &current,
         )?
     };
+    for warning in &result.compatibility_warnings {
+        eprintln!("arcana sync WARNING: {warning}");
+    }
     publish_current(&command.state, current.id())?;
     if command.register {
         register_consumer(&lexicon_root, &command.state)?;
@@ -46,91 +49,10 @@ pub fn run_sync(command: &SyncCommand) -> Result<String, SyncError> {
     Ok(format!(
         "synced Lexicon snapshot {} mode={} registered={} compatibility_warnings={}\n",
         current.id(),
-        mode,
+        result.mode,
         command.register,
-        current.compatibility_warnings().len()
+        result.compatibility_warnings.len()
     ))
-}
-
-fn build_snapshot(
-    lexicon_root: &Path,
-    state: &Path,
-    output: &Path,
-    previous_id: Option<&str>,
-    current: &LexiconSnapshot,
-) -> Result<&'static str, SyncError> {
-    let temp = state.join("snapshots").join(format!(
-        ".{}.tmp-{}",
-        current.id().trim_start_matches("sha256:"),
-        std::process::id()
-    ));
-    if temp.try_exists()? {
-        fs::remove_dir_all(&temp)?;
-    }
-    fs::create_dir(&temp)?;
-    let mode = match write_snapshot(lexicon_root, state, &temp, previous_id, current) {
-        Ok(mode) => mode,
-        Err(error) => {
-            let _ = fs::remove_dir_all(&temp);
-            return Err(error);
-        }
-    };
-    fs::write(temp.join("lexicon.snapshot"), format!("{}\n", current.id()))?;
-    if !current.compatibility_warnings().is_empty() {
-        fs::write(
-            temp.join("compatibility.warnings"),
-            current.compatibility_warnings().join("\n") + "\n",
-        )?;
-    }
-    fs::rename(&temp, output)?;
-    Ok(mode)
-}
-
-fn write_snapshot(
-    lexicon_root: &Path,
-    state: &Path,
-    output: &Path,
-    previous_id: Option<&str>,
-    current: &LexiconSnapshot,
-) -> Result<&'static str, SyncError> {
-    if let Some(previous_id) = previous_id.filter(|id| *id != current.id()) {
-        let previous_directory = snapshot_directory(state, previous_id)?;
-        let previous_manifest = previous_directory.join("repository.manifest");
-        if previous_manifest.is_file()
-            && let (Ok(previous_lexicon), Ok(previous_arcana)) = (
-                LexiconSnapshot::load(lexicon_root, previous_id),
-                RepositorySnapshot::open(&previous_manifest),
-            )
-        {
-            if current.shared_objects_changed(&previous_lexicon) {
-                let compiled = compile_repository_facts(current.facts())?;
-                write_compiled(output, &compiled, current.facts(), "lexicon", current.id())?;
-                return Ok("rebuild");
-            }
-            let changes = current.changed_paths(&previous_lexicon);
-            let mut changed_paths = changes.added;
-            changed_paths.extend(changes.changed);
-            changed_paths.extend(changes.removed);
-            changed_paths.sort_unstable();
-            changed_paths.dedup();
-            if !changed_paths.is_empty() {
-                let packed_base = previous_arcana.materialize_base_dataset()?;
-                if let Ok(update) = plan_file_update(
-                    previous_arcana.facts(),
-                    current.facts(),
-                    &changed_paths,
-                    &packed_base,
-                ) {
-                    write_update(output, &previous_arcana, &update, "lexicon", current.id())?;
-                    return Ok("overlay");
-                }
-            }
-        }
-    }
-
-    let compiled = compile_repository_facts(current.facts())?;
-    write_compiled(output, &compiled, current.facts(), "lexicon", current.id())?;
-    Ok("rebuild")
 }
 
 fn complete_snapshot(output: &Path, lexicon_id: &str) -> bool {
@@ -178,7 +100,7 @@ fn read_current(state: &Path) -> Result<Option<String>, SyncError> {
     }
 }
 
-fn snapshot_directory(state: &Path, id: &str) -> Result<PathBuf, SyncError> {
+pub(crate) fn snapshot_directory(state: &Path, id: &str) -> Result<PathBuf, SyncError> {
     let digest = id
         .strip_prefix("sha256:")
         .filter(|digest| {

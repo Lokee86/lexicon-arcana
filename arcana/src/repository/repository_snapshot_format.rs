@@ -1,30 +1,29 @@
 use std::fmt::Write as FmtWrite;
-use std::path::{Component, Path, PathBuf};
+use std::path::PathBuf;
 
 use super::RepositorySnapshotError;
+use super::repository_snapshot_format_support::{
+    decimal, hex, validate_path, validate_store_version, validate_text,
+};
 
-pub const REPOSITORY_MANIFEST_VERSION: u64 = 1;
+pub const REPOSITORY_MANIFEST_VERSION: u64 = 2;
 
-const FIELDS: [&str; 19] = [
+const FIELDS: [&str; 15] = [
     "version",
     "snapshot_id",
     "created_unix_seconds",
     "repository_id",
     "adapter_name",
     "adapter_version",
-    "fact_schema_version",
+    "repository_store_version",
     "node_count",
     "edge_count",
     "unresolved_count",
     "graph_snapshot_id",
     "graph_manifest_checksum",
-    "catalogue_checksum",
-    "unresolved_checksum",
-    "facts_checksum",
+    "repository_store_checksum",
     "graph_manifest_file",
-    "catalogue_file",
-    "unresolved_file",
-    "facts_file",
+    "repository_store_file",
 ];
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -34,34 +33,29 @@ pub struct RepositorySnapshotManifest {
     pub repository_id: u64,
     pub adapter_name: String,
     pub adapter_version: String,
-    pub fact_schema_version: u64,
+    pub repository_store_version: u16,
     pub node_count: u32,
     pub edge_count: u64,
     pub unresolved_count: u64,
     pub graph_snapshot_id: u64,
     pub graph_manifest_checksum: u64,
-    pub catalogue_checksum: u64,
-    pub unresolved_checksum: u64,
-    pub facts_checksum: u64,
+    pub repository_store_checksum: u64,
     pub graph_manifest_file: PathBuf,
-    pub catalogue_file: PathBuf,
-    pub unresolved_file: PathBuf,
-    pub facts_file: PathBuf,
+    pub repository_store_file: PathBuf,
 }
 
 impl RepositorySnapshotManifest {
     pub fn encode(&self) -> Result<String, RepositorySnapshotError> {
         validate_text("adapter_name", &self.adapter_name)?;
         validate_text("adapter_version", &self.adapter_version)?;
-        let paths = [
+        validate_store_version(self.repository_store_version)?;
+        for (field, path) in [
             ("graph_manifest_file", &self.graph_manifest_file),
-            ("catalogue_file", &self.catalogue_file),
-            ("unresolved_file", &self.unresolved_file),
-            ("facts_file", &self.facts_file),
-        ];
-        for (field, path) in paths {
+            ("repository_store_file", &self.repository_store_file),
+        ] {
             validate_path(field, path)?;
         }
+
         let mut output = String::new();
         macro_rules! field {
             ($name:literal, $value:expr) => {
@@ -75,7 +69,7 @@ impl RepositorySnapshotManifest {
         field!("repository_id", format_args!("{:016x}", self.repository_id));
         field!("adapter_name", self.adapter_name);
         field!("adapter_version", self.adapter_version);
-        field!("fact_schema_version", self.fact_schema_version);
+        field!("repository_store_version", self.repository_store_version);
         field!("node_count", self.node_count);
         field!("edge_count", self.edge_count);
         field!("unresolved_count", self.unresolved_count);
@@ -88,21 +82,14 @@ impl RepositorySnapshotManifest {
             format_args!("{:016x}", self.graph_manifest_checksum)
         );
         field!(
-            "catalogue_checksum",
-            format_args!("{:016x}", self.catalogue_checksum)
-        );
-        field!(
-            "unresolved_checksum",
-            format_args!("{:016x}", self.unresolved_checksum)
-        );
-        field!(
-            "facts_checksum",
-            format_args!("{:016x}", self.facts_checksum)
+            "repository_store_checksum",
+            format_args!("{:016x}", self.repository_store_checksum)
         );
         field!("graph_manifest_file", self.graph_manifest_file.display());
-        field!("catalogue_file", self.catalogue_file.display());
-        field!("unresolved_file", self.unresolved_file.display());
-        field!("facts_file", self.facts_file.display());
+        field!(
+            "repository_store_file",
+            self.repository_store_file.display()
+        );
         Ok(output)
     }
 
@@ -132,86 +119,41 @@ impl RepositorySnapshotManifest {
             }
             values.push(value);
         }
+
         let version = decimal(values[0])?;
         if version != REPOSITORY_MANIFEST_VERSION {
             return Err(RepositorySnapshotError::UnsupportedManifestVersion(version));
         }
+        let repository_store_version = u16::try_from(decimal(values[6])?).map_err(|_| {
+            RepositorySnapshotError::MalformedManifest("repository store version overflow")
+        })?;
+        validate_store_version(repository_store_version)?;
+
         let manifest = Self {
             snapshot_id: hex(values[1])?,
             created_unix_seconds: decimal(values[2])?,
             repository_id: hex(values[3])?,
             adapter_name: values[4].to_owned(),
             adapter_version: values[5].to_owned(),
-            fact_schema_version: decimal(values[6])?,
+            repository_store_version,
             node_count: u32::try_from(decimal(values[7])?)
                 .map_err(|_| RepositorySnapshotError::MalformedManifest("node count overflow"))?,
             edge_count: decimal(values[8])?,
             unresolved_count: decimal(values[9])?,
             graph_snapshot_id: hex(values[10])?,
             graph_manifest_checksum: hex(values[11])?,
-            catalogue_checksum: hex(values[12])?,
-            unresolved_checksum: hex(values[13])?,
-            facts_checksum: hex(values[14])?,
-            graph_manifest_file: PathBuf::from(values[15]),
-            catalogue_file: PathBuf::from(values[16]),
-            unresolved_file: PathBuf::from(values[17]),
-            facts_file: PathBuf::from(values[18]),
+            repository_store_checksum: hex(values[12])?,
+            graph_manifest_file: PathBuf::from(values[13]),
+            repository_store_file: PathBuf::from(values[14]),
         };
         validate_text("adapter_name", &manifest.adapter_name)?;
         validate_text("adapter_version", &manifest.adapter_version)?;
         for (field, path) in [
             ("graph_manifest_file", &manifest.graph_manifest_file),
-            ("catalogue_file", &manifest.catalogue_file),
-            ("unresolved_file", &manifest.unresolved_file),
-            ("facts_file", &manifest.facts_file),
+            ("repository_store_file", &manifest.repository_store_file),
         ] {
             validate_path(field, path)?;
         }
         Ok(manifest)
     }
-}
-
-fn decimal(value: &str) -> Result<u64, RepositorySnapshotError> {
-    if value.is_empty() || (value.len() > 1 && value.starts_with('0')) {
-        return Err(RepositorySnapshotError::MalformedManifest(
-            "invalid decimal",
-        ));
-    }
-    value
-        .parse()
-        .map_err(|_| RepositorySnapshotError::MalformedManifest("invalid decimal"))
-}
-
-fn hex(value: &str) -> Result<u64, RepositorySnapshotError> {
-    if value.len() != 16
-        || !value
-            .bytes()
-            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
-    {
-        return Err(RepositorySnapshotError::MalformedManifest(
-            "invalid checksum",
-        ));
-    }
-    u64::from_str_radix(value, 16)
-        .map_err(|_| RepositorySnapshotError::MalformedManifest("invalid checksum"))
-}
-
-fn validate_text(field: &'static str, value: &str) -> Result<(), RepositorySnapshotError> {
-    if value.is_empty() || value.chars().any(char::is_control) || value.contains('=') {
-        return Err(RepositorySnapshotError::InvalidTextField(field));
-    }
-    Ok(())
-}
-
-fn validate_path(field: &'static str, path: &Path) -> Result<(), RepositorySnapshotError> {
-    if path.as_os_str().is_empty()
-        || path.is_absolute()
-        || path
-            .components()
-            .any(|component| matches!(component, Component::ParentDir))
-        || path.to_str().is_none()
-    {
-        return Err(RepositorySnapshotError::InvalidComponentPath(field));
-    }
-    Ok(())
 }

@@ -1,0 +1,80 @@
+use crate::synthetic::EdgeKind;
+
+use super::RelationKind;
+
+/// Maps every repository relation to its stable nonzero graph edge code.
+pub fn relation_to_edge_kind(relation: &RelationKind) -> EdgeKind {
+    EdgeKind(match relation {
+        RelationKind::Contains => 1,
+        RelationKind::Defines => 2,
+        RelationKind::References => 3,
+        RelationKind::Imports => 4,
+        RelationKind::Calls => 5,
+        RelationKind::Implements => 6,
+        RelationKind::Extends => 7,
+        RelationKind::Includes => 8,
+        RelationKind::DependsOn => 9,
+        RelationKind::Tests => 10,
+        RelationKind::Documents => 11,
+        RelationKind::Generates => 12,
+        RelationKind::PossibleCalls => 13,
+        RelationKind::ConvertsTo => 14,
+        RelationKind::UsesTrait => 15,
+        RelationKind::Overrides => 16,
+        RelationKind::Reads => 17,
+        RelationKind::Writes => 18,
+        RelationKind::Annotates => 19,
+        RelationKind::PassesTo => 20,
+        RelationKind::ObservedCalls => 21,
+        RelationKind::RoutesTo => 22,
+        RelationKind::CommunicatesWith => 23,
+        RelationKind::SimilarTo => 24,
+        RelationKind::CallsEndpoint => 25,
+        RelationKind::HandledBy => 26,
+        RelationKind::Publishes => 27,
+        RelationKind::Consumes => 28,
+        RelationKind::ReadsConfig => 29,
+        RelationKind::InvokesProcess => 30,
+        RelationKind::ProducesMessage => 31,
+        RelationKind::ConsumesMessage => 32,
+    })
+}
+
+/// Converts a stable graph edge code back to its repository relation.
+pub fn edge_kind_to_relation(kind: EdgeKind) -> Option<RelationKind> {
+    Some(match kind.0 {
+        1 => RelationKind::Contains,
+        2 => RelationKind::Defines,
+        3 => RelationKind::References,
+        4 => RelationKind::Imports,
+        5 => RelationKind::Calls,
+        6 => RelationKind::Implements,
+        7 => RelationKind::Extends,
+        8 => RelationKind::Includes,
+        9 => RelationKind::DependsOn,
+        10 => RelationKind::Tests,
+        11 => RelationKind::Documents,
+        12 => RelationKind::Generates,
+        13 => RelationKind::PossibleCalls,
+        14 => RelationKind::ConvertsTo,
+        15 => RelationKind::UsesTrait,
+        16 => RelationKind::Overrides,
+        17 => RelationKind::Reads,
+        18 => RelationKind::Writes,
+        19 => RelationKind::Annotates,
+        20 => RelationKind::PassesTo,
+        21 => RelationKind::ObservedCalls,
+        22 => RelationKind::RoutesTo,
+        23 => RelationKind::CommunicatesWith,
+        24 => RelationKind::SimilarTo,
+        25 => RelationKind::CallsEndpoint,
+        26 => RelationKind::HandledBy,
+        27 => RelationKind::Publishes,
+        28 => RelationKind::Consumes,
+        29 => RelationKind::ReadsConfig,
+        30 => RelationKind::InvokesProcess,
+        31 => RelationKind::ProducesMessage,
+        32 => RelationKind::ConsumesMessage,
+        _ => return None,
+    })
+}

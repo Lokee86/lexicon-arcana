@@ -3,8 +3,8 @@ use crate::synthetic::{EdgeKind, NodeId};
 use super::{
     CatalogueEntry, ContentId, EdgeFact, NodeFact, NodeKey, NodeKind, RelationKind,
     RepositoryCatalogue, RepositoryCompileError, RepositoryFacts, SourceSpan, UnresolvedReason,
-    UnresolvedReferenceFact, compile_repository_facts, edge_kind_to_relation, read_catalogue,
-    relation_to_edge_kind, write_catalogue,
+    UnresolvedReferenceFact, compile_repository_facts, compile_repository_facts_owned,
+    edge_kind_to_relation, read_catalogue, relation_to_edge_kind, write_catalogue,
 };
 
 #[test]
@@ -88,6 +88,64 @@ fn interstack_node_kinds_round_trip() {
         assert_eq!(NodeKind::parse(value), Some(kind.clone()));
         assert_eq!(kind.as_str(), value);
     }
+}
+
+#[test]
+fn consuming_compiler_matches_borrowed_compiler() {
+    let first = NodeKey::from_identity("owned-first");
+    let second = NodeKey::from_identity("owned-second");
+    let facts = RepositoryFacts::with_unresolved(
+        vec![node(second, "b.rs"), node(first, "a.rs")],
+        vec![EdgeFact {
+            source: first,
+            target: second,
+            relation: RelationKind::Calls,
+            span: None,
+        }],
+        vec![UnresolvedReferenceFact {
+            source: first,
+            relation: RelationKind::Calls,
+            expression: "dynamic()".to_owned(),
+            candidate_namespace: None,
+            candidate_name: Some("dynamic".to_owned()),
+            reason: UnresolvedReason::DynamicTarget,
+            span: None,
+        }],
+    );
+
+    let borrowed = compile_repository_facts(&facts).unwrap();
+    let owned = compile_repository_facts_owned(facts).unwrap();
+    assert_eq!(owned, borrowed);
+}
+
+#[test]
+fn consuming_compiler_moves_owned_strings_without_cloning() {
+    let key = NodeKey::from_identity("moved-node");
+    let node = node(key, "src/moved.rs");
+    let node_name_ptr = node.name.as_ptr();
+    let reference = UnresolvedReferenceFact {
+        source: key,
+        relation: RelationKind::Calls,
+        expression: "moved_dynamic()".to_owned(),
+        candidate_namespace: None,
+        candidate_name: None,
+        reason: UnresolvedReason::DynamicTarget,
+        span: None,
+    };
+    let expression_ptr = reference.expression.as_ptr();
+
+    let compiled = compile_repository_facts_owned(RepositoryFacts::with_unresolved(
+        vec![node],
+        vec![],
+        vec![reference],
+    ))
+    .unwrap();
+
+    assert_eq!(
+        compiled.catalogue.entries()[0].fact.name.as_ptr(),
+        node_name_ptr
+    );
+    assert_eq!(compiled.unresolved[0].expression.as_ptr(), expression_ptr);
 }
 
 #[test]

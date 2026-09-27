@@ -6,8 +6,8 @@ use std::time::Duration;
 use crate::repository::{
     EdgeFact, NodeFact, NodeKey, NodeKind, PublishRepositorySnapshot, RelationKind,
     RepositoryFacts, RepositorySnapshot, compile_repository_facts, publish_repository_snapshot,
-    write_catalogue,
 };
+use crate::repository_store::write_repository_store;
 use crate::snapshot::publish_snapshot;
 use crate::storage::write_packed;
 
@@ -339,18 +339,12 @@ fn publish_test_snapshot(directory: &Path, facts: &RepositoryFacts) {
     let compiled = compile_repository_facts(facts).unwrap();
     write_packed(directory.join("graph.arcana"), &compiled.dataset).unwrap();
     publish_snapshot(directory.join("graph.manifest"), "graph.arcana", None, 1).unwrap();
-    write_catalogue(directory.join("catalogue.tsv"), &compiled.catalogue).unwrap();
-    let unresolved =
-        RepositoryFacts::with_unresolved(Vec::new(), Vec::new(), compiled.unresolved.clone());
-    fs::write(directory.join("unresolved.tsv"), unresolved.encode()).unwrap();
-    fs::write(directory.join("facts.tsv"), facts.canonicalized().encode()).unwrap();
+    write_repository_store(directory.join("repository.arcana"), facts).unwrap();
     publish_repository_snapshot(
         directory.join("repository.manifest"),
         PublishRepositorySnapshot {
             graph_manifest_file: Path::new("graph.manifest"),
-            catalogue_file: Path::new("catalogue.tsv"),
-            unresolved_file: Path::new("unresolved.tsv"),
-            facts_file: Path::new("facts.tsv"),
+            repository_store_file: Path::new("repository.arcana"),
             adapter_name: "test",
             adapter_version: "1",
             created_unix_seconds: 1,

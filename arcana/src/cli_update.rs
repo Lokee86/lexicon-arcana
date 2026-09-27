@@ -1,12 +1,15 @@
 use std::fs;
 use std::path::Path;
 
-use arcana::repository::{RepositoryFacts, RepositorySnapshot, plan_file_update};
+use arcana::repository::{
+    IncrementalUpdate, RepositoryFacts, RepositorySnapshot, plan_file_update,
+};
 use arcana::snapshot::{publish_snapshot, write_overlay};
 use arcana::storage::PackedGraph;
 
 use crate::cli::UpdateFactsCommand;
-use crate::cli_commands::{CliCommandError, timestamp, write_repository_metadata};
+use crate::cli_commands::CliCommandError;
+use crate::cli_compile::{timestamp, write_repository_metadata_graph_owned};
 
 pub fn run_update_facts(command: &UpdateFactsCommand) -> Result<String, CliCommandError> {
     if command.output.try_exists()? {
@@ -26,8 +29,8 @@ pub fn run_update_facts(command: &UpdateFactsCommand) -> Result<String, CliComma
     fs::create_dir(&command.output)?;
     let result = write_update(
         &command.output,
-        &source,
-        &update,
+        &source.base_graph_path(),
+        update,
         &source.manifest().adapter_name,
         &source.manifest().adapter_version,
     );
@@ -39,12 +42,16 @@ pub fn run_update_facts(command: &UpdateFactsCommand) -> Result<String, CliComma
 
 pub(crate) fn write_update(
     output: &Path,
-    source: &RepositorySnapshot,
-    update: &arcana::repository::IncrementalUpdate,
+    base_graph_path: &Path,
+    update: IncrementalUpdate,
     adapter_name: &str,
     adapter_version: &str,
 ) -> Result<String, CliCommandError> {
-    fs::copy(source.base_graph_path(), output.join("graph.arcana"))?;
+    let changed_file_count = update.changed_file_count();
+    let added_edges = update.changes.added.len();
+    let removed_edges = update.changes.removed.len();
+
+    fs::copy(base_graph_path, output.join("graph.arcana"))?;
     let base = PackedGraph::open(output.join("graph.arcana"))?;
     let overlay_file = if update.changes.added.is_empty() && update.changes.removed.is_empty() {
         None
@@ -58,18 +65,18 @@ pub(crate) fn write_update(
         overlay_file,
         timestamp()?,
     )?;
-    write_repository_metadata(
+    write_repository_metadata_graph_owned(
         output,
-        &update.compiled,
-        &update.facts,
+        update.facts,
+        &update.graph,
         adapter_name,
         adapter_version,
     )?;
     Ok(format!(
         "updated facts: changed_files={} added_edges={} removed_edges={} overlay={}\n",
-        update.changed_file_count(),
-        update.changes.added.len(),
-        update.changes.removed.len(),
+        changed_file_count,
+        added_edges,
+        removed_edges,
         overlay_file.is_some()
     ))
 }
