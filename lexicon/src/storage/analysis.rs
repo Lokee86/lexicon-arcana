@@ -1,4 +1,5 @@
 use crate::{FactHeader, FactRecord, FactStream, StorageError, ValidationError};
+use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -39,8 +40,21 @@ impl Analysis {
             .filter_map(|path| normalize_owner(path))
             .collect::<BTreeSet<_>>();
         let owners = node_owners(&self.records);
-        self.records.retain(|record| {
-            record_owner(record, &owners).is_none_or(|owner| allowed.contains(&owner))
+        let retained = self
+            .records
+            .iter()
+            .map(|record| {
+                record_owner(record, &owners)
+                    .as_deref()
+                    .is_none_or(|owner| allowed.contains(owner))
+            })
+            .collect::<Vec<_>>();
+        drop(owners);
+        let mut index = 0;
+        self.records.retain(|_| {
+            let keep = retained[index];
+            index += 1;
+            keep
         });
     }
 
@@ -63,9 +77,13 @@ impl Analysis {
         for record in &self.records {
             let owner = record_owner(record, &node_owners);
             if let Some(owner) = owner
-                && allowed.is_none_or(|allowed| allowed.contains(&owner))
+                && allowed.is_none_or(|allowed| allowed.contains(owner.as_ref()))
             {
-                groups.owned.entry(owner).or_default().push(record);
+                if let Some(records) = groups.owned.get_mut(owner.as_ref()) {
+                    records.push(record);
+                } else {
+                    groups.owned.insert(owner.into_owned(), vec![record]);
+                }
                 continue;
             }
             groups.shared.push(record);
@@ -103,47 +121,66 @@ pub(crate) fn normalized_paths(paths: &[String]) -> Vec<String> {
     result.into_iter().collect()
 }
 
-fn node_owners(records: &[FactRecord]) -> BTreeMap<String, String> {
+fn node_owners<'a>(records: &'a [FactRecord]) -> BTreeMap<&'a str, Cow<'a, str>> {
     records
         .iter()
         .filter_map(|record| match record {
-            FactRecord::Node(node) => direct_owner(record).map(|owner| (node.id.clone(), owner)),
+            FactRecord::Node(node) => direct_owner(record).map(|owner| (node.id.as_str(), owner)),
             _ => None,
         })
         .collect()
 }
 
-fn record_owner(record: &FactRecord, node_owners: &BTreeMap<String, String>) -> Option<String> {
+fn record_owner<'a>(
+    record: &'a FactRecord,
+    node_owners: &BTreeMap<&'a str, Cow<'a, str>>,
+) -> Option<Cow<'a, str>> {
     direct_owner(record).or_else(|| match record {
-        FactRecord::Edge(edge) => node_owners.get(&edge.source).cloned(),
-        FactRecord::Unresolved(value) => node_owners.get(&value.source).cloned(),
+        FactRecord::Edge(edge) => node_owners.get(edge.source.as_str()).cloned(),
+        FactRecord::Unresolved(value) => node_owners.get(value.source.as_str()).cloned(),
         FactRecord::Node(_) => None,
     })
 }
 
-fn direct_owner(record: &FactRecord) -> Option<String> {
+fn direct_owner(record: &FactRecord) -> Option<Cow<'_, str>> {
     record
         .owner()
-        .and_then(normalize_owner)
-        .or_else(|| record.span().and_then(|span| normalize_owner(&span.path)))
+        .and_then(normalize_owner_cow)
+        .or_else(|| {
+            record
+                .span()
+                .and_then(|span| normalize_owner_cow(&span.path))
+        })
         .or_else(|| match record {
-            FactRecord::Node(node) if node.kind == "file" => normalize_owner(&node.path),
+            FactRecord::Node(node) if node.kind == "file" => normalize_owner_cow(&node.path),
             _ => None,
         })
 }
 
 fn normalize_owner(path: &str) -> Option<String> {
-    let path = path.replace('\\', "/");
+    normalize_owner_cow(path).map(Cow::into_owned)
+}
+
+fn normalize_owner_cow(path: &str) -> Option<Cow<'_, str>> {
     if path.is_empty() || path.starts_with('/') || path.as_bytes().get(1) == Some(&b':') {
         return None;
     }
-    let mut parts = Vec::new();
-    for part in path.split('/') {
+
+    let mut needs_normalization = path.contains('\\');
+    for part in path.split(['/', '\\']) {
         match part {
-            "" | "." => {}
             ".." => return None,
-            value => parts.push(value),
+            "" | "." => needs_normalization = true,
+            _ => {}
         }
     }
-    (!parts.is_empty()).then(|| parts.join("/"))
+    if !needs_normalization {
+        return Some(Cow::Borrowed(path));
+    }
+
+    let parts = path
+        .split(['/', '\\'])
+        .filter(|part| !part.is_empty() && *part != ".")
+        .collect::<Vec<_>>();
+    (!parts.is_empty()).then(|| Cow::Owned(parts.join("/")))
 }
