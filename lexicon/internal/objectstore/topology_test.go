@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestRequiresFullAnalysisForNewRelationshipTopology(t *testing.T) {
+func TestRequiresFullAnalysisAllowsResolvedRelationshipTopology(t *testing.T) {
 	store := Store{Root: t.TempDir()}
 	configID := "sha256:config"
 	aID, err := store.WriteObject(FactObject{
@@ -57,8 +57,58 @@ func TestRequiresFullAnalysisForNewRelationshipTopology(t *testing.T) {
 		t.Fatal(err)
 	}
 	full, err = store.RequiresFullAnalysis("python", []string{"a.py"}, analysis)
+	if err != nil || full {
+		t.Fatalf("new resolved topology required full analysis: full=%v err=%v", full, err)
+	}
+}
+
+func TestRequiresFullAnalysisForNewSensitiveUnresolved(t *testing.T) {
+	store := Store{Root: t.TempDir()}
+	configID := "sha256:config"
+	aID, err := store.WriteObject(FactObject{
+		Language: "python", Owner: "a.py", SourceContentID: ContentID([]byte("a")),
+		AdapterVersion: "test", SchemaVersion: 1, AnalysisConfigID: configID,
+		Records: records(`{"id":"node-a","kind":"function","owner":"a.py","record":"node"}`),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = store.Publish(Manifest{StateCommit: "state", Languages: []LanguageEntry{{
+		Language: "python", AdapterVersion: "test", SchemaVersion: 1,
+		Repository: "repo", AnalysisConfigID: configID,
+		Files: []FileEntry{{Path: "a.py", Language: "python", ObjectID: aID}},
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	path := filepath.Join(t.TempDir(), "incremental-unresolved.jsonl")
+	values := []map[string]any{
+		{"adapter_version": "test", "changed_files": []string{"a.py"}, "language": "python", "mode": "incremental", "record": "lexicon", "removed_files": []string{}, "repository": "repo", "schema_version": 1, "shared_complete": false},
+		{"id": "node-a", "kind": "function", "owner": "a.py", "record": "node"},
+		{"candidate_name": "new.module", "expression": "import new.module", "owner": "a.py", "reason": "missing-target", "record": "unresolved", "relation": "imports", "source": "node-a"},
+	}
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoder := json.NewEncoder(file)
+	for _, value := range values {
+		if err := encoder.Encode(value); err != nil {
+			_ = file.Close()
+			t.Fatal(err)
+		}
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+	analysis, err := ReadAnalysis(path, "python")
+	if err != nil {
+		t.Fatal(err)
+	}
+	full, err := store.RequiresFullAnalysis("python", []string{"a.py"}, analysis)
 	if err != nil || !full {
-		t.Fatalf("new topology did not require full analysis: full=%v err=%v", full, err)
+		t.Fatalf("new sensitive unresolved did not require full analysis: full=%v err=%v", full, err)
 	}
 }
 

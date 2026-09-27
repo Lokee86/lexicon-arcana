@@ -85,11 +85,21 @@ func (s Store) RequiresFullAnalysis(language string, changedFiles []string, anal
 		if _, ok := selected[owner]; !ok {
 			return true, nil
 		}
-		if _, isAdded := added[owner]; isAdded {
+		_, isAdded := added[owner]
+		if _, existed := previous[owner][key]; existed {
 			continue
 		}
-		if _, existed := previous[owner][key]; !existed {
-			return true, nil
+		if record.value.Record == "unresolved" {
+			var unresolved topologyRecord
+			if err := json.Unmarshal(record.raw, &unresolved); err != nil {
+				return true, err
+			}
+			if repositorySensitiveUnresolved(unresolved.Reason) {
+				return true, nil
+			}
+		}
+		if isAdded {
+			continue
 		}
 	}
 	return false, nil
