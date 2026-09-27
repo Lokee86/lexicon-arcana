@@ -11,6 +11,7 @@ mod binary_v2_reader;
 mod format;
 #[cfg(test)]
 mod format_tests;
+mod identity;
 mod metadata;
 mod object;
 mod records;

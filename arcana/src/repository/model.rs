@@ -17,6 +17,10 @@ impl NodeKey {
         Self(stable_hash(identity.as_ref()))
     }
 
+    pub(crate) fn from_sha256_digest(digest: &[u8; 32]) -> Self {
+        Self(stable_hash_sha256_identity(digest))
+    }
+
     pub const fn from_u64(value: u64) -> Self {
         Self(value)
     }
@@ -33,6 +37,10 @@ pub struct ContentId(pub u64);
 impl ContentId {
     pub fn from_bytes(bytes: &[u8]) -> Self {
         Self(stable_hash(bytes))
+    }
+
+    pub(crate) fn from_sha256_digest(digest: &[u8; 32]) -> Self {
+        Self(stable_hash_sha256_identity(digest))
     }
 
     pub const fn from_u64(value: u64) -> Self {
@@ -311,5 +319,18 @@ pub struct EdgeFact {
 fn stable_hash(bytes: &[u8]) -> u64 {
     let mut hasher = StableHasher::new();
     hasher.update(bytes);
+    hasher.finish()
+}
+
+fn stable_hash_sha256_identity(digest: &[u8; 32]) -> u64 {
+    const PREFIX: &[u8] = b"sha256:";
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+
+    let mut hasher = StableHasher::new();
+    hasher.update(PREFIX);
+    for byte in digest {
+        let encoded = [HEX[(byte >> 4) as usize], HEX[(byte & 0x0f) as usize]];
+        hasher.update(&encoded);
+    }
     hasher.finish()
 }

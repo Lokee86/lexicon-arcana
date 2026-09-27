@@ -2,16 +2,18 @@ use serde_json::{Map, Value};
 
 use super::LexiconSnapshotError;
 use super::format::JsonFactObject;
+use super::identity::LexiconIdentity;
+use crate::repository::NodeKey;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct FactObject {
     pub(super) version: u64,
     pub(super) language: String,
     pub(super) owner: Option<String>,
-    pub(super) source_content_id: Option<String>,
+    pub(super) source_content_id: Option<LexiconIdentity>,
     pub(super) adapter_version: String,
     pub(super) schema_version: u64,
-    pub(super) analysis_config_id: String,
+    pub(super) analysis_config_id: LexiconIdentity,
     pub(super) records: Vec<FactRecord>,
 }
 
@@ -84,8 +86,8 @@ pub(super) struct SpanRecord {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct NodeRecord {
     pub(super) attributes: Option<Vec<u8>>,
-    pub(super) content_id: Option<String>,
-    pub(super) id: String,
+    pub(super) content_id: Option<LexiconIdentity>,
+    pub(super) id: LexiconIdentity,
     pub(super) kind: String,
     pub(super) name: String,
     pub(super) owner: Option<String>,
@@ -94,14 +96,20 @@ pub(super) struct NodeRecord {
     pub(super) span: Option<SpanRecord>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum NodeReference {
+    Identity(LexiconIdentity),
+    Key(NodeKey),
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct EdgeRecord {
     pub(super) attributes: Option<Vec<u8>>,
     pub(super) owner: Option<String>,
     pub(super) relation: String,
-    pub(super) source: String,
+    pub(super) source: NodeReference,
     pub(super) span: Option<SpanRecord>,
-    pub(super) target: String,
+    pub(super) target: NodeReference,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -113,7 +121,7 @@ pub(super) struct UnresolvedRecord {
     pub(super) owner: Option<String>,
     pub(super) reason: String,
     pub(super) relation: String,
-    pub(super) source: String,
+    pub(super) source: NodeReference,
     pub(super) span: Option<SpanRecord>,
 }
 
@@ -128,10 +136,14 @@ pub(super) fn parse_json_object(bytes: &[u8]) -> Result<FactObject, LexiconSnaps
         version: object.version,
         language: object.language,
         owner: object.owner,
-        source_content_id: object.source_content_id,
+        source_content_id: object
+            .source_content_id
+            .as_deref()
+            .map(LexiconIdentity::parse)
+            .transpose()?,
         adapter_version: object.adapter_version,
         schema_version: object.schema_version,
-        analysis_config_id: object.analysis_config_id,
+        analysis_config_id: LexiconIdentity::parse(&object.analysis_config_id)?,
         records,
     })
 }
@@ -143,8 +155,8 @@ fn parse_json_record(value: Value) -> Result<FactRecord, LexiconSnapshotError> {
     match required_string(object, "record")? {
         "node" => Ok(FactRecord::Node(NodeRecord {
             attributes: attributes(object)?,
-            content_id: optional_string(object, "content_id")?,
-            id: required_string(object, "id")?.to_owned(),
+            content_id: optional_identity(object, "content_id")?,
+            id: LexiconIdentity::parse(required_string(object, "id")?)?,
             kind: required_string(object, "kind")?.to_owned(),
             name: required_string(object, "name")?.to_owned(),
             owner: optional_string(object, "owner")?,
@@ -156,9 +168,13 @@ fn parse_json_record(value: Value) -> Result<FactRecord, LexiconSnapshotError> {
             attributes: attributes(object)?,
             owner: optional_string(object, "owner")?,
             relation: required_string(object, "relation")?.to_owned(),
-            source: required_string(object, "source")?.to_owned(),
+            source: NodeReference::Identity(LexiconIdentity::parse(required_string(
+                object, "source",
+            )?)?),
             span: span(object.get("span"))?,
-            target: required_string(object, "target")?.to_owned(),
+            target: NodeReference::Identity(LexiconIdentity::parse(required_string(
+                object, "target",
+            )?)?),
         })),
         "unresolved" => Ok(FactRecord::Unresolved(UnresolvedRecord {
             attributes: attributes(object)?,
@@ -168,7 +184,9 @@ fn parse_json_record(value: Value) -> Result<FactRecord, LexiconSnapshotError> {
             owner: optional_string(object, "owner")?,
             reason: required_string(object, "reason")?.to_owned(),
             relation: required_string(object, "relation")?.to_owned(),
-            source: required_string(object, "source")?.to_owned(),
+            source: NodeReference::Identity(LexiconIdentity::parse(required_string(
+                object, "source",
+            )?)?),
             span: span(object.get("span"))?,
         })),
         _ => Err(LexiconSnapshotError::Malformed("fact object record")),
@@ -183,6 +201,17 @@ fn required_string<'a>(
         .get(field)
         .and_then(Value::as_str)
         .ok_or(LexiconSnapshotError::Malformed(field))
+}
+
+fn optional_identity(
+    object: &Map<String, Value>,
+    field: &'static str,
+) -> Result<Option<LexiconIdentity>, LexiconSnapshotError> {
+    match object.get(field) {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(value)) => Ok(Some(LexiconIdentity::parse(value)?)),
+        Some(_) => Err(LexiconSnapshotError::Malformed(field)),
+    }
 }
 
 fn optional_string(

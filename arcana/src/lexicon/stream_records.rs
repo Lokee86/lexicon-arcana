@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use super::LexiconSnapshotError;
+use super::identity::LexiconIdentity;
 use super::object::{FactRecord, NodeRecord, RecordCounts};
 use super::records::{
     CompactNodeIds, CompatibilityCounts, ExternalNodeIds, convert_edge, convert_node,
@@ -10,7 +11,7 @@ use crate::repository::RepositoryFacts;
 
 /// First pass over Lexicon objects. Only node records survive object decoding.
 pub(super) struct NodePass {
-    nodes: BTreeMap<String, NodeRecord>,
+    nodes: BTreeMap<LexiconIdentity, NodeRecord>,
     counts: RecordCounts,
     conflict: Option<LexiconSnapshotError>,
 }

@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 
 use super::binary::{is_binary_object, parse_binary_object_selected};
 use super::format::{LanguageEntry, Manifest};
+use super::identity::LexiconIdentity;
 use super::object::{FactObject, RecordCounts, RecordSelection, parse_json_object};
 use super::snapshot_support::{
     hex_id, read_verified_json, storage_root, validate_id, verify_content,
@@ -274,17 +275,19 @@ fn validate_object(
             object.version,
         ));
     }
+    let analysis_config_id = LexiconIdentity::parse(&language.analysis_config_id)?;
     if object.language != language.language
         || object.adapter_version != language.adapter_version
         || object.schema_version != language.schema_version
-        || object.analysis_config_id != language.analysis_config_id
+        || object.analysis_config_id != analysis_config_id
     {
         return Err(LexiconSnapshotError::MetadataMismatch("fact object"));
     }
     match (owner, content_id) {
         (Some(owner), Some(content_id)) => {
+            let content_id = LexiconIdentity::parse(content_id)?;
             if object.owner.as_deref() != Some(owner)
-                || object.source_content_id.as_deref() != Some(content_id)
+                || object.source_content_id != Some(content_id)
             {
                 return Err(LexiconSnapshotError::MetadataMismatch("file fact object"));
             }

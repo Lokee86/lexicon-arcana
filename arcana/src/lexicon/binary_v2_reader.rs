@@ -1,6 +1,8 @@
 use super::LexiconSnapshotError;
 use super::binary_v2::MAGIC;
-use super::object::SpanRecord;
+use super::identity::LexiconIdentity;
+use super::object::{NodeReference, SpanRecord};
+use crate::repository::NodeKey;
 
 const MAX_STRINGS: u64 = 4_000_000;
 const MAX_STRING_SIZE: u64 = 32 * 1024 * 1024;
@@ -143,23 +145,19 @@ impl<'a> Reader<'a> {
             .ok_or_else(|| binary_error(format!("{field} string index is out of range")))
     }
 
-    pub(super) fn identity(
+    pub(super) fn compact_identity(
         &mut self,
         strings: &[String],
         field: &str,
-    ) -> Result<String, LexiconSnapshotError> {
+    ) -> Result<LexiconIdentity, LexiconSnapshotError> {
         match self.byte(&format!("{field} tag"))? {
-            0 => Ok(self.string_ref(strings, field)?.to_owned()),
+            0 => LexiconIdentity::parse(self.string_ref(strings, field)?),
             1 => {
-                let digest = self.take(32, field)?;
-                let mut value = String::with_capacity(71);
-                value.push_str("sha256:");
-                const HEX: &[u8; 16] = b"0123456789abcdef";
-                for byte in digest {
-                    value.push(HEX[(byte >> 4) as usize] as char);
-                    value.push(HEX[(byte & 0x0f) as usize] as char);
-                }
-                Ok(value)
+                let digest: [u8; 32] = self
+                    .take(32, field)?
+                    .try_into()
+                    .map_err(|_| binary_error(format!("invalid {field} digest length")))?;
+                Ok(LexiconIdentity::from_digest(digest))
             }
             tag => Err(binary_error(format!("invalid {field} identity tag {tag}"))),
         }
@@ -185,10 +183,10 @@ impl<'a> Reader<'a> {
 
     pub(super) fn node_ref(
         &mut self,
-        node_ids: &[String],
-        external: &[String],
+        node_keys: &[NodeKey],
+        external: &[LexiconIdentity],
         field: &str,
-    ) -> Result<String, LexiconSnapshotError> {
+    ) -> Result<NodeReference, LexiconSnapshotError> {
         let tag = self.byte(&format!("{field} tag"))?;
         let index = self.uvarint(&format!("{field} index"))?;
         if index == 0 {
@@ -197,13 +195,15 @@ impl<'a> Reader<'a> {
         let index = usize::try_from(index - 1)
             .map_err(|_| binary_error(format!("{field} index overflows")))?;
         match tag {
-            0 => node_ids
+            0 => node_keys
                 .get(index)
-                .cloned()
+                .copied()
+                .map(NodeReference::Key)
                 .ok_or_else(|| binary_error(format!("{field} ordinal is out of range"))),
             1 => external
                 .get(index)
-                .cloned()
+                .copied()
+                .map(NodeReference::Identity)
                 .ok_or_else(|| binary_error(format!("{field} external index is out of range"))),
             _ => Err(binary_error(format!("invalid {field} reference tag {tag}"))),
         }

@@ -1,23 +1,24 @@
 use std::collections::BTreeMap;
 
 use super::LexiconSnapshotError;
+use super::identity::LexiconIdentity;
 #[cfg(test)]
 use super::object::FactRecord;
-use super::object::{EdgeRecord, NodeRecord, SpanRecord, UnresolvedRecord};
+use super::object::{EdgeRecord, NodeRecord, NodeReference, SpanRecord, UnresolvedRecord};
 use crate::repository::{
-    ContentId, EdgeFact, NodeFact, NodeKey, NodeKind, RelationKind, RepositoryFacts, SourceSpan,
+    EdgeFact, NodeFact, NodeKey, NodeKind, RelationKind, RepositoryFacts, SourceSpan,
     UnresolvedReason, UnresolvedReferenceFact, normalize_repository_path,
 };
 
 pub(super) type CompatibilityCounts = BTreeMap<String, usize>;
-pub(super) type ExternalNodeIds = BTreeMap<String, NodeKey>;
-pub(super) type CompactNodeIds = BTreeMap<NodeKey, String>;
+pub(super) type ExternalNodeIds = BTreeMap<LexiconIdentity, NodeKey>;
+pub(super) type CompactNodeIds = BTreeMap<NodeKey, LexiconIdentity>;
 
 #[cfg(test)]
 pub(super) fn build_repository_facts(
     records: Vec<FactRecord>,
 ) -> Result<(RepositoryFacts, Vec<String>), LexiconSnapshotError> {
-    let mut nodes = BTreeMap::<String, NodeRecord>::new();
+    let mut nodes = BTreeMap::<LexiconIdentity, NodeRecord>::new();
     let mut edges = Vec::new();
     let mut unresolved = Vec::new();
     for record in records {
@@ -54,16 +55,16 @@ pub(super) fn build_repository_facts(
 }
 
 pub(super) fn insert_node_record(
-    nodes: &mut BTreeMap<String, NodeRecord>,
+    nodes: &mut BTreeMap<LexiconIdentity, NodeRecord>,
     record: NodeRecord,
 ) -> Result<(), LexiconSnapshotError> {
     match nodes.get(&record.id) {
-        Some(existing) if existing != &record => {
-            Err(LexiconSnapshotError::ConflictingNode(record.id))
-        }
+        Some(existing) if existing != &record => Err(LexiconSnapshotError::ConflictingNode(
+            record.id.canonical_string(),
+        )),
         Some(_) => Ok(()),
         None => {
-            nodes.insert(record.id.clone(), record);
+            nodes.insert(record.id, record);
             Ok(())
         }
     }
@@ -75,25 +76,17 @@ pub(super) fn convert_node(
     compact_ids: &mut CompactNodeIds,
     compatibility: &mut CompatibilityCounts,
 ) -> Result<NodeFact, LexiconSnapshotError> {
-    validate_sha256_id(&record.id)?;
     validate_owner(record.owner.as_deref())?;
     let path = normalize_path(&record.path)?;
-    let key = NodeKey::from_identity(record.id.as_bytes());
+    let key = record.id.node_key();
     if compact_ids
-        .insert(key, record.id.clone())
+        .insert(key, record.id)
         .is_some_and(|existing| existing != record.id)
     {
         return Err(LexiconSnapshotError::Malformed("node identity collision"));
     }
-    external_ids.insert(record.id.clone(), key);
-    let content_id = record
-        .content_id
-        .as_deref()
-        .map(|id| -> Result<ContentId, LexiconSnapshotError> {
-            validate_sha256_id(id)?;
-            Ok(ContentId::from_bytes(id.as_bytes()))
-        })
-        .transpose()?;
+    external_ids.insert(record.id, key);
+    let content_id = record.content_id.map(LexiconIdentity::content_id);
     let kind = NodeKind::parse(&record.kind).unwrap_or_else(|| {
         *compatibility
             .entry(format!(
@@ -108,7 +101,7 @@ pub(super) fn convert_node(
     }
     Ok(NodeFact {
         key,
-        external_identity: Some(record.id),
+        external_identity: Some(record.id.canonical_string()),
         kind,
         path,
         name: record.name,
@@ -197,11 +190,17 @@ pub(super) fn finish_repository_facts(
     Ok((facts, warnings))
 }
 
-fn lookup_id(ids: &ExternalNodeIds, external_id: &str) -> Result<NodeKey, LexiconSnapshotError> {
-    validate_sha256_id(external_id)?;
-    ids.get(external_id)
-        .copied()
-        .ok_or(LexiconSnapshotError::Malformed("unknown relationship node"))
+fn lookup_id(
+    ids: &ExternalNodeIds,
+    reference: &NodeReference,
+) -> Result<NodeKey, LexiconSnapshotError> {
+    match reference {
+        NodeReference::Key(key) => Ok(*key),
+        NodeReference::Identity(identity) => ids
+            .get(identity)
+            .copied()
+            .ok_or(LexiconSnapshotError::Malformed("unknown relationship node")),
+    }
 }
 
 fn validate_owner(owner: Option<&str>) -> Result<(), LexiconSnapshotError> {
@@ -233,18 +232,4 @@ fn normalize_path(path: &str) -> Result<String, LexiconSnapshotError> {
         field: "fact",
         path: path.to_owned(),
     })
-}
-
-fn validate_sha256_id(value: &str) -> Result<(), LexiconSnapshotError> {
-    let Some(digest) = value.strip_prefix("sha256:") else {
-        return Err(LexiconSnapshotError::InvalidId(value.to_owned()));
-    };
-    if digest.len() != 64
-        || !digest
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    {
-        return Err(LexiconSnapshotError::InvalidId(value.to_owned()));
-    }
-    Ok(())
 }

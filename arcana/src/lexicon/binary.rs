@@ -1,7 +1,8 @@
 use super::LexiconSnapshotError;
+use super::identity::LexiconIdentity;
 use super::object::{
-    EdgeRecord, FactObject, FactRecord, NodeRecord, RecordCounts, RecordSelection, SpanRecord,
-    UnresolvedRecord,
+    EdgeRecord, FactObject, FactRecord, NodeRecord, NodeReference, RecordCounts, RecordSelection,
+    SpanRecord, UnresolvedRecord,
 };
 
 const MAGIC_V1: &[u8; 8] = b"LXOBJ\0\x01\0";
@@ -43,11 +44,10 @@ fn parse_binary_object_v1(bytes: &[u8]) -> Result<FactObject, LexiconSnapshotErr
     let strings = reader.string_table()?;
     let language = reader.string_ref(&strings, "language")?.to_owned();
     let owner = optional(reader.string_ref(&strings, "owner")?);
-    let source_content_id = optional(reader.string_ref(&strings, "source content ID")?);
+    let source_content_id = optional_identity(reader.string_ref(&strings, "source content ID")?)?;
     let adapter_version = reader.string_ref(&strings, "adapter version")?.to_owned();
-    let analysis_config_id = reader
-        .string_ref(&strings, "analysis config ID")?
-        .to_owned();
+    let analysis_config_id =
+        LexiconIdentity::parse(reader.string_ref(&strings, "analysis config ID")?)?;
     let nodes = reader.bytes("node section", MAX_SECTION_SIZE)?;
     let edges = reader.bytes("edge section", MAX_SECTION_SIZE)?;
     let unresolved = reader.bytes("unresolved section", MAX_SECTION_SIZE)?;
@@ -75,8 +75,8 @@ fn decode_nodes(bytes: &[u8], strings: &[String]) -> Result<Vec<FactRecord>, Lex
     for _ in 0..count {
         records.push(FactRecord::Node(NodeRecord {
             attributes: reader.attributes()?,
-            content_id: optional(reader.string_ref(strings, "node content ID")?),
-            id: reader.string_ref(strings, "node ID")?.to_owned(),
+            content_id: optional_identity(reader.string_ref(strings, "node content ID")?)?,
+            id: LexiconIdentity::parse(reader.string_ref(strings, "node ID")?)?,
             kind: reader.string_ref(strings, "node kind")?.to_owned(),
             name: reader.string_ref(strings, "node name")?.to_owned(),
             owner: optional(reader.string_ref(strings, "node owner")?),
@@ -100,9 +100,13 @@ fn decode_edges(bytes: &[u8], strings: &[String]) -> Result<Vec<FactRecord>, Lex
             attributes: reader.attributes()?,
             owner: optional(reader.string_ref(strings, "edge owner")?),
             relation: reader.string_ref(strings, "edge relation")?.to_owned(),
-            source: reader.string_ref(strings, "edge source")?.to_owned(),
+            source: NodeReference::Identity(LexiconIdentity::parse(
+                reader.string_ref(strings, "edge source")?,
+            )?),
             span: reader.span(strings)?,
-            target: reader.string_ref(strings, "edge target")?.to_owned(),
+            target: NodeReference::Identity(LexiconIdentity::parse(
+                reader.string_ref(strings, "edge target")?,
+            )?),
         }));
     }
     reader.finish("edge section")?;
@@ -127,12 +131,22 @@ fn decode_unresolved(
             relation: reader
                 .string_ref(strings, "unresolved relation")?
                 .to_owned(),
-            source: reader.string_ref(strings, "unresolved source")?.to_owned(),
+            source: NodeReference::Identity(LexiconIdentity::parse(
+                reader.string_ref(strings, "unresolved source")?,
+            )?),
             span: reader.span(strings)?,
         }));
     }
     reader.finish("unresolved section")?;
     Ok(records)
+}
+
+fn optional_identity(value: &str) -> Result<Option<LexiconIdentity>, LexiconSnapshotError> {
+    if value.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(LexiconIdentity::parse(value)?))
+    }
 }
 
 fn optional(value: &str) -> Option<String> {

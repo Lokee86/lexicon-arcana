@@ -1,13 +1,16 @@
-use super::object::{EdgeRecord, FactRecord, NodeRecord, RecordCounts, UnresolvedRecord};
+use super::identity::LexiconIdentity;
+use super::object::{
+    EdgeRecord, FactRecord, NodeRecord, NodeReference, RecordCounts, UnresolvedRecord,
+};
 use super::records::build_repository_facts;
 use super::stream_records::NodePass;
 use crate::repository::{NodeKind, UnresolvedReason};
 
-fn id(value: char) -> String {
-    format!("sha256:{}", value.to_string().repeat(64))
+fn id(value: char) -> LexiconIdentity {
+    LexiconIdentity::parse(&format!("sha256:{}", value.to_string().repeat(64))).unwrap()
 }
 
-fn node(identity: String, kind: &str, name: &str) -> FactRecord {
+fn node(identity: LexiconIdentity, kind: &str, name: &str) -> FactRecord {
     FactRecord::Node(NodeRecord {
         attributes: None,
         content_id: None,
@@ -31,9 +34,9 @@ fn bounded_two_pass_builder_matches_monolithic_conversion() {
             attributes: None,
             owner: Some("source.cc".to_owned()),
             relation: "calls".to_owned(),
-            source: source.clone(),
+            source: NodeReference::Identity(source),
             span: None,
-            target: target.clone(),
+            target: NodeReference::Identity(target),
         }),
     ];
     let second = vec![
@@ -46,7 +49,7 @@ fn bounded_two_pass_builder_matches_monolithic_conversion() {
             owner: Some("source.cc".to_owned()),
             reason: "future-reason".to_owned(),
             relation: "calls".to_owned(),
-            source,
+            source: NodeReference::Identity(source),
             span: None,
         }),
     ];
@@ -77,9 +80,9 @@ fn accepts_unknown_labels_with_explicit_degradation_warnings() {
             attributes: None,
             owner: Some("source.cc".to_owned()),
             relation: "future-edge-relation".to_owned(),
-            source: source.clone(),
+            source: NodeReference::Identity(source),
             span: None,
-            target,
+            target: NodeReference::Identity(target),
         }),
         FactRecord::Unresolved(UnresolvedRecord {
             attributes: None,
@@ -89,7 +92,7 @@ fn accepts_unknown_labels_with_explicit_degradation_warnings() {
             owner: Some("source.cc".to_owned()),
             reason: "future-unresolved-reason".to_owned(),
             relation: "calls".to_owned(),
-            source: source.clone(),
+            source: NodeReference::Identity(source),
             span: None,
         }),
         FactRecord::Unresolved(UnresolvedRecord {
@@ -100,7 +103,7 @@ fn accepts_unknown_labels_with_explicit_degradation_warnings() {
             owner: Some("source.cc".to_owned()),
             reason: "missing-target".to_owned(),
             relation: "future-unresolved-relation".to_owned(),
-            source,
+            source: NodeReference::Identity(source),
             span: None,
         }),
     ];

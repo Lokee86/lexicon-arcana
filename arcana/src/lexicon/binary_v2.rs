@@ -1,8 +1,10 @@
 use super::LexiconSnapshotError;
 use super::binary_v2_reader::Reader;
+use super::identity::LexiconIdentity;
 use super::object::{
     EdgeRecord, FactObject, FactRecord, NodeRecord, RecordCounts, RecordSelection, UnresolvedRecord,
 };
+use crate::repository::NodeKey;
 
 pub(super) const MAGIC: &[u8; 8] = b"LXOBJ\0\x02\0";
 const MAX_RECORDS: u64 = 20_000_000;
@@ -84,29 +86,29 @@ pub(super) fn parse_binary_object_selected(
     };
 
     if selection != RecordSelection::Nodes {
-        let node_ids = if selection == RecordSelection::All {
+        let node_keys = if selection == RecordSelection::All {
             records
                 .iter()
                 .filter_map(|record| match record {
-                    FactRecord::Node(node) => Some(node.id.clone()),
+                    FactRecord::Node(node) => Some(node.id.node_key()),
                     _ => None,
                 })
                 .collect::<Vec<_>>()
         } else {
-            decode_node_ids(envelope.nodes, &envelope.strings)?
+            decode_node_keys(envelope.nodes, &envelope.strings)?
         };
         records.extend(decode_edges(
             envelope.edges,
             &envelope.strings,
             &envelope.external,
-            &node_ids,
+            &node_keys,
             &envelope.object_owner,
         )?);
         records.extend(decode_unresolved(
             envelope.unresolved,
             &envelope.strings,
             &envelope.external,
-            &node_ids,
+            &node_keys,
             &envelope.object_owner,
         )?);
     }
@@ -133,10 +135,10 @@ struct Envelope<'a> {
     language: String,
     object_owner: String,
     owner: Option<String>,
-    source_content_id: Option<String>,
+    source_content_id: Option<LexiconIdentity>,
     adapter_version: String,
-    analysis_config_id: String,
-    external: Vec<String>,
+    analysis_config_id: LexiconIdentity,
+    external: Vec<LexiconIdentity>,
     nodes: &'a [u8],
     edges: &'a [u8],
     unresolved: &'a [u8],
@@ -155,9 +157,9 @@ fn parse_envelope(
     let language = reader.string_ref(&strings, "language")?.to_owned();
     let object_owner = reader.string_ref(&strings, "owner")?.to_owned();
     let owner = optional(&object_owner);
-    let source_content_id = optional_owned(reader.identity(&strings, "source content ID")?);
+    let source_content_id = optional_compact_identity(&mut reader, &strings, "source content ID")?;
     let adapter_version = reader.string_ref(&strings, "adapter version")?.to_owned();
-    let analysis_config_id = reader.identity(&strings, "analysis config ID")?;
+    let analysis_config_id = reader.compact_identity(&strings, "analysis config ID")?;
 
     let external_count = reader.count("external references", MAX_EXTERNAL_REFERENCES)?;
     let mut external = if retain_external {
@@ -168,7 +170,7 @@ fn parse_envelope(
     for index in 0..external_count {
         let field = format!("external reference {index}");
         if retain_external {
-            external.push(reader.identity(&strings, &field)?);
+            external.push(reader.compact_identity(&strings, &field)?);
         } else {
             reader.skip_identity(&strings, &field)?;
         }
@@ -217,8 +219,8 @@ fn decode_nodes(
     let mut records = Vec::with_capacity(count);
     for _ in 0..count {
         let attributes = reader.attributes()?;
-        let content_id = optional_owned(reader.identity(strings, "node content ID")?);
-        let id = reader.identity(strings, "node ID")?;
+        let content_id = optional_compact_identity(&mut reader, strings, "node content ID")?;
+        let id = reader.compact_identity(strings, "node ID")?;
         let kind = reader.code_or_string(strings, COMMON_NODE_KINDS, "node kind")?;
         let name = reader.string_ref(strings, "node name")?.to_owned();
         let owner = optional_owned(reader.factored(strings, object_owner, "node owner")?);
@@ -242,14 +244,17 @@ fn decode_nodes(
     Ok(records)
 }
 
-fn decode_node_ids(bytes: &[u8], strings: &[String]) -> Result<Vec<String>, LexiconSnapshotError> {
+fn decode_node_keys(
+    bytes: &[u8],
+    strings: &[String],
+) -> Result<Vec<NodeKey>, LexiconSnapshotError> {
     let mut reader = Reader::new(bytes);
     let count = reader.count("node records", MAX_RECORDS)?;
-    let mut ids = Vec::with_capacity(count);
+    let mut keys = Vec::with_capacity(count);
     for _ in 0..count {
         reader.skip_attributes()?;
         reader.skip_identity(strings, "node content ID")?;
-        ids.push(reader.identity(strings, "node ID")?);
+        keys.push(reader.compact_identity(strings, "node ID")?.node_key());
         reader.skip_code_or_string(strings, COMMON_NODE_KINDS, "node kind")?;
         reader.string_ref(strings, "node name")?;
         reader.skip_factored(strings, "node owner")?;
@@ -258,14 +263,14 @@ fn decode_node_ids(bytes: &[u8], strings: &[String]) -> Result<Vec<String>, Lexi
         reader.skip_span(strings)?;
     }
     reader.finish("node section")?;
-    Ok(ids)
+    Ok(keys)
 }
 
 fn decode_edges(
     bytes: &[u8],
     strings: &[String],
-    external: &[String],
-    node_ids: &[String],
+    external: &[LexiconIdentity],
+    node_keys: &[NodeKey],
     object_owner: &str,
 ) -> Result<Vec<FactRecord>, LexiconSnapshotError> {
     let mut reader = Reader::new(bytes);
@@ -276,9 +281,9 @@ fn decode_edges(
             attributes: reader.attributes()?,
             owner: optional_owned(reader.factored(strings, object_owner, "edge owner")?),
             relation: reader.code_or_string(strings, COMMON_RELATIONS, "edge relation")?,
-            source: reader.node_ref(node_ids, external, "edge source")?,
+            source: reader.node_ref(node_keys, external, "edge source")?,
             span: reader.span(strings)?,
-            target: reader.node_ref(node_ids, external, "edge target")?,
+            target: reader.node_ref(node_keys, external, "edge target")?,
         }));
     }
     reader.finish("edge section")?;
@@ -288,8 +293,8 @@ fn decode_edges(
 fn decode_unresolved(
     bytes: &[u8],
     strings: &[String],
-    external: &[String],
-    node_ids: &[String],
+    external: &[LexiconIdentity],
+    node_keys: &[NodeKey],
     object_owner: &str,
 ) -> Result<Vec<FactRecord>, LexiconSnapshotError> {
     let mut reader = Reader::new(bytes);
@@ -304,12 +309,38 @@ fn decode_unresolved(
             owner: optional_owned(reader.factored(strings, object_owner, "unresolved owner")?),
             reason: reader.string_ref(strings, "unresolved reason")?.to_owned(),
             relation: reader.code_or_string(strings, COMMON_RELATIONS, "unresolved relation")?,
-            source: reader.node_ref(node_ids, external, "unresolved source")?,
+            source: reader.node_ref(node_keys, external, "unresolved source")?,
             span: reader.span(strings)?,
         }));
     }
     reader.finish("unresolved section")?;
     Ok(records)
+}
+
+fn optional_compact_identity(
+    reader: &mut Reader<'_>,
+    strings: &[String],
+    field: &str,
+) -> Result<Option<LexiconIdentity>, LexiconSnapshotError> {
+    match reader.byte(&format!("{field} tag"))? {
+        0 => {
+            let value = reader.string_ref(strings, field)?;
+            if value.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(LexiconIdentity::parse(value)?))
+            }
+        }
+        1 => {
+            let digest: [u8; 32] = reader.take(32, field)?.try_into().map_err(|_| {
+                LexiconSnapshotError::Binary(format!("invalid {field} digest length"))
+            })?;
+            Ok(Some(LexiconIdentity::from_digest(digest)))
+        }
+        tag => Err(LexiconSnapshotError::Binary(format!(
+            "invalid {field} identity tag {tag}"
+        ))),
+    }
 }
 
 fn optional(value: &str) -> Option<String> {
