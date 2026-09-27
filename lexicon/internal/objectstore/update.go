@@ -1,6 +1,7 @@
 package objectstore
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -121,13 +122,74 @@ func (s Store) BuildIncrementalLanguage(
 	sort.Slice(entry.Files, func(left, right int) bool { return entry.Files[left].Path < entry.Files[right].Path })
 	entry.SharedObjectID = previous.SharedObjectID
 	if replaceShared {
-		sharedObjectID, err := s.writeSharedObject(entry, shared)
+		sharedObjectID, err := s.mergeSharedObject(entry, previous.SharedObjectID, shared)
 		if err != nil {
 			return LanguageEntry{}, err
 		}
 		entry.SharedObjectID = sharedObjectID
 	}
 	return entry, nil
+}
+
+func (s Store) mergeSharedObject(entry LanguageEntry, previousID string, updates typedRecords) (string, error) {
+	if previousID == "" {
+		return s.writeSharedObject(entry, updates)
+	}
+	previousObject, err := s.LoadObject(previousID)
+	if err != nil {
+		return "", err
+	}
+	previous, err := parseTypedRecords(previousObject.Records)
+	if err != nil {
+		return "", err
+	}
+	merged, err := mergeTypedRecords(previous, updates)
+	if err != nil {
+		return "", err
+	}
+	return s.writeSharedObject(entry, merged)
+}
+
+func mergeTypedRecords(previous, updates typedRecords) (typedRecords, error) {
+	previousRaw, err := previous.raw()
+	if err != nil {
+		return typedRecords{}, err
+	}
+	updateRaw, err := updates.raw()
+	if err != nil {
+		return typedRecords{}, err
+	}
+	records := make(map[string]json.RawMessage, len(previousRaw)+len(updateRaw))
+	add := func(values []json.RawMessage) error {
+		exported, err := exportRecords(values)
+		if err != nil {
+			return err
+		}
+		for _, record := range exported {
+			records[record.key] = append(json.RawMessage(nil), record.raw...)
+		}
+		return nil
+	}
+	if err := add(previousRaw); err != nil {
+		return typedRecords{}, err
+	}
+	if err := add(updateRaw); err != nil {
+		return typedRecords{}, err
+	}
+	keys := make([]string, 0, len(records))
+	for key := range records {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	result := typedRecords{}
+	for _, key := range keys {
+		record, err := parseTypedRecord(records[key])
+		if err != nil {
+			return typedRecords{}, err
+		}
+		result.append(record)
+	}
+	return result, nil
 }
 
 func languageMetadata(header Header, analysisConfigID, adapterFingerprint string) LanguageEntry {

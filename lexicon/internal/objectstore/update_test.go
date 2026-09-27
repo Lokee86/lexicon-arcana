@@ -76,6 +76,78 @@ func TestIncrementalLanguageUpdateReusesUnchangedObjectsAndSharedFacts(t *testin
 	}
 }
 
+func TestIncrementalLanguageMergesScopedSharedFacts(t *testing.T) {
+	store := Store{Root: t.TempDir()}
+	source := t.TempDir()
+	for path, contents := range map[string]string{
+		"existing.py": "value = 1\n",
+		"new.py":      "other = 2\n",
+	} {
+		if err := os.WriteFile(filepath.Join(source, path), []byte(contents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	fullPath := filepath.Join(t.TempDir(), "full.jsonl")
+	writeAnalysisStream(t, fullPath, []string{
+		`{"adapter_version":"test","language":"python","mode":"full","record":"lexicon","repository":"repo","schema_version":1}`,
+		`{"id":"repo","kind":"repository","name":"repo","path":".","qualified_name":"repo","record":"node"}`,
+		`{"id":"file-existing","kind":"file","name":"existing.py","path":"existing.py","qualified_name":"existing.py","record":"node"}`,
+		`{"id":"module-existing","kind":"module","name":"existing","path":"existing.py","qualified_name":"existing","record":"node"}`,
+		`{"record":"edge","relation":"contains","source":"file-existing","target":"module-existing"}`,
+	})
+	full, err := ReadAnalysis(fullPath, "python")
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry, err := store.BuildFullLanguage(full, source, "python", "sha256:config", "sha256:adapter")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	incrementalPath := filepath.Join(t.TempDir(), "incremental.jsonl")
+	writeAnalysisStream(t, incrementalPath, []string{
+		`{"adapter_version":"test","changed_files":["new.py"],"language":"python","mode":"incremental","record":"lexicon","removed_files":[],"repository":"repo","schema_version":1,"shared_complete":true}`,
+		`{"id":"repo","kind":"repository","name":"repo","path":".","qualified_name":"repo","record":"node"}`,
+		`{"id":"file-new","kind":"file","name":"new.py","path":"new.py","qualified_name":"new.py","record":"node"}`,
+		`{"id":"module-new","kind":"module","name":"new","path":"new.py","qualified_name":"new","record":"node"}`,
+		`{"record":"edge","relation":"contains","source":"file-new","target":"module-new"}`,
+	})
+	incremental, err := ReadAnalysis(incrementalPath, "python")
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated, err := store.BuildIncrementalLanguage(
+		entry, incremental, source, "sha256:config", "sha256:adapter",
+		[]string{"new.py"}, []string{}, true,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	shared, err := store.LoadObject(updated.SharedObjectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := map[string]bool{}
+	for _, raw := range shared.Records {
+		var record struct {
+			Record string `json:"record"`
+			ID     string `json:"id"`
+		}
+		if err := json.Unmarshal(raw, &record); err != nil {
+			t.Fatal(err)
+		}
+		if record.Record == "node" {
+			ids[record.ID] = true
+		}
+	}
+	for _, id := range []string{"repo", "module-existing", "module-new"} {
+		if !ids[id] {
+			t.Fatalf("merged shared object missing %s", id)
+		}
+	}
+}
+
 func TestFullLanguagePreservesSharedRecordOrder(t *testing.T) {
 	store := Store{Root: t.TempDir()}
 	source := t.TempDir()

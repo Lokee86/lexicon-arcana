@@ -203,8 +203,16 @@ func (s *Scanner) adapterFingerprint(language string) (string, error) {
 func (s *Scanner) analysisRequest(plan analysisPlan, sourceRoot, temporary, output string) (adapters.Request, error) {
 	repository := sourceRoot
 	if !plan.Full {
+		contextFiles := append([]string(nil), plan.ContextFiles...)
+		if plan.Language == "python" && len(plan.AddedFiles) > 0 {
+			addedContext, err := pythonAdditionContext(sourceRoot, plan.AddedFiles)
+			if err != nil {
+				return adapters.Request{}, err
+			}
+			contextFiles = uniqueSorted(append(contextFiles, addedContext...))
+		}
 		var err error
-		repository, err = analysisscope.Build(sourceRoot, filepath.Join(temporary, "scopes"), plan.Language, plan.ContextFiles)
+		repository, err = analysisscope.Build(sourceRoot, filepath.Join(temporary, "scopes"), plan.Language, contextFiles)
 		if err != nil {
 			return adapters.Request{}, err
 		}
