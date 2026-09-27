@@ -90,9 +90,9 @@ fn write_snapshot(
             {
                 let current_snapshot = LexiconSnapshot::load(lexicon_root, current.id())?;
                 let packed_base = previous_arcana.materialize_base_dataset()?;
-                if let Ok(base_store) = previous_arcana.open_store()
+                if let Ok(mut base_store) = previous_arcana.open_incremental_store()
                     && let Ok(plan) = plan_verified_snapshot_update_from_store(
-                        &base_store,
+                        &mut base_store,
                         current_snapshot.facts(),
                         &changed_paths,
                         &packed_base,

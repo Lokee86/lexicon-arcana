@@ -13,10 +13,10 @@ fn store_backed_plan_uses_complete_current_snapshot_without_old_fact_materializa
     let compiled = compile_repository_facts(&base).unwrap();
     let path = temp_path();
     write_repository_store(&path, &base).unwrap();
-    let store = crate::repository_store::RepositoryStore::open(&path).unwrap();
+    let mut store = crate::repository_store::RepositoryStoreFile::open(&path).unwrap();
 
     let plan = plan_verified_snapshot_update_from_store(
-        &store,
+        &mut store,
         &current,
         &["a.go".to_owned()],
         &compiled.dataset,
@@ -37,11 +37,11 @@ fn store_backed_plan_detects_changed_file_node_identity_changes() {
     let compiled = compile_repository_facts(&base).unwrap();
     let path = temp_path();
     write_repository_store(&path, &base).unwrap();
-    let store = crate::repository_store::RepositoryStore::open(&path).unwrap();
+    let mut store = crate::repository_store::RepositoryStoreFile::open(&path).unwrap();
 
     assert!(matches!(
         plan_verified_snapshot_update_from_store(
-            &store,
+            &mut store,
             &current,
             &["a.go".to_owned()],
             &compiled.dataset,

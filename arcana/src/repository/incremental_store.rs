@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use crate::repository_store::RepositoryStore;
+use crate::repository_store::RepositoryStoreFile;
 use crate::synthetic::GraphDataset;
 
 use super::incremental_diff::{edge_difference, key_difference};
@@ -22,7 +22,7 @@ impl VerifiedSnapshotUpdatePlan {
 }
 
 pub fn plan_verified_snapshot_update_from_store(
-    base_store: &RepositoryStore,
+    base_store: &mut RepositoryStoreFile,
     current_facts: &RepositoryFacts,
     changed_paths: &[String],
     packed_base: &GraphDataset,

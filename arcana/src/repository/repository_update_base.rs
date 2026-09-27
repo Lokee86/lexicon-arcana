@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::repository_store::RepositoryStore;
+use crate::repository_store::{RepositoryStore, RepositoryStoreFile};
 use crate::snapshot::GraphSnapshot;
 use crate::storage::QueryError;
 use crate::synthetic::GraphDataset;
@@ -68,6 +68,17 @@ impl RepositoryUpdateBase {
             checksum(&bytes),
         )?;
         Ok(RepositoryStore::from_bytes(bytes.into_boxed_slice())?)
+    }
+
+    pub fn open_incremental_store(&self) -> Result<RepositoryStoreFile, RepositorySnapshotError> {
+        let store =
+            RepositoryStoreFile::open(self.root.join(&self.manifest.repository_store_file))?;
+        compare(
+            "repository_store_checksum",
+            self.manifest.repository_store_checksum,
+            store.artifact_checksum(),
+        )?;
+        Ok(store)
     }
 
     pub fn load_facts(&self) -> Result<RepositoryFacts, RepositorySnapshotError> {
