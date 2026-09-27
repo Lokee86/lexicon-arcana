@@ -3,7 +3,9 @@ use std::collections::HashMap;
 use crate::repository::{NodeKey, RepositoryFacts};
 use crate::synthetic::NodeId;
 
-use super::canonical::{CanonicalFacts, Contribution};
+use super::build_indexes::{dense_node_ids, sorted_dense_ids, sorted_kind_index};
+use super::build_ownership::build_ownership;
+use super::canonical::Contribution;
 use super::{
     CompactEdgeRecord, CompactNodeRecord, CompactStringTable, CompactUnresolvedRecord,
     RepositoryStoreWriteError, StringId, StringTableBuilder,
@@ -22,10 +24,8 @@ pub(crate) struct CompactKindIndexRecord {
     pub node_id: NodeId,
 }
 
-/// Canonical compact staging state for managed repository builds.
-///
-/// This deliberately owns no per-fact strings. Text lives once in the string
-/// table; records refer to it by StringId, and node references use compact keys.
+/// Canonical compact staging state for repository builds.
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) struct CompactRepositoryBuild {
     pub strings: CompactStringTable,
     pub nodes: Vec<CompactNodeRecord>,
@@ -36,17 +36,12 @@ pub(crate) struct CompactRepositoryBuild {
     pub name_index: Vec<NodeId>,
     pub path_index: Vec<NodeId>,
     pub kind_index: Vec<CompactKindIndexRecord>,
-    node_ids: HashMap<NodeKey, NodeId>,
+    pub(super) node_ids: HashMap<NodeKey, NodeId>,
 }
 
 impl CompactRepositoryBuild {
-    /// Compatibility constructor used until direct Lexicon streaming lands.
-    ///
-    /// Later managed-sync phases populate this shape without first creating
-    /// RepositoryFacts. This conversion gives that path a semantic oracle
-    /// without changing existing public APIs.
     pub(crate) fn from_facts(facts: &RepositoryFacts) -> Result<Self, RepositoryStoreWriteError> {
-        let canonical = CanonicalFacts::prepare(facts)?;
+        let canonical = super::canonical::CanonicalFacts::prepare(facts)?;
         canonical.node_count()?;
 
         let mut string_builder = StringTableBuilder::default();
@@ -72,24 +67,35 @@ impl CompactRepositoryBuild {
             .map(|reference| CompactUnresolvedRecord::from_fact(reference, &strings))
             .collect::<Result<Vec<_>, _>>()?;
 
+        Self::from_canonical_records(strings, nodes, edges, unresolved)
+    }
+
+    pub(super) fn from_canonical_records(
+        strings: CompactStringTable,
+        nodes: Vec<CompactNodeRecord>,
+        edges: Vec<CompactEdgeRecord>,
+        unresolved: Vec<CompactUnresolvedRecord>,
+    ) -> Result<Self, RepositoryStoreWriteError> {
         let node_ids = dense_node_ids(&nodes)?;
-        let (ownership, contributions) = compact_ownership(&canonical, &strings)?;
+        validate_references(&node_ids, &edges, &unresolved)?;
         let name_index = sorted_dense_ids(&nodes, |record| record.name)?;
         let path_index = sorted_dense_ids(&nodes, |record| record.path)?;
         let kind_index = sorted_kind_index(&nodes)?;
 
-        Ok(Self {
+        let mut build = Self {
             strings,
             nodes,
             edges,
             unresolved,
-            ownership,
-            contributions,
+            ownership: Vec::new(),
+            contributions: Vec::new(),
             name_index,
             path_index,
             kind_index,
             node_ids,
-        })
+        };
+        (build.ownership, build.contributions) = build_ownership(&build)?;
+        Ok(build)
     }
 
     pub(crate) fn node_id(&self, key: NodeKey) -> Option<NodeId> {
@@ -97,78 +103,26 @@ impl CompactRepositoryBuild {
     }
 }
 
-fn dense_node_ids(
-    nodes: &[CompactNodeRecord],
-) -> Result<HashMap<NodeKey, NodeId>, RepositoryStoreWriteError> {
-    let mut ids = HashMap::with_capacity(nodes.len());
-    for (index, node) in nodes.iter().enumerate() {
-        let id = u32::try_from(index)
-            .map(NodeId)
-            .map_err(|_| RepositoryStoreWriteError::TooManyNodes)?;
-        ids.insert(node.key, id);
+fn validate_references(
+    node_ids: &HashMap<NodeKey, NodeId>,
+    edges: &[CompactEdgeRecord],
+    unresolved: &[CompactUnresolvedRecord],
+) -> Result<(), RepositoryStoreWriteError> {
+    for edge in edges {
+        for key in [edge.source, edge.target] {
+            if !node_ids.contains_key(&key) {
+                return Err(RepositoryStoreWriteError::MissingEdgeEndpoint { key });
+            }
+        }
     }
-    Ok(ids)
-}
-
-fn compact_ownership(
-    canonical: &CanonicalFacts<'_>,
-    strings: &CompactStringTable,
-) -> Result<(Vec<CompactOwnershipRecord>, Vec<Contribution>), RepositoryStoreWriteError> {
-    let mut ownership = Vec::with_capacity(canonical.ownership.len());
-    let total = canonical
-        .ownership
-        .values()
-        .try_fold(0_usize, |total, values| total.checked_add(values.len()))
-        .ok_or(RepositoryStoreWriteError::TooManyContributions)?;
-    let mut contributions = Vec::with_capacity(total);
-
-    for (path, values) in &canonical.ownership {
-        let contribution_start = u64::try_from(contributions.len())
-            .map_err(|_| RepositoryStoreWriteError::TooManyContributions)?;
-        let contribution_count = u64::try_from(values.len())
-            .map_err(|_| RepositoryStoreWriteError::TooManyContributions)?;
-        ownership.push(CompactOwnershipRecord {
-            path: strings.id(path)?,
-            contribution_start,
-            contribution_count,
-        });
-        contributions.extend(values.iter().copied());
+    for reference in unresolved {
+        if !node_ids.contains_key(&reference.source) {
+            return Err(RepositoryStoreWriteError::MissingUnresolvedSource {
+                key: reference.source,
+            });
+        }
     }
-    Ok((ownership, contributions))
-}
-
-fn sorted_dense_ids(
-    nodes: &[CompactNodeRecord],
-    key: impl Fn(&CompactNodeRecord) -> StringId,
-) -> Result<Vec<NodeId>, RepositoryStoreWriteError> {
-    let mut ids = (0..nodes.len())
-        .map(|index| {
-            u32::try_from(index)
-                .map(NodeId)
-                .map_err(|_| RepositoryStoreWriteError::TooManyNodes)
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    ids.sort_unstable_by_key(|id| (key(&nodes[id.0 as usize]), *id));
-    Ok(ids)
-}
-
-fn sorted_kind_index(
-    nodes: &[CompactNodeRecord],
-) -> Result<Vec<CompactKindIndexRecord>, RepositoryStoreWriteError> {
-    let mut records = nodes
-        .iter()
-        .enumerate()
-        .map(|(index, node)| {
-            Ok(CompactKindIndexRecord {
-                kind_code: node.kind_code,
-                node_id: u32::try_from(index)
-                    .map(NodeId)
-                    .map_err(|_| RepositoryStoreWriteError::TooManyNodes)?,
-            })
-        })
-        .collect::<Result<Vec<_>, RepositoryStoreWriteError>>()?;
-    records.sort_unstable_by_key(|record| (record.kind_code, record.node_id));
-    Ok(records)
+    Ok(())
 }
 
 #[cfg(test)]

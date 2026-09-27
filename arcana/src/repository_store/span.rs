@@ -2,7 +2,7 @@ use crate::repository::SourceSpan;
 
 use super::{CompactStringTable, StoreFormatError, StringId, StringIdLookup};
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct CompactSpan {
     pub path: StringId,
     pub start_line: u32,

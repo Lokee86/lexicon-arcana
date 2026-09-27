@@ -97,6 +97,10 @@ impl StringIdLookup for CompactStringTable {
 }
 
 impl CompactStringTable {
+    pub(crate) fn from_sorted(strings: Vec<String>) -> Result<Self, StoreFormatError> {
+        Self::new(strings)
+    }
+
     fn new(strings: Vec<String>) -> Result<Self, StoreFormatError> {
         if strings.len() > ABSENT_STRING_ID as usize {
             return Err(StoreFormatError::TooManyStrings);

@@ -3,6 +3,14 @@
 mod borrowed_strings;
 #[allow(dead_code)]
 mod build;
+#[allow(dead_code)]
+mod build_indexes;
+#[allow(dead_code)]
+mod build_ownership;
+#[allow(dead_code)]
+mod build_stream;
+#[allow(dead_code)]
+mod build_stream_finish;
 mod canonical;
 mod edge_record;
 mod error;
@@ -29,6 +37,10 @@ mod writer_sections;
 mod writer_sink;
 
 pub(crate) use borrowed_strings::BorrowedStringTable;
+#[allow(unused_imports)]
+pub(crate) use build::CompactRepositoryBuild;
+#[allow(unused_imports)]
+pub(crate) use build_stream::{CompactRepositoryAssembler, TempSpan, TempStringId};
 pub use edge_record::CompactEdgeRecord;
 pub use error::StoreFormatError;
 pub use identity::Sha256Identity;

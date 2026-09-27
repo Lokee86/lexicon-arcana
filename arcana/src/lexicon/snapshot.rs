@@ -18,7 +18,7 @@ use super::{
 use crate::repository::normalize_repository_path;
 
 const SNAPSHOT_DOMAIN: &str = "lexicon:snapshot:v1\0";
-const OBJECT_DOMAIN: &str = "lexicon:fact-object:v1\0";
+pub(super) const OBJECT_DOMAIN: &str = "lexicon:fact-object:v1\0";
 
 pub fn current(root: impl AsRef<Path>) -> Result<LexiconSnapshot, LexiconSnapshotError> {
     let root = root.as_ref();
@@ -107,7 +107,7 @@ fn current_id(root: &Path) -> Result<String, LexiconSnapshotError> {
     Ok(id.to_owned())
 }
 
-fn read_manifest(
+pub(super) fn read_manifest(
     storage: &Path,
     id: &str,
 ) -> Result<(Manifest, LexiconSnapshotMetadata), LexiconSnapshotError> {
@@ -264,7 +264,7 @@ fn read_object(
     Ok((object, counts, started.elapsed()))
 }
 
-fn validate_object(
+pub(super) fn validate_object(
     object: &FactObject,
     language: &LanguageEntry,
     owner: Option<&str>,

@@ -26,6 +26,10 @@ impl LexiconIdentity {
         Ok(Self(digest))
     }
 
+    pub(super) const fn digest(self) -> [u8; 32] {
+        self.0
+    }
+
     pub(super) fn node_key(self) -> NodeKey {
         NodeKey::from_sha256_digest(&self.0)
     }

@@ -16,6 +16,7 @@ pub enum RepositoryStoreWriteError {
     TooManyNodeOccurrences { key: NodeKey },
     MissingEdgeEndpoint { key: NodeKey },
     MissingUnresolvedSource { key: NodeKey },
+    DuplicateCompactNodeOwner { key: NodeKey },
     TooManyNodes,
     TooManyContributions,
     SizeOverflow,
@@ -45,6 +46,9 @@ impl fmt::Display for RepositoryStoreWriteError {
                     formatter,
                     "unresolved reference has missing source node key {key:?}"
                 )
+            }
+            Self::DuplicateCompactNodeOwner { key } => {
+                write!(formatter, "node key {key:?} has conflicting compact owners")
             }
             Self::TooManyNodes => formatter.write_str("repository has more than u32::MAX nodes"),
             Self::TooManyContributions => {

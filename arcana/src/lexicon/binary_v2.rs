@@ -11,7 +11,7 @@ const MAX_RECORDS: u64 = 20_000_000;
 const MAX_EXTERNAL_REFERENCES: u64 = 4_000_000;
 const MAX_SECTION_SIZE: u64 = 512 * 1024 * 1024;
 
-const COMMON_NODE_KINDS: &[&str] = &[
+pub(super) const COMMON_NODE_KINDS: &[&str] = &[
     "repository",
     "directory",
     "file",
@@ -36,7 +36,7 @@ const COMMON_NODE_KINDS: &[&str] = &[
     "config-key",
 ];
 
-const COMMON_RELATIONS: &[&str] = &[
+pub(super) const COMMON_RELATIONS: &[&str] = &[
     "contains",
     "defines",
     "imports",
@@ -128,24 +128,24 @@ pub(super) fn parse_binary_object_selected(
     ))
 }
 
-struct Envelope<'a> {
-    version: u64,
-    schema_version: u64,
-    strings: Vec<String>,
-    language: String,
-    object_owner: String,
-    owner: Option<String>,
-    source_content_id: Option<LexiconIdentity>,
-    adapter_version: String,
-    analysis_config_id: LexiconIdentity,
-    external: Vec<LexiconIdentity>,
-    nodes: &'a [u8],
-    edges: &'a [u8],
-    unresolved: &'a [u8],
-    counts: RecordCounts,
+pub(super) struct Envelope<'a> {
+    pub(super) version: u64,
+    pub(super) schema_version: u64,
+    pub(super) strings: Vec<String>,
+    pub(super) language: String,
+    pub(super) object_owner: String,
+    pub(super) owner: Option<String>,
+    pub(super) source_content_id: Option<LexiconIdentity>,
+    pub(super) adapter_version: String,
+    pub(super) analysis_config_id: LexiconIdentity,
+    pub(super) external: Vec<LexiconIdentity>,
+    pub(super) nodes: &'a [u8],
+    pub(super) edges: &'a [u8],
+    pub(super) unresolved: &'a [u8],
+    pub(super) counts: RecordCounts,
 }
 
-fn parse_envelope(
+pub(super) fn parse_envelope(
     bytes: &[u8],
     retain_external: bool,
 ) -> Result<Envelope<'_>, LexiconSnapshotError> {
@@ -244,7 +244,7 @@ fn decode_nodes(
     Ok(records)
 }
 
-fn decode_node_keys(
+pub(super) fn decode_node_keys(
     bytes: &[u8],
     strings: &[String],
 ) -> Result<Vec<NodeKey>, LexiconSnapshotError> {
@@ -317,7 +317,7 @@ fn decode_unresolved(
     Ok(records)
 }
 
-fn optional_compact_identity(
+pub(super) fn optional_compact_identity(
     reader: &mut Reader<'_>,
     strings: &[String],
     field: &str,

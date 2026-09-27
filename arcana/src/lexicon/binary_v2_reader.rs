@@ -7,6 +7,15 @@ use crate::repository::NodeKey;
 const MAX_STRINGS: u64 = 4_000_000;
 const MAX_STRING_SIZE: u64 = 32 * 1024 * 1024;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct SpanRef<'a> {
+    pub(super) path: &'a str,
+    pub(super) start_line: u64,
+    pub(super) start_column: u64,
+    pub(super) end_line: u64,
+    pub(super) end_column: u64,
+}
+
 pub(super) struct Reader<'a> {
     bytes: &'a [u8],
     position: usize,
@@ -212,18 +221,27 @@ impl<'a> Reader<'a> {
     pub(super) fn code_or_string(
         &mut self,
         strings: &[String],
-        values: &[&str],
+        values: &'static [&'static str],
         field: &str,
     ) -> Result<String, LexiconSnapshotError> {
+        Ok(self.code_or_string_ref(strings, values, field)?.to_owned())
+    }
+
+    pub(super) fn code_or_string_ref<'b>(
+        &mut self,
+        strings: &'b [String],
+        values: &'static [&'static str],
+        field: &str,
+    ) -> Result<&'b str, LexiconSnapshotError> {
         let code = self.uvarint(&format!("{field} code"))?;
         if code == 0 {
-            return Ok(self.string_ref(strings, field)?.to_owned());
+            return self.string_ref(strings, field);
         }
         let index = usize::try_from(code - 1)
             .map_err(|_| binary_error(format!("{field} code overflows")))?;
         values
             .get(index)
-            .map(|value| (*value).to_owned())
+            .copied()
             .ok_or_else(|| binary_error(format!("{field} code is out of range")))
     }
 
@@ -252,10 +270,19 @@ impl<'a> Reader<'a> {
         object_owner: &str,
         field: &str,
     ) -> Result<String, LexiconSnapshotError> {
+        Ok(self.factored_ref(strings, object_owner, field)?.to_owned())
+    }
+
+    pub(super) fn factored_ref<'b>(
+        &mut self,
+        strings: &'b [String],
+        object_owner: &'b str,
+        field: &str,
+    ) -> Result<&'b str, LexiconSnapshotError> {
         match self.uvarint(&format!("{field} factor"))? {
-            0 => Ok(String::new()),
-            1 => Ok(object_owner.to_owned()),
-            2 => Ok(self.string_ref(strings, field)?.to_owned()),
+            0 => Ok(""),
+            1 => Ok(object_owner),
+            2 => self.string_ref(strings, field),
             factor => Err(binary_error(format!("invalid {field} factor {factor}"))),
         }
     }
@@ -283,11 +310,24 @@ impl<'a> Reader<'a> {
         object_owner: &str,
         field: &str,
     ) -> Result<String, LexiconSnapshotError> {
+        Ok(self
+            .qualified_name_ref(strings, name, path, object_owner, field)?
+            .to_owned())
+    }
+
+    pub(super) fn qualified_name_ref<'b>(
+        &mut self,
+        strings: &'b [String],
+        name: &'b str,
+        path: &'b str,
+        object_owner: &'b str,
+        field: &str,
+    ) -> Result<&'b str, LexiconSnapshotError> {
         match self.uvarint(&format!("{field} factor"))? {
-            0 => Ok(self.string_ref(strings, field)?.to_owned()),
-            1 => Ok(name.to_owned()),
-            2 => Ok(path.to_owned()),
-            3 => Ok(object_owner.to_owned()),
+            0 => self.string_ref(strings, field),
+            1 => Ok(name),
+            2 => Ok(path),
+            3 => Ok(object_owner),
             factor => Err(binary_error(format!("invalid {field} factor {factor}"))),
         }
     }
@@ -308,8 +348,12 @@ impl<'a> Reader<'a> {
     }
 
     pub(super) fn attributes(&mut self) -> Result<Option<Vec<u8>>, LexiconSnapshotError> {
+        Ok(self.attributes_ref()?.map(<[u8]>::to_vec))
+    }
+
+    pub(super) fn attributes_ref(&mut self) -> Result<Option<&'a [u8]>, LexiconSnapshotError> {
         let value = self.bytes("record attributes", MAX_STRING_SIZE)?;
-        Ok((!value.is_empty()).then(|| value.to_vec()))
+        Ok((!value.is_empty()).then_some(value))
     }
 
     pub(super) fn skip_attributes(&mut self) -> Result<(), LexiconSnapshotError> {
@@ -321,10 +365,23 @@ impl<'a> Reader<'a> {
         &mut self,
         strings: &[String],
     ) -> Result<Option<SpanRecord>, LexiconSnapshotError> {
+        Ok(self.span_ref(strings)?.map(|span| SpanRecord {
+            path: span.path.to_owned(),
+            start_line: span.start_line,
+            start_column: span.start_column,
+            end_line: span.end_line,
+            end_column: span.end_column,
+        }))
+    }
+
+    pub(super) fn span_ref<'b>(
+        &mut self,
+        strings: &'b [String],
+    ) -> Result<Option<SpanRef<'b>>, LexiconSnapshotError> {
         match self.byte("span flag")? {
             0 => Ok(None),
-            1 => Ok(Some(SpanRecord {
-                path: self.string_ref(strings, "span path")?.to_owned(),
+            1 => Ok(Some(SpanRef {
+                path: self.string_ref(strings, "span path")?,
                 start_line: self.uvarint("span start line")?,
                 start_column: self.uvarint("span start column")?,
                 end_line: self.uvarint("span end line")?,
