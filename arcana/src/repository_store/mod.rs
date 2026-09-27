@@ -1,6 +1,5 @@
 //! Canonical binary repository-store contract and compact value codecs.
 
-mod borrowed_strings;
 #[allow(dead_code)]
 mod build;
 #[allow(dead_code)]
@@ -36,7 +35,6 @@ mod writer_error;
 mod writer_sections;
 mod writer_sink;
 
-pub(crate) use borrowed_strings::BorrowedStringTable;
 #[allow(unused_imports)]
 pub(crate) use build::CompactRepositoryBuild;
 #[allow(unused_imports)]
@@ -55,6 +53,7 @@ pub use string_view::StringTableView;
 pub(crate) use strings::StringIdLookup;
 pub use strings::{CompactStringTable, StringId, StringTableBuilder};
 pub use unresolved_record::CompactUnresolvedRecord;
+pub(crate) use writer::write_repository_store_compact;
 pub use writer::{RepositoryStoreWrite, write_repository_store};
 pub use writer_error::RepositoryStoreWriteError;
 

@@ -112,6 +112,10 @@ impl CompactStringTable {
         self.strings.len()
     }
 
+    pub(crate) fn values(&self) -> impl Iterator<Item = &str> {
+        self.strings.iter().map(String::as_str)
+    }
+
     pub fn is_empty(&self) -> bool {
         self.strings.is_empty()
     }

@@ -2,6 +2,7 @@ use std::fs;
 
 use crate::repository::{EdgeFact, NodeKey, RelationKind};
 
+use super::build::CompactRepositoryBuild;
 use super::format::{
     CONTRIBUTION_KIND_OFFSET, CONTRIBUTION_RECORD_INDEX_OFFSET, FILE_OWNERSHIP_RECORD_LEN,
     HEADER_LEN, OWNERSHIP_CONTRIBUTION_COUNT_OFFSET, OWNERSHIP_CONTRIBUTION_START_OFFSET,
@@ -11,7 +12,7 @@ use super::record_io::{get_u32, get_u64};
 use super::writer_test_support::{
     cleanup, decode_facts, sample_facts, section, temp_path, verify_checksums,
 };
-use super::{CompactStringTable, StringId, write_repository_store};
+use super::{CompactStringTable, StringId, write_repository_store, write_repository_store_compact};
 
 #[test]
 fn writer_round_trips_canonical_facts_and_checksums() {
@@ -32,6 +33,24 @@ fn writer_round_trips_canonical_facts_and_checksums() {
     );
     verify_checksums(&bytes);
     cleanup(&[&path]);
+}
+
+#[test]
+fn compact_writer_is_byte_identical_to_facts_writer() {
+    let facts = sample_facts();
+    let build = CompactRepositoryBuild::from_facts(&facts).unwrap();
+    let facts_path = temp_path("facts-writer");
+    let compact_path = temp_path("compact-writer");
+
+    let facts_write = write_repository_store(&facts_path, &facts).unwrap();
+    let compact_write = write_repository_store_compact(&compact_path, &build).unwrap();
+
+    assert_eq!(facts_write, compact_write);
+    assert_eq!(
+        fs::read(&facts_path).unwrap(),
+        fs::read(&compact_path).unwrap()
+    );
+    cleanup(&[&facts_path, &compact_path]);
 }
 
 #[test]

@@ -133,6 +133,33 @@ mod tests {
     }
 
     #[test]
+    fn lexicon_canonical_sort_deduplicates_duplicate_records() {
+        let edge = CompactEdgeRecord {
+            source: NodeKey::from_u64(1),
+            target: NodeKey::from_u64(2),
+            relation_code: relation_code(&RelationKind::Calls),
+            span: None,
+        };
+        let mut edges = vec![edge, edge];
+        canonicalize_edges(&mut edges);
+        assert_eq!(edges, vec![edge]);
+
+        let unresolved = CompactUnresolvedRecord {
+            source: NodeKey::from_u64(1),
+            relation_code: relation_code(&RelationKind::Calls),
+            reason_code: 1,
+            expression: StringId(0),
+            candidate_namespace: StringId::ABSENT,
+            candidate_name: StringId::ABSENT,
+            unknown_reason: StringId::ABSENT,
+            span: None,
+        };
+        let mut records = vec![unresolved, unresolved];
+        canonicalize_unresolved(&mut records);
+        assert_eq!(records, vec![unresolved]);
+    }
+
+    #[test]
     fn unresolved_absent_strings_sort_before_present_ids() {
         let base = CompactUnresolvedRecord {
             source: NodeKey::from_u64(1),

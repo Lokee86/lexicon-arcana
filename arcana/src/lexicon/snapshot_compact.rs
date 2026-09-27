@@ -9,7 +9,9 @@ use super::snapshot_support::{hex_id, storage_root, validate_id, verify_content}
 use super::stream_compact::CompactPass;
 use super::{LexiconSnapshotError, LexiconSnapshotMetadata};
 use crate::repository::normalize_repository_path;
-use crate::repository_store::CompactRepositoryBuild;
+use crate::repository_store::{
+    CompactRepositoryBuild, RepositoryStoreWrite, write_repository_store_compact,
+};
 
 pub(crate) struct CompactLexiconSnapshot {
     pub(crate) metadata: LexiconSnapshotMetadata,
@@ -38,6 +40,16 @@ pub(crate) fn load_compact(
         compatibility_warnings,
         direct_v2: true,
     })
+}
+
+pub(crate) fn load_and_write_compact(
+    root: impl AsRef<Path>,
+    id: &str,
+    path: impl AsRef<Path>,
+) -> Result<(CompactLexiconSnapshot, RepositoryStoreWrite), LexiconSnapshotError> {
+    let snapshot = load_compact(root, id)?;
+    let write = write_repository_store_compact(path, &snapshot.repository)?;
+    Ok((snapshot, write))
 }
 
 fn visit_nodes_pass(
