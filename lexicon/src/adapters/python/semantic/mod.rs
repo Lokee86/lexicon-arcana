@@ -5,30 +5,28 @@ mod outcomes;
 use rustpython_parser::ast;
 
 use super::facts::Facts;
-use super::model::{CallInfo, Repository, SourceFile};
+use super::model::{CallInfo, SourceFile};
 use super::source::{byte_location, generated, span};
 
 const CAPABILITIES: &str = "control-flow,error-handling,calls,source-spans,outcome-obligations";
 
-pub fn emit_semantic_facts(repository: &Repository, facts: &mut Facts) {
-    for file in &repository.files {
-        if file.suite.is_none() || generated(&file.source) {
-            continue;
-        }
-        let identity = format!("@semantic/capabilities/python/{}", file.relative);
-        facts.add_node(
-            "protocol",
-            &format!("semantic-capabilities:python:{CAPABILITIES}"),
-            &file.relative,
-            &identity,
-            Some(&identity),
-            None,
-            None,
-            None,
-        );
-        handlers::emit_handlers(file, facts);
+pub fn emit_file_facts(file: &SourceFile, facts: &mut Facts) {
+    if file.suite.is_none() || generated(&file.source) {
+        return;
     }
-    error_flow::emit(repository, facts);
+    let identity = format!("@semantic/capabilities/python/{}", file.relative);
+    facts.add_node(
+        "protocol",
+        &format!("semantic-capabilities:python:{CAPABILITIES}"),
+        &file.relative,
+        &identity,
+        Some(&identity),
+        None,
+        None,
+        None,
+    );
+    handlers::emit_handlers(file, facts);
+    error_flow::emit_file(file, facts);
 }
 
 pub fn emit_outcome_facts(calls: &[CallInfo], facts: &mut Facts) {

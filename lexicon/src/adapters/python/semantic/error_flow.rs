@@ -1,17 +1,15 @@
 use rustpython_parser::ast;
 
 use super::super::facts::Facts;
-use super::super::model::{Repository, SourceFile};
+use super::super::model::SourceFile;
 use super::super::source::{byte_location, generated, span};
 
-pub fn emit(repository: &Repository, facts: &mut Facts) {
-    for file in &repository.files {
-        let Some(suite) = &file.suite else { continue };
-        if generated(&file.source) {
-            continue;
-        }
-        walk_suite(file, suite, None, facts);
+pub fn emit_file(file: &SourceFile, facts: &mut Facts) {
+    let Some(suite) = &file.suite else { return };
+    if generated(&file.source) {
+        return;
     }
+    walk_suite(file, suite, None, facts);
 }
 
 fn walk_suite(

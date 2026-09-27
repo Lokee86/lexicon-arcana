@@ -1,0 +1,47 @@
+{
+  "schema": "lexicon-python-phase1.v1",
+  "phase": "bounded-python-extraction",
+  "date": "2026-09-26",
+  "semantic_fixture": {
+    "facts": 26,
+    "jsonl_bytes": 6435,
+    "jsonl_lines": 27,
+    "sha256": "339ccbabf1135f4c53c0d4fbd37186553f1997afc6cf4bedc2b9116ddddb5583",
+    "matches_phase0": true
+  },
+  "partitioned_parity": {
+    "serial": "1/1/2",
+    "partitioned": "3/3/2",
+    "complete_records_equal": true
+  },
+  "validation": {
+    "repository": "C:\\!bin\\workspace\\space-rocks\\tools",
+    "repository_revision": "431625042dbdb1a884954cab6ec726413aa36e2b",
+    "python_files": 116,
+    "source_bytes": 617758,
+    "discovery_ms": 5.472,
+    "discovery_retained_source_bytes": 0,
+    "discovery_retained_files": 0,
+    "discovery_retained_ast_files": 0,
+    "execution_plan": {
+      "workers": 1,
+      "logical_shards": 2,
+      "merge_fan_in": 2
+    },
+    "extraction_ms": 2601.65,
+    "peak_retained_source_bytes": 45424,
+    "peak_retained_files": 1,
+    "peak_retained_ast_files": 1,
+    "facts_before_resolution": 23771,
+    "extraction_state_cardinality": 24060,
+    "repository_resolution_ms": 647.674,
+    "final_fact_count": 30605,
+    "scan_wall_ms": 7042.9066,
+    "jsonl_bytes": 10379009,
+    "jsonl_lines": 30606,
+    "sha256": "04e915ba630332a3eef983a8bdac019aa5160dc8164a2b800d73da7c99423ce8",
+    "cas_object_count": 119,
+    "cas_bytes": 1202496
+  },
+  "next_phase": "compact Python global resolution state"
+}

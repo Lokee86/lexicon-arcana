@@ -2,6 +2,8 @@ mod dataflow;
 mod declarations;
 mod expressions;
 mod imports;
+mod lifetime;
+mod parallel;
 mod statements;
 
 use std::path::Path;
@@ -14,12 +16,17 @@ use super::facts::Facts;
 use super::model::{Repository, SourceFile};
 use super::source::{generated, span};
 
-pub fn extract_repository(repository: &Repository, facts: &mut Facts) -> Result<(), AdapterError> {
+pub use lifetime::ExtractionMetrics;
+
+pub fn extract_repository(
+    repository: &Repository,
+    facts: &mut Facts,
+    workers: usize,
+    shards: usize,
+    merge_fan_in: usize,
+) -> Result<ExtractionMetrics, AdapterError> {
     add_structure(repository, facts);
-    for file in &repository.files {
-        extract_file(file, facts)?;
-    }
-    Ok(())
+    parallel::extract_repository(repository, facts, workers, shards, merge_fan_in)
 }
 
 fn add_structure(repository: &Repository, facts: &mut Facts) {
@@ -65,7 +72,7 @@ fn add_structure(repository: &Repository, facts: &mut Facts) {
     }
 }
 
-fn extract_file(file: &SourceFile, facts: &mut Facts) -> Result<(), AdapterError> {
+pub(super) fn extract_file(file: &SourceFile, facts: &mut Facts) -> Result<(), AdapterError> {
     let file_id = facts.add_node(
         "file",
         file.path

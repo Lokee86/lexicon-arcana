@@ -13,7 +13,7 @@ use crate::{
 };
 
 use discovery::discover;
-use extract::extract_repository;
+use extract::{ExtractionMetrics, extract_repository};
 use facts::Facts;
 use resolve::resolve;
 
@@ -45,6 +45,8 @@ impl LanguageAdapter for PythonAdapter {
                     include_bytes!("extract/expressions.rs"),
                 ),
                 ("extract/imports.rs", include_bytes!("extract/imports.rs")),
+                ("extract/lifetime.rs", include_bytes!("extract/lifetime.rs")),
+                ("extract/parallel.rs", include_bytes!("extract/parallel.rs")),
                 (
                     "extract/statements.rs",
                     include_bytes!("extract/statements.rs"),
@@ -121,40 +123,37 @@ impl LanguageAdapter for PythonAdapter {
         let discovery_started = crate::perf::start();
         let repository = discover(&request.repository)?;
         if let Some(discovery_started) = discovery_started {
-            let source_bytes = repository
-                .files
-                .iter()
-                .map(|file| file.bytes.len() as u64)
-                .sum::<u64>();
-            let retained_source_bytes = repository
-                .files
-                .iter()
-                .map(|file| (file.bytes.len() + file.source.len()) as u64)
-                .sum::<u64>();
-            let retained_ast_files = repository
-                .files
-                .iter()
-                .filter(|file| file.suite.is_some())
-                .count() as u64;
+            let source_bytes = repository.files.iter().map(|file| file.size).sum::<u64>();
             crate::perf::emit(
                 "python.adapter_discovery",
                 discovery_started.elapsed(),
                 &[
                     ("discovered_files", repository.files.len() as u64),
                     ("source_bytes", source_bytes),
-                    ("retained_source_bytes", retained_source_bytes),
-                    ("retained_files", repository.files.len() as u64),
-                    ("retained_ast_files", retained_ast_files),
+                    ("retained_source_bytes", 0),
+                    ("retained_files", 0),
+                    ("retained_ast_files", 0),
+                    ("file_descriptors", repository.files.len() as u64),
                 ],
             );
         }
 
         let mut facts = Facts::new(repository.name.clone());
         let extraction_started = crate::perf::start();
-        extract_repository(&repository, &mut facts)?;
-        semantic::emit_semantic_facts(&repository, &mut facts);
+        let extraction_metrics = extract_repository(
+            &repository,
+            &mut facts,
+            request.workers,
+            request.shards,
+            request.merge_fan_in,
+        )?;
         if let Some(extraction_started) = extraction_started {
-            emit_python_state("python.extraction", extraction_started.elapsed(), &facts);
+            emit_python_state(
+                "python.extraction",
+                extraction_started.elapsed(),
+                &facts,
+                &extraction_metrics,
+            );
         }
 
         let facts_before_resolution = emitted_fact_count(&facts);
@@ -242,8 +241,23 @@ fn python_state_counters(facts: &Facts) -> Vec<(&'static str, u64)> {
     ]
 }
 
-fn emit_python_state(stage: &str, elapsed: std::time::Duration, facts: &Facts) {
-    let counters = python_state_counters(facts);
+fn emit_python_state(
+    stage: &str,
+    elapsed: std::time::Duration,
+    facts: &Facts,
+    metrics: &ExtractionMetrics,
+) {
+    let mut counters = python_state_counters(facts);
+    counters.extend([
+        (
+            "peak_retained_source_bytes",
+            metrics.peak_retained_source_bytes,
+        ),
+        ("peak_retained_files", metrics.peak_retained_files),
+        ("peak_retained_ast_files", metrics.peak_retained_ast_files),
+        ("extraction_workers", metrics.workers),
+        ("extraction_shards", metrics.logical_shards),
+    ]);
     crate::perf::emit(stage, elapsed, &counters);
 }
 
@@ -256,3 +270,6 @@ fn normalized(paths: &[String]) -> Vec<String> {
     values.dedup();
     values
 }
+
+#[cfg(test)]
+mod tests;

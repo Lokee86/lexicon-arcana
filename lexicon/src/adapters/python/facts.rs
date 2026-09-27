@@ -133,6 +133,53 @@ impl Facts {
             .or_insert(value);
     }
 
+    pub fn merge_from(&mut self, source: Facts) {
+        for (key, value) in source.nodes {
+            self.nodes.insert(key, value);
+        }
+        for (key, value) in source.edges {
+            self.edges.insert(key, value);
+        }
+        for (key, value) in source.unresolved {
+            self.unresolved.insert(key, value);
+        }
+        for (key, value) in source.modules {
+            self.modules.insert(key, value);
+        }
+        for (key, value) in source.symbols {
+            self.symbols.insert(key, value);
+        }
+        for (key, value) in source.qnames {
+            self.qnames.insert(key, value);
+        }
+        self.imports.extend(source.imports);
+        self.inheritances.extend(source.inheritances);
+        for (key, value) in source.functions {
+            self.functions.insert(key, value);
+        }
+        for (key, value) in source.classes {
+            self.classes.insert(key, value);
+        }
+        for (key, value) in source.lambda_ids {
+            self.lambda_ids.insert(key, value);
+        }
+        self.calls.extend(source.calls);
+        self.local_assignments.extend(source.local_assignments);
+        self.loop_bindings.extend(source.loop_bindings);
+        for (key, value) in source.module_bindings {
+            self.module_bindings.insert(key, value);
+        }
+        for (key, value) in source.scope_bindings {
+            self.scope_bindings.insert(key, value);
+        }
+        for (key, value) in source.scope_parents {
+            self.scope_parents.insert(key, value);
+        }
+        for (key, value) in source.data_symbols {
+            self.data_symbols.insert(key, value);
+        }
+    }
+
     pub fn into_records(self) -> Vec<FactRecord> {
         self.nodes
             .into_values()

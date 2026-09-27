@@ -5,7 +5,7 @@ use rustpython_parser::{Parse, ast};
 
 use crate::AdapterError;
 
-use super::model::{Repository, SourceFile};
+use super::model::{Repository, SourceFile, SourceInput};
 
 const EXCLUDED: &[&str] = &[
     ".git",
@@ -61,13 +61,60 @@ pub fn discover(root: &Path) -> Result<Repository, AdapterError> {
 
     let files = paths
         .into_iter()
-        .map(|path| load(&root, &name, path))
+        .map(|path| input(&root, &name, path))
         .collect::<Result<Vec<_>, _>>()?;
     Ok(Repository {
         root,
         name,
         directories,
         files,
+    })
+}
+
+pub(super) fn load(input: &SourceInput) -> Result<SourceFile, AdapterError> {
+    let bytes = fs::read(&input.path).map_err(AdapterError::from)?;
+    match String::from_utf8(bytes.clone()) {
+        Ok(source) => match ast::Suite::parse(&source, &input.relative) {
+            Ok(suite) => Ok(SourceFile {
+                path: input.path.clone(),
+                relative: input.relative.clone(),
+                module: input.module.clone(),
+                bytes,
+                source,
+                suite: Some(suite),
+                parse_error: None,
+            }),
+            Err(error) => Ok(SourceFile {
+                path: input.path.clone(),
+                relative: input.relative.clone(),
+                module: input.module.clone(),
+                bytes,
+                source,
+                suite: None,
+                parse_error: Some(format!("{error}")),
+            }),
+        },
+        Err(_) => Ok(SourceFile {
+            path: input.path.clone(),
+            relative: input.relative.clone(),
+            module: input.module.clone(),
+            bytes,
+            source: String::new(),
+            suite: None,
+            parse_error: Some("UnicodeDecodeError".into()),
+        }),
+    }
+}
+
+fn input(root: &Path, repository: &str, path: PathBuf) -> Result<SourceInput, AdapterError> {
+    let relative = relative(root, &path);
+    let module = module_name(repository, &relative);
+    let size = fs::metadata(&path).map_err(AdapterError::from)?.len();
+    Ok(SourceInput {
+        path,
+        relative,
+        module,
+        size,
     })
 }
 
@@ -106,48 +153,11 @@ fn walk(
     Ok(())
 }
 
-fn load(root: &Path, repository: &str, path: PathBuf) -> Result<SourceFile, AdapterError> {
-    let bytes = fs::read(&path).map_err(AdapterError::from)?;
-    let relative = relative(root, &path);
-    let module = module_name(repository, &relative);
-    match String::from_utf8(bytes.clone()) {
-        Ok(source) => match ast::Suite::parse(&source, &relative) {
-            Ok(suite) => Ok(SourceFile {
-                path,
-                relative,
-                module,
-                bytes,
-                source,
-                suite: Some(suite),
-                parse_error: None,
-            }),
-            Err(error) => Ok(SourceFile {
-                path,
-                relative,
-                module,
-                bytes,
-                source,
-                suite: None,
-                parse_error: Some(format!("{error}")),
-            }),
-        },
-        Err(_) => Ok(SourceFile {
-            path,
-            relative,
-            module,
-            bytes,
-            source: String::new(),
-            suite: None,
-            parse_error: Some("UnicodeDecodeError".into()),
-        }),
-    }
-}
-
 fn relative(root: &Path, path: &Path) -> String {
     path.strip_prefix(root)
         .unwrap_or(path)
         .to_string_lossy()
-        .replace('\\', "/")
+        .replace(std::path::MAIN_SEPARATOR, "/")
 }
 
 fn module_name(repository: &str, relative: &str) -> String {

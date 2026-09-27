@@ -3,7 +3,7 @@
 Parent index: [Development Documentation](INDEX.md)
 
 **Started:** 2026-09-26  
-**Current phase:** Phase 0 complete — Lexicon-wide instrumentation and Hermes baseline  
+**Current phase:** Phase 1 complete — bounded Python discovery/extraction restored
 **Predecessor:** [Lexicon Go-path performance restoration](lexicon-performance-restoration.md)
 
 ## Purpose
@@ -109,7 +109,57 @@ Phase 0 is complete because:
 - the mature pre-port Hermes measurements and canonical output hash remain the oracle;
 - no Phase 1 lifetime optimization or semantic change is included.
 
-The next implementation phase is **Phase 1 — restore Python bounded extraction**. The first target is the repository-wide `Repository.files: Vec<SourceFile>` lifetime: file-local read/parse/extract must produce compact fragments and release full source/AST state before deterministic bounded merge.
+## Phase 1 — bounded Python extraction
+
+Completed 2026-09-26.
+
+Phase 1 restores the mature file-lifetime boundary without changing the resolver or semantic fact contract.
+
+Python discovery now inventories compact file descriptors only: path, repository-relative path, module identity, and source size. It no longer reads, decodes, or parses every Python file up front. Bounded extraction then partitions the sorted inventory into contiguous size-weighted logical shards and executes at most the scan plan's active-worker count with scoped Rust threads.
+
+Each file now follows one lifetime:
+
+`read → decode → parse → file-local extraction → file-local semantic facts → retain resolver fragments → drop source bytes/string/full AST root`.
+
+Shard results are merged strictly by shard order with the configured merge fan-in. This preserves the previous serial insertion/collision semantics while allowing independent file work to run concurrently. Repository-wide call/binding/function/class resolver state is deliberately unchanged; compacting that state is Phase 2.
+
+Phase 1 instrumentation adds peak simultaneous source bytes, loaded files, and full AST roots. Discovery itself reports zero retained source/AST state.
+
+### Semantic gates
+
+The frozen Phase 0 Rust fixture remains exactly identical after the lifetime change:
+
+- **26 facts / 6,435 JSONL bytes**;
+- SHA-256 `339ccbabf1135f4c53c0d4fbd37186553f1997afc6cf4bedc2b9116ddddb5583`.
+
+A Rust-native adapter test also analyzes the same multi-file Python repository with serial `1/1/2` execution and partitioned `3/3/2` execution and requires the complete headers and fact-record vectors to be identical.
+
+The full Rust library suite passes **61/61** after the change.
+
+### Validation-corpus measurement
+
+Space Rocks `tools/` at repository revision `431625042dbdb1a884954cab6ec726413aa36e2b` provides a larger bounded check:
+
+| Measurement | Phase 1 result |
+| --- | ---: |
+| Python files / source bytes | **116 / 617,758 B** |
+| Discovery | **5.472 ms** |
+| Discovery-retained source / files / ASTs | **0 B / 0 / 0** |
+| Extraction | **2.602 s** |
+| Peak extraction source retention | **45,424 B** |
+| Peak loaded files / AST roots | **1 / 1** |
+| Facts before resolution | **23,771** |
+| Repository resolution | **647.674 ms** |
+| Final facts | **30,605** |
+| Whole debug scan after build | **7.043 s** |
+| Canonical JSONL | **10,379,009 B / 30,606 lines** |
+| SHA-256 | `04e915ba630332a3eef983a8bdac019aa5160dc8164a2b800d73da7c99423ce8` |
+
+The normal scan planner selected one active extraction worker and two logical shards for this corpus, so the observed peak is one full file/AST. The partitioned equality test separately exercises three active workers. By construction each worker owns at most one full loaded file at a time.
+
+Phase 1 therefore removes the repository-wide source/full-AST lifetime identified in Phase 0. It does not claim that Hermes is now fast: the Phase 0 run already localized the remaining catastrophe to multi-million-entry repository-wide resolver state, which is the explicit Phase 2 target.
+
+The next implementation phase is **Phase 2 — compact Python global resolution state**.
 
 ## Execution sequence
 

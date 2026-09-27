@@ -9,7 +9,15 @@ pub struct Repository {
     pub root: PathBuf,
     pub name: String,
     pub directories: Vec<String>,
-    pub files: Vec<SourceFile>,
+    pub files: Vec<SourceInput>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SourceInput {
+    pub path: PathBuf,
+    pub relative: String,
+    pub module: String,
+    pub size: u64,
 }
 
 #[derive(Debug)]
