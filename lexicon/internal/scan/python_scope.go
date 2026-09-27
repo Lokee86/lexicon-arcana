@@ -13,9 +13,9 @@ var (
 	pythonImport     = regexp.MustCompile(`^\s*import\s+(.+)$`)
 )
 
-func pythonAdditionContext(sourceRoot string, addedFiles []string) ([]string, error) {
-	selected := make(map[string]struct{}, len(addedFiles))
-	for _, path := range addedFiles {
+func pythonChangedContext(sourceRoot string, changedFiles []string) ([]string, error) {
+	selected := make(map[string]struct{}, len(changedFiles))
+	for _, path := range changedFiles {
 		path = filepath.ToSlash(path)
 		if path == "" {
 			continue

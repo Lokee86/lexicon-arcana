@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestPythonAdditionContextIncludesLocalImportsAndPackageInitializers(t *testing.T) {
+func TestPythonChangedContextIncludesLocalImportsAndPackageInitializers(t *testing.T) {
 	root := t.TempDir()
 	files := map[string]string{
 		"plugin_runtime/__init__.py":      "",
@@ -25,7 +25,7 @@ func TestPythonAdditionContextIncludesLocalImportsAndPackageInitializers(t *test
 			t.Fatal(err)
 		}
 	}
-	got, err := pythonAdditionContext(root, []string{"plugin_runtime/capabilities.py"})
+	got, err := pythonChangedContext(root, []string{"plugin_runtime/capabilities.py"})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -10,9 +10,18 @@ func (s Store) DirectChangesRequireFull(language string, roots []string) (bool, 
 	return fullRequired, err
 }
 
-func repositorySensitiveUnresolved(reason string) bool {
+func additionSensitiveUnresolved(reason string) bool {
 	switch reason {
 	case "missing-target", "ambiguous-target", "generated-target":
+		return true
+	default:
+		return false
+	}
+}
+
+func topologySensitiveUnresolved(reason string) bool {
+	switch reason {
+	case "ambiguous-target", "generated-target":
 		return true
 	default:
 		return false
@@ -94,7 +103,7 @@ func (s Store) RequiresFullAnalysis(language string, changedFiles []string, anal
 			if err := json.Unmarshal(record.raw, &unresolved); err != nil {
 				return true, err
 			}
-			if repositorySensitiveUnresolved(unresolved.Reason) {
+			if topologySensitiveUnresolved(unresolved.Reason) {
 				return true, nil
 			}
 		}

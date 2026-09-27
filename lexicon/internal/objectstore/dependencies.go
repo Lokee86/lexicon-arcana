@@ -120,7 +120,7 @@ func (s Store) dependencyData(language string) (LanguageEntry, map[string]FactOb
 			if record.Record == "node" && record.ID != "" {
 				nodeOwners[record.ID] = file.Path
 			}
-			if record.Record == "unresolved" && repositorySensitiveUnresolved(record.Reason) {
+			if record.Record == "unresolved" && additionSensitiveUnresolved(record.Reason) {
 				if candidate := strings.TrimSpace(record.CandidateName); candidate != "" {
 					unresolvedCandidates[candidate] = struct{}{}
 				}
