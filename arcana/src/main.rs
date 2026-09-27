@@ -1,6 +1,7 @@
 mod cli;
 mod cli_commands;
 mod cli_compile;
+mod cli_compile_compact;
 mod cli_protocol;
 mod cli_query;
 mod cli_sync;
@@ -10,6 +11,12 @@ mod cli_update;
 mod cli_vectors;
 mod repository_state;
 
+#[cfg(test)]
+mod cli_sync_boundary_tests;
+#[cfg(test)]
+mod cli_sync_compact_test_support;
+#[cfg(test)]
+mod cli_sync_compact_tests;
 #[cfg(test)]
 mod cli_sync_metadata_tests;
 #[cfg(test)]

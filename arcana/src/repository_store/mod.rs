@@ -38,8 +38,8 @@ mod writer_error;
 mod writer_sections;
 mod writer_sink;
 
-#[allow(unused_imports)]
-pub(crate) use build::CompactRepositoryBuild;
+#[doc(hidden)]
+pub use build::CompactRepositoryBuild;
 #[allow(unused_imports)]
 pub(crate) use build_stream::{CompactRepositoryAssembler, TempSpan, TempStringId};
 pub use edge_record::CompactEdgeRecord;
@@ -57,7 +57,8 @@ pub use string_view::StringTableView;
 pub(crate) use strings::StringIdLookup;
 pub use strings::{CompactStringTable, StringId, StringTableBuilder};
 pub use unresolved_record::CompactUnresolvedRecord;
-pub(crate) use writer::write_repository_store_compact;
+#[doc(hidden)]
+pub use writer::write_repository_store_compact;
 pub use writer::{RepositoryStoreWrite, write_repository_store};
 pub use writer_error::RepositoryStoreWriteError;
 

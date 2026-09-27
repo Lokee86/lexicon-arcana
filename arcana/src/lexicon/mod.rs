@@ -21,13 +21,15 @@ mod records;
 #[cfg(test)]
 mod records_tests;
 mod snapshot;
-#[allow(dead_code)]
 mod snapshot_compact;
+mod snapshot_compact_visit;
 mod snapshot_support;
 #[allow(dead_code)]
 mod stream_compact;
 #[allow(dead_code)]
 mod stream_compact_convert;
+#[allow(dead_code)]
+mod stream_compact_legacy;
 #[allow(dead_code)]
 mod stream_compact_node;
 mod stream_records;
@@ -37,12 +39,16 @@ mod binary_tests;
 #[cfg(test)]
 mod snapshot_compact_bench;
 #[cfg(test)]
+mod snapshot_compact_boundary_tests;
+#[cfg(test)]
 mod snapshot_compact_tests;
 #[cfg(test)]
 mod tests;
 
 pub use metadata::{LexiconPathChanges, LexiconSnapshotMetadata};
 pub use snapshot::{current, current_metadata, load, load_metadata};
+#[doc(hidden)]
+pub use snapshot_compact::{CompactLexiconSnapshot, load_compact};
 
 const SNAPSHOT_VERSION: u64 = 1;
 const OBJECT_VERSION: u64 = 1;

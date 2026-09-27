@@ -14,7 +14,7 @@ use arcana::synthetic::GraphDataset;
 
 use crate::cli_commands::CliCommandError;
 
-const REPOSITORY_STORE_FILE: &str = "repository.arcana";
+pub(crate) const REPOSITORY_STORE_FILE: &str = "repository.arcana";
 
 pub(crate) fn write_compiled_owned(
     output: &Path,
@@ -74,7 +74,7 @@ pub(crate) fn write_repository_metadata_graph_owned(
     )
 }
 
-fn write_graph(output: &Path, dataset: &GraphDataset) -> Result<(), CliCommandError> {
+pub(crate) fn write_graph(output: &Path, dataset: &GraphDataset) -> Result<(), CliCommandError> {
     let graph_path = output.join("graph.arcana");
     arcana::storage::write_packed(&graph_path, dataset)?;
     publish_snapshot(
@@ -86,7 +86,7 @@ fn write_graph(output: &Path, dataset: &GraphDataset) -> Result<(), CliCommandEr
     Ok(())
 }
 
-fn publish_graph_with_identity(
+pub(crate) fn publish_graph_with_identity(
     output: &Path,
     graph: &CompiledRepositoryGraph,
     repository_id: u64,
@@ -130,7 +130,7 @@ fn publish_request<'a>(
     })
 }
 
-fn import_summary(
+pub(crate) fn import_summary(
     output: &Path,
     node_count: u32,
     edge_count: usize,

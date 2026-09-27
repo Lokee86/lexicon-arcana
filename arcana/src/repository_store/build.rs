@@ -1,4 +1,6 @@
-use crate::repository::{NodeKey, RepositoryFacts};
+use std::collections::BTreeSet;
+
+use crate::repository::{NodeKey, NodeKind, RepositoryFacts};
 use crate::synthetic::NodeId;
 
 use super::build_indexes::{sorted_dense_ids, sorted_kind_index};
@@ -24,16 +26,17 @@ pub(crate) struct CompactKindIndexRecord {
 
 /// Canonical compact staging state for repository builds.
 #[derive(Debug, Eq, PartialEq)]
-pub(crate) struct CompactRepositoryBuild {
-    pub strings: CompactStringTable,
-    pub nodes: Vec<CompactNodeRecord>,
-    pub edges: Vec<CompactEdgeRecord>,
-    pub unresolved: Vec<CompactUnresolvedRecord>,
-    pub ownership: Vec<CompactOwnershipRecord>,
-    pub contributions: Vec<Contribution>,
-    pub name_index: Vec<NodeId>,
-    pub path_index: Vec<NodeId>,
-    pub kind_index: Vec<CompactKindIndexRecord>,
+#[doc(hidden)]
+pub struct CompactRepositoryBuild {
+    pub(crate) strings: CompactStringTable,
+    pub(crate) nodes: Vec<CompactNodeRecord>,
+    pub(crate) edges: Vec<CompactEdgeRecord>,
+    pub(crate) unresolved: Vec<CompactUnresolvedRecord>,
+    pub(crate) ownership: Vec<CompactOwnershipRecord>,
+    pub(crate) contributions: Vec<Contribution>,
+    pub(crate) name_index: Vec<NodeId>,
+    pub(crate) path_index: Vec<NodeId>,
+    pub(crate) kind_index: Vec<CompactKindIndexRecord>,
 }
 
 impl CompactRepositoryBuild {
@@ -99,6 +102,60 @@ impl CompactRepositoryBuild {
             .ok()
             .and_then(|index| u32::try_from(index).ok())
             .map(NodeId)
+    }
+
+    pub fn node_count(&self) -> usize {
+        self.nodes.len()
+    }
+
+    pub fn edge_count(&self) -> usize {
+        self.edges.len()
+    }
+
+    pub fn unresolved_count(&self) -> usize {
+        self.unresolved.len()
+    }
+
+    pub fn string_count(&self) -> usize {
+        self.strings.len()
+    }
+
+    pub fn repository_identity(&self, store_checksum: u64) -> u64 {
+        let repository_kind = super::format::node_kind_code(&NodeKind::Repository);
+        let mut repositories = self
+            .nodes
+            .iter()
+            .filter(|node| node.kind_code == repository_kind);
+        match (repositories.next(), repositories.next()) {
+            (Some(repository), None) => repository.key.as_u64(),
+            _ => store_checksum,
+        }
+    }
+
+    pub fn owned_node_keys(&self, paths: &[String]) -> Vec<NodeKey> {
+        let mut keys = BTreeSet::new();
+        for path in paths {
+            let Ok(path_id) = self.strings.id(path) else {
+                continue;
+            };
+            let Ok(owner_index) = self
+                .ownership
+                .binary_search_by_key(&path_id, |record| record.path)
+            else {
+                continue;
+            };
+            let owner = self.ownership[owner_index];
+            let start = owner.contribution_start as usize;
+            let end = start + owner.contribution_count as usize;
+            for contribution in &self.contributions[start..end] {
+                if contribution.kind == super::canonical::ContributionKind::Node
+                    && let Some(node) = self.nodes.get(contribution.record_index as usize)
+                {
+                    keys.insert(node.key);
+                }
+            }
+        }
+        keys.into_iter().collect()
     }
 }
 

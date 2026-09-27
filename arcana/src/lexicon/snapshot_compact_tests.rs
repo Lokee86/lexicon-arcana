@@ -75,7 +75,7 @@ fn v2_snapshot_streams_directly_to_the_phase3_compact_oracle() {
 }
 
 #[test]
-fn legacy_snapshot_uses_the_compatibility_loader() {
+fn legacy_snapshot_ingests_object_locally_into_compact_build() {
     let temp = TestDirectory::new();
     let root = temp.path.join(".lexicon");
     fs::create_dir_all(root.join("objects")).unwrap();

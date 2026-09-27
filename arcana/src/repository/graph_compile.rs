@@ -42,8 +42,8 @@ pub fn compile_repository_graph(
     finish(node_keys, edges)
 }
 
-#[allow(dead_code)]
-pub(crate) fn compile_compact_repository_graph(
+#[doc(hidden)]
+pub fn compile_compact_repository_graph(
     build: &CompactRepositoryBuild,
 ) -> Result<CompiledRepositoryGraph, RepositoryCompileError> {
     let node_keys = build.nodes.iter().map(|node| node.key).collect::<Vec<_>>();

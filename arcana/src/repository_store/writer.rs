@@ -27,7 +27,8 @@ pub fn write_repository_store(
     write_repository_store_compact(path, &build)
 }
 
-pub(crate) fn write_repository_store_compact(
+#[doc(hidden)]
+pub fn write_repository_store_compact(
     path: impl AsRef<Path>,
     build: &CompactRepositoryBuild,
 ) -> Result<RepositoryStoreWrite, RepositoryStoreWriteError> {

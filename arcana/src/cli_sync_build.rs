@@ -2,11 +2,11 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-use arcana::lexicon::{LexiconSnapshot, LexiconSnapshotMetadata};
-use arcana::repository::{RepositoryUpdateBase, plan_verified_snapshot_update_from_store};
+use arcana::lexicon::{CompactLexiconSnapshot, LexiconSnapshotMetadata, load_compact};
+use arcana::repository::{RepositoryUpdateBase, plan_verified_compact_snapshot_update_from_store};
 
-use crate::cli_compile::write_compiled_owned;
-use crate::cli_update::write_update;
+use crate::cli_compile_compact::write_compiled_compact_owned;
+use crate::cli_update::write_compact_update;
 
 use super::cli_sync::{SyncError, snapshot_directory};
 
@@ -50,11 +50,22 @@ pub(super) fn build_snapshot(
             return Err(error);
         }
     };
-    fs::write(temp.join("lexicon.snapshot"), format!("{}\n", current.id()))?;
+    fs::write(
+        temp.join("lexicon.snapshot"),
+        format!(
+            "{}
+",
+            current.id()
+        ),
+    )?;
     if !result.compatibility_warnings.is_empty() {
         fs::write(
             temp.join("compatibility.warnings"),
-            result.compatibility_warnings.join("\n") + "\n",
+            result.compatibility_warnings.join(
+                "
+",
+            ) + "
+",
         )?;
     }
     fs::rename(&temp, output)?;
@@ -68,6 +79,8 @@ fn write_snapshot(
     previous_id: Option<&str>,
     current: &LexiconSnapshotMetadata,
 ) -> Result<SnapshotWrite, SyncError> {
+    let current_snapshot = load_compact(lexicon_root, current.id())?;
+
     if let Some(previous_id) = previous_id.filter(|id| *id != current.id()) {
         let previous_directory = snapshot_directory(state, previous_id)?;
         let previous_manifest = previous_directory.join("repository.manifest");
@@ -75,7 +88,7 @@ fn write_snapshot(
             && let Ok(previous_lexicon) = LexiconSnapshotMetadata::load(lexicon_root, previous_id)
         {
             if current.shared_objects_changed(&previous_lexicon) {
-                return rebuild_snapshot(lexicon_root, output, current.id());
+                return rebuild_loaded_snapshot(output, current_snapshot);
             }
 
             let changes = current.changed_paths(&previous_lexicon);
@@ -88,24 +101,23 @@ fn write_snapshot(
             if !changed_paths.is_empty()
                 && let Ok(previous_arcana) = RepositoryUpdateBase::open(&previous_manifest)
             {
-                let current_snapshot = LexiconSnapshot::load(lexicon_root, current.id())?;
                 let packed_base = previous_arcana.materialize_base_dataset()?;
                 if let Ok(mut base_store) = previous_arcana.open_incremental_store()
-                    && let Ok(plan) = plan_verified_snapshot_update_from_store(
+                    && let Ok(plan) = plan_verified_compact_snapshot_update_from_store(
                         &mut base_store,
-                        current_snapshot.facts(),
+                        &current_snapshot.repository,
                         &changed_paths,
                         &packed_base,
                     )
                 {
                     let base_graph_path = previous_arcana.base_graph_path();
-                    let current_id = current_snapshot.id().to_owned();
-                    let compatibility_warnings = current_snapshot.compatibility_warnings().to_vec();
+                    let current_id = current_snapshot.metadata.id().to_owned();
+                    let compatibility_warnings = current_snapshot.compatibility_warnings.clone();
                     drop(base_store);
                     drop(packed_base);
                     drop(previous_arcana);
-                    let update = plan.finish(current_snapshot.into_facts());
-                    write_update(output, &base_graph_path, update, "lexicon", &current_id)?;
+                    let update = plan.finish(current_snapshot.repository);
+                    write_compact_update(output, &base_graph_path, update, "lexicon", &current_id)?;
                     return Ok(SnapshotWrite {
                         mode: "overlay",
                         compatibility_warnings,
@@ -116,25 +128,16 @@ fn write_snapshot(
         }
     }
 
-    rebuild_snapshot(lexicon_root, output, current.id())
-}
-
-fn rebuild_snapshot(
-    lexicon_root: &Path,
-    output: &Path,
-    current_id: &str,
-) -> Result<SnapshotWrite, SyncError> {
-    let current = LexiconSnapshot::load(lexicon_root, current_id)?;
-    rebuild_loaded_snapshot(output, current)
+    rebuild_loaded_snapshot(output, current_snapshot)
 }
 
 fn rebuild_loaded_snapshot(
     output: &Path,
-    current: LexiconSnapshot,
+    current: CompactLexiconSnapshot,
 ) -> Result<SnapshotWrite, SyncError> {
-    let current_id = current.id().to_owned();
-    let compatibility_warnings = current.compatibility_warnings().to_vec();
-    write_compiled_owned(output, current.into_facts(), "lexicon", &current_id)?;
+    let current_id = current.metadata.id().to_owned();
+    let compatibility_warnings = current.compatibility_warnings;
+    write_compiled_compact_owned(output, current.repository, "lexicon", &current_id)?;
     Ok(SnapshotWrite {
         mode: "rebuild",
         compatibility_warnings,
