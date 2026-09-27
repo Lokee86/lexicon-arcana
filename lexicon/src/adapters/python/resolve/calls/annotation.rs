@@ -147,7 +147,8 @@ impl Resolver<'_> {
             .get(&key)
             .cloned()
             .unwrap_or_default();
-        for assignment in direct {
+        for index in direct {
+            let assignment = self.facts.local_assignments[index].clone();
             shape = shape.merge(self.annotation_shape(
                 assignment.annotation.as_ref(),
                 &assignment.module_name,
@@ -172,7 +173,8 @@ impl Resolver<'_> {
             .get(&key)
             .cloned()
             .unwrap_or_default();
-        for assignment in fields {
+        for index in fields {
+            let assignment = self.facts.local_assignments[index].clone();
             let mut candidate = self.annotation_shape(
                 assignment.annotation.as_ref(),
                 &assignment.module_name,

@@ -5,7 +5,7 @@ use serde_json::json;
 
 use super::facts::Facts;
 use super::model::Repository;
-use super::resolve::bindings::{resolve_module_name, resolve_relative_module};
+use super::resolve::bindings::{BindingResolver, resolve_relative_module};
 
 pub fn add_dependency_facts(repository: &Repository, facts: &mut Facts) {
     let Some(repository_id) = facts
@@ -46,13 +46,15 @@ pub fn add_dependency_facts(repository: &Repository, facts: &mut Facts) {
         );
     }
 
-    let imports = facts.imports.clone();
-    for info in imports {
-        let requested = resolve_relative_module(&info);
+    let imports = std::mem::take(&mut facts.imports);
+    let mut resolver = BindingResolver::new(facts);
+    for info in &imports {
+        let requested = resolve_relative_module(info);
         if requested.is_empty() {
             continue;
         }
-        let Some(module_name) = resolve_module_name(facts, &requested, &info.module_name) else {
+        let Some(module_name) = resolver.resolve_module_name(facts, &requested, &info.module_name)
+        else {
             continue;
         };
         let Some(source) = facts.modules.get(&info.module_name).cloned() else {

@@ -3,55 +3,9 @@ use std::collections::BTreeSet;
 use rustpython_parser::ast;
 
 use super::super::super::source::dotted;
-use super::super::relationships::{descendants, mro_qnames};
-use super::super::shapes::TypeShape;
 use super::Resolver;
 
 impl Resolver<'_> {
-    pub(super) fn method_targets(&mut self, class_id: &str, method: &str) -> BTreeSet<String> {
-        let Some(class) = self.facts.qnames.get(class_id) else {
-            return BTreeSet::new();
-        };
-        if matches!(self.kind(class_id), Some("interface" | "trait")) {
-            let mut result = BTreeSet::new();
-            for descendant in descendants(self.facts, class) {
-                if let Some(id) = self.facts.symbols.get(&descendant)
-                    && !matches!(self.kind(id), Some("interface" | "trait"))
-                {
-                    result.extend(self.method_targets(id, method));
-                }
-            }
-            return result;
-        }
-
-        for candidate in mro_qnames(self.facts, class) {
-            if let Some(target) = self.facts.symbols.get(&format!("{candidate}.{method}"))
-                && self.kind(target) == Some("method")
-            {
-                return BTreeSet::from([target.clone()]);
-            }
-        }
-        BTreeSet::new()
-    }
-
-    pub(super) fn super_method_targets(
-        &self,
-        class_qname: Option<&str>,
-        method: &str,
-    ) -> BTreeSet<String> {
-        let Some(class_qname) = class_qname else {
-            return BTreeSet::new();
-        };
-        for candidate in mro_qnames(self.facts, class_qname).into_iter().skip(1) {
-            if let Some(target) = self.facts.symbols.get(&format!("{candidate}.{method}"))
-                && self.kind(target) == Some("method")
-            {
-                return BTreeSet::from([target.clone()]);
-            }
-        }
-        BTreeSet::new()
-    }
-
     pub(super) fn callable_targets(
         &mut self,
         callee: &ast::Expr,
@@ -178,45 +132,5 @@ impl Resolver<'_> {
             }
             _ => (BTreeSet::new(), "dynamic-target".into()),
         }
-    }
-
-    pub(super) fn annotation_reference_shape(&mut self, id: Option<String>) -> TypeShape {
-        let Some(id) = id else {
-            return TypeShape::default();
-        };
-        if !matches!(self.kind(&id), Some("type" | "interface" | "trait")) {
-            return TypeShape::default();
-        }
-        let mut shape = TypeShape::direct(id.clone());
-        if let Some(qname) = self.facts.qnames.get(&id) {
-            for descendant in descendants(self.facts, qname) {
-                if let Some(descendant_id) = self.facts.symbols.get(&descendant) {
-                    shape.direct.insert(descendant_id.clone());
-                }
-            }
-        }
-        shape
-    }
-    pub(super) fn base_qnames(&mut self, class_qname: &str) -> Vec<String> {
-        if let Some(value) = self.base_cache.get(class_qname) {
-            return value.clone();
-        }
-        let value = super::super::relationships::base_qnames(self.facts, class_qname);
-        self.base_cache
-            .insert(class_qname.to_owned(), value.clone());
-        value
-    }
-
-    pub(super) fn instance_type_ids(&mut self, class_id: &str) -> BTreeSet<String> {
-        let Some(qname) = self.facts.qnames.get(class_id).cloned() else {
-            return BTreeSet::from([class_id.to_owned()]);
-        };
-        let mut ids = BTreeSet::from([class_id.to_owned()]);
-        for descendant in descendants(self.facts, &qname) {
-            if let Some(id) = self.facts.symbols.get(&descendant) {
-                ids.insert(id.clone());
-            }
-        }
-        ids
     }
 }

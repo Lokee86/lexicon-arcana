@@ -2,13 +2,13 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::super::facts::Facts;
 use super::super::source::dotted;
-use super::bindings::resolve_reference;
+use super::bindings::BindingResolver;
 
-pub fn resolve_inheritance(facts: &mut Facts) {
-    let inheritances = facts.inheritances.clone();
+pub fn resolve_inheritance(facts: &mut Facts, bindings: &mut BindingResolver) {
+    let inheritances = std::mem::take(&mut facts.inheritances);
     for info in inheritances {
         let reference = dotted(&info.base);
-        let (target, reason) = resolve_reference(
+        let (target, reason) = bindings.resolve_reference(
             facts,
             &info.module_name,
             Some(&info.class_qname),
@@ -25,48 +25,70 @@ pub fn resolve_inheritance(facts: &mut Facts) {
             } else {
                 "extends"
             };
-            facts.add_edge(&info.source_id, &target, relation, info.span.clone(), None);
+            facts.add_edge(&info.source_id, &target, relation, info.span, None);
         } else {
             facts.add_unresolved(
                 &info.source_id,
                 "extends",
                 &info.expression,
                 &reason,
-                info.span.clone(),
+                info.span,
                 reference,
             );
         }
     }
 }
 
-pub fn emit_overrides(facts: &mut Facts) {
-    let functions = facts.functions.values().cloned().collect::<Vec<_>>();
+pub fn emit_overrides(facts: &mut Facts, bindings: &mut BindingResolver) {
+    let functions = facts
+        .functions
+        .values()
+        .filter_map(|function| {
+            let class_qname = function.class_qname.as_ref()?;
+            Some((
+                function.node_id.clone(),
+                class_qname.clone(),
+                function
+                    .qname
+                    .rsplit('.')
+                    .next()
+                    .unwrap_or(&function.qname)
+                    .to_owned(),
+            ))
+        })
+        .collect::<Vec<_>>();
     let mut cache = BTreeMap::new();
 
-    for function in functions {
-        let Some(class_qname) = &function.class_qname else {
-            continue;
-        };
-        let method = function.qname.rsplit('.').next().unwrap_or(&function.qname);
-        let ancestors = ancestors(facts, class_qname, &mut cache, &mut BTreeSet::new());
+    for (node_id, class_qname, method) in functions {
+        let ancestors = ancestors(
+            facts,
+            bindings,
+            &class_qname,
+            &mut cache,
+            &mut BTreeSet::new(),
+        );
         for ancestor in ancestors {
             let qname = format!("{ancestor}.{method}");
             let Some(target) = facts.symbols.get(&qname).cloned() else {
                 continue;
             };
-            if target != function.node_id
+            if target != node_id
                 && facts
                     .nodes
                     .get(&target)
                     .is_some_and(|node| node.kind == "method")
             {
-                facts.add_edge(&function.node_id, &target, "overrides", None, None);
+                facts.add_edge(&node_id, &target, "overrides", None, None);
             }
         }
     }
 }
 
-pub fn base_qnames(facts: &Facts, class_qname: &str) -> Vec<String> {
+pub fn base_qnames(
+    facts: &Facts,
+    bindings: &mut BindingResolver,
+    class_qname: &str,
+) -> Vec<String> {
     let Some(info) = facts.classes.get(class_qname) else {
         return Vec::new();
     };
@@ -74,7 +96,7 @@ pub fn base_qnames(facts: &Facts, class_qname: &str) -> Vec<String> {
         .iter()
         .filter_map(|base| {
             let reference = dotted(base)?;
-            let (target, _) = resolve_reference(
+            let (target, _) = bindings.resolve_reference(
                 facts,
                 &info.module_name,
                 Some(class_qname),
@@ -91,12 +113,17 @@ pub fn base_qnames(facts: &Facts, class_qname: &str) -> Vec<String> {
         .collect()
 }
 
-pub fn mro_qnames(facts: &Facts, class_qname: &str) -> Vec<String> {
-    fn walk(facts: &Facts, class_qname: &str, active: &mut BTreeSet<String>) -> Vec<String> {
+pub fn mro_qnames(facts: &Facts, bindings: &mut BindingResolver, class_qname: &str) -> Vec<String> {
+    fn walk(
+        facts: &Facts,
+        bindings: &mut BindingResolver,
+        class_qname: &str,
+        active: &mut BTreeSet<String>,
+    ) -> Vec<String> {
         if !active.insert(class_qname.to_owned()) {
             return vec![class_qname.to_owned()];
         }
-        let bases = base_qnames(facts, class_qname);
+        let bases = base_qnames(facts, bindings, class_qname);
         if bases.is_empty() {
             active.remove(class_qname);
             return vec![class_qname.to_owned()];
@@ -104,7 +131,7 @@ pub fn mro_qnames(facts: &Facts, class_qname: &str) -> Vec<String> {
 
         let mut sequences = bases
             .iter()
-            .map(|base| walk(facts, base, active))
+            .map(|base| walk(facts, bindings, base, active))
             .collect::<Vec<_>>();
         sequences.push(bases.clone());
         let mut merged = Vec::new();
@@ -136,30 +163,12 @@ pub fn mro_qnames(facts: &Facts, class_qname: &str) -> Vec<String> {
             .collect()
     }
 
-    walk(facts, class_qname, &mut BTreeSet::new())
-}
-
-pub fn descendants(facts: &Facts, class_qname: &str) -> BTreeSet<String> {
-    let mut children: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for candidate in facts.classes.keys() {
-        for base in base_qnames(facts, candidate) {
-            children.entry(base).or_default().push(candidate.clone());
-        }
-    }
-
-    let mut result = BTreeSet::new();
-    let mut pending = children.get(class_qname).cloned().unwrap_or_default();
-    while let Some(candidate) = pending.pop() {
-        if !result.insert(candidate.clone()) {
-            continue;
-        }
-        pending.extend(children.get(&candidate).cloned().unwrap_or_default());
-    }
-    result
+    walk(facts, bindings, class_qname, &mut BTreeSet::new())
 }
 
 fn ancestors(
     facts: &Facts,
+    bindings: &mut BindingResolver,
     class_qname: &str,
     cache: &mut BTreeMap<String, Vec<String>>,
     seen: &mut BTreeSet<String>,
@@ -171,11 +180,11 @@ fn ancestors(
         return Vec::new();
     }
     let mut result = Vec::new();
-    for base in base_qnames(facts, class_qname) {
+    for base in base_qnames(facts, bindings, class_qname) {
         if !result.contains(&base) {
             result.push(base.clone());
         }
-        for ancestor in ancestors(facts, &base, cache, seen) {
+        for ancestor in ancestors(facts, bindings, &base, cache, seen) {
             if !result.contains(&ancestor) {
                 result.push(ancestor);
             }

@@ -1,7 +1,10 @@
 mod annotation;
+mod callback_values;
 mod callbacks;
 mod dispatch;
 mod expression;
+mod hierarchy;
+mod parameter_flow;
 mod scope;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -9,22 +12,22 @@ use std::collections::{BTreeMap, BTreeSet};
 use rustpython_parser::ast;
 
 use super::super::facts::Facts;
-use super::super::model::{CallInfo, ImportInfo, LocalAssignmentInfo, LoopBindingInfo};
+use super::super::model::CallInfo;
 use super::super::source::dotted;
 use super::bindings::BindingResolver;
 use super::shapes::TypeShape;
 
 pub fn resolve_calls(facts: &mut Facts) {
-    let calls = facts.calls.clone();
+    let calls = std::mem::take(&mut facts.calls);
     let resolutions = {
-        let mut resolver = Resolver::new(facts);
+        let mut resolver = Resolver::new(facts, &calls);
         calls
             .iter()
             .map(|call| resolver.resolve_call(call))
             .collect::<Vec<_>>()
     };
 
-    for (call, (targets, reason)) in calls.into_iter().zip(resolutions) {
+    for (call, (targets, reason)) in calls.iter().zip(resolutions) {
         if targets.len() == 1 {
             let target = targets.first().expect("single call target");
             facts.add_edge(&call.owner_id, target, "calls", call.span.clone(), None);
@@ -50,33 +53,34 @@ pub fn resolve_calls(facts: &mut Facts) {
             );
         }
     }
+    facts.calls = calls;
 }
 
 #[derive(Default)]
 struct Indexes {
-    assignments: BTreeMap<(String, String), Vec<LocalAssignmentInfo>>,
-    loops: BTreeMap<(String, String), Vec<LoopBindingInfo>>,
-    imports: BTreeMap<(String, String), Vec<ImportInfo>>,
-    field_assignments: BTreeMap<(String, String), Vec<LocalAssignmentInfo>>,
-    direct_class_fields: BTreeMap<(String, String), Vec<LocalAssignmentInfo>>,
+    assignments: BTreeMap<(String, String), Vec<usize>>,
+    loops: BTreeMap<(String, String), Vec<usize>>,
+    imports: BTreeMap<(String, String), Vec<usize>>,
+    field_assignments: BTreeMap<(String, String), Vec<usize>>,
+    direct_class_fields: BTreeMap<(String, String), Vec<usize>>,
 }
 
 impl Indexes {
     fn build(facts: &Facts) -> Self {
         let mut value = Self::default();
-        for assignment in &facts.local_assignments {
+        for (index, assignment) in facts.local_assignments.iter().enumerate() {
             value
                 .assignments
                 .entry((assignment.scope_id.clone(), assignment.name.clone()))
                 .or_default()
-                .push(assignment.clone());
+                .push(index);
             if let Some(class) = &assignment.class_qname {
                 if assignment.direct_class_field {
                     value
                         .direct_class_fields
                         .entry((class.clone(), assignment.name.clone()))
                         .or_default()
-                        .push(assignment.clone());
+                        .push(index);
                 }
                 if let Some((owner, field)) = assignment.name.split_once('.')
                     && matches!(owner, "self" | "cls")
@@ -85,30 +89,30 @@ impl Indexes {
                         .field_assignments
                         .entry((class.clone(), field.to_owned()))
                         .or_default()
-                        .push(assignment.clone());
+                        .push(index);
                 }
             }
         }
         for values in value.assignments.values_mut() {
-            values.sort_by_key(|item| item.start);
+            values.sort_by_key(|index| facts.local_assignments[*index].start);
         }
-        for binding in &facts.loop_bindings {
+        for (index, binding) in facts.loop_bindings.iter().enumerate() {
             value
                 .loops
                 .entry((binding.scope_id.clone(), binding.name.clone()))
                 .or_default()
-                .push(binding.clone());
+                .push(index);
         }
         for values in value.loops.values_mut() {
-            values.sort_by_key(|item| item.start);
+            values.sort_by_key(|index| facts.loop_bindings[*index].start);
         }
-        for info in &facts.imports {
+        for (index, info) in facts.imports.iter().enumerate() {
             if let Some(binding) = &info.binding {
                 value
                     .imports
                     .entry((info.owner_id.clone(), binding.clone()))
                     .or_default()
-                    .push(info.clone());
+                    .push(index);
             }
         }
         value
@@ -117,6 +121,7 @@ impl Indexes {
 
 struct Resolver<'a> {
     facts: &'a Facts,
+    calls: &'a [CallInfo],
     bindings: BindingResolver,
     indexes: Indexes,
     return_cache: BTreeMap<String, TypeShape>,
@@ -125,15 +130,19 @@ struct Resolver<'a> {
     parameter_active: BTreeSet<(String, String)>,
     field_cache: BTreeMap<(String, String), TypeShape>,
     base_cache: BTreeMap<String, Vec<String>>,
+    mro_cache: BTreeMap<String, Vec<String>>,
+    descendant_cache: BTreeMap<String, BTreeSet<String>>,
+    children_by_base: Option<BTreeMap<String, Vec<String>>>,
     decorator_argument_shapes: BTreeMap<(String, String), TypeShape>,
     effective_targets: BTreeMap<String, BTreeSet<String>>,
-    direct_callers: BTreeMap<String, Vec<CallInfo>>,
+    direct_callers: BTreeMap<String, Vec<usize>>,
 }
 
 impl<'a> Resolver<'a> {
-    fn new(facts: &'a Facts) -> Self {
+    fn new(facts: &'a Facts, calls: &'a [CallInfo]) -> Self {
         let mut value = Self {
             facts,
+            calls,
             bindings: BindingResolver::new(facts),
             indexes: Indexes::build(facts),
             return_cache: BTreeMap::new(),
@@ -142,6 +151,9 @@ impl<'a> Resolver<'a> {
             parameter_active: BTreeSet::new(),
             field_cache: BTreeMap::new(),
             base_cache: BTreeMap::new(),
+            mro_cache: BTreeMap::new(),
+            descendant_cache: BTreeMap::new(),
+            children_by_base: None,
             decorator_argument_shapes: BTreeMap::new(),
             effective_targets: BTreeMap::new(),
             direct_callers: BTreeMap::new(),

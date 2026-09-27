@@ -43,7 +43,11 @@ impl Resolver<'_> {
             .get(&(scope.to_owned(), name.to_owned()))
             .cloned()
             .unwrap_or_default();
-        for assignment in assignments.into_iter().filter(|item| item.end <= before) {
+        for index in assignments {
+            let assignment = self.facts.local_assignments[index].clone();
+            if assignment.end > before {
+                continue;
+            }
             evidence = true;
             let mut candidate = self.annotation_shape(
                 assignment.annotation.as_ref(),
@@ -74,7 +78,11 @@ impl Resolver<'_> {
             .get(&(scope.to_owned(), name.to_owned()))
             .cloned()
             .unwrap_or_default();
-        for binding in loops.into_iter().filter(|item| item.start <= before) {
+        for index in loops {
+            let binding = self.facts.loop_bindings[index].clone();
+            if binding.start > before {
+                continue;
+            }
             evidence = true;
             let iterable = self.expression_shape(
                 &binding.iterable,
@@ -159,7 +167,8 @@ impl Resolver<'_> {
                 .get(&(owner, name.to_owned()))
                 .cloned()
                 .unwrap_or_default();
-            for info in infos {
+            for index in infos {
+                let info = self.facts.imports[index].clone();
                 let Some(target_name) = info.target_name.as_deref() else {
                     continue;
                 };

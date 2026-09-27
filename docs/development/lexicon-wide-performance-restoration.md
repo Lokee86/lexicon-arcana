@@ -3,7 +3,7 @@
 Parent index: [Development Documentation](INDEX.md)
 
 **Started:** 2026-09-26  
-**Current phase:** Phase 1 complete — bounded Python discovery/extraction restored
+**Current phase:** Phase 2 complete — compact Python global resolution restored
 **Predecessor:** [Lexicon Go-path performance restoration](lexicon-performance-restoration.md)
 
 ## Purpose
@@ -159,7 +159,82 @@ The normal scan planner selected one active extraction worker and two logical sh
 
 Phase 1 therefore removes the repository-wide source/full-AST lifetime identified in Phase 0. It does not claim that Hermes is now fast: the Phase 0 run already localized the remaining catastrophe to multi-million-entry repository-wide resolver state, which is the explicit Phase 2 target.
 
-The next implementation phase is **Phase 2 — compact Python global resolution state**.
+## Phase 2 — compact Python global resolution state
+
+Completed 2026-09-26.
+
+Phase 2 restores the mature repository-resolution architecture without changing emitted facts. The Rust port had regressed several global algorithms and ownership boundaries even after Phase 1 fixed file lifetimes.
+
+The restoration includes:
+
+- module-suffix indexing and cached module/reference resolution instead of repeatedly scanning every module;
+- reverse-dependency work-queue convergence for re-export imports instead of whole-import fixed-point rescans;
+- integer-backed callgraph indexes into retained assignment/loop/import vectors instead of cloning AST-bearing records into every secondary index;
+- cached class hierarchy, MRO, and descendant lookup during callgraph analysis;
+- moving the call/import vectors temporarily out of `Facts` for mutating phases instead of cloning the complete vectors;
+- releasing Python analysis-only indexes and AST-bearing resolver state before canonical materialization;
+- focused lifecycle events for import, inheritance, override, and call resolution.
+
+The new import regression test deliberately orders a dependent re-export before the binding it depends on and requires the work queue to revisit only the affected import while preserving the final binding.
+
+### Semantic gates
+
+The frozen Phase 0 fixture remains byte-identical:
+
+- **26 facts / 6,435 JSONL bytes**;
+- SHA-256 `339ccbabf1135f4c53c0d4fbd37186553f1997afc6cf4bedc2b9116ddddb5583`.
+
+Space Rocks `tools/` also remains byte-identical to the Phase 1 result:
+
+- **30,605 facts / 10,379,009 JSONL bytes**;
+- SHA-256 `04e915ba630332a3eef983a8bdac019aa5160dc8164a2b800d73da7c99423ce8`.
+
+On that corpus, repository resolution changed from **647.674 ms** in the Phase 1 sample to **475.159 ms** in the Phase 2 sample. Import resolution itself completed in **23.583 ms** for 829 imports. Whole-scan timing is not compared because the two runs had materially different unrelated extraction/host timing.
+
+The final Rust library suite passes **62/62**, including the focused import re-export regression.
+
+### Hermes Phase 2 profile
+
+The same repo-built release profiler was run against the current Hermes checkout with a **600 s** hard scan cap. The checkout had grown to **7,114 Python files / 88,964,777 B** and produced **3,724,398** final Python facts before materialization.
+
+The Python resolver now completes:
+
+| Stage | Phase 2 |
+| --- | ---: |
+| Python extraction | **36.583 s** |
+| Import resolution — 101,005 imports | **3.414 s** |
+| Inheritance resolution — 15,735 classes | **180.795 ms** |
+| Override resolution — 137,020 functions | **748.375 ms** |
+| Call resolution — 636,923 calls | **73.905 s** |
+| Total repository resolution | **78.427 s** |
+| Final fact emission | **30.437 s** |
+| Canonicalization | **14.274 s** |
+| Validation | **4.123 s** |
+| Peak process-tree RSS observed | **5,069,602,816 B** |
+
+This is the Phase 2 success condition: Phase 0 never returned from repository resolution during its pathological run, while Phase 2 resolves the full current Hermes Python graph in approximately 78 seconds. Call resolution is now the dominant Python resolver cost rather than import convergence.
+
+The cold scan still hit the 600-second cap, but only after Python resolution and canonical validation completed. The remaining measured pathology is the Lexicon-wide ownership/materialization path:
+
+- ownership partitioning: **44.527 s**, cloning all **3,724,398** records;
+- object construction/CAS: **36.915 s**, cloning **3,458,391** owned records again;
+- publication had not completed when the cap fired;
+- source inventory/change detection also remains materially expensive and is deferred to later profile-driven core work.
+
+No final Hermes snapshot/hash is claimed because the cold scan did not publish. The timeout has moved beyond the Phase 2 target and directly exposes the Phase 3/4 work already identified in the roadmap.
+
+### Phase 2 gate
+
+Phase 2 is complete because:
+
+- the multi-minute/non-terminating repository-resolution pathology is removed;
+- import resolution is indexed and bounded by affected re-export dependencies;
+- high-cardinality callgraph indexes no longer duplicate AST-bearing records;
+- analysis-only Python state is released before canonical materialization;
+- frozen fixture and Space Rocks canonical hashes remain exact;
+- the remaining Hermes timeout occurs after Python resolution, at measured ownership/materialization cloning boundaries.
+
+The next implementation phase is **Phase 3 — partitioned analysis core abstraction**.
 
 ## Execution sequence
 

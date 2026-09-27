@@ -56,6 +56,14 @@ impl LanguageAdapter for PythonAdapter {
                 ("resolve.rs", include_bytes!("resolve.rs")),
                 ("resolve/bindings.rs", include_bytes!("resolve/bindings.rs")),
                 (
+                    "resolve/bindings/builtins.rs",
+                    include_bytes!("resolve/bindings/builtins.rs"),
+                ),
+                (
+                    "resolve/bindings/imports.rs",
+                    include_bytes!("resolve/bindings/imports.rs"),
+                ),
+                (
                     "resolve/relationships.rs",
                     include_bytes!("resolve/relationships.rs"),
                 ),
@@ -69,6 +77,10 @@ impl LanguageAdapter for PythonAdapter {
                     include_bytes!("resolve/calls/annotation.rs"),
                 ),
                 (
+                    "resolve/calls/callback_values.rs",
+                    include_bytes!("resolve/calls/callback_values.rs"),
+                ),
+                (
                     "resolve/calls/callbacks.rs",
                     include_bytes!("resolve/calls/callbacks.rs"),
                 ),
@@ -79,6 +91,14 @@ impl LanguageAdapter for PythonAdapter {
                 (
                     "resolve/calls/expression.rs",
                     include_bytes!("resolve/calls/expression.rs"),
+                ),
+                (
+                    "resolve/calls/hierarchy.rs",
+                    include_bytes!("resolve/calls/hierarchy.rs"),
+                ),
+                (
+                    "resolve/calls/parameter_flow.rs",
+                    include_bytes!("resolve/calls/parameter_flow.rs"),
                 ),
                 (
                     "resolve/calls/scope.rs",
@@ -171,8 +191,10 @@ impl LanguageAdapter for PythonAdapter {
         }
 
         let final_emission_started = crate::perf::start();
-        let call_record_clones = facts.calls.len() as u64;
-        semantic::emit_outcome_facts(&facts.calls.clone(), &mut facts);
+        let calls = std::mem::take(&mut facts.calls);
+        let released_calls = calls.len() as u64;
+        semantic::emit_outcome_facts(&calls, &mut facts);
+        drop(calls);
         dependencies::add_dependency_facts(&repository, &mut facts);
         if let Some(final_emission_started) = final_emission_started {
             crate::perf::emit(
@@ -180,10 +202,12 @@ impl LanguageAdapter for PythonAdapter {
                 final_emission_started.elapsed(),
                 &[
                     ("final_fact_count", emitted_fact_count(&facts) as u64),
-                    ("record_clones", call_record_clones),
+                    ("record_clones", 0),
+                    ("released_calls", released_calls),
                 ],
             );
         }
+        facts.release_analysis_state();
 
         let incremental = request.mode == AdapterMode::Incremental;
         let header = FactHeader {

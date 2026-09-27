@@ -180,6 +180,24 @@ impl Facts {
         }
     }
 
+    pub fn release_analysis_state(&mut self) {
+        self.modules.clear();
+        self.symbols.clear();
+        self.qnames.clear();
+        self.imports.clear();
+        self.inheritances.clear();
+        self.functions.clear();
+        self.classes.clear();
+        self.lambda_ids.clear();
+        self.calls.clear();
+        self.local_assignments.clear();
+        self.loop_bindings.clear();
+        self.module_bindings.clear();
+        self.scope_bindings.clear();
+        self.scope_parents.clear();
+        self.data_symbols.clear();
+    }
+
     pub fn into_records(self) -> Vec<FactRecord> {
         self.nodes
             .into_values()
