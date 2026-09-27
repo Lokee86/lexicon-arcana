@@ -14,6 +14,10 @@ This matrix is separate from the [Go-path optimization parity audit](lexicon-opt
 
 Semantic facts, identities, ownership, ordering, incremental behavior, snapshot determinism, and adapter correctness remain hard invariants. An optimization is not considered restored if it changes those contracts.
 
+## Overview
+
+The matrix treats mature pre-port behavior as a performance oracle rather than an implementation template. Each optimization is classified as restored, structurally superseded, retained as a migration oracle, or assigned to an explicit later phase so performance properties cannot disappear silently during migration.
+
 ## Audited pre-port commits
 
 The direct mature performance sequence before the Rust migration is:
@@ -104,3 +108,7 @@ The normal protecting gates are:
 - [Lexicon Go-path optimization parity audit](lexicon-optimization-parity-audit.md)
 - [Roadmap](../planning/roadmap.md)
 - [Testing and benchmarks](testing-and-benchmarks.md)
+
+## Notes
+
+This is a parity inventory, not a benchmark result. Dated runtime measurements belong in the owning performance-restoration or evaluation reports; this document records which architectural optimization properties must remain protected.
