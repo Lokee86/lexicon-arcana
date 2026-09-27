@@ -97,12 +97,15 @@ func (s *Scanner) addIncrementalPath(plans map[string]*analysisPlan, path string
 		if !s.languageEnabled(language) {
 			continue
 		}
-		plan := ensurePlan(plans, language)
-		if added && language != "python" {
-			plan.Full = true
+		if !languageOwnsSource(language, path) {
+			if !added && !s.configChangeRequiresFull(language, path) {
+				continue
+			}
+			ensurePlan(plans, language).Full = true
 			continue
 		}
-		if !languageOwnsSource(language, path) {
+		plan := ensurePlan(plans, language)
+		if added && language != "python" {
 			plan.Full = true
 			continue
 		}

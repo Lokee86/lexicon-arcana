@@ -62,6 +62,56 @@ func TestRequiresFullAnalysisAllowsResolvedRelationshipTopology(t *testing.T) {
 	}
 }
 
+func TestRequiresFullAnalysisPartitionedMatchesIncrementalTopologyRules(t *testing.T) {
+	store := topologyStoreWithFile(t, "a.py")
+	path := filepath.Join(t.TempDir(), "partitioned.jsonl")
+
+	writeTopologyStream(t, path, "node-y")
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	analysis, err := ReadAnalysisReader(file, "python", path)
+	_ = file.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	full, err := store.RequiresFullAnalysis("python", []string{"a.py"}, analysis)
+	if err != nil || full {
+		t.Fatalf("partitioned resolved topology required full analysis: full=%v err=%v", full, err)
+	}
+
+	writeUnresolvedTopologyStream(t, path, "missing-target")
+	file, err = os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	analysis, err = ReadAnalysisReader(file, "python", path)
+	_ = file.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	full, err = store.RequiresFullAnalysis("python", []string{"a.py"}, analysis)
+	if err != nil || full {
+		t.Fatalf("partitioned missing target required full analysis: full=%v err=%v", full, err)
+	}
+
+	writeUnresolvedTopologyStream(t, path, "ambiguous-target")
+	file, err = os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	analysis, err = ReadAnalysisReader(file, "python", path)
+	_ = file.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	full, err = store.RequiresFullAnalysis("python", []string{"a.py"}, analysis)
+	if err != nil || !full {
+		t.Fatalf("partitioned ambiguous target did not require full analysis: full=%v err=%v", full, err)
+	}
+}
+
 func TestRequiresFullAnalysisAllowsNewMissingTarget(t *testing.T) {
 	store := topologyStoreWithFile(t, "a.py")
 	path := filepath.Join(t.TempDir(), "incremental-missing.jsonl")

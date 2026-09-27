@@ -76,7 +76,7 @@ func (s Store) RequiresFullAnalysis(language string, changedFiles []string, anal
 		previous[path] = relationKeys(object.Records)
 	}
 	if analysis.partitions != nil {
-		return partitionedAnalysisRequiresFull(analysis.partitions, selected, previous)
+		return partitionedAnalysisRequiresFull(analysis.partitions, selected, added, previous)
 	}
 	owners := nodeOwners(analysis.records)
 	for _, record := range analysis.records {
@@ -116,7 +116,7 @@ func (s Store) RequiresFullAnalysis(language string, changedFiles []string, anal
 
 func partitionedAnalysisRequiresFull(
 	partitions *analysisPartitions,
-	selected map[string]struct{},
+	selected, added map[string]struct{},
 	previous map[string]map[string]struct{},
 ) (bool, error) {
 	for owner, records := range partitions.groups {
@@ -131,8 +131,8 @@ func partitionedAnalysisRequiresFull(
 			if err != nil {
 				return true, err
 			}
-			if _, existed := previous[owner][key]; !existed {
-				return true, nil
+			if _, existed := previous[owner][key]; existed {
+				continue
 			}
 		}
 		for _, record := range records.unresolved {
@@ -142,8 +142,14 @@ func partitionedAnalysisRequiresFull(
 			if err != nil {
 				return true, err
 			}
-			if _, existed := previous[owner][key]; !existed {
+			if _, existed := previous[owner][key]; existed {
+				continue
+			}
+			if topologySensitiveUnresolved(record.Reason) {
 				return true, nil
+			}
+			if _, isAdded := added[owner]; isAdded {
+				continue
 			}
 		}
 	}
