@@ -7,10 +7,10 @@ pub struct Analysis {
     pub records: Vec<FactRecord>,
 }
 
-#[derive(Debug, Clone, Default)]
-pub(crate) struct RecordGroups {
-    pub(crate) owned: BTreeMap<String, Vec<FactRecord>>,
-    pub(crate) shared: Vec<FactRecord>,
+#[derive(Debug, Default)]
+pub(crate) struct RecordGroups<'a> {
+    pub(crate) owned: BTreeMap<String, Vec<&'a FactRecord>>,
+    pub(crate) shared: Vec<&'a FactRecord>,
 }
 
 impl Analysis {
@@ -56,7 +56,7 @@ impl Analysis {
         self.header.mode.as_deref() == Some("incremental")
     }
 
-    pub(crate) fn groups(&self, allowed: Option<&BTreeSet<String>>) -> RecordGroups {
+    pub(crate) fn groups(&self, allowed: Option<&BTreeSet<String>>) -> RecordGroups<'_> {
         let started = crate::perf::start();
         let node_owners = node_owners(&self.records);
         let mut groups = RecordGroups::default();
@@ -65,10 +65,10 @@ impl Analysis {
             if let Some(owner) = owner
                 && allowed.is_none_or(|allowed| allowed.contains(&owner))
             {
-                groups.owned.entry(owner).or_default().push(record.clone());
+                groups.owned.entry(owner).or_default().push(record);
                 continue;
             }
-            groups.shared.push(record.clone());
+            groups.shared.push(record);
         }
         if let Some(started) = started {
             let owned_records = groups
@@ -84,7 +84,8 @@ impl Analysis {
                     ("ownership_partitions", groups.owned.len() as u64),
                     ("owned_records", owned_records),
                     ("shared_records", groups.shared.len() as u64),
-                    ("record_clones", self.records.len() as u64),
+                    ("record_clones", 0),
+                    ("record_references", self.records.len() as u64),
                 ],
             );
         }

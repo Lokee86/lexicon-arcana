@@ -1,25 +1,16 @@
 use std::collections::BTreeMap;
 use std::thread;
 
-use crate::FactRecord;
-
 use super::analysis::RecordGroups;
 use super::{FileEntry, LanguageEntry, StorageError, Store};
 
 const MAX_FILE_WRITE_WORKERS: usize = 16;
 
-struct FileWriteJob {
-    index: usize,
-    path: String,
-    source: Vec<u8>,
-    records: Vec<FactRecord>,
-}
-
 pub(crate) fn write_full_file_objects(
     store: &Store,
     entry: &LanguageEntry,
-    sources: BTreeMap<String, Vec<u8>>,
-    groups: &RecordGroups,
+    sources: BTreeMap<&str, &[u8]>,
+    groups: &RecordGroups<'_>,
 ) -> Result<Vec<FileEntry>, StorageError> {
     let job_count = sources.len();
     if job_count == 0 {
@@ -35,24 +26,28 @@ pub(crate) fn write_full_file_objects(
     let jobs = sources
         .into_iter()
         .enumerate()
-        .map(|(index, (path, source))| FileWriteJob {
-            index,
-            records: groups.owned.get(&path).cloned().unwrap_or_default(),
-            path,
-            source,
+        .map(|(index, (path, source))| {
+            let records = groups
+                .owned
+                .get(path)
+                .map(Vec::as_slice)
+                .unwrap_or_default();
+            (index, path, source, records)
         })
         .collect::<Vec<_>>();
 
     if workers < 2 {
         return jobs
             .into_iter()
-            .map(|job| store.write_language_file_object(entry, &job.path, &job.source, job.records))
+            .map(|(_, path, source, records)| {
+                store.write_language_file_object(entry, path, source, records)
+            })
             .collect();
     }
 
     let mut buckets = (0..workers).map(|_| Vec::new()).collect::<Vec<_>>();
     for job in jobs {
-        buckets[job.index % workers].push(job);
+        buckets[job.0 % workers].push(job);
     }
 
     thread::scope(|scope| {
@@ -62,14 +57,10 @@ pub(crate) fn write_full_file_objects(
                 scope.spawn(move || {
                     bucket
                         .into_iter()
-                        .map(|job| {
-                            let result = store.write_language_file_object(
-                                entry,
-                                &job.path,
-                                &job.source,
-                                job.records,
-                            );
-                            (job.index, result)
+                        .map(|(index, path, source, records)| {
+                            let result =
+                                store.write_language_file_object(entry, path, source, records);
+                            (index, result)
                         })
                         .collect::<Vec<_>>()
                 })

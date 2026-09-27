@@ -3,7 +3,7 @@
 Parent index: [Development Documentation](INDEX.md)
 
 **Started:** 2026-09-26  
-**Current phase:** Phase 2 complete — compact Python global resolution restored
+**Current phase:** Phase 4 complete — storage/materialization copies removed; Phase 3 remains pending
 **Predecessor:** [Lexicon Go-path performance restoration](lexicon-performance-restoration.md)
 
 ## Purpose
@@ -234,7 +234,88 @@ Phase 2 is complete because:
 - frozen fixture and Space Rocks canonical hashes remain exact;
 - the remaining Hermes timeout occurs after Python resolution, at measured ownership/materialization cloning boundaries.
 
-The next implementation phase is **Phase 3 — partitioned analysis core abstraction**.
+The next implementation phase in the original sequence is **Phase 3 — partitioned analysis core abstraction**.
+
+## Phase 4 — storage/materialization copying removal
+
+Completed 2026-09-26, out of sequence at the user's request. **Phase 3 remains pending.**
+
+Phase 4 removes repository-scale payload copying from the existing flat `Analysis` materialization path without changing ownership, ordering, object bytes, or snapshot semantics.
+
+The storage boundary now:
+
+- partitions analysis into borrowed `&FactRecord` references instead of cloning every fact into owner/shared vectors;
+- indexes source files as borrowed `&[u8]` slices instead of cloning source buffers;
+- passes borrowed paths, source slices, and record slices through parallel file-write jobs;
+- encodes file and shared objects directly from borrowed record selections;
+- keeps the public owned `FactObject` encoder unchanged while routing both owned and borrowed inputs through the same binary-v2 implementation;
+- iterates node, edge, and unresolved sections directly instead of constructing temporary section-local reference vectors.
+
+This intentionally does **not** implement the Phase 3 partitioned-analysis abstraction. The authoritative analysis is still one flat canonical `Vec<FactRecord>`; Phase 4 only removes redundant copies made while turning that analysis into existing file/shared CAS objects.
+
+### Phase 4 semantic and storage contracts
+
+The following remain invariants:
+
+- fact ordering and ownership assignment;
+- binary fact-object bytes and CAS object IDs;
+- source content IDs;
+- file/shared object boundaries;
+- incremental owner validation;
+- manifest ordering and snapshot identity;
+- legacy owned `FactObject` encode/decode behavior.
+
+A focused regression encodes the same object through the normal owned-record path and the borrowed-record path and requires byte-for-byte equality.
+
+Instrumentation now reports `record_clones = 0` during ownership partitioning and object construction, plus `cloned_source_bytes = 0`. Borrowed record-reference counts remain visible so repository scale can still be measured.
+
+### Phase 4 semantic gates
+
+The frozen Phase 0 fixture remains exactly unchanged after materialization:
+
+- **26 facts / 6,435 JSONL bytes / 27 lines**;
+- SHA-256 `339ccbabf1135f4c53c0d4fbd37186553f1997afc6cf4bedc2b9116ddddb5583`.
+
+Space Rocks `tools/` also remains exactly unchanged:
+
+- **30,605 facts / 10,379,009 JSONL bytes / 30,606 lines**;
+- SHA-256 `04e915ba630332a3eef983a8bdac019aa5160dc8164a2b800d73da7c99423ce8`.
+
+The binary regression independently verifies that owned `FactObject` input and borrowed record selections encode to byte-identical binary-v2 objects.
+
+### Hermes Phase 4 profile
+
+The repo-built release profiler completed the same current Hermes checkout that timed out in Phase 2. Phase 4 published a cold snapshot inside the existing 600-second scan cap.
+
+| Measurement | Phase 2 | Phase 4 |
+| --- | ---: | ---: |
+| Final Python facts | **3,724,398** | **3,724,398** |
+| Ownership partitioning | **44.527 s** | **3.434 s** |
+| Ownership record clones | **3,724,398** | **0** |
+| Object construction/CAS | **36.915 s** | **11.622 s** |
+| Object-construction record clones | **3,458,391** | **0** |
+| Source bytes cloned | full source copy | **0** |
+| Cold scan result | timed out before publication | **published** |
+| Cold scan wall | >600 s cutoff | **462.842 s** |
+
+Ownership partitioning fell by approximately **92.3%**, and object construction/CAS by approximately **68.5%**, on the current Hermes corpus. These are the Phase 4 target stages; unrelated Python extraction/resolution differences between single runs are not attributed to Phase 4.
+
+The completed current-revision baseline produced:
+
+- snapshot ID `sha256:5fb52466fffc5b204990c53fe4044c5a83dd1cd94a38b2c1e64ffe1301dc57aa`;
+- **3,724,398** facts;
+- **1,255,784,776 bytes / 3,724,399 lines** canonical JSONL;
+- SHA-256 `682e5e96e89fae2d4184dac3713491444e78654bc9e6f57bacfe8f7c470dc64f`;
+- **7,118 CAS objects / 150,614,298 bytes**;
+- peak process-tree RSS **5,416,800,256 B**.
+
+The peak RSS is recorded rather than claimed as an improvement: Phase 4 removes materialization payload copies, but the observed overall process peak can occur earlier in Python analysis.
+
+The no-change warm scan reused the same snapshot with no analysis plan in approximately **105.956 s**. Roughly **105.199 s** of that was source inventory, making source inventory/change-detection work an explicit later profile-driven target.
+
+### Phase 4 gate
+
+Phase 4 is complete when the isolated branch gates are green because repository-scale fact/source payload clones are removed, owned-vs-borrowed encoding is byte-identical, Hermes publishes inside the previous timeout, and Phase 3 remains an explicit separate task.
 
 ## Execution sequence
 

@@ -1,0 +1,65 @@
+{
+  "schema": "lexicon-wide-performance.phase4.v1",
+  "phase": "storage-materialization-copy-removal",
+  "completed_date": "2026-09-26",
+  "executed_out_of_sequence": true,
+  "phase3_status": "pending",
+  "base_revision": "427f8746f5a2044ad3bd16042746ac148103d445",
+  "hermes_repository_revision": "7798df0a83721df7ff44b9ba023d56b85b351d1e",
+  "semantic_gates": {
+    "frozen_fixture": {
+      "fact_count": 26,
+      "jsonl_bytes": 6435,
+      "jsonl_lines": 27,
+      "sha256": "339ccbabf1135f4c53c0d4fbd37186553f1997afc6cf4bedc2b9116ddddb5583"
+    },
+    "space_rocks_tools": {
+      "fact_count": 30605,
+      "jsonl_bytes": 10379009,
+      "jsonl_lines": 30606,
+      "sha256": "04e915ba630332a3eef983a8bdac019aa5160dc8164a2b800d73da7c99423ce8"
+    },
+    "owned_vs_borrowed_binary_encoding": "byte-identical"
+  },
+  "hermes": {
+    "classification": "completed",
+    "snapshot_id": "sha256:5fb52466fffc5b204990c53fe4044c5a83dd1cd94a38b2c1e64ffe1301dc57aa",
+    "cold_wall_ms": 462842.2398,
+    "peak_process_tree_rss_bytes": 5416800256,
+    "final_fact_count": 3724398,
+    "canonical_jsonl_bytes": 1255784776,
+    "canonical_jsonl_lines": 3724399,
+    "canonical_sha256": "682e5e96e89fae2d4184dac3713491444e78654bc9e6f57bacfe8f7c470dc64f",
+    "cas_object_count": 7118,
+    "cas_bytes": 150614298,
+    "warm_wall_ms": 105956.042,
+    "stages": {
+      "source_copy_ms": 6.308,
+      "cloned_source_bytes": 0,
+      "ownership_partitioning_ms": 3433.558,
+      "ownership_record_clones": 0,
+      "ownership_record_references": 3724398,
+      "object_construction_cas_ms": 11621.64,
+      "object_record_clones": 0,
+      "object_record_references": 3724398,
+      "publication_ms": 15292.269
+    }
+  },
+  "phase2_comparison": {
+    "ownership_partitioning_ms": 44527,
+    "object_construction_cas_ms": 36915,
+    "ownership_record_clones": 3724398,
+    "object_record_clones": 3458391,
+    "completed": false,
+    "failure_boundary": "post-resolution materialization/publication timeout"
+  },
+  "invariants": [
+    "fact ordering and ownership",
+    "binary object bytes and CAS identities",
+    "source content identities",
+    "file/shared object boundaries",
+    "incremental owner validation",
+    "snapshot manifest identity",
+    "owned FactObject encoding behavior"
+  ]
+}

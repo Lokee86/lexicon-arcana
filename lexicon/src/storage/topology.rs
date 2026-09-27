@@ -39,7 +39,7 @@ impl Store {
 
         let groups = analysis.groups(None);
         for (owner, records) in groups.owned {
-            if !records.iter().any(is_relationship) {
+            if !records.iter().copied().any(is_relationship) {
                 continue;
             }
             if !selected.contains(&owner) {
@@ -48,7 +48,11 @@ impl Store {
             let known = previous
                 .get(&owner)
                 .expect("selected owner has previous keys");
-            for record in records.iter().filter(|record| is_relationship(record)) {
+            for record in records
+                .iter()
+                .copied()
+                .filter(|record| is_relationship(record))
+            {
                 let key = relation_key(record)?;
                 if !known.contains(&key) {
                     return Ok(true);
