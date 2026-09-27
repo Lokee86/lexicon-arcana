@@ -1,0 +1,84 @@
+{
+  "micro": {
+    "small_records": 4096,
+    "large_records": 16384,
+    "max_large_ms": 5000,
+    "max_scale_ratio": 10.0
+  },
+  "fixture": {
+    "path": "lexicon/adapters/go/testdata/oracle/basic_calls",
+    "shape": [1, 1, 2],
+    "sha256": "596A04253AA5A427EF56F374C1FF97A6929719D9401B8E15C6E5DF3D1D5FA8B7",
+    "max_wall_ms": 30000,
+    "max": {
+      "go.repository_discovery.retained_source_bytes": 8192,
+      "go.helper_ipc.helper_response_bytes": 65536,
+      "go.fact_materialization.elapsed_ms": 250,
+      "go.canonicalization.elapsed_ms": 100,
+      "go.final_serialization_storage.output_bytes": 32768
+    },
+    "min": {
+      "derived.identity_cache_hit_rate": 0.5
+    }
+  },
+  "repositories": {
+    "demon-docs": {
+      "sibling": "demon-docs",
+      "revision": "fa5ca9aea12e20c29c378d5d018647958b862cac",
+      "shape": [4, 8, 4],
+      "sha256": "AE3064C2085AA479B058F026A26D7DC3CE2DD05EBEE036023C94E7543E650F0E",
+      "max_wall_ms": 120000,
+      "max": {
+        "go.repository_discovery.retained_source_bytes": 65536,
+        "go.calls_dataflow.compacted_dataflow": 100000,
+        "go.helper_ipc.helper_response_bytes": 50000000,
+        "go.fact_materialization.elapsed_ms": 8000,
+        "go.canonicalization.elapsed_ms": 2500,
+        "go.final_serialization_storage.output_bytes": 60000000
+      },
+      "min": {
+        "derived.identity_cache_hit_rate": 0.75
+      }
+    },
+    "space-rocks": {
+      "sibling": "space-rocks",
+      "revision": "431625042dbdb1a884954cab6ec726413aa36e2b",
+      "shape": [8, 16, 4],
+      "sha256": "B512DE8B69B50467C30D7886A6DB65D6652BC53C623C63DCF703CFE3C7E76D43",
+      "max_wall_ms": 180000,
+      "max": {
+        "go.repository_discovery.retained_source_bytes": 65536,
+        "go.calls_dataflow.compacted_dataflow": 150000,
+        "go.packages_load.peak_live_packages": 700,
+        "go.helper_ipc.helper_response_bytes": 96000000,
+        "go.fact_materialization.elapsed_ms": 12000,
+        "go.canonicalization.elapsed_ms": 4000,
+        "go.final_serialization_storage.output_bytes": 100000000,
+        "derived.peak_live_package_fraction": 0.6
+      },
+      "min": {
+        "go.packages_load.processed_modules": 2,
+        "derived.identity_cache_hit_rate": 0.75
+      }
+    },
+    "lexicon-self": {
+      "path": ".",
+      "shape": [4, 8, 4],
+      "max_wall_ms": 180000,
+      "max": {
+        "go.repository_discovery.retained_source_bytes": 65536,
+        "go.calls_dataflow.compacted_dataflow": 100000,
+        "go.packages_load.peak_live_packages": 300,
+        "go.helper_ipc.helper_response_bytes": 48000000,
+        "go.fact_materialization.elapsed_ms": 8000,
+        "go.canonicalization.elapsed_ms": 2500,
+        "go.final_serialization_storage.output_bytes": 60000000,
+        "derived.peak_live_package_fraction": 0.35
+      },
+      "min": {
+        "go.packages_load.processed_modules": 2,
+        "derived.identity_cache_hit_rate": 0.75
+      }
+    }
+  }
+}

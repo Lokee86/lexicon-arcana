@@ -431,6 +431,76 @@ Phase 10 does not add permanent benchmark machinery. That remains Phase 11.
 
 The intended commit is `Calibrate Lexicon concurrency defaults`.
 
+## Phase 11 — permanent performance regression suite
+
+Completed 2026-09-26.
+
+Phase 11 turns the restoration measurements into a checked-in regression suite without making ordinary correctness tests depend on exact wall-clock timing. The suite uses repository-built development executables directly from the checkout; it does not install Lexicon or substitute an installed Rust binary.
+
+The permanent entry point is:
+
+```bash
+python scripts/lexicon_perf_regression.py --tier quick
+```
+
+The quick tier contains:
+
+- a synthetic cardinality-scaling micro gate that exercises the production `FactStream::sort_records()` comparator at 4,096 and 16,384 records;
+- the frozen `basic_calls` Go fixture, including its canonical output SHA-256 and the Phase 0/9 cardinality proxies.
+
+The real-repository tier is explicit because it is materially more expensive and depends on sibling pinned checkouts:
+
+```bash
+python scripts/lexicon_perf_regression.py --tier repositories
+```
+
+It covers:
+
+- Demon Docs at `fa5ca9aea12e20c29c378d5d018647958b862cac`;
+- Space Rocks at `431625042dbdb1a884954cab6ec726413aa36e2b`;
+- Lexicon self-host at the current checkout.
+
+`--tier all` runs both tiers. External repository revisions and canonical Go output hashes are pinned. Self-host intentionally does not pin a content hash because its own source is expected to change; it is guarded by performance/cardinality invariants instead.
+
+Thresholds live in `scripts/lexicon_perf_baselines.json`. They are deliberately generous rather than exact timing assertions. The suite is intended to catch the regression classes restored by this project:
+
+- ordinary Go source bodies becoming retained again;
+- early dataflow compaction being lost;
+- module-local package lifetimes becoming repository-wide;
+- helper response cardinality growing materially;
+- identity memoization ceasing to provide substantial reuse;
+- fact materialization or canonicalization returning to pathological cost;
+- deterministic output changing on pinned repositories.
+
+Timing ceilings are several times the measured development-profile baselines and are secondary to deterministic hashes and cardinality/lifetime guards. They should be recalibrated only after a measured, explained implementation change, not to hide a failing regression.
+
+### Phase 11 baselines
+
+The retained baseline measurements on the Phase 11 implementation were:
+
+| Target | Shape | Wall clock | Helper response | Final facts |
+| --- | --- | ---: | ---: | ---: |
+| `basic_calls` | 1/1/2 | ~1.5–2.3 s | 8,753 bytes | 77 |
+| Demon Docs | 4/8/4 | ~24–31 s | 38,738,960 bytes | 140,018 |
+| Space Rocks | 8/16/4 | ~29–31 s | 74,370,539 bytes | 199,192 |
+| Lexicon self-host | 4/8/4 | ~25–31 s | ~33.2 MB | ~122,700 |
+
+The production-sort micro gate measured a roughly **5.3–5.9×** time increase when record count increased by **4×**. Its retained ceiling is 10×, which is loose enough for scheduler noise while still detecting a return to an obviously worse complexity shape.
+
+Space Rocks is the important module-lifetime repository: its baseline loaded **1,398 packages cumulatively across 6 modules** while retaining only **486 peak live packages**. Self-host loaded roughly **1,404 cumulatively across 17 modules** with **185 peak live**. The regression policy guards those lifetime ratios rather than exact package counts.
+
+### Helper response bound found by the suite
+
+The first Space Rocks Phase 11 run exposed an unrelated repository-scale compatibility defect: the native helper runner rejected any JSON response over **64 MiB**. The compacted Space Rocks response is approximately **74.37 MB**, so the fixed ceiling prevented a valid repository from completing even though its semantic cardinality was bounded and expected.
+
+The helper capture ceiling is therefore raised from **64 MiB to 128 MiB**. It remains a hard bound; this is not an unbounded read or a protocol redesign. The Space Rocks regression gate separately caps the expected helper response at **96 MB**, so a future cardinality regression cannot silently consume the extra safety headroom.
+
+This measurement does not change the Phase 7 conclusion. Streaming or alternate framing remains unjustified unless a future profile shows helper protocol handling has again become a material bottleneck.
+
+Phase 11 completes the independent performance-restoration project. The separate Go adapter migration may resume from its previously frozen Phase 16 boundary with these regression gates retained.
+
+The intended commit is `Add Lexicon performance regression suite`.
+
 ## Related docs
 
 - [Lexicon optimization parity audit](lexicon-optimization-parity-audit.md)

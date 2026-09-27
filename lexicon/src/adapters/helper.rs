@@ -14,7 +14,8 @@ use super::{
     helper_capture::{capture_stderr, replay_stderr, stderr_suffix, terminate},
 };
 
-const MAX_RESPONSE_BYTES: u64 = 64 * 1024 * 1024;
+// Keep helper IPC bounded while allowing measured multi-module repository responses.
+const MAX_RESPONSE_BYTES: u64 = 128 * 1024 * 1024;
 
 pub(crate) trait ProtocolResponse {
     fn protocol_version(&self) -> u32;
