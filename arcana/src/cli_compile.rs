@@ -1,7 +1,7 @@
 use std::fs;
 use std::io;
 use std::path::Path;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use arcana::repository::{
     CompiledRepositoryGraph, PublishRepositorySnapshot, RepositoryArtifactChecksums,
@@ -25,7 +25,17 @@ pub(crate) fn write_compiled_owned(
     let (store_checksum, store_write) = write_store(output, &facts)?;
     let repository_id = repository_identity_for_facts(&facts, store_checksum);
     let unresolved_count = facts.unresolved.len();
+    let graph_started = Instant::now();
     let graph = compile_repository_graph(&facts)?;
+    if std::env::var_os("ARCANA_SYNC_PROFILE").is_some() {
+        eprintln!(
+            "arcana sync profile: phase=graph-compile elapsed_ms={:.3} nodes={} edges={} unresolved={}",
+            graph_started.elapsed().as_secs_f64() * 1000.0,
+            graph.dataset.node_count,
+            graph.dataset.edges.len(),
+            unresolved_count,
+        );
+    }
     write_graph(output, &graph.dataset)?;
     publish_graph_with_identity(
         output,

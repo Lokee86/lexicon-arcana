@@ -1,10 +1,11 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
+use std::time::{Duration, Instant};
 
-use super::binary::{is_binary_object, parse_binary_object};
+use super::binary::{is_binary_object, parse_binary_object_selected};
 use super::format::{LanguageEntry, Manifest};
-use super::object::{FactObject, parse_json_object};
+use super::object::{FactObject, RecordCounts, RecordSelection, parse_json_object};
 use super::snapshot_support::{
     hex_id, read_verified_json, storage_root, validate_id, verify_content,
 };
@@ -45,15 +46,46 @@ pub fn load(root: impl AsRef<Path>, id: &str) -> Result<LexiconSnapshot, Lexicon
     let storage = storage_root(root.as_ref());
     let (manifest, metadata) = read_manifest(&storage, id)?;
 
+    let node_started = Instant::now();
     let mut nodes = NodePass::new();
-    visit_objects(&storage, &manifest, true, |object| {
-        nodes.ingest(object.records);
-    })?;
+    let node_visit = visit_objects(
+        &storage,
+        &manifest,
+        RecordSelection::Nodes,
+        true,
+        |object, counts| {
+            nodes.ingest(object.records, counts);
+        },
+    )?;
+    profile_pass("node-pass", node_started.elapsed(), node_visit);
+
     let mut relations = nodes.finish()?;
-    visit_objects(&storage, &manifest, false, |object| {
-        relations.ingest(object.records);
-    })?;
+    let relation_started = Instant::now();
+    let relation_visit = visit_objects(
+        &storage,
+        &manifest,
+        RecordSelection::Relations,
+        false,
+        |object, _| {
+            relations.ingest(object.records);
+        },
+    )?;
+    profile_pass("relation-pass", relation_started.elapsed(), relation_visit);
+
+    let finish_started = Instant::now();
     let (facts, compatibility_warnings) = relations.finish()?;
+    if profile_enabled() {
+        eprintln!(
+            "arcana sync profile: phase=repository-facts elapsed_ms={:.3} nodes={}/{} edges={}/{} unresolved={}/{}",
+            finish_started.elapsed().as_secs_f64() * 1000.0,
+            facts.nodes.len(),
+            facts.nodes.capacity(),
+            facts.edges.len(),
+            facts.edges.capacity(),
+            facts.unresolved.len(),
+            facts.unresolved.capacity(),
+        );
+    }
 
     Ok(LexiconSnapshot {
         metadata,
@@ -150,27 +182,34 @@ fn read_manifest(
 fn visit_objects(
     storage: &Path,
     manifest: &Manifest,
+    selection: RecordSelection,
     validate_metadata: bool,
-    mut visit: impl FnMut(FactObject),
-) -> Result<(), LexiconSnapshotError> {
+    mut visit: impl FnMut(FactObject, RecordCounts),
+) -> Result<VisitMetrics, LexiconSnapshotError> {
+    let mut metrics = VisitMetrics::default();
     for language in &manifest.languages {
         if let Some(object_id) = &language.shared_object_id {
-            let object = read_object(storage, object_id)?;
+            let (object, counts, decode_elapsed) = read_object(storage, object_id, selection)?;
+            metrics.objects += 1;
+            metrics.decode_elapsed += decode_elapsed;
             if validate_metadata {
                 validate_object(&object, language, None, None)?;
             }
-            visit(object);
+            visit(object, counts);
         }
         for file in &language.files {
-            let object = read_object(storage, &file.object_id)?;
+            let (object, counts, decode_elapsed) =
+                read_object(storage, &file.object_id, selection)?;
+            metrics.objects += 1;
+            metrics.decode_elapsed += decode_elapsed;
             if validate_metadata {
                 let path = normalize_path("file", &file.path)?;
                 validate_object(&object, language, Some(&path), Some(&file.content_id))?;
             }
-            visit(object);
+            visit(object, counts);
         }
     }
-    Ok(())
+    Ok(metrics)
 }
 
 fn validate_language(language: &LanguageEntry) -> Result<(), LexiconSnapshotError> {
@@ -192,7 +231,11 @@ fn validate_language(language: &LanguageEntry) -> Result<(), LexiconSnapshotErro
     validate_id(&language.analysis_config_id)
 }
 
-fn read_object(storage: &Path, id: &str) -> Result<FactObject, LexiconSnapshotError> {
+fn read_object(
+    storage: &Path,
+    id: &str,
+    selection: RecordSelection,
+) -> Result<(FactObject, RecordCounts, Duration), LexiconSnapshotError> {
     validate_id(id)?;
     let path = storage
         .join("objects")
@@ -205,11 +248,19 @@ fn read_object(storage: &Path, id: &str) -> Result<FactObject, LexiconSnapshotEr
         bytes.trim_ascii()
     };
     verify_content(canonical, id, OBJECT_DOMAIN, "fact object")?;
-    if is_binary_object(canonical) {
-        parse_binary_object(canonical)
+
+    let started = Instant::now();
+    let (object, counts) = if is_binary_object(canonical) {
+        parse_binary_object_selected(canonical, selection)?
     } else {
-        parse_json_object(canonical)
-    }
+        let mut object = parse_json_object(canonical)?;
+        let counts = RecordCounts::from_records(&object.records);
+        if selection != RecordSelection::All {
+            object.records.retain(|record| selection.includes(record));
+        }
+        (object, counts)
+    };
+    Ok((object, counts, started.elapsed()))
 }
 
 fn validate_object(
@@ -251,4 +302,25 @@ fn normalize_path(field: &'static str, path: &str) -> Result<String, LexiconSnap
         field,
         path: path.to_owned(),
     })
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct VisitMetrics {
+    objects: usize,
+    decode_elapsed: Duration,
+}
+
+fn profile_enabled() -> bool {
+    std::env::var_os("ARCANA_SYNC_PROFILE").is_some()
+}
+
+fn profile_pass(phase: &str, elapsed: Duration, metrics: VisitMetrics) {
+    if profile_enabled() {
+        eprintln!(
+            "arcana sync profile: phase={phase} elapsed_ms={:.3} object_decode_ms={:.3} objects={}",
+            elapsed.as_secs_f64() * 1000.0,
+            metrics.decode_elapsed.as_secs_f64() * 1000.0,
+            metrics.objects,
+        );
+    }
 }

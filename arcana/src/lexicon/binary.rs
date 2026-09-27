@@ -1,5 +1,8 @@
 use super::LexiconSnapshotError;
-use super::object::{EdgeRecord, FactObject, FactRecord, NodeRecord, SpanRecord, UnresolvedRecord};
+use super::object::{
+    EdgeRecord, FactObject, FactRecord, NodeRecord, RecordCounts, RecordSelection, SpanRecord,
+    UnresolvedRecord,
+};
 
 const MAGIC_V1: &[u8; 8] = b"LXOBJ\0\x01\0";
 const MAX_STRINGS: u64 = 4_000_000;
@@ -11,10 +14,28 @@ pub(super) fn is_binary_object(bytes: &[u8]) -> bool {
     bytes.starts_with(MAGIC_V1) || bytes.starts_with(super::binary_v2::MAGIC)
 }
 
+#[cfg(test)]
 pub(super) fn parse_binary_object(bytes: &[u8]) -> Result<FactObject, LexiconSnapshotError> {
+    parse_binary_object_selected(bytes, RecordSelection::All).map(|(object, _)| object)
+}
+
+pub(super) fn parse_binary_object_selected(
+    bytes: &[u8],
+    selection: RecordSelection,
+) -> Result<(FactObject, RecordCounts), LexiconSnapshotError> {
     if bytes.starts_with(super::binary_v2::MAGIC) {
-        return super::binary_v2::parse_binary_object(bytes);
+        return super::binary_v2::parse_binary_object_selected(bytes, selection);
     }
+
+    let mut object = parse_binary_object_v1(bytes)?;
+    let counts = RecordCounts::from_records(&object.records);
+    if selection != RecordSelection::All {
+        object.records.retain(|record| selection.includes(record));
+    }
+    Ok((object, counts))
+}
+
+fn parse_binary_object_v1(bytes: &[u8]) -> Result<FactObject, LexiconSnapshotError> {
     let mut reader = Reader::new(bytes);
     reader.expect_magic()?;
     let version = reader.uvarint("object version")?;

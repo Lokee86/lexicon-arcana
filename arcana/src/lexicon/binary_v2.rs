@@ -1,6 +1,8 @@
 use super::LexiconSnapshotError;
 use super::binary_v2_reader::Reader;
-use super::object::{EdgeRecord, FactObject, FactRecord, NodeRecord, UnresolvedRecord};
+use super::object::{
+    EdgeRecord, FactObject, FactRecord, NodeRecord, RecordCounts, RecordSelection, UnresolvedRecord,
+};
 
 pub(super) const MAGIC: &[u8; 8] = b"LXOBJ\0\x02\0";
 const MAX_RECORDS: u64 = 20_000_000;
@@ -60,7 +62,91 @@ const COMMON_RELATIONS: &[&str] = &[
     "reads-config",
 ];
 
-pub(super) fn parse_binary_object(bytes: &[u8]) -> Result<FactObject, LexiconSnapshotError> {
+pub(super) fn parse_binary_object_selected(
+    bytes: &[u8],
+    selection: RecordSelection,
+) -> Result<(FactObject, RecordCounts), LexiconSnapshotError> {
+    let envelope = parse_envelope(bytes, selection != RecordSelection::Nodes)?;
+    let mut records = match selection {
+        RecordSelection::All => {
+            decode_nodes(envelope.nodes, &envelope.strings, &envelope.object_owner)?
+        }
+        RecordSelection::Nodes => {
+            decode_nodes(envelope.nodes, &envelope.strings, &envelope.object_owner)?
+        }
+        RecordSelection::Relations => Vec::with_capacity(
+            envelope
+                .counts
+                .edges
+                .checked_add(envelope.counts.unresolved)
+                .ok_or(LexiconSnapshotError::Malformed("record count overflow"))?,
+        ),
+    };
+
+    if selection != RecordSelection::Nodes {
+        let node_ids = if selection == RecordSelection::All {
+            records
+                .iter()
+                .filter_map(|record| match record {
+                    FactRecord::Node(node) => Some(node.id.clone()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        } else {
+            decode_node_ids(envelope.nodes, &envelope.strings)?
+        };
+        records.extend(decode_edges(
+            envelope.edges,
+            &envelope.strings,
+            &envelope.external,
+            &node_ids,
+            &envelope.object_owner,
+        )?);
+        records.extend(decode_unresolved(
+            envelope.unresolved,
+            &envelope.strings,
+            &envelope.external,
+            &node_ids,
+            &envelope.object_owner,
+        )?);
+    }
+
+    Ok((
+        FactObject {
+            version: envelope.version,
+            language: envelope.language,
+            owner: envelope.owner,
+            source_content_id: envelope.source_content_id,
+            adapter_version: envelope.adapter_version,
+            schema_version: envelope.schema_version,
+            analysis_config_id: envelope.analysis_config_id,
+            records,
+        },
+        envelope.counts,
+    ))
+}
+
+struct Envelope<'a> {
+    version: u64,
+    schema_version: u64,
+    strings: Vec<String>,
+    language: String,
+    object_owner: String,
+    owner: Option<String>,
+    source_content_id: Option<String>,
+    adapter_version: String,
+    analysis_config_id: String,
+    external: Vec<String>,
+    nodes: &'a [u8],
+    edges: &'a [u8],
+    unresolved: &'a [u8],
+    counts: RecordCounts,
+}
+
+fn parse_envelope(
+    bytes: &[u8],
+    retain_external: bool,
+) -> Result<Envelope<'_>, LexiconSnapshotError> {
     let mut reader = Reader::new(bytes);
     reader.expect_magic()?;
     let version = reader.uvarint("object version")?;
@@ -74,9 +160,18 @@ pub(super) fn parse_binary_object(bytes: &[u8]) -> Result<FactObject, LexiconSna
     let analysis_config_id = reader.identity(&strings, "analysis config ID")?;
 
     let external_count = reader.count("external references", MAX_EXTERNAL_REFERENCES)?;
-    let mut external = Vec::with_capacity(external_count);
+    let mut external = if retain_external {
+        Vec::with_capacity(external_count)
+    } else {
+        Vec::new()
+    };
     for index in 0..external_count {
-        external.push(reader.identity(&strings, &format!("external reference {index}"))?);
+        let field = format!("external reference {index}");
+        if retain_external {
+            external.push(reader.identity(&strings, &field)?);
+        } else {
+            reader.skip_identity(&strings, &field)?;
+        }
     }
 
     let nodes = reader.bytes("node section", MAX_SECTION_SIZE)?;
@@ -84,39 +179,32 @@ pub(super) fn parse_binary_object(bytes: &[u8]) -> Result<FactObject, LexiconSna
     let unresolved = reader.bytes("unresolved section", MAX_SECTION_SIZE)?;
     reader.finish("fact object")?;
 
-    let mut records = decode_nodes(nodes, &strings, &object_owner)?;
-    let node_ids = records
-        .iter()
-        .filter_map(|record| match record {
-            FactRecord::Node(node) => Some(node.id.clone()),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-    records.extend(decode_edges(
-        edges,
-        &strings,
-        &external,
-        &node_ids,
-        &object_owner,
-    )?);
-    records.extend(decode_unresolved(
-        unresolved,
-        &strings,
-        &external,
-        &node_ids,
-        &object_owner,
-    )?);
+    let counts = RecordCounts {
+        nodes: section_record_count(nodes, "node records")?,
+        edges: section_record_count(edges, "edge records")?,
+        unresolved: section_record_count(unresolved, "unresolved records")?,
+    };
 
-    Ok(FactObject {
+    Ok(Envelope {
         version,
+        schema_version,
+        strings,
         language,
+        object_owner,
         owner,
         source_content_id,
         adapter_version,
-        schema_version,
         analysis_config_id,
-        records,
+        external,
+        nodes,
+        edges,
+        unresolved,
+        counts,
     })
+}
+
+fn section_record_count(bytes: &[u8], field: &str) -> Result<usize, LexiconSnapshotError> {
+    Reader::new(bytes).count(field, MAX_RECORDS)
 }
 
 fn decode_nodes(
@@ -152,6 +240,25 @@ fn decode_nodes(
     }
     reader.finish("node section")?;
     Ok(records)
+}
+
+fn decode_node_ids(bytes: &[u8], strings: &[String]) -> Result<Vec<String>, LexiconSnapshotError> {
+    let mut reader = Reader::new(bytes);
+    let count = reader.count("node records", MAX_RECORDS)?;
+    let mut ids = Vec::with_capacity(count);
+    for _ in 0..count {
+        reader.skip_attributes()?;
+        reader.skip_identity(strings, "node content ID")?;
+        ids.push(reader.identity(strings, "node ID")?);
+        reader.skip_code_or_string(strings, COMMON_NODE_KINDS, "node kind")?;
+        reader.string_ref(strings, "node name")?;
+        reader.skip_factored(strings, "node owner")?;
+        reader.skip_factored(strings, "node path")?;
+        reader.skip_qualified_name(strings, "node qualified name")?;
+        reader.skip_span(strings)?;
+    }
+    reader.finish("node section")?;
+    Ok(ids)
 }
 
 fn decode_edges(

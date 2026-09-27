@@ -165,6 +165,24 @@ impl<'a> Reader<'a> {
         }
     }
 
+    pub(super) fn skip_identity(
+        &mut self,
+        strings: &[String],
+        field: &str,
+    ) -> Result<(), LexiconSnapshotError> {
+        match self.byte(&format!("{field} tag"))? {
+            0 => {
+                self.string_ref(strings, field)?;
+                Ok(())
+            }
+            1 => {
+                self.take(32, field)?;
+                Ok(())
+            }
+            tag => Err(binary_error(format!("invalid {field} identity tag {tag}"))),
+        }
+    }
+
     pub(super) fn node_ref(
         &mut self,
         node_ids: &[String],
@@ -209,6 +227,25 @@ impl<'a> Reader<'a> {
             .ok_or_else(|| binary_error(format!("{field} code is out of range")))
     }
 
+    pub(super) fn skip_code_or_string(
+        &mut self,
+        strings: &[String],
+        values: &[&str],
+        field: &str,
+    ) -> Result<(), LexiconSnapshotError> {
+        let code = self.uvarint(&format!("{field} code"))?;
+        if code == 0 {
+            self.string_ref(strings, field)?;
+            return Ok(());
+        }
+        let index = usize::try_from(code - 1)
+            .map_err(|_| binary_error(format!("{field} code overflows")))?;
+        values
+            .get(index)
+            .ok_or_else(|| binary_error(format!("{field} code is out of range")))?;
+        Ok(())
+    }
+
     pub(super) fn factored(
         &mut self,
         strings: &[String],
@@ -219,6 +256,21 @@ impl<'a> Reader<'a> {
             0 => Ok(String::new()),
             1 => Ok(object_owner.to_owned()),
             2 => Ok(self.string_ref(strings, field)?.to_owned()),
+            factor => Err(binary_error(format!("invalid {field} factor {factor}"))),
+        }
+    }
+
+    pub(super) fn skip_factored(
+        &mut self,
+        strings: &[String],
+        field: &str,
+    ) -> Result<(), LexiconSnapshotError> {
+        match self.uvarint(&format!("{field} factor"))? {
+            0 | 1 => Ok(()),
+            2 => {
+                self.string_ref(strings, field)?;
+                Ok(())
+            }
             factor => Err(binary_error(format!("invalid {field} factor {factor}"))),
         }
     }
@@ -240,9 +292,29 @@ impl<'a> Reader<'a> {
         }
     }
 
+    pub(super) fn skip_qualified_name(
+        &mut self,
+        strings: &[String],
+        field: &str,
+    ) -> Result<(), LexiconSnapshotError> {
+        match self.uvarint(&format!("{field} factor"))? {
+            0 => {
+                self.string_ref(strings, field)?;
+                Ok(())
+            }
+            1..=3 => Ok(()),
+            factor => Err(binary_error(format!("invalid {field} factor {factor}"))),
+        }
+    }
+
     pub(super) fn attributes(&mut self) -> Result<Option<Vec<u8>>, LexiconSnapshotError> {
         let value = self.bytes("record attributes", MAX_STRING_SIZE)?;
         Ok((!value.is_empty()).then(|| value.to_vec()))
+    }
+
+    pub(super) fn skip_attributes(&mut self) -> Result<(), LexiconSnapshotError> {
+        self.bytes("record attributes", MAX_STRING_SIZE)?;
+        Ok(())
     }
 
     pub(super) fn span(
@@ -258,6 +330,21 @@ impl<'a> Reader<'a> {
                 end_line: self.uvarint("span end line")?,
                 end_column: self.uvarint("span end column")?,
             })),
+            _ => Err(binary_error("invalid span flag")),
+        }
+    }
+
+    pub(super) fn skip_span(&mut self, strings: &[String]) -> Result<(), LexiconSnapshotError> {
+        match self.byte("span flag")? {
+            0 => Ok(()),
+            1 => {
+                self.string_ref(strings, "span path")?;
+                self.uvarint("span start line")?;
+                self.uvarint("span start column")?;
+                self.uvarint("span end line")?;
+                self.uvarint("span end column")?;
+                Ok(())
+            }
             _ => Err(binary_error("invalid span flag")),
         }
     }

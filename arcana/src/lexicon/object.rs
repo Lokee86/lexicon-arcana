@@ -22,6 +22,56 @@ pub(super) enum FactRecord {
     Unresolved(UnresolvedRecord),
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(super) struct RecordCounts {
+    pub(super) nodes: usize,
+    pub(super) edges: usize,
+    pub(super) unresolved: usize,
+}
+
+impl RecordCounts {
+    pub(super) fn from_records(records: &[FactRecord]) -> Self {
+        let mut counts = Self::default();
+        for record in records {
+            match record {
+                FactRecord::Node(_) => counts.nodes += 1,
+                FactRecord::Edge(_) => counts.edges += 1,
+                FactRecord::Unresolved(_) => counts.unresolved += 1,
+            }
+        }
+        counts
+    }
+
+    pub(super) fn checked_add(self, other: Self) -> Option<Self> {
+        Some(Self {
+            nodes: self.nodes.checked_add(other.nodes)?,
+            edges: self.edges.checked_add(other.edges)?,
+            unresolved: self.unresolved.checked_add(other.unresolved)?,
+        })
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum RecordSelection {
+    All,
+    Nodes,
+    Relations,
+}
+
+impl RecordSelection {
+    pub(super) const fn includes(self, record: &FactRecord) -> bool {
+        matches!(
+            (self, record),
+            (Self::All, _)
+                | (Self::Nodes, FactRecord::Node(_))
+                | (
+                    Self::Relations,
+                    FactRecord::Edge(_) | FactRecord::Unresolved(_)
+                )
+        )
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct SpanRecord {
     pub(super) path: String,

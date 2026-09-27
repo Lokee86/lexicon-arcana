@@ -1,8 +1,8 @@
 use std::hint::black_box;
 use std::time::Instant;
 
-use super::binary::parse_binary_object;
-use super::object::parse_json_object;
+use super::binary::{parse_binary_object, parse_binary_object_selected};
+use super::object::{FactRecord, RecordSelection, parse_json_object};
 use super::records::build_repository_facts;
 
 const GOLDEN_V1_HEX: &str = "4c584f424a0001000101110002676f076d61696e2e676f477368613235363a6262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626205312e302e30477368613235363a63636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363477368613235363a313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131310466696c65477368613235363a323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232323232320866756e6374696f6e046d61696e0964656d6f2e6d61696e08636f6e7461696e730166036628290e64796e616d69632d7461726765740563616c6c7301020304051802000306070202020200000008090a02020b010202010202070100020c0800060a01000d000e020f100800";
@@ -56,6 +56,41 @@ fn assert_golden_object(hex: &str) {
     assert_eq!(facts.nodes.len(), 2);
     assert_eq!(facts.edges.len(), 1);
     assert_eq!(facts.unresolved.len(), 1);
+}
+
+#[test]
+fn v2_section_selective_decode_preserves_counts_and_required_records() {
+    let bytes = decode_hex(GOLDEN_V2_HEX);
+
+    let (nodes, counts) = parse_binary_object_selected(&bytes, RecordSelection::Nodes).unwrap();
+    assert_eq!(counts.nodes, 2);
+    assert_eq!(counts.edges, 1);
+    assert_eq!(counts.unresolved, 1);
+    assert_eq!(nodes.records.len(), 2);
+    assert!(
+        nodes
+            .records
+            .iter()
+            .all(|record| matches!(record, FactRecord::Node(_)))
+    );
+
+    let (relations, relation_counts) =
+        parse_binary_object_selected(&bytes, RecordSelection::Relations).unwrap();
+    assert_eq!(relation_counts, counts);
+    assert_eq!(relations.records.len(), 2);
+    assert!(
+        relations
+            .records
+            .iter()
+            .all(|record| !matches!(record, FactRecord::Node(_)))
+    );
+
+    let mut combined = nodes.records;
+    combined.extend(relations.records);
+    let selective = build_repository_facts(combined).unwrap();
+    let full = parse_binary_object(&bytes).unwrap();
+    let full = build_repository_facts(full.records).unwrap();
+    assert_eq!(selective, full);
 }
 
 #[test]

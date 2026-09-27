@@ -1,4 +1,4 @@
-use super::object::{EdgeRecord, FactRecord, NodeRecord, UnresolvedRecord};
+use super::object::{EdgeRecord, FactRecord, NodeRecord, RecordCounts, UnresolvedRecord};
 use super::records::build_repository_facts;
 use super::stream_records::NodePass;
 use crate::repository::{NodeKind, UnresolvedReason};
@@ -56,8 +56,8 @@ fn bounded_two_pass_builder_matches_monolithic_conversion() {
     let expected = build_repository_facts(all).unwrap();
 
     let mut nodes = NodePass::new();
-    nodes.ingest(first.clone());
-    nodes.ingest(second.clone());
+    nodes.ingest(first.clone(), RecordCounts::from_records(&first));
+    nodes.ingest(second.clone(), RecordCounts::from_records(&second));
     let mut relations = nodes.finish().unwrap();
     relations.ingest(first);
     relations.ingest(second);
