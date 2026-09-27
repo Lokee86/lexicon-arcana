@@ -12,14 +12,16 @@ type dependencyRecord struct {
 	Source   string `json:"source"`
 	Target   string `json:"target"`
 	Relation string `json:"relation"`
-	Reason   string `json:"reason"`
+	Path     string `json:"path"`
 }
 
-// IncrementalScope loads the current language objects once, decides whether
-// direct edits require full analysis, and computes the incremental emission
-// and context closures from the same dependency view.
+// IncrementalScope loads the current language objects once and computes the
+// incremental emission and context closures from the previous dependency view.
+// Semantic topology safety is checked after scoped analysis by
+// RequiresFullAnalysis; the previous graph alone cannot tell whether an
+// existing cross-file relationship or unresolved reference actually changed.
 func (s Store) IncrementalScope(language string, roots []string) (bool, []string, []string, error) {
-	_, objects, nodeOwners, unresolved, err := s.dependencyData(language)
+	_, objects, nodeOwners, err := s.dependencyData(language)
 	if err != nil {
 		return true, nil, nil, err
 	}
@@ -28,26 +30,16 @@ func (s Store) IncrementalScope(language string, roots []string) (bool, []string
 		rootSet[path] = struct{}{}
 	}
 	foundRoots := make(map[string]struct{}, len(rootSet))
-	fullRequired := false
 	reverse := make(map[string]map[string]struct{})
 	forward := make(map[string]map[string]struct{})
 	for owner, object := range objects {
-		_, directRoot := rootSet[owner]
-		if directRoot {
+		if _, directRoot := rootSet[owner]; directRoot {
 			foundRoots[owner] = struct{}{}
 		}
 		for _, raw := range object.Records {
 			var record dependencyRecord
 			if err := json.Unmarshal(raw, &record); err != nil {
 				return true, nil, nil, err
-			}
-			if directRoot {
-				if record.Record == "unresolved" && repositorySensitiveUnresolved(record.Reason) {
-					fullRequired = true
-				}
-				if record.Record == "edge" && semanticRelation(record.Relation) && nodeOwners[record.Target] != owner {
-					fullRequired = true
-				}
 			}
 			if record.Record != "edge" || record.Target == "" {
 				continue
@@ -60,15 +52,9 @@ func (s Store) IncrementalScope(language string, roots []string) (bool, []string
 			addRelation(forward, owner, targetOwner)
 		}
 	}
-	if len(foundRoots) != len(rootSet) {
-		fullRequired = true
-	}
-	emitSeeds := append([]string(nil), roots...)
-	for path := range unresolved {
-		emitSeeds = append(emitSeeds, path)
-	}
-	emit := closure(emitSeeds, reverse)
-	context := closure(emit, forward)
+	fullRequired := len(foundRoots) != len(rootSet)
+	emit := oneHopClosure(roots, reverse)
+	context := oneHopClosure(emit, forward)
 	return fullRequired, emit, context, nil
 }
 
@@ -82,38 +68,55 @@ func (s Store) ImpactedFiles(language string, roots []string) ([]string, error) 
 	return emit, err
 }
 
-func (s Store) dependencyData(language string) (LanguageEntry, map[string]FactObject, map[string]string, map[string]struct{}, error) {
+func (s Store) dependencyData(language string) (LanguageEntry, map[string]FactObject, map[string]string, error) {
 	_, manifest, err := s.Current()
 	if err != nil {
-		return LanguageEntry{}, nil, nil, nil, err
+		return LanguageEntry{}, nil, nil, err
 	}
 	entry, ok := languageEntry(manifest, language)
 	if !ok {
-		return LanguageEntry{}, nil, nil, nil, fmt.Errorf("snapshot has no %s analysis", language)
+		return LanguageEntry{}, nil, nil, fmt.Errorf("snapshot has no %s analysis", language)
 	}
 	objects := make(map[string]FactObject, len(entry.Files))
 	nodeOwners := make(map[string]string)
-	unresolved := make(map[string]struct{})
+	knownPaths := make(map[string]struct{}, len(entry.Files))
 	for _, file := range entry.Files {
+		knownPaths[file.Path] = struct{}{}
 		object, err := s.LoadObject(file.ObjectID)
 		if err != nil {
-			return LanguageEntry{}, nil, nil, nil, err
+			return LanguageEntry{}, nil, nil, err
 		}
 		objects[file.Path] = object
 		for _, raw := range object.Records {
 			var record dependencyRecord
 			if err := json.Unmarshal(raw, &record); err != nil {
-				return LanguageEntry{}, nil, nil, nil, fmt.Errorf("decode %s dependency record: %w", file.Path, err)
+				return LanguageEntry{}, nil, nil, fmt.Errorf("decode %s dependency record: %w", file.Path, err)
 			}
 			if record.Record == "node" && record.ID != "" {
 				nodeOwners[record.ID] = file.Path
 			}
-			if record.Record == "unresolved" {
-				unresolved[file.Path] = struct{}{}
+		}
+	}
+	if entry.SharedObjectID != "" {
+		shared, err := s.LoadObject(entry.SharedObjectID)
+		if err != nil {
+			return LanguageEntry{}, nil, nil, err
+		}
+		for _, raw := range shared.Records {
+			var record dependencyRecord
+			if err := json.Unmarshal(raw, &record); err != nil {
+				return LanguageEntry{}, nil, nil, fmt.Errorf("decode shared %s dependency record: %w", language, err)
+			}
+			if record.Record != "node" || record.ID == "" {
+				continue
+			}
+			path := normalizeOwner(record.Path)
+			if _, ok := knownPaths[path]; ok {
+				nodeOwners[record.ID] = path
 			}
 		}
 	}
-	return entry, objects, nodeOwners, unresolved, nil
+	return entry, objects, nodeOwners, nil
 }
 
 func addRelation(graph map[string]map[string]struct{}, source, target string) {
@@ -123,21 +126,17 @@ func addRelation(graph map[string]map[string]struct{}, source, target string) {
 	graph[source][target] = struct{}{}
 }
 
-func closure(seeds []string, graph map[string]map[string]struct{}) []string {
+func oneHopClosure(seeds []string, graph map[string]map[string]struct{}) []string {
 	selected := make(map[string]struct{})
-	queue := append([]string(nil), seeds...)
-	for len(queue) > 0 {
-		current := queue[0]
-		queue = queue[1:]
-		if current == "" {
+	for _, seed := range seeds {
+		if seed == "" {
 			continue
 		}
-		if _, exists := selected[current]; exists {
-			continue
-		}
-		selected[current] = struct{}{}
-		for next := range graph[current] {
-			queue = append(queue, next)
+		selected[seed] = struct{}{}
+		for next := range graph[seed] {
+			if next != "" {
+				selected[next] = struct{}{}
+			}
 		}
 	}
 	result := make([]string, 0, len(selected))

@@ -10,24 +10,6 @@ func (s Store) DirectChangesRequireFull(language string, roots []string) (bool, 
 	return fullRequired, err
 }
 
-func repositorySensitiveUnresolved(reason string) bool {
-	switch reason {
-	case "missing-target", "ambiguous-target", "generated-target":
-		return true
-	default:
-		return false
-	}
-}
-
-func semanticRelation(relation string) bool {
-	switch relation {
-	case "contains", "defines":
-		return false
-	default:
-		return true
-	}
-}
-
 type topologyRecord struct {
 	Record        string `json:"record"`
 	Source        string `json:"source"`
