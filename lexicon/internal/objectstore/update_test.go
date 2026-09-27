@@ -148,6 +148,106 @@ func TestIncrementalLanguageMergesScopedSharedFacts(t *testing.T) {
 	}
 }
 
+func TestIncrementalLanguageRemovesSharedRelationshipsToRenamedFileNodes(t *testing.T) {
+	store := Store{Root: t.TempDir()}
+	source := t.TempDir()
+	oldPath := "hermes_cli/plugin_capabilities.py"
+	newPath := "plugin_runtime/capabilities.py"
+	if err := os.MkdirAll(filepath.Join(source, "hermes_cli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(source, filepath.FromSlash(oldPath)), []byte("value = 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	fullPath := filepath.Join(t.TempDir(), "full-rename.jsonl")
+	writeAnalysisStream(t, fullPath, []string{
+		`{"adapter_version":"test","language":"python","mode":"full","record":"lexicon","repository":"repo","schema_version":1}`,
+		`{"id":"dir-hermes","kind":"directory","name":"hermes_cli","path":"hermes_cli","qualified_name":"hermes_cli","record":"node"}`,
+		`{"id":"file-old","kind":"file","name":"plugin_capabilities.py","path":"hermes_cli/plugin_capabilities.py","qualified_name":"hermes_cli/plugin_capabilities.py","record":"node"}`,
+		`{"id":"module-old","kind":"module","name":"plugin_capabilities","path":"hermes_cli/plugin_capabilities.py","qualified_name":"hermes_cli.plugin_capabilities","record":"node"}`,
+		`{"id":"dependency","kind":"module","name":"shared-dependency","path":"@dependencies/python/shared-dependency","qualified_name":"shared-dependency","record":"node"}`,
+		`{"record":"edge","relation":"contains","source":"dir-hermes","target":"file-old"}`,
+		`{"record":"edge","relation":"contains","source":"file-old","target":"module-old"}`,
+		`{"record":"edge","relation":"depends-on","source":"module-old","target":"dependency"}`,
+	})
+	full, err := ReadAnalysis(fullPath, "python")
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry, err := store.BuildFullLanguage(full, source, "python", "sha256:config", "sha256:adapter")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.Remove(filepath.Join(source, filepath.FromSlash(oldPath))); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(source, "plugin_runtime"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(source, filepath.FromSlash(newPath)), []byte("value = 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	incrementalPath := filepath.Join(t.TempDir(), "incremental-rename.jsonl")
+	writeAnalysisStream(t, incrementalPath, []string{
+		`{"adapter_version":"test","changed_files":["plugin_runtime/capabilities.py"],"language":"python","mode":"incremental","record":"lexicon","removed_files":["hermes_cli/plugin_capabilities.py"],"repository":"repo","schema_version":1,"shared_complete":true}`,
+		`{"id":"dir-plugin-runtime","kind":"directory","name":"plugin_runtime","path":"plugin_runtime","qualified_name":"plugin_runtime","record":"node"}`,
+		`{"id":"file-new","kind":"file","name":"capabilities.py","path":"plugin_runtime/capabilities.py","qualified_name":"plugin_runtime/capabilities.py","record":"node"}`,
+		`{"id":"module-new","kind":"module","name":"capabilities","path":"plugin_runtime/capabilities.py","qualified_name":"plugin_runtime.capabilities","record":"node"}`,
+		`{"id":"dependency","kind":"module","name":"shared-dependency","path":"@dependencies/python/shared-dependency","qualified_name":"shared-dependency","record":"node"}`,
+		`{"record":"edge","relation":"contains","source":"dir-plugin-runtime","target":"file-new"}`,
+		`{"record":"edge","relation":"contains","source":"file-new","target":"module-new"}`,
+		`{"record":"edge","relation":"depends-on","source":"module-new","target":"dependency"}`,
+	})
+	incremental, err := ReadAnalysis(incrementalPath, "python")
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated, err := store.BuildIncrementalLanguage(
+		entry, incremental, source, "sha256:config", "sha256:adapter",
+		[]string{newPath}, []string{oldPath}, true,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	shared, err := store.LoadObject(updated.SharedObjectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, raw := range shared.Records {
+		var record struct {
+			Record string `json:"record"`
+			ID     string `json:"id"`
+			Source string `json:"source"`
+			Target string `json:"target"`
+		}
+		if err := json.Unmarshal(raw, &record); err != nil {
+			t.Fatal(err)
+		}
+		if record.ID == "module-old" || record.Source == "module-old" ||
+			record.Target == "module-old" || record.Target == "file-old" {
+			t.Fatalf("stale shared fact survived rename: %s", raw)
+		}
+	}
+	if _, ok := fileEntryOptional(updated, oldPath); ok {
+		t.Fatalf("removed file entry survived rename: %s", oldPath)
+	}
+	if _, ok := fileEntryOptional(updated, newPath); !ok {
+		t.Fatalf("renamed file entry missing: %s", newPath)
+	}
+}
+
+func fileEntryOptional(entry LanguageEntry, path string) (FileEntry, bool) {
+	for _, file := range entry.Files {
+		if file.Path == path {
+			return file, true
+		}
+	}
+	return FileEntry{}, false
+}
+
 func TestFullLanguagePreservesSharedRecordOrder(t *testing.T) {
 	store := Store{Root: t.TempDir()}
 	source := t.TempDir()

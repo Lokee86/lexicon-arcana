@@ -95,6 +95,14 @@ func (s Store) BuildIncrementalLanguage(
 	}
 
 	entry := languageMetadata(analysis.Header, analysisConfigID, adapterFingerprint)
+	var invalidatedNodes map[string]struct{}
+	if replaceShared {
+		var err error
+		invalidatedNodes, err = s.invalidatedNodeIDs(previous, changed, removed)
+		if err != nil {
+			return LanguageEntry{}, err
+		}
+	}
 	files := make(map[string]FileEntry, len(previous.Files)+len(changed))
 	for _, file := range previous.Files {
 		if !changed[file.Path] && !removed[file.Path] {
@@ -122,7 +130,7 @@ func (s Store) BuildIncrementalLanguage(
 	sort.Slice(entry.Files, func(left, right int) bool { return entry.Files[left].Path < entry.Files[right].Path })
 	entry.SharedObjectID = previous.SharedObjectID
 	if replaceShared {
-		sharedObjectID, err := s.mergeSharedObject(entry, previous.SharedObjectID, shared)
+		sharedObjectID, err := s.mergeSharedObject(entry, previous.SharedObjectID, shared, invalidatedNodes)
 		if err != nil {
 			return LanguageEntry{}, err
 		}
@@ -131,7 +139,58 @@ func (s Store) BuildIncrementalLanguage(
 	return entry, nil
 }
 
-func (s Store) mergeSharedObject(entry LanguageEntry, previousID string, updates typedRecords) (string, error) {
+func (s Store) invalidatedNodeIDs(
+	previous LanguageEntry,
+	changed, removed map[string]bool,
+) (map[string]struct{}, error) {
+	result := make(map[string]struct{})
+	for _, file := range previous.Files {
+		if !changed[file.Path] && !removed[file.Path] {
+			continue
+		}
+		object, err := s.LoadObject(file.ObjectID)
+		if err != nil {
+			return nil, err
+		}
+		records, err := parseTypedRecords(object.Records)
+		if err != nil {
+			return nil, err
+		}
+		for _, node := range records.nodes {
+			if node.ID != "" {
+				result[node.ID] = struct{}{}
+			}
+		}
+	}
+	if previous.SharedObjectID == "" {
+		return result, nil
+	}
+	sharedObject, err := s.LoadObject(previous.SharedObjectID)
+	if err != nil {
+		return nil, err
+	}
+	shared, err := parseTypedRecords(sharedObject.Records)
+	if err != nil {
+		return nil, err
+	}
+	for _, node := range shared.nodes {
+		path := normalizeOwner(node.Path)
+		if path == "" || (!changed[path] && !removed[path]) {
+			continue
+		}
+		if node.ID != "" {
+			result[node.ID] = struct{}{}
+		}
+	}
+	return result, nil
+}
+
+func (s Store) mergeSharedObject(
+	entry LanguageEntry,
+	previousID string,
+	updates typedRecords,
+	invalidatedNodes map[string]struct{},
+) (string, error) {
 	if previousID == "" {
 		return s.writeSharedObject(entry, updates)
 	}
@@ -143,11 +202,44 @@ func (s Store) mergeSharedObject(entry LanguageEntry, previousID string, updates
 	if err != nil {
 		return "", err
 	}
+	previous = withoutInvalidatedRelationships(previous, invalidatedNodes)
 	merged, err := mergeTypedRecords(previous, updates)
 	if err != nil {
 		return "", err
 	}
 	return s.writeSharedObject(entry, merged)
+}
+
+func withoutInvalidatedRelationships(
+	records typedRecords,
+	invalidatedNodes map[string]struct{},
+) typedRecords {
+	if len(invalidatedNodes) == 0 {
+		return records
+	}
+	filtered := typedRecords{}
+	for _, node := range records.nodes {
+		if _, invalid := invalidatedNodes[node.ID]; invalid {
+			continue
+		}
+		filtered.nodes = append(filtered.nodes, node)
+	}
+	for _, edge := range records.edges {
+		if _, invalid := invalidatedNodes[edge.Source]; invalid {
+			continue
+		}
+		if _, invalid := invalidatedNodes[edge.Target]; invalid {
+			continue
+		}
+		filtered.edges = append(filtered.edges, edge)
+	}
+	for _, unresolved := range records.unresolved {
+		if _, invalid := invalidatedNodes[unresolved.Source]; invalid {
+			continue
+		}
+		filtered.unresolved = append(filtered.unresolved, unresolved)
+	}
+	return filtered
 }
 
 func mergeTypedRecords(previous, updates typedRecords) (typedRecords, error) {
