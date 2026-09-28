@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use super::LexiconSnapshotError;
 use super::binary_v2_stream::{EdgeRef, NodeRef, UnresolvedRef};
 use super::identity::LexiconIdentity;
-use super::object::NodeReference;
+use super::object::{NodeReference, RecordCounts};
 use super::stream_compact_convert::{compact_span, node_kind, relation_code, unresolved_reason};
 use super::stream_compact_node::{NodeSignature, optional_intern, signature};
 use crate::repository::{NodeKey, normalize_repository_path};
@@ -16,6 +16,7 @@ pub(super) struct CompactPass {
     keys: HashMap<NodeKey, LexiconIdentity>,
     external_ids: HashMap<LexiconIdentity, NodeKey>,
     assembler: CompactRepositoryAssembler,
+    planned_relations: RecordCounts,
     compatibility: CompatibilityCounts,
 }
 
@@ -26,8 +27,25 @@ impl CompactPass {
             keys: HashMap::new(),
             external_ids: HashMap::new(),
             assembler: CompactRepositoryAssembler::with_capacity(0, 0, 0),
+            planned_relations: RecordCounts::default(),
             compatibility: BTreeMap::new(),
         }
+    }
+
+    pub(super) fn reserve_object(
+        &mut self,
+        counts: RecordCounts,
+    ) -> Result<(), LexiconSnapshotError> {
+        self.assembler.reserve_nodes(counts.nodes);
+        self.planned_relations = self
+            .planned_relations
+            .checked_add(RecordCounts {
+                nodes: 0,
+                edges: counts.edges,
+                unresolved: counts.unresolved,
+            })
+            .ok_or(LexiconSnapshotError::Malformed("record count overflow"))?;
+        Ok(())
     }
 
     pub(super) fn ingest_node(&mut self, record: NodeRef<'_>) -> Result<(), LexiconSnapshotError> {
@@ -79,6 +97,10 @@ impl CompactPass {
         self.nodes.clear();
         self.keys.clear();
         self.keys.shrink_to_fit();
+        self.assembler.reserve_relations(
+            self.planned_relations.edges,
+            self.planned_relations.unresolved,
+        );
     }
 
     pub(super) fn ingest_edge(&mut self, record: EdgeRef<'_>) -> Result<(), LexiconSnapshotError> {
@@ -168,4 +190,39 @@ fn normalized(path: &str) -> Result<String, LexiconSnapshotError> {
         field: "fact",
         path: path.to_owned(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CompactPass, RecordCounts};
+
+    #[test]
+    fn relation_capacity_is_accumulated_during_node_planning() {
+        let mut pass = CompactPass::new();
+        pass.reserve_object(RecordCounts {
+            nodes: 3,
+            edges: 5,
+            unresolved: 7,
+        })
+        .unwrap();
+        let (nodes, _, _) = pass.assembler.capacities();
+        assert!(nodes >= 3);
+
+        pass.reserve_object(RecordCounts {
+            nodes: 2,
+            edges: 11,
+            unresolved: 13,
+        })
+        .unwrap();
+
+        let (_, edges_before, unresolved_before) = pass.assembler.capacities();
+        assert_eq!(edges_before, 0);
+        assert_eq!(unresolved_before, 0);
+
+        pass.finish_node_pass();
+
+        let (_, edges, unresolved) = pass.assembler.capacities();
+        assert!(edges >= 16);
+        assert!(unresolved >= 20);
+    }
 }

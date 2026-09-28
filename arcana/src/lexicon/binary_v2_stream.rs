@@ -43,13 +43,14 @@ pub(super) enum RelationRef<'a> {
     Unresolved(UnresolvedRef<'a>),
 }
 
-pub(super) fn visit_nodes(
+pub(super) fn visit_nodes<T>(
     bytes: &[u8],
-    before_records: impl FnOnce(RecordCounts) -> Result<(), LexiconSnapshotError>,
-    mut visit: impl FnMut(NodeRef<'_>) -> Result<(), LexiconSnapshotError>,
+    context: &mut T,
+    before_records: impl FnOnce(&mut T, RecordCounts) -> Result<(), LexiconSnapshotError>,
+    mut visit: impl FnMut(&mut T, NodeRef<'_>) -> Result<(), LexiconSnapshotError>,
 ) -> Result<FactObject, LexiconSnapshotError> {
     let envelope = parse_envelope(bytes, false)?;
-    before_records(envelope.counts)?;
+    before_records(context, envelope.counts)?;
     let mut reader = Reader::new(envelope.nodes);
     let count = reader.count("node records", 20_000_000)?;
     for _ in 0..count {
@@ -73,50 +74,57 @@ pub(super) fn visit_nodes(
             "node qualified name",
         )?;
         let span = reader.span_ref(&envelope.strings)?;
-        visit(NodeRef {
-            attributes,
-            content_id,
-            id,
-            kind,
-            name,
-            owner,
-            path,
-            qualified_name,
-            span,
-        })?;
+        visit(
+            context,
+            NodeRef {
+                attributes,
+                content_id,
+                id,
+                kind,
+                name,
+                owner,
+                path,
+                qualified_name,
+                span,
+            },
+        )?;
     }
     reader.finish("node section")?;
     Ok(metadata(envelope))
 }
 
-pub(super) fn visit_relations(
+pub(super) fn visit_relations<T>(
     bytes: &[u8],
-    before_records: impl FnOnce(RecordCounts) -> Result<(), LexiconSnapshotError>,
-    mut visit: impl FnMut(RelationRef<'_>) -> Result<(), LexiconSnapshotError>,
+    context: &mut T,
+    before_records: impl FnOnce(&mut T, RecordCounts) -> Result<(), LexiconSnapshotError>,
+    mut visit: impl FnMut(&mut T, RelationRef<'_>) -> Result<(), LexiconSnapshotError>,
 ) -> Result<FactObject, LexiconSnapshotError> {
     let envelope = parse_envelope(bytes, true)?;
-    before_records(envelope.counts)?;
+    before_records(context, envelope.counts)?;
     let node_keys = decode_node_keys(envelope.nodes, &envelope.strings)?;
 
     let mut edges = Reader::new(envelope.edges);
     let edge_count = edges.count("edge records", 20_000_000)?;
     for _ in 0..edge_count {
         edges.skip_attributes()?;
-        visit(RelationRef::Edge(EdgeRef {
-            owner: optional(edges.factored_ref(
-                &envelope.strings,
-                &envelope.object_owner,
-                "edge owner",
-            )?),
-            relation: edges.code_or_string_ref(
-                &envelope.strings,
-                COMMON_RELATIONS,
-                "edge relation",
-            )?,
-            source: edges.node_ref(&node_keys, &envelope.external, "edge source")?,
-            span: edges.span_ref(&envelope.strings)?,
-            target: edges.node_ref(&node_keys, &envelope.external, "edge target")?,
-        }))?;
+        visit(
+            context,
+            RelationRef::Edge(EdgeRef {
+                owner: optional(edges.factored_ref(
+                    &envelope.strings,
+                    &envelope.object_owner,
+                    "edge owner",
+                )?),
+                relation: edges.code_or_string_ref(
+                    &envelope.strings,
+                    COMMON_RELATIONS,
+                    "edge relation",
+                )?,
+                source: edges.node_ref(&node_keys, &envelope.external, "edge source")?,
+                span: edges.span_ref(&envelope.strings)?,
+                target: edges.node_ref(&node_keys, &envelope.external, "edge target")?,
+            }),
+        )?;
     }
     edges.finish("edge section")?;
 
@@ -124,26 +132,31 @@ pub(super) fn visit_relations(
     let unresolved_count = unresolved.count("unresolved records", 20_000_000)?;
     for _ in 0..unresolved_count {
         unresolved.skip_attributes()?;
-        visit(RelationRef::Unresolved(UnresolvedRef {
-            candidate_name: optional(unresolved.string_ref(&envelope.strings, "candidate name")?),
-            candidate_namespace: optional(
-                unresolved.string_ref(&envelope.strings, "candidate namespace")?,
-            ),
-            expression: unresolved.string_ref(&envelope.strings, "expression")?,
-            owner: optional(unresolved.factored_ref(
-                &envelope.strings,
-                &envelope.object_owner,
-                "unresolved owner",
-            )?),
-            reason: unresolved.string_ref(&envelope.strings, "unresolved reason")?,
-            relation: unresolved.code_or_string_ref(
-                &envelope.strings,
-                COMMON_RELATIONS,
-                "unresolved relation",
-            )?,
-            source: unresolved.node_ref(&node_keys, &envelope.external, "unresolved source")?,
-            span: unresolved.span_ref(&envelope.strings)?,
-        }))?;
+        visit(
+            context,
+            RelationRef::Unresolved(UnresolvedRef {
+                candidate_name: optional(
+                    unresolved.string_ref(&envelope.strings, "candidate name")?,
+                ),
+                candidate_namespace: optional(
+                    unresolved.string_ref(&envelope.strings, "candidate namespace")?,
+                ),
+                expression: unresolved.string_ref(&envelope.strings, "expression")?,
+                owner: optional(unresolved.factored_ref(
+                    &envelope.strings,
+                    &envelope.object_owner,
+                    "unresolved owner",
+                )?),
+                reason: unresolved.string_ref(&envelope.strings, "unresolved reason")?,
+                relation: unresolved.code_or_string_ref(
+                    &envelope.strings,
+                    COMMON_RELATIONS,
+                    "unresolved relation",
+                )?,
+                source: unresolved.node_ref(&node_keys, &envelope.external, "unresolved source")?,
+                span: unresolved.span_ref(&envelope.strings)?,
+            }),
+        )?;
     }
     unresolved.finish("unresolved section")?;
 
