@@ -116,14 +116,15 @@ fn v2_stream_reports_counts_before_record_callbacks() {
     let node_records_seen = Cell::new(0_usize);
     visit_nodes(
         &bytes,
-        |counts| {
+        &mut (),
+        |_, counts| {
             assert_eq!(counts.nodes, 2);
             assert_eq!(counts.edges, 1);
             assert_eq!(counts.unresolved, 1);
             node_counts_seen.set(true);
             Ok(())
         },
-        |_| {
+        |_, _| {
             assert!(node_counts_seen.get());
             node_records_seen.set(node_records_seen.get() + 1);
             Ok(())
@@ -136,14 +137,15 @@ fn v2_stream_reports_counts_before_record_callbacks() {
     let relation_records_seen = Cell::new(0_usize);
     visit_relations(
         &bytes,
-        |counts| {
+        &mut (),
+        |_, counts| {
             assert_eq!(counts.nodes, 2);
             assert_eq!(counts.edges, 1);
             assert_eq!(counts.unresolved, 1);
             relation_counts_seen.set(true);
             Ok(())
         },
-        |_| {
+        |_, _| {
             assert!(relation_counts_seen.get());
             relation_records_seen.set(relation_records_seen.get() + 1);
             Ok(())

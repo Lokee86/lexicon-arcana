@@ -64,13 +64,19 @@ fn visit_node_object(
 ) -> Result<bool, LexiconSnapshotError> {
     let bytes = read_object(storage, id)?;
     if bytes.starts_with(MAGIC) {
-        let object = visit_nodes(&bytes, |_| Ok(()), |record| pass.ingest_node(record))?;
+        let object = visit_nodes(
+            &bytes,
+            pass,
+            |pass, counts| pass.reserve_object(counts),
+            |pass, record| pass.ingest_node(record),
+        )?;
         validate_object(&object, language, owner, content_id)?;
         return Ok(true);
     }
 
-    let (object, _counts) = parse_legacy(&bytes, RecordSelection::Nodes)?;
+    let (object, counts) = parse_legacy(&bytes, RecordSelection::Nodes)?;
     validate_object(&object, language, owner, content_id)?;
+    pass.reserve_object(counts)?;
     for record in object.records {
         if let FactRecord::Node(record) = record {
             stream_compact_legacy::ingest_node(pass, record)?;
@@ -88,8 +94,9 @@ fn visit_relation_object(
     if bytes.starts_with(MAGIC) {
         visit_relations(
             &bytes,
-            |_| Ok(()),
-            |record| match record {
+            pass,
+            |_, _| Ok(()),
+            |pass, record| match record {
                 RelationRef::Edge(record) => pass.ingest_edge(record),
                 RelationRef::Unresolved(record) => pass.ingest_unresolved(record),
             },

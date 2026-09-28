@@ -67,6 +67,24 @@ impl CompactRepositoryAssembler {
         }
     }
 
+    pub(crate) fn reserve_nodes(&mut self, additional: usize) {
+        self.nodes.reserve_exact(additional);
+    }
+
+    pub(crate) fn reserve_relations(&mut self, edges: usize, unresolved: usize) {
+        self.edges.reserve_exact(edges);
+        self.unresolved.reserve_exact(unresolved);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn capacities(&self) -> (usize, usize, usize) {
+        (
+            self.nodes.capacity(),
+            self.edges.capacity(),
+            self.unresolved.capacity(),
+        )
+    }
+
     pub(crate) fn intern(
         &mut self,
         value: &str,
