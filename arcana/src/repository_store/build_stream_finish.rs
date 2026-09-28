@@ -1,12 +1,11 @@
 use super::build::CompactRepositoryBuild;
 use super::build_indexes::{canonicalize_edges, canonicalize_unresolved};
 use super::build_stream::{
-    CompactRepositoryAssembler, TempEdgeRecord, TempNodeRecord, TempSpan, TempStringId,
-    TempUnresolvedRecord,
+    CompactRepositoryAssembler, TempEdgeRecord, TempNodeRecord, TempSpan, TempUnresolvedRecord,
 };
 use super::{
     CompactEdgeRecord, CompactNodeRecord, CompactSpan, CompactStringTable, CompactUnresolvedRecord,
-    RepositoryStoreWriteError, StringId,
+    RepositoryStoreWriteError, StringId, TempStringId,
 };
 
 pub(super) fn finish_stream_build(

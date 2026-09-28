@@ -5,10 +5,7 @@ use crate::repository::{ContentId, NodeKey};
 use super::build::CompactRepositoryBuild;
 use super::build_stream_finish::finish_stream_build;
 use super::build_stream_nodes::{StagedNodeError, canonicalize_nodes};
-use super::{RepositoryStoreWriteError, Sha256Identity};
-
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub(crate) struct TempStringId(pub u32);
+use super::{RepositoryStoreWriteError, Sha256Identity, TempStringId};
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub(crate) struct TempSpan {

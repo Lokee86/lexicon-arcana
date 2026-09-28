@@ -81,13 +81,14 @@ impl StringTableBuilder {
     }
 
     pub fn finish(self) -> Result<CompactStringTable, StoreFormatError> {
-        CompactStringTable::new(self.strings.into_iter().collect())
+        CompactStringTable::from_sorted(self.strings.into_iter().collect())
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CompactStringTable {
-    strings: Vec<String>,
+    blob: Vec<u8>,
+    offsets: Vec<u64>,
 }
 
 impl StringIdLookup for CompactStringTable {
@@ -98,47 +99,100 @@ impl StringIdLookup for CompactStringTable {
 
 impl CompactStringTable {
     pub(crate) fn from_sorted(strings: Vec<String>) -> Result<Self, StoreFormatError> {
-        Self::new(strings)
+        Self::from_sorted_refs(strings.iter().map(String::as_str))
     }
 
-    fn new(strings: Vec<String>) -> Result<Self, StoreFormatError> {
-        if strings.len() > ABSENT_STRING_ID as usize {
+    pub(crate) fn from_sorted_refs<'a>(
+        values: impl ExactSizeIterator<Item = &'a str> + Clone,
+    ) -> Result<Self, StoreFormatError> {
+        let count = values.len();
+        if count > ABSENT_STRING_ID as usize {
             return Err(StoreFormatError::TooManyStrings);
         }
-        Ok(Self { strings })
+
+        let blob_len = values.clone().try_fold(0usize, |size, value| {
+            size.checked_add(value.len())
+                .ok_or(StoreFormatError::SizeOverflow)
+        })?;
+        let mut blob = Vec::with_capacity(blob_len);
+        let mut offsets = Vec::with_capacity(count + 1);
+        offsets.push(0);
+
+        for value in values {
+            blob.extend_from_slice(value.as_bytes());
+            offsets.push(u64::try_from(blob.len()).map_err(|_| StoreFormatError::SizeOverflow)?);
+        }
+
+        Ok(Self { blob, offsets })
     }
 
     pub fn len(&self) -> usize {
-        self.strings.len()
+        self.offsets.len().saturating_sub(1)
     }
 
     pub(crate) fn values(&self) -> impl Iterator<Item = &str> {
-        self.strings.iter().map(String::as_str)
+        (0..self.len()).map(|index| {
+            self.get(StringId(index as u32))
+                .expect("compact string table contains valid offsets")
+        })
     }
 
     pub fn is_empty(&self) -> bool {
-        self.strings.is_empty()
+        self.len() == 0
     }
 
     pub fn id(&self, value: &str) -> Result<StringId, StoreFormatError> {
-        let index = self
-            .strings
-            .binary_search_by(|candidate| candidate.as_str().cmp(value))
-            .map_err(|_| StoreFormatError::MissingString)?;
-        Ok(StringId(index as u32))
+        let mut low = 0usize;
+        let mut high = self.len();
+        while low < high {
+            let middle = low + (high - low) / 2;
+            match self
+                .get(StringId(middle as u32))
+                .expect("compact string table contains valid offsets")
+                .cmp(value)
+            {
+                std::cmp::Ordering::Less => low = middle + 1,
+                std::cmp::Ordering::Greater => high = middle,
+                std::cmp::Ordering::Equal => return Ok(StringId(middle as u32)),
+            }
+        }
+        Err(StoreFormatError::MissingString)
     }
 
     pub fn get(&self, id: StringId) -> Result<&str, StoreFormatError> {
         if id == StringId::ABSENT {
             return Err(StoreFormatError::AbsentString);
         }
-        self.strings
-            .get(id.0 as usize)
-            .map(String::as_str)
-            .ok_or(StoreFormatError::InvalidStringId(id.0))
+        let index = id.0 as usize;
+        let start = *self
+            .offsets
+            .get(index)
+            .ok_or(StoreFormatError::InvalidStringId(id.0))?;
+        let end = *self
+            .offsets
+            .get(index + 1)
+            .ok_or(StoreFormatError::InvalidStringId(id.0))?;
+        let start = usize::try_from(start).map_err(|_| StoreFormatError::SizeOverflow)?;
+        let end = usize::try_from(end).map_err(|_| StoreFormatError::SizeOverflow)?;
+        std::str::from_utf8(&self.blob[start..end]).map_err(|_| StoreFormatError::InvalidUtf8)
     }
 
     pub fn optional(&self, id: StringId) -> Result<Option<&str>, StoreFormatError> {
         id.present().map(|id| self.get(id)).transpose()
+    }
+
+    pub(super) fn parts(&self) -> (&[u8], &[u64]) {
+        (&self.blob, &self.offsets)
+    }
+
+    pub(super) fn from_blob_parts(
+        blob: Vec<u8>,
+        offsets: Vec<u64>,
+    ) -> Result<Self, StoreFormatError> {
+        let count = offsets.len().saturating_sub(1);
+        if count > ABSENT_STRING_ID as usize {
+            return Err(StoreFormatError::TooManyStrings);
+        }
+        Ok(Self { blob, offsets })
     }
 }
