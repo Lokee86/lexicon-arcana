@@ -70,19 +70,19 @@ func Call(r contracts.Runner) {
 		)
 	}
 	if !hasRelationship(
-		got.Records,
+		got.records,
 		"type:example.com/app:Worker",
 		"type:example.com/contracts:Runner",
 		"implements",
 	) {
-		t.Fatalf("missing cross-module implements relationship: %#v", got.Records)
+		t.Fatalf("missing cross-module implements relationship: %#v", got.records)
 	}
 	if !hasCallTarget(
-		got.Records,
+		got.records,
 		"function:example.com/app:Call",
 		"method:example.com/app:Worker.Run",
 	) {
-		t.Fatalf("missing cross-module interface implementation call: %#v", got.Records)
+		t.Fatalf("missing cross-module interface implementation call: %#v", got.records)
 	}
 
 	reversed := base

@@ -3,11 +3,10 @@ use std::collections::BTreeMap;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(tag = "record", deny_unknown_fields)]
-pub(crate) enum Record {
-    #[serde(rename = "declaration")]
+#[serde(tag = "observation", rename_all = "kebab-case", deny_unknown_fields)]
+pub(crate) enum Observation {
     Declaration {
-        identity: String,
+        semantic_key: String,
         kind: DeclarationKind,
         name: String,
         owner: String,
@@ -15,73 +14,61 @@ pub(crate) enum Record {
         #[serde(default)]
         metadata: BTreeMap<String, String>,
     },
-    #[serde(rename = "relationship")]
     Relationship {
-        source: String,
-        #[serde(default)]
-        target: Option<String>,
+        source_key: String,
+        target_key: String,
         kind: RelationshipKind,
-        #[serde(default)]
-        target_name: Option<String>,
-        #[serde(default)]
-        capture_index: Option<usize>,
         owner: String,
         #[serde(default)]
         span: Option<Span>,
     },
-    #[serde(rename = "call")]
-    Call {
-        source: String,
-        target: String,
-        kind: CallKind,
-        class: CallClass,
-        #[serde(default)]
-        target_name: Option<String>,
-        #[serde(default)]
-        target_namespace: Option<String>,
-        #[serde(default)]
-        target_container: Option<String>,
-        #[serde(default)]
-        target_owner: Option<String>,
-        #[serde(default)]
-        target_span: Option<Span>,
-        owner: String,
-        span: Span,
-    },
-    #[serde(rename = "target")]
-    Target {
-        identity: String,
-        class: CallClass,
+    Symbol {
+        semantic_key: String,
         #[serde(default)]
         name: Option<String>,
         #[serde(default)]
         namespace: Option<String>,
         #[serde(default)]
-        container: Option<String>,
+        container_key: Option<String>,
+        #[serde(default)]
+        owner: Option<String>,
+        #[serde(default)]
+        span: Option<Span>,
+        #[serde(default)]
+        generated: bool,
     },
-    #[serde(rename = "dataflow")]
-    Dataflow {
-        source: String,
-        target: String,
-        kind: DataflowKind,
-        owner: String,
-        span: Span,
-    },
-    #[serde(rename = "unresolved")]
-    Unresolved {
-        source: String,
-        relation: String,
-        expression: String,
+    Callsite {
+        source_key: String,
+        form: CallForm,
+        resolution: CallResolution,
+        #[serde(default)]
+        expression: Option<String>,
         #[serde(default)]
         candidate_namespace: Option<String>,
         #[serde(default)]
         candidate_name: Option<String>,
-        reason: UnresolvedReason,
-        class: CallClass,
+        #[serde(default)]
+        targets: Vec<SymbolReference>,
         owner: String,
         span: Span,
     },
-    #[serde(rename = "diagnostic")]
+    Dataflow {
+        source_key: String,
+        target_key: String,
+        access: DataflowAccess,
+        owner: String,
+        span: Span,
+    },
+    Capture {
+        source_key: String,
+        #[serde(default)]
+        target_key: Option<String>,
+        target_name: String,
+        capture_index: usize,
+        owner: String,
+        #[serde(default)]
+        span: Option<Span>,
+    },
     Diagnostic {
         severity: DiagnosticSeverity,
         code: String,
@@ -91,6 +78,24 @@ pub(crate) enum Record {
         #[serde(default)]
         span: Option<Span>,
     },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct SymbolReference {
+    pub semantic_key: String,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub namespace: Option<String>,
+    #[serde(default)]
+    pub container_key: Option<String>,
+    #[serde(default)]
+    pub owner: Option<String>,
+    #[serde(default)]
+    pub span: Option<Span>,
+    #[serde(default)]
+    pub generated: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -115,46 +120,32 @@ pub(crate) enum RelationshipKind {
     Implements,
     Extends,
     Overrides,
-    References,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub(crate) enum CallKind {
-    Definite,
-    Possible,
-    Conversion,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub(crate) enum CallClass {
-    Internal,
-    External,
+pub(crate) enum CallForm {
+    Direct,
+    Interface,
+    Dynamic,
     Builtin,
     Conversion,
-    Dynamic,
-    Interface,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub(crate) enum DataflowKind {
+pub(crate) enum CallResolution {
+    Resolved,
+    Missing,
+    Ambiguous,
+    Unsupported,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum DataflowAccess {
     Read,
     Write,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub(crate) enum UnresolvedReason {
-    MissingTarget,
-    AmbiguousTarget,
-    UnsupportedForm,
-    DynamicTarget,
-    ExternalTarget,
-    BuiltinTarget,
-    TypeConversion,
-    SelfTarget,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]

@@ -34,7 +34,7 @@ func TestSemanticProtocolRequestRoundTripAndValidation(t *testing.T) {
 
 func TestSemanticProtocolRejectsUnsupportedVersion(t *testing.T) {
 	value := validProtocolRequest(t)
-	value.ProtocolVersion++
+	value.ProtocolVersion = 1
 	assertRequestErrorContains(t, value, "unsupported")
 }
 
@@ -85,5 +85,36 @@ func assertRequestErrorContains(t *testing.T, value request, expected string) {
 	}
 	if _, err := decodeRequest(raw); err == nil || !strings.Contains(err.Error(), expected) {
 		t.Fatalf("request error = %v, want substring %q", err, expected)
+	}
+}
+
+func TestSemanticProtocolResponseEmitsObservationsNotLegacyRecords(t *testing.T) {
+	value := responseFromRecords([]semanticRecord{
+		callObservation{
+			Record:          "call",
+			Source:          "function:example.com/demo:caller",
+			Target:          "function:example.com/demo:target",
+			Kind:            "possible",
+			Class:           "dynamic",
+			TargetName:      "target",
+			TargetNamespace: "example.com/demo",
+			Owner:           "main.go",
+			Span:            span{StartLine: 2, StartColumn: 1, EndLine: 2, EndColumn: 9},
+		},
+	})
+	raw, err := json.Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(raw)
+	for _, forbidden := range []string{`"records"`, `"record"`, `"reason"`, `"class"`, `"kind":"possible"`} {
+		if strings.Contains(text, forbidden) {
+			t.Fatalf("legacy wire field %s leaked into %s", forbidden, text)
+		}
+	}
+	for _, required := range []string{`"protocol_version":2`, `"observations"`, `"observation":"callsite"`, `"resolution":"resolved"`} {
+		if !strings.Contains(text, required) {
+			t.Fatalf("missing v2 wire field %s in %s", required, text)
+		}
 	}
 }

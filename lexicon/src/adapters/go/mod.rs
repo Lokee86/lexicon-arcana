@@ -3,8 +3,8 @@ mod discovery;
 mod facts;
 mod identities;
 mod module_ownership;
+mod observations;
 mod protocol;
-mod protocol_records;
 mod semantic_call_contract_targets;
 mod semantic_call_facts;
 mod semantic_call_target_support;
@@ -111,7 +111,7 @@ impl LanguageAdapter for GoAdapter {
                 ("identities.rs", include_bytes!("identities.rs")),
                 ("module_ownership.rs", include_bytes!("module_ownership.rs")),
                 ("protocol.rs", include_bytes!("protocol.rs")),
-                ("protocol_records.rs", include_bytes!("protocol_records.rs")),
+                ("observations.rs", include_bytes!("observations.rs")),
                 ("facts.rs", include_bytes!("facts.rs")),
                 (
                     "semantic_call_contract_targets.rs",
@@ -207,7 +207,7 @@ impl LanguageAdapter for GoAdapter {
             protocol::PROTOCOL_VERSION,
             &wire,
         )?;
-        facts::structural_analysis(request, &inventory, &response.records)
+        facts::structural_analysis(request, &inventory, &response.observations)
     }
 }
 

@@ -2,9 +2,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::adapters::frontend::ProtocolResponse;
 
-use super::protocol_records::Record;
+use super::observations::Observation;
 
-pub(crate) const PROTOCOL_VERSION: u32 = 1;
+pub(crate) const PROTOCOL_VERSION: u32 = 2;
 pub(crate) const HELPER_VERSION: &str = include_str!("../../../adapters/go-semantic/VERSION");
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -38,7 +38,7 @@ pub(crate) struct Execution {
 pub(crate) struct Response {
     pub protocol_version: u32,
     #[serde(default)]
-    pub records: Vec<Record>,
+    pub observations: Vec<Observation>,
 }
 
 impl ProtocolResponse for Response {

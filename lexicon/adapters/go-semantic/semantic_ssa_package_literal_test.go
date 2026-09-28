@@ -31,7 +31,7 @@ func caller() {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, record := range result.Records {
+	for _, record := range result.records {
 		call, ok := record.(callObservation)
 		if !ok || call.Source != "function:example.com/package-literal:caller" {
 			continue
@@ -43,5 +43,5 @@ func caller() {
 			return
 		}
 	}
-	t.Fatalf("synthetic SSA target not found: %#v", callRecords(result.Records))
+	t.Fatalf("synthetic SSA target not found: %#v", callRecords(result.records))
 }

@@ -2,115 +2,112 @@ use crate::{AdapterError, FactRecord, SourceSpan, UnresolvedRecord};
 
 use super::{
     discovery::Inventory,
-    protocol_records::{CallKind, Record, Span, UnresolvedReason},
-    semantic_call_targets::{TargetHints, TargetMaterialization, ensure_call_target},
+    observations::{CallForm, CallResolution, Observation, Span},
+    semantic_call_targets::{
+        TargetEvidence, TargetMaterialization, ensure_call_target, inferred_form,
+    },
     semantic_fact_index::FactIndex,
     semantic_facts_support::push_edge,
 };
 
 pub(super) fn add(
-    record: &Record,
+    observation: &Observation,
     inventory: &Inventory,
     records: &mut Vec<FactRecord>,
     index: &mut FactIndex,
 ) -> Result<bool, AdapterError> {
-    match record {
-        Record::Target {
-            identity,
-            class,
+    match observation {
+        Observation::Symbol {
+            semantic_key,
             name,
             namespace,
-            container,
-        } => {
-            ensure_call_target(
-                identity,
-                *class,
-                TargetHints {
-                    name: name.as_deref(),
-                    namespace: namespace.as_deref(),
-                    container: container.as_deref(),
-                    owner: None,
-                    span: None,
-                },
-                &mut TargetMaterialization {
-                    inventory,
-                    records,
-                    index,
-                },
-            )?;
-            Ok(true)
-        }
-        Record::Call {
-            source,
-            target,
-            kind,
-            class,
-            target_name,
-            target_namespace,
-            target_container,
-            target_owner,
-            target_span,
+            container_key,
             owner,
             span,
+            generated,
         } => {
-            let source_id = index.node_id(source)?;
-            if !index.contains_node(&source_id) {
-                return Err(AdapterError::new(format!(
-                    "Go semantic call source is not materialized: {source:?}"
-                )));
-            }
-            let target_id = ensure_call_target(
-                target,
-                *class,
-                TargetHints {
-                    name: target_name.as_deref(),
-                    namespace: target_namespace.as_deref(),
-                    container: target_container.as_deref(),
-                    owner: target_owner.as_deref(),
-                    span: target_span.as_ref(),
-                },
+            let evidence = TargetEvidence {
+                semantic_key,
+                name: name.as_deref(),
+                namespace: namespace.as_deref(),
+                container_key: container_key.as_deref(),
+                owner: owner.as_deref(),
+                span: span.as_ref(),
+                generated: *generated,
+            };
+            let form = inferred_form(&evidence);
+            ensure_call_target(
+                evidence,
+                form,
                 &mut TargetMaterialization {
                     inventory,
                     records,
                     index,
                 },
             )?;
-            push_edge(
-                records,
-                index,
-                source_id,
-                target_id,
-                call_relation(*kind),
-                Some(owner.clone()),
-                Some(source_span(owner, span)),
-            );
             Ok(true)
         }
-        Record::Unresolved {
-            source,
-            relation,
+        Observation::Callsite {
+            source_key,
+            form,
+            resolution,
             expression,
             candidate_namespace,
             candidate_name,
-            reason,
+            targets,
             owner,
             span,
-            ..
         } => {
-            let source_id = index.node_id(source)?;
+            let source_id = index.node_id(source_key)?;
             if !index.contains_node(&source_id) {
                 return Err(AdapterError::new(format!(
-                    "Go semantic unresolved call source is not materialized: {source:?}"
+                    "Go semantic call source is not materialized: {source_key:?}"
                 )));
+            }
+
+            if !targets.is_empty() {
+                if !matches!(resolution, CallResolution::Resolved) {
+                    return Err(AdapterError::new(
+                        "Go semantic callsite has targets without resolved evidence",
+                    ));
+                }
+                let relation = call_relation(*form, targets.len());
+                for target in targets {
+                    let target_id = ensure_call_target(
+                        TargetEvidence::from(target),
+                        *form,
+                        &mut TargetMaterialization {
+                            inventory,
+                            records,
+                            index,
+                        },
+                    )?;
+                    push_edge(
+                        records,
+                        index,
+                        source_id.clone(),
+                        target_id,
+                        relation,
+                        Some(owner.clone()),
+                        Some(source_span(owner, span)),
+                    );
+                }
+                return Ok(true);
+            }
+
+            if matches!(resolution, CallResolution::Resolved) {
+                return Err(AdapterError::new(
+                    "Go semantic callsite is resolved but has no targets",
+                ));
             }
             records.push(FactRecord::Unresolved(UnresolvedRecord {
                 attributes: None,
                 candidate_name: candidate_name.clone(),
                 candidate_namespace: candidate_namespace.clone(),
-                expression: expression.clone(),
+                expression: expression.clone().unwrap_or_default(),
                 owner: Some(owner.clone()),
-                reason: unresolved_reason(*reason).into(),
-                relation: relation.clone(),
+                reason: unresolved_reason(*form, *resolution).into(),
+                relation: "calls".into(),
                 source: source_id,
                 span: Some(source_span(owner, span)),
             }));
@@ -120,24 +117,29 @@ pub(super) fn add(
     }
 }
 
-fn call_relation(kind: CallKind) -> &'static str {
-    match kind {
-        CallKind::Definite => "calls",
-        CallKind::Possible => "possible-calls",
-        CallKind::Conversion => "converts-to",
+fn call_relation(form: CallForm, target_count: usize) -> &'static str {
+    if matches!(form, CallForm::Conversion) {
+        "converts-to"
+    } else if target_count == 1 {
+        "calls"
+    } else {
+        "possible-calls"
     }
 }
 
-fn unresolved_reason(reason: UnresolvedReason) -> &'static str {
-    match reason {
-        UnresolvedReason::MissingTarget => "missing-target",
-        UnresolvedReason::AmbiguousTarget => "ambiguous-target",
-        UnresolvedReason::UnsupportedForm => "unsupported-form",
-        UnresolvedReason::DynamicTarget => "dynamic-target",
-        UnresolvedReason::ExternalTarget => "external-target",
-        UnresolvedReason::BuiltinTarget => "builtin-target",
-        UnresolvedReason::TypeConversion => "type-conversion",
-        UnresolvedReason::SelfTarget => "self-target",
+fn unresolved_reason(form: CallForm, resolution: CallResolution) -> &'static str {
+    match resolution {
+        CallResolution::Ambiguous => "ambiguous-target",
+        CallResolution::Unsupported => "unsupported-form",
+        CallResolution::Missing => match form {
+            CallForm::Interface | CallForm::Dynamic => "dynamic-target",
+            CallForm::Builtin => "builtin-target",
+            CallForm::Conversion => "type-conversion",
+            CallForm::Direct => "missing-target",
+        },
+        CallResolution::Resolved => {
+            unreachable!("resolved callsites are handled before unresolved")
+        }
     }
 }
 

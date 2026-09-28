@@ -3,18 +3,34 @@ use crate::{AdapterError, FactRecord, NodeRecord, SourceSpan};
 use super::{
     discovery::Inventory,
     identities,
-    protocol_records::CallClass,
+    observations::{CallForm, Span, SymbolReference},
     semantic_call_contract_targets::{ensure_callable, ensure_type_target},
     semantic_call_target_support::{callable_identity, ensure_namespace, namespace_path},
     semantic_fact_index::FactIndex,
 };
 
-pub(super) struct TargetHints<'a> {
+pub(super) struct TargetEvidence<'a> {
+    pub semantic_key: &'a str,
     pub name: Option<&'a str>,
     pub namespace: Option<&'a str>,
-    pub container: Option<&'a str>,
+    pub container_key: Option<&'a str>,
     pub owner: Option<&'a str>,
-    pub span: Option<&'a super::protocol_records::Span>,
+    pub span: Option<&'a Span>,
+    pub generated: bool,
+}
+
+impl<'a> From<&'a SymbolReference> for TargetEvidence<'a> {
+    fn from(value: &'a SymbolReference) -> Self {
+        Self {
+            semantic_key: &value.semantic_key,
+            name: value.name.as_deref(),
+            namespace: value.namespace.as_deref(),
+            container_key: value.container_key.as_deref(),
+            owner: value.owner.as_deref(),
+            span: value.span.as_ref(),
+            generated: value.generated,
+        }
+    }
 }
 
 pub(super) struct TargetMaterialization<'a> {
@@ -24,109 +40,139 @@ pub(super) struct TargetMaterialization<'a> {
 }
 
 pub(super) fn ensure_call_target(
-    identity: &str,
-    class: CallClass,
-    hints: TargetHints<'_>,
+    target: TargetEvidence<'_>,
+    form: CallForm,
     materialization: &mut TargetMaterialization<'_>,
 ) -> Result<String, AdapterError> {
+    let identity = target.semantic_key;
     let id = materialization.index.node_id(identity)?;
     if materialization.index.contains_node(&id) {
         return Ok(id);
     }
 
-    match class {
-        CallClass::Internal => {
-            if let (Some(name), Some(namespace)) = (hints.name, hints.namespace) {
-                super::semantic_ssa_target_support::ensure_generated_internal_function(
-                    identity,
-                    name,
-                    namespace,
-                    hints.container,
-                    materialization,
-                )?;
-            } else {
-                return Err(AdapterError::new(format!(
-                    "Go semantic call target is not materialized: {identity:?}"
-                )));
-            }
-        }
-        CallClass::Interface => {
-            ensure_interface_target(identity, &hints, materialization)?;
-        }
-        CallClass::Dynamic => {
-            ensure_dynamic_target(identity, hints, materialization)?;
-        }
-        CallClass::Builtin => {
-            let (namespace, name) = callable_identity(identity)?;
-            ensure_namespace(
-                "go:builtins",
-                "@builtin/go",
-                materialization.inventory,
-                materialization.records,
-                materialization.index,
-            )?;
-            ensure_callable(
-                identity,
-                namespace,
-                name,
-                "@builtin/go",
-                materialization.records,
-                materialization.index,
-            )?;
-        }
-        CallClass::External => {
-            let (namespace, name) = callable_identity(identity)?;
-            let path = namespace_path(namespace);
-            ensure_namespace(
-                namespace,
-                &path,
-                materialization.inventory,
-                materialization.records,
-                materialization.index,
-            )?;
-            ensure_callable(
-                identity,
-                namespace,
-                name,
-                &path,
-                materialization.records,
-                materialization.index,
-            )?;
-        }
-        CallClass::Conversion => {
-            ensure_type_target(
-                identity,
-                materialization.inventory,
-                materialization.records,
-                materialization.index,
-            )?;
-        }
+    if matches!(form, CallForm::Conversion)
+        || identity.starts_with("type:")
+        || identity.starts_with("type-expression:")
+    {
+        ensure_type_target(
+            identity,
+            materialization.inventory,
+            materialization.records,
+            materialization.index,
+        )?;
+        return Ok(id);
     }
+
+    if matches!(form, CallForm::Builtin) || identity.starts_with("function:go:builtins:") {
+        let (namespace, name) = callable_identity(identity)?;
+        ensure_namespace(
+            "go:builtins",
+            "@builtin/go",
+            materialization.inventory,
+            materialization.records,
+            materialization.index,
+        )?;
+        ensure_callable(
+            identity,
+            namespace,
+            name,
+            "@builtin/go",
+            materialization.records,
+            materialization.index,
+        )?;
+        return Ok(id);
+    }
+
+    if matches!(form, CallForm::Interface) {
+        ensure_interface_target(identity, &target, materialization)?;
+        return Ok(id);
+    }
+
+    if identity.starts_with("dynamic-method:") || identity.starts_with("ssa-function:") {
+        ensure_dynamic_target(identity, target, materialization)?;
+        return Ok(id);
+    }
+
+    if identity.starts_with("closure:") {
+        return Err(AdapterError::new(format!(
+            "Go semantic closure target is not materialized: {identity:?}"
+        )));
+    }
+
+    let (parsed_namespace, parsed_name) = callable_identity(identity)?;
+    let namespace = target.namespace.unwrap_or(parsed_namespace);
+    let name = target.name.unwrap_or(parsed_name);
+    let internal = is_internal_namespace(materialization.inventory, namespace);
+    if internal {
+        if target.generated {
+            super::semantic_ssa_target_support::ensure_generated_internal_function(
+                identity,
+                name,
+                namespace,
+                target.container_key,
+                materialization,
+            )?;
+            return Ok(id);
+        }
+        return Err(AdapterError::new(format!(
+            "Go semantic call target is not materialized: {identity:?}"
+        )));
+    }
+
+    let path = namespace_path(namespace);
+    ensure_namespace(
+        namespace,
+        &path,
+        materialization.inventory,
+        materialization.records,
+        materialization.index,
+    )?;
+    ensure_callable(
+        identity,
+        namespace,
+        name,
+        &path,
+        materialization.records,
+        materialization.index,
+    )?;
     Ok(id)
+}
+
+pub(super) fn inferred_form(target: &TargetEvidence<'_>) -> CallForm {
+    let identity = target.semantic_key;
+    if identity.starts_with("type:") || identity.starts_with("type-expression:") {
+        CallForm::Conversion
+    } else if identity.starts_with("function:go:builtins:") {
+        CallForm::Builtin
+    } else if identity.starts_with("interface-method:") {
+        CallForm::Interface
+    } else if identity.starts_with("dynamic-method:") || identity.starts_with("ssa-function:") {
+        CallForm::Dynamic
+    } else {
+        CallForm::Direct
+    }
 }
 
 fn ensure_interface_target(
     identity: &str,
-    hints: &TargetHints<'_>,
+    evidence: &TargetEvidence<'_>,
     materialization: &mut TargetMaterialization<'_>,
 ) -> Result<(), AdapterError> {
     let (namespace, parsed_name) = callable_identity(identity)?;
-    let internal = materialization.inventory.modules.iter().any(|module| {
-        namespace == module.path || namespace.starts_with(&format!("{}/", module.path))
-    });
+    let internal = is_internal_namespace(materialization.inventory, namespace);
     if internal {
-        let name = hints.name.unwrap_or(parsed_name);
-        let owner = hints.owner.ok_or_else(|| {
+        let name = evidence.name.unwrap_or(parsed_name);
+        let owner = evidence.owner.ok_or_else(|| {
             AdapterError::new(format!(
                 "Go semantic internal interface target is missing owner: {identity:?}"
             ))
         })?;
-        let span = hints.span.ok_or_else(|| {
+        let span = evidence.span.ok_or_else(|| {
             AdapterError::new(format!(
                 "Go semantic internal interface target is missing span: {identity:?}"
             ))
         })?;
-        let container = hints.container.ok_or_else(|| {
+        let container = evidence.container_key.ok_or_else(|| {
             AdapterError::new(format!(
                 "Go semantic internal interface target is missing container: {identity:?}"
             ))
@@ -171,6 +217,7 @@ fn ensure_interface_target(
         }
         return Ok(());
     }
+
     let path = namespace_path(namespace);
     ensure_namespace(
         namespace,
@@ -191,7 +238,7 @@ fn ensure_interface_target(
 
 fn ensure_dynamic_target(
     identity: &str,
-    hints: TargetHints<'_>,
+    evidence: TargetEvidence<'_>,
     materialization: &mut TargetMaterialization<'_>,
 ) -> Result<(), AdapterError> {
     if let Some(body) = identity.strip_prefix("dynamic-method:") {
@@ -220,22 +267,15 @@ fn ensure_dynamic_target(
     if identity.starts_with("ssa-function:") {
         return super::semantic_ssa_target_support::ensure_synthetic_function(
             identity,
-            hints.name.unwrap_or(identity),
-            hints.namespace.unwrap_or("go:ssa"),
-            hints.container,
+            evidence.name.unwrap_or(identity),
+            evidence.namespace.unwrap_or("go:ssa"),
+            evidence.container_key,
             materialization,
         );
     }
-    if identity.starts_with("closure:") {
-        return Err(AdapterError::new(format!(
-            "Go semantic closure target is not materialized: {identity:?}"
-        )));
-    }
+
     let (namespace, name) = callable_identity(identity)?;
-    let internal = materialization.inventory.modules.iter().any(|module| {
-        namespace == module.path || namespace.starts_with(&format!("{}/", module.path))
-    });
-    if internal {
+    if is_internal_namespace(materialization.inventory, namespace) {
         return Err(AdapterError::new(format!(
             "Go semantic dynamic target is not materialized: {identity:?}"
         )));
@@ -256,4 +296,10 @@ fn ensure_dynamic_target(
         materialization.records,
         materialization.index,
     )
+}
+
+fn is_internal_namespace(inventory: &Inventory, namespace: &str) -> bool {
+    inventory.modules.iter().any(|module| {
+        namespace == module.path || namespace.starts_with(&format!("{}/", module.path))
+    })
 }

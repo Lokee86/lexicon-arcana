@@ -23,7 +23,7 @@ fn materializes_legacy_data_symbol_without_defines_edge() {
 
     let target = "variable:example.com/dataflow:main.go:2:10:value";
     let response = format!(
-        r#"{{"protocol_version":1,"records":[{{"record":"declaration","identity":"package:example.com/dataflow:dataflow","kind":"package","name":"dataflow","owner":"main.go","span":{{"start_line":1,"start_column":9,"end_line":1,"end_column":17}}}},{{"record":"declaration","identity":"function:example.com/dataflow:run","kind":"function","name":"run","owner":"main.go","span":{{"start_line":2,"start_column":1,"end_line":2,"end_column":41}},"metadata":{{"container":"package:example.com/dataflow:dataflow"}}}},{{"record":"dataflow","source":"function:example.com/dataflow:run","target":"{target}","kind":"read","owner":"main.go","span":{{"start_line":2,"start_column":34,"end_line":2,"end_column":39}}}}]}}"#
+        r#"{{"protocol_version":2,"observations":[{{"observation":"declaration","semantic_key":"package:example.com/dataflow:dataflow","kind":"package","name":"dataflow","owner":"main.go","span":{{"start_line":1,"start_column":9,"end_line":1,"end_column":17}}}},{{"observation":"declaration","semantic_key":"function:example.com/dataflow:run","kind":"function","name":"run","owner":"main.go","span":{{"start_line":2,"start_column":1,"end_line":2,"end_column":41}},"metadata":{{"container":"package:example.com/dataflow:dataflow"}}}},{{"observation":"dataflow","source_key":"function:example.com/dataflow:run","target_key":"{target}","access":"read","owner":"main.go","span":{{"start_line":2,"start_column":34,"end_line":2,"end_column":39}}}}]}}"#
     );
     let adapter = GoAdapter::with_frontend(synthetic_helper(&root.path, &response));
     let analysis = adapter

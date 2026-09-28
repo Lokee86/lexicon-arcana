@@ -23,7 +23,7 @@ func modTime(info fs.FileInfo) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, record := range result.Records {
+	for _, record := range result.records {
 		call, ok := record.(callObservation)
 		if !ok || call.Source != "function:example.com/external-interface:modTime" {
 			continue
@@ -32,5 +32,5 @@ func modTime(info fs.FileInfo) {
 			return
 		}
 	}
-	t.Fatalf("external interface contract not resolved: %#v", callRecords(result.Records))
+	t.Fatalf("external interface contract not resolved: %#v", callRecords(result.records))
 }

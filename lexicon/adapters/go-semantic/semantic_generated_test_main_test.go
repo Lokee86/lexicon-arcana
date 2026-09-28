@@ -39,7 +39,7 @@ func TestValue(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, record := range result.Records {
+	for _, record := range result.records {
 		target, ok := record.(targetObservation)
 		if !ok {
 			continue

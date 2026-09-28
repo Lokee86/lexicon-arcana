@@ -28,7 +28,7 @@ func invoke(value Runner) { value.Run() }
 		"method:example.com/interface-impl:First.Run":  true,
 		"method:example.com/interface-impl:Second.Run": true,
 	}
-	for _, record := range result.Records {
+	for _, record := range result.records {
 		call, ok := record.(callObservation)
 		if !ok || call.Source != "function:example.com/interface-impl:invoke" {
 			continue

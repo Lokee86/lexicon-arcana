@@ -2,43 +2,37 @@ use crate::{AdapterError, FactRecord, NodeRecord, SourceSpan};
 
 use super::{
     identities,
-    protocol_records::{Record, RelationshipKind, Span},
+    observations::{Observation, Span},
     semantic_fact_index::FactIndex,
     semantic_facts_support::push_edge,
 };
 
 pub(super) fn add(
-    record: &Record,
+    observation: &Observation,
     records: &mut Vec<FactRecord>,
     index: &mut FactIndex,
 ) -> Result<bool, AdapterError> {
-    let Record::Relationship {
-        source,
-        target,
-        kind: RelationshipKind::References,
+    let Observation::Capture {
+        source_key,
+        target_key,
         target_name,
         capture_index,
         owner,
         span,
-    } = record
+    } = observation
     else {
         return Ok(false);
     };
 
-    let source_id = index.node_id(source)?;
+    let source_id = index.node_id(source_key)?;
     if !index.contains_node(&source_id) {
         return Err(AdapterError::new(format!(
-            "Go semantic capture source is not materialized: {source:?}"
+            "Go semantic capture source is not materialized: {source_key:?}"
         )));
     }
-    let name = target_name
-        .as_deref()
-        .ok_or_else(|| AdapterError::new("Go semantic capture is missing target_name"))?;
-    let capture_index = capture_index
-        .ok_or_else(|| AdapterError::new("Go semantic capture is missing capture_index"))?;
-    let identity = target
+    let identity = target_key
         .clone()
-        .unwrap_or_else(|| identities::capture(&source_id, capture_index, name));
+        .unwrap_or_else(|| identities::capture(&source_id, *capture_index, target_name));
     let target_id = index.node_id_for_kind(&identity, "variable")?;
     let location = span.as_ref().map(|value| source_span(owner, value));
     let node_location = location.as_ref().map(|value| SourceSpan {
@@ -56,10 +50,10 @@ pub(super) fn add(
             content_id: None,
             id: target_id.clone(),
             kind: "variable".into(),
-            name: name.into(),
+            name: target_name.clone(),
             owner: node_location.as_ref().map(|_| owner.clone()),
             path: owner.clone(),
-            qualified_name: format!("{owner}::{name}"),
+            qualified_name: format!("{owner}::{target_name}"),
             span: node_location,
         },
     );

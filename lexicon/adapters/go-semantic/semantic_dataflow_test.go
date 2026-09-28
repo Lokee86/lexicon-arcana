@@ -27,14 +27,14 @@ func TestSemanticDataflowPreservesLegacyCompoundAndShadowing(t *testing.T) {
 	field := "field:example.com/oracle/dataflow:main.go:4:2:Field"
 	constant := "constant:example.com/oracle/dataflow:main.go:7:7:Constant"
 
-	if !hasDataflow(result.Records, local, "write", 15, 2) {
+	if !hasDataflow(result.records, local, "write", 15, 2) {
 		t.Fatal("missing compound local write")
 	}
-	if hasDataflow(result.Records, local, "read", 15, 2) {
+	if hasDataflow(result.records, local, "read", 15, 2) {
 		t.Fatal("compound access widened beyond the legacy oracle")
 	}
 	for _, target := range []string{outer, shadow, field, constant} {
-		if !hasDataflowTarget(result.Records, target) {
+		if !hasDataflowTarget(result.records, target) {
 			t.Fatalf("missing typed dataflow target %q", target)
 		}
 	}

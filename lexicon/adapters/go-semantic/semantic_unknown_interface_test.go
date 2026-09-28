@@ -21,7 +21,7 @@ func message(err error) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, record := range result.Records {
+	for _, record := range result.records {
 		call, ok := record.(callObservation)
 		if !ok || call.Source != "function:example.com/error-interface:message" {
 			continue
@@ -30,5 +30,5 @@ func message(err error) string {
 			return
 		}
 	}
-	t.Fatalf("go:unknown error method not resolved: %#v", callRecords(result.Records))
+	t.Fatalf("go:unknown error method not resolved: %#v", callRecords(result.records))
 }

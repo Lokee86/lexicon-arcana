@@ -27,7 +27,7 @@ func TestTypedDirectCallsPreserveLegacyBasicClassification(t *testing.T) {
 
 	var definite, conversions, unresolved int
 	classes := make(map[string]int)
-	for _, record := range result.Records {
+	for _, record := range result.records {
 		switch value := record.(type) {
 		case callObservation:
 			classes[value.Class]++
@@ -56,19 +56,19 @@ func TestTypedDirectCallsPreserveLegacyBasicClassification(t *testing.T) {
 		t.Fatalf("call classes = %#v", classes)
 	}
 
-	assertCallObservation(t, result.Records,
+	assertCallObservation(t, result.records,
 		"function:example.com/oracle/basic:recursive",
 		"function:example.com/oracle/basic:recursive", "internal")
-	assertCallObservation(t, result.Records,
+	assertCallObservation(t, result.records,
 		"function:example.com/oracle/basic:caller",
 		"function:example.com/oracle/basic/internal/sub:Function", "internal")
-	assertCallObservation(t, result.Records,
+	assertCallObservation(t, result.records,
 		"function:example.com/oracle/basic:caller",
 		"method:example.com/oracle/basic/internal/sub:Thing.Method", "internal")
-	assertCallObservation(t, result.Records,
+	assertCallObservation(t, result.records,
 		"function:example.com/oracle/basic:caller",
 		"function:fmt:Println", "external")
-	assertCallObservation(t, result.Records,
+	assertCallObservation(t, result.records,
 		"function:example.com/oracle/basic:caller",
 		"function:go:builtins:len", "builtin")
 }
@@ -89,7 +89,7 @@ func invoke(value Runner) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, record := range result.Records {
+	for _, record := range result.records {
 		value, ok := record.(unresolvedObservation)
 		if ok && value.Source == "function:example.com/typed:invoke" &&
 			value.CandidateName == "Run" {
@@ -99,7 +99,7 @@ func invoke(value Runner) {
 			return
 		}
 	}
-	t.Fatalf("missing interface call classification: %#v", result.Records)
+	t.Fatalf("missing interface call classification: %#v", result.records)
 }
 
 func assertCallObservation(

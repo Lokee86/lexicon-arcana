@@ -4,7 +4,7 @@ use super::{
     dependencies,
     discovery::Inventory,
     identities,
-    protocol_records::{DeclarationKind, Record, Span},
+    observations::{DeclarationKind, Observation, Span},
     semantic_call_facts, semantic_capture_facts, semantic_dataflow_facts,
     semantic_fact_index::FactIndex,
     semantic_facts_support::{container_id, parent_id, push_edge, required},
@@ -14,42 +14,42 @@ use super::{
 pub(crate) fn add(
     request: &AdapterRequest,
     inventory: &Inventory,
-    semantic: &[Record],
+    semantic: &[Observation],
     records: &mut Vec<FactRecord>,
 ) -> Result<(u64, u64), AdapterError> {
     let mut index = FactIndex::from_records(records);
 
-    for record in semantic {
-        if matches!(record, Record::Diagnostic { .. }) {
+    for observation in semantic {
+        if matches!(observation, Observation::Diagnostic { .. }) {
             continue;
         }
-        if semantic_capture_facts::add(record, records, &mut index)? {
+        if semantic_capture_facts::add(observation, records, &mut index)? {
             continue;
         }
-        if semantic_relationship_facts::add(record, inventory, records, &mut index)? {
+        if semantic_relationship_facts::add(observation, inventory, records, &mut index)? {
             continue;
         }
-        if semantic_call_facts::add(record, inventory, records, &mut index)? {
+        if semantic_call_facts::add(observation, inventory, records, &mut index)? {
             continue;
         }
-        if semantic_dataflow_facts::add(record, records, &mut index)? {
+        if semantic_dataflow_facts::add(observation, records, &mut index)? {
             continue;
         }
-        let Record::Declaration {
-            identity,
+        let Observation::Declaration {
+            semantic_key,
             kind,
             name,
             owner,
             span,
             metadata,
-        } = record
+        } = observation
         else {
             return Err(AdapterError::new(
-                "non-structural Go semantic record arrived before its migration phase",
+                "unsupported Go semantic observation reached materialization",
             ));
         };
         let location = source_span(owner, span);
-        let id = index.node_id_for_kind(identity, fact_kind(*kind))?;
+        let id = index.node_id_for_kind(semantic_key, fact_kind(*kind))?;
         let (path, qualified_name) = node_location(*kind, name, owner, metadata)?;
 
         index.push_node(

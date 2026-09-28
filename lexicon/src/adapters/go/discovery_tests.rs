@@ -44,7 +44,7 @@ fn basic_oracle_discovery_and_structural_facts_match_legacy() {
     let helper_root = TempDirectory::new("oracle-helper");
     let adapter = GoAdapter::with_frontend(synthetic_helper(
         &helper_root.path,
-        r#"{"protocol_version":1,"records":[]}"#,
+        r#"{"protocol_version":2,"observations":[]}"#,
     ));
     let analysis = adapter
         .analyze(&AdapterRequest {

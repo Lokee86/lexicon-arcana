@@ -28,14 +28,14 @@ func TestStructuralScanKeepsInactiveBuildVariants(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	enabled := declarations(result.Records, "function:example.com/oracle/tagged:Enabled")
+	enabled := declarations(result.records, "function:example.com/oracle/tagged:Enabled")
 	if len(enabled) != 2 {
 		t.Fatalf("Enabled declarations = %d, want 2", len(enabled))
 	}
 	if enabled[0].Owner != "enabled_default.go" || enabled[1].Owner != "enabled_special.go" {
 		t.Fatalf("Enabled owners = %q, %q", enabled[0].Owner, enabled[1].Owner)
 	}
-	test := declarations(result.Records, "test:example.com/oracle/tagged:TestTagged")
+	test := declarations(result.records, "test:example.com/oracle/tagged:TestTagged")
 	if len(test) != 1 || test[0].Kind != "test" || test[0].Owner != "special_test.go" {
 		t.Fatalf("TestTagged declaration = %#v", test)
 	}
@@ -44,7 +44,7 @@ func TestStructuralScanKeepsInactiveBuildVariants(t *testing.T) {
 		"import:external:os/exec",
 		"import:external:testing",
 	} {
-		if len(declarations(result.Records, identity)) != 1 {
+		if len(declarations(result.records, identity)) != 1 {
 			t.Fatalf("missing import %q", identity)
 		}
 	}
@@ -70,7 +70,7 @@ func TestStructuralScanPreservesNestedClosureOwnership(t *testing.T) {
 		t.Fatal(err)
 	}
 	var closures []declaration
-	for _, value := range result.Records {
+	for _, value := range result.records {
 		record, ok := value.(declaration)
 		if ok && strings.HasPrefix(record.Identity, "closure:example.com/nested:main.go:") {
 			closures = append(closures, record)
@@ -118,7 +118,7 @@ func Hidden() {}
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, value := range result.Records {
+	for _, value := range result.records {
 		record, ok := value.(declaration)
 		if !ok {
 			continue
@@ -127,7 +127,7 @@ func Hidden() {}
 			t.Fatalf("helper rediscovered excluded input: %#v", record)
 		}
 	}
-	if len(declarations(result.Records, "function:example.com/inventory:Visible")) != 1 {
+	if len(declarations(result.records, "function:example.com/inventory:Visible")) != 1 {
 		t.Fatal("missing visible declaration")
 	}
 }

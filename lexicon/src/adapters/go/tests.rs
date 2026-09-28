@@ -48,7 +48,7 @@ fn native_go_adapter_owns_full_and_incremental_scan_path() {
     )
     .unwrap();
 
-    let helper = synthetic_helper(&root.path, r#"{"protocol_version":1,"records":[]}"#);
+    let helper = synthetic_helper(&root.path, r#"{"protocol_version":2,"observations":[]}"#);
     let mut host = AdapterHost::new(&adapter_root);
     host.register("go", Arc::new(GoAdapter::with_frontend(helper)));
     let git = StateRepository::ensure(&state_root).unwrap();
@@ -112,7 +112,7 @@ fn minimal_helper_response_produces_valid_native_analysis() {
         "module example.com/phase2\n\ngo 1.22\n",
     )
     .unwrap();
-    let helper = synthetic_helper(&root.path, r#"{"protocol_version":1,"records":[]}"#);
+    let helper = synthetic_helper(&root.path, r#"{"protocol_version":2,"observations":[]}"#);
     let adapter = GoAdapter::with_frontend(helper);
     let request = AdapterRequest {
         language: "go".into(),
@@ -141,7 +141,7 @@ fn structured_helper_diagnostics_do_not_change_fact_materialization() {
     .unwrap();
     let helper = synthetic_helper(
         &root.path,
-        r#"{"protocol_version":1,"records":[{"record":"diagnostic","severity":"error","code":"go-package","message":"type-check failed"}]}"#,
+        r#"{"protocol_version":2,"observations":[{"observation":"diagnostic","severity":"error","code":"go-package","message":"type-check failed"}]}"#,
     );
     let adapter = GoAdapter::with_frontend(helper);
     let analysis = adapter
@@ -161,7 +161,7 @@ fn structured_helper_diagnostics_do_not_change_fact_materialization() {
 fn helper_handshake_rejects_protocol_mismatch() {
     let root = TempDirectory::new("mismatch");
     fs::write(root.path.join("go.mod"), "module example.com/mismatch\n").unwrap();
-    let helper = synthetic_helper(&root.path, r#"{"protocol_version":2,"records":[]}"#);
+    let helper = synthetic_helper(&root.path, r#"{"protocol_version":1,"observations":[]}"#);
     let adapter = GoAdapter::with_frontend(helper);
     let request = AdapterRequest {
         language: "go".into(),
@@ -197,7 +197,7 @@ fn helper_invocation_is_deterministic() {
         helper_arguments(),
         vec![
             OsString::from("--protocol-version"),
-            OsString::from("1"),
+            OsString::from("2"),
             OsString::from("--helper-version"),
             OsString::from(super::protocol::HELPER_VERSION),
         ]
@@ -208,7 +208,7 @@ fn helper_invocation_is_deterministic() {
             (OsString::from("LEXICON_HELPER"), OsString::from("go")),
             (
                 OsString::from("LEXICON_HELPER_PROTOCOL"),
-                OsString::from("1")
+                OsString::from("2")
             ),
         ]
     );

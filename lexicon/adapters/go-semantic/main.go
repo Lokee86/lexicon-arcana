@@ -65,6 +65,6 @@ func main() {
 		os.Exit(1)
 	}
 	if profiling {
-		profile.emit(time.Since(encodingStarted), len(result.Records))
+		profile.emit(time.Since(encodingStarted), len(result.Observations))
 	}
 }

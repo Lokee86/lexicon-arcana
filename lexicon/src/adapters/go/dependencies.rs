@@ -10,7 +10,7 @@ use crate::{AdapterError, AdapterRequest, EdgeRecord, FactRecord, NodeRecord};
 use super::{
     discovery::{Inventory, Module, SourceFile},
     identities,
-    protocol_records::{DeclarationKind, Record},
+    observations::{DeclarationKind, Observation},
     semantic_fact_index::FactIndex,
 };
 
@@ -34,7 +34,7 @@ struct PackageCandidate {
 pub(crate) fn add(
     request: &AdapterRequest,
     inventory: &Inventory,
-    semantic: &[Record],
+    semantic: &[Observation],
     records: &mut Vec<FactRecord>,
     index: &mut FactIndex,
 ) -> Result<(), AdapterError> {
@@ -105,13 +105,13 @@ pub(crate) fn add(
 
 fn add_local_imports(
     inventory: &Inventory,
-    semantic: &[Record],
+    semantic: &[Observation],
     records: &mut Vec<FactRecord>,
     index: &mut FactIndex,
 ) -> Result<(), AdapterError> {
     let packages = package_candidates(semantic, index)?;
     for record in semantic {
-        let Record::Declaration {
+        let Observation::Declaration {
             kind: DeclarationKind::Import,
             metadata,
             ..
@@ -310,13 +310,13 @@ fn push_dependency_edge(
 }
 
 fn package_candidates(
-    records: &[Record],
+    records: &[Observation],
     index: &mut FactIndex,
 ) -> Result<Vec<PackageCandidate>, AdapterError> {
     let mut result = Vec::new();
     for record in records {
-        let Record::Declaration {
-            identity,
+        let Observation::Declaration {
+            semantic_key,
             kind: DeclarationKind::Package,
             name,
             ..
@@ -324,16 +324,16 @@ fn package_candidates(
         else {
             continue;
         };
-        let body = identity.strip_prefix("package:").ok_or_else(|| {
-            AdapterError::new(format!("invalid Go package identity {identity:?}"))
+        let body = semantic_key.strip_prefix("package:").ok_or_else(|| {
+            AdapterError::new(format!("invalid Go package identity {semantic_key:?}"))
         })?;
         let (namespace, _) = body.rsplit_once(':').ok_or_else(|| {
-            AdapterError::new(format!("invalid Go package identity {identity:?}"))
+            AdapterError::new(format!("invalid Go package identity {semantic_key:?}"))
         })?;
         result.push(PackageCandidate {
             namespace: namespace.into(),
             name: name.clone(),
-            id: index.node_id_for_kind(identity, "module")?,
+            id: index.node_id_for_kind(semantic_key, "module")?,
         });
     }
     Ok(result)

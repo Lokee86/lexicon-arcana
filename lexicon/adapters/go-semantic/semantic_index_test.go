@@ -91,14 +91,14 @@ var _ string = 1
 		t.Fatal(err)
 	}
 	found := false
-	for _, record := range result.Records {
+	for _, record := range result.records {
 		value, ok := record.(diagnostic)
 		if ok && value.Code == "go-package" && value.Severity == "error" {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("missing structured package diagnostic: %#v", result.Records)
+		t.Fatalf("missing structured package diagnostic: %#v", result.records)
 	}
 }
 

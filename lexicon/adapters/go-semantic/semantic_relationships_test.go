@@ -60,11 +60,11 @@ func TestSemanticRelationshipsMatchEmbeddedAndInterfaceSemantics(t *testing.T) {
 		},
 	}
 	for _, want := range expected {
-		if !hasRelationship(result.Records, want.source, want.target, want.kind) {
+		if !hasRelationship(result.records, want.source, want.target, want.kind) {
 			t.Fatalf("missing %s %s -> %s", want.kind, want.source, want.target)
 		}
 	}
-	for _, value := range result.Records {
+	for _, value := range result.records {
 		record, ok := value.(relationship)
 		if ok && record.Kind == "implements" && record.Source == record.Target {
 			t.Fatalf("implements self-edge: %#v", record)
@@ -93,12 +93,12 @@ type Wrapped struct{ io.Reader }
 		t.Fatal(err)
 	}
 	if !hasRelationship(
-		result.Records,
+		result.records,
 		"type:example.com/external:Wrapped",
 		"type:io:Reader",
 		"extends",
 	) {
-		t.Fatalf("missing external extends relationship: %#v", relationships(result.Records))
+		t.Fatalf("missing external extends relationship: %#v", relationships(result.records))
 	}
 }
 
@@ -125,12 +125,12 @@ func (Derived) Run() {}
 		t.Fatal(err)
 	}
 	if !hasRelationship(
-		result.Records,
+		result.records,
 		"method:example.com/override:Derived.Run",
 		"method:example.com/override:Base.Run",
 		"overrides",
 	) {
-		t.Fatalf("missing override relationship: %#v", relationships(result.Records))
+		t.Fatalf("missing override relationship: %#v", relationships(result.records))
 	}
 }
 

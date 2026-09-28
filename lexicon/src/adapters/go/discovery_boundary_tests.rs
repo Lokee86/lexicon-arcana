@@ -89,7 +89,7 @@ fn exclusions_and_helper_inventory_are_rust_owned() {
     .unwrap();
     assert_eq!(request.files, vec!["go.mod", "main.go", "visible/keep.go"]);
     assert_eq!(request.modules[0].root, ".");
-    assert_eq!(helper_arguments()[1], "1");
+    assert_eq!(helper_arguments()[1], "2");
     assert_eq!(helper_environment().len(), 2);
 }
 

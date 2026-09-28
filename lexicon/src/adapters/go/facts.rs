@@ -6,13 +6,13 @@ use crate::{
 };
 
 use super::{
-    ADAPTER_VERSION, discovery::Inventory, identities, protocol_records::Record, semantic_facts,
+    ADAPTER_VERSION, discovery::Inventory, identities, observations::Observation, semantic_facts,
 };
 
 pub(crate) fn structural_analysis(
     request: &AdapterRequest,
     inventory: &Inventory,
-    semantic: &[Record],
+    semantic: &[Observation],
 ) -> Result<Analysis, crate::AdapterError> {
     let materialization_started = crate::perf::start();
     let mut records = Vec::new();

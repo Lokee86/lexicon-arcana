@@ -21,7 +21,7 @@ func TestSSACapturesFreeVariables(t *testing.T) {
 		t.Fatal(err)
 	}
 	var captures []relationship
-	for _, record := range result.Records {
+	for _, record := range result.records {
 		value, ok := record.(relationship)
 		if ok && value.Kind == "references" {
 			captures = append(captures, value)
@@ -55,27 +55,27 @@ func TestSSAResolvesHigherOrderAndClosureCalls(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertSemanticCall(t, result.Records,
+	assertSemanticCall(t, result.records,
 		"function:example.com/oracle/higher:apply",
 		"function:example.com/oracle/higher:first", "possible")
-	assertSemanticCall(t, result.Records,
+	assertSemanticCall(t, result.records,
 		"function:example.com/oracle/higher:apply",
 		"function:example.com/oracle/higher:second", "possible")
-	assertSemanticCall(t, result.Records,
+	assertSemanticCall(t, result.records,
 		"function:example.com/oracle/higher:caller",
 		"function:example.com/oracle/higher:target", "definite")
 
 	firstClosure := "closure:example.com/oracle/higher:main.go:22:13"
 	secondClosure := "closure:example.com/oracle/higher:main.go:27:2"
-	assertSemanticCall(t, result.Records,
+	assertSemanticCall(t, result.records,
 		"function:example.com/oracle/higher:caller", firstClosure, "definite")
-	assertSemanticCall(t, result.Records,
+	assertSemanticCall(t, result.records,
 		"function:example.com/oracle/higher:caller", secondClosure, "definite")
-	assertSemanticCall(t, result.Records,
+	assertSemanticCall(t, result.records,
 		firstClosure, "function:example.com/oracle/higher:target", "definite")
-	assertSemanticCall(t, result.Records,
+	assertSemanticCall(t, result.records,
 		secondClosure, "function:example.com/oracle/higher:target", "definite")
-	assertNoUnresolvedCalls(t, result.Records)
+	assertNoUnresolvedCalls(t, result.records)
 }
 
 func TestSSAResolvesReturnedFunctionsAndMethodValues(t *testing.T) {
@@ -106,19 +106,19 @@ func caller() {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertSemanticCall(t, result.Records,
+	assertSemanticCall(t, result.records,
 		"function:example.com/flow:caller",
 		"function:example.com/flow:target", "definite")
-	if !hasCallTarget(result.Records,
+	if !hasCallTarget(result.records,
 		"function:example.com/flow:caller",
 		"method:example.com/flow:Worker.Run",
-	) && !hasCallPrefix(result.Records,
+	) && !hasCallPrefix(result.records,
 		"function:example.com/flow:caller",
 		"ssa-function:example.com/flow:",
 	) {
-		t.Fatalf("method value was not resolved: %#v", callRecords(result.Records))
+		t.Fatalf("method value was not resolved: %#v", callRecords(result.records))
 	}
-	assertNoUnresolvedCalls(t, result.Records)
+	assertNoUnresolvedCalls(t, result.records)
 }
 
 func TestSSAResolvesInterfaceInvokeToConcreteMethods(t *testing.T) {
@@ -137,11 +137,11 @@ func TestSSAResolvesInterfaceInvokeToConcreteMethods(t *testing.T) {
 		t.Fatal(err)
 	}
 	source := "function:example.com/oracle/relationships:invoke"
-	assertSemanticCall(t, result.Records, source,
+	assertSemanticCall(t, result.records, source,
 		"method:example.com/oracle/relationships:Base.Run", "possible")
-	assertSemanticCall(t, result.Records, source,
+	assertSemanticCall(t, result.records, source,
 		"method:example.com/oracle/relationships:Direct.Run", "possible")
-	assertNoUnresolvedCalls(t, result.Records)
+	assertNoUnresolvedCalls(t, result.records)
 }
 
 func TestSSAMergeDropsInterfaceContractWhenConcreteTargetsExist(t *testing.T) {

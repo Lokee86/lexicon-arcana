@@ -119,7 +119,7 @@ func scanStructuralWithProfile(value request, profile *performanceProfile) (resp
 	for _, record := range diagnostics {
 		scanner.records = append(scanner.records, record)
 	}
-	return response{ProtocolVersion: protocolVersion, Records: scanner.records}, nil
+	return responseFromRecords(scanner.records), nil
 }
 
 func (scanner *structuralScanner) parseFile(owner string) error {

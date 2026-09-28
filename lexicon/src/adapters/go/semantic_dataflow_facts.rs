@@ -2,30 +2,30 @@ use crate::{AdapterError, FactRecord, NodeRecord, SourceSpan};
 
 use super::{
     identities,
-    protocol_records::{DataflowKind, Record, Span},
+    observations::{DataflowAccess, Observation, Span},
     semantic_fact_index::FactIndex,
     semantic_facts_support::push_edge,
 };
 
 pub(crate) fn add(
-    record: &Record,
+    observation: &Observation,
     records: &mut Vec<FactRecord>,
     index: &mut FactIndex,
 ) -> Result<bool, AdapterError> {
-    let Record::Dataflow {
-        source,
-        target,
-        kind,
+    let Observation::Dataflow {
+        source_key,
+        target_key,
+        access,
         owner,
         span,
-    } = record
+    } = observation
     else {
         return Ok(false);
     };
 
-    let source_id = index.node_id(source)?;
-    let symbol = data_symbol(target)?;
-    let target_id = index.node_id_for_kind(target, symbol.kind)?;
+    let source_id = index.node_id(source_key)?;
+    let symbol = data_symbol(target_key)?;
+    let target_id = index.node_id_for_kind(target_key, symbol.kind)?;
     index.push_node(
         records,
         NodeRecord {
@@ -47,9 +47,9 @@ pub(crate) fn add(
         },
     );
 
-    let relation = match kind {
-        DataflowKind::Read => "reads",
-        DataflowKind::Write => "writes",
+    let relation = match access {
+        DataflowAccess::Read => "reads",
+        DataflowAccess::Write => "writes",
     };
     push_edge(
         records,
