@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::time::Instant;
 
 use super::snapshot::read_manifest;
 use super::snapshot_compact_visit::{visit_node_pass, visit_relation_pass};
@@ -26,10 +27,19 @@ pub fn load_compact(
     let (manifest, metadata) = read_manifest(&storage, id)?;
     let mut pass = CompactPass::new();
 
+    let node_started = Instant::now();
     let direct_v2 = visit_node_pass(&storage, &manifest, &mut pass)?;
+    profile("compact-node-pass", node_started.elapsed());
+
     pass.finish_node_pass();
+
+    let relation_started = Instant::now();
     visit_relation_pass(&storage, &manifest, &mut pass)?;
+    profile("compact-relation-pass", relation_started.elapsed());
+
+    let finish_started = Instant::now();
     let (repository, compatibility_warnings) = pass.finish()?;
+    profile("compact-build-finish", finish_started.elapsed());
 
     Ok(CompactLexiconSnapshot {
         metadata,
@@ -37,6 +47,15 @@ pub fn load_compact(
         compatibility_warnings,
         direct_v2,
     })
+}
+
+fn profile(phase: &str, elapsed: std::time::Duration) {
+    if std::env::var_os("ARCANA_SYNC_PROFILE").is_some() {
+        eprintln!(
+            "arcana sync profile: phase={phase} elapsed_ms={:.3}",
+            elapsed.as_secs_f64() * 1000.0,
+        );
+    }
 }
 
 #[cfg(test)]

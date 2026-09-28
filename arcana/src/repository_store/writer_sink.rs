@@ -1,13 +1,15 @@
 use std::fs::File;
-use std::io::{Seek, SeekFrom, Write};
+use std::io::{BufWriter, Seek, SeekFrom, Write};
 
 use sha2::{Digest, Sha256};
 
 use super::RepositoryStoreWriteError;
 use super::format::{ALIGNMENT, HEADER_LEN, RepositoryHeader, SectionSpec};
 
+const WRITE_BUFFER_BYTES: usize = 1024 * 1024;
+
 pub struct PayloadWriter {
-    file: File,
+    file: BufWriter<File>,
     payload_hasher: Sha256,
     position: u64,
 }
@@ -16,7 +18,7 @@ impl PayloadWriter {
     pub fn new(mut file: File) -> Result<Self, RepositoryStoreWriteError> {
         file.write_all(&vec![0_u8; usize::from(HEADER_LEN)])?;
         Ok(Self {
-            file,
+            file: BufWriter::with_capacity(WRITE_BUFFER_BYTES, file),
             payload_hasher: Sha256::new(),
             position: u64::from(HEADER_LEN),
         })
@@ -54,7 +56,8 @@ impl PayloadWriter {
         }
         self.file.seek(SeekFrom::Start(0))?;
         self.file.write_all(&header.encode())?;
-        self.file.sync_all()?;
+        self.file.flush()?;
+        self.file.get_ref().sync_all()?;
         Ok(header)
     }
 
@@ -77,7 +80,7 @@ impl PayloadWriter {
 }
 
 pub struct SectionSink<'a> {
-    file: &'a mut File,
+    file: &'a mut BufWriter<File>,
     payload_hasher: &'a mut Sha256,
     section_hasher: Sha256,
     position: &'a mut u64,

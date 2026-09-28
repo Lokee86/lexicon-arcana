@@ -78,6 +78,21 @@ fn write_store(
     repository: &CompactRepositoryBuild,
 ) -> Result<(u64, RepositoryStoreWrite), CliCommandError> {
     let path = output.join(REPOSITORY_STORE_FILE);
+    let write_started = Instant::now();
     let store_write = write_repository_store_compact(&path, repository)?;
-    Ok((repository_artifact_file_checksum(&path)?, store_write))
+    profile("compact-store-write", write_started.elapsed());
+
+    let checksum_started = Instant::now();
+    let checksum = repository_artifact_file_checksum(&path)?;
+    profile("compact-store-checksum", checksum_started.elapsed());
+    Ok((checksum, store_write))
+}
+
+fn profile(phase: &str, elapsed: std::time::Duration) {
+    if std::env::var_os("ARCANA_SYNC_PROFILE").is_some() {
+        eprintln!(
+            "arcana sync profile: phase={phase} elapsed_ms={:.3}",
+            elapsed.as_secs_f64() * 1000.0,
+        );
+    }
 }

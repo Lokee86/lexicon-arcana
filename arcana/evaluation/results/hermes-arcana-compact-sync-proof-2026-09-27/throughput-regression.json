@@ -1,0 +1,62 @@
+{
+  "investigation": "Phase 9 rebuild throughput regression",
+  "snapshot": "sha256:ee46a8a475c443f908e0eff6db9efca62e3871fe1f541e62251ebd9f5ed2c621",
+  "cause": "repository.arcana writer issued millions of small direct File writes",
+  "fix": "wrap repository store sink in a 1 MiB BufWriter",
+  "controlled_writer_ab": {
+    "unbuffered_seconds": 44.674131,
+    "buffered_seconds_min": 1.757710,
+    "buffered_seconds_max": 2.217405,
+    "reduction_percent_using_best_buffered_run": 96.0654858625006,
+    "speedup_using_best_buffered_run": 25.41609878762708
+  },
+  "checksum_stage": {
+    "seconds_min": 0.679990,
+    "seconds_max": 1.048920,
+    "kept_unchanged": true
+  },
+  "buffered_run_relatively_cold": {
+    "wall_seconds": 105.55336479999823,
+    "peak_rss_bytes": 998068224,
+    "phases_ms": {
+      "compact_node_pass": 80743.468,
+      "compact_relation_pass": 14225.850,
+      "compact_build_finish": 3531.262,
+      "compact_store_write": 2217.405,
+      "compact_store_checksum": 703.628,
+      "compact_graph_compile": 1930.203
+    },
+    "artifacts_byte_identical": true
+  },
+  "unbuffered_warm_control": {
+    "wall_seconds": 98.51212709999527,
+    "peak_rss_bytes": 997449728,
+    "phases_ms": {
+      "compact_node_pass": 32313.184,
+      "compact_relation_pass": 11564.513,
+      "compact_build_finish": 4375.510,
+      "compact_store_write": 44674.131,
+      "compact_store_checksum": 1048.920,
+      "compact_graph_compile": 1831.240
+    }
+  },
+  "buffered_warm_trace": {
+    "wall_seconds": 40.23571370000718,
+    "global_peak_rss_bytes": 990957568,
+    "phases_ms": {
+      "compact_node_pass": 14142.548,
+      "compact_relation_pass": 14793.443,
+      "compact_build_finish": 3994.288,
+      "compact_store_write": 1757.710,
+      "compact_store_checksum": 679.990,
+      "compact_graph_compile": 2005.826
+    },
+    "rss_peak_phase": "compact-build-finish",
+    "artifact_hashes": {
+      "repository.arcana": "10cb311318a28703e3c9a510cae1b177e24f123c2d604ffafc194c3e55de0281",
+      "graph.arcana": "ee64b0367905d5e39c64d75c1269b429fc3791b5a6287cce0576e32f22e8fd5d"
+    },
+    "artifacts_byte_identical": true
+  },
+  "caveat": "end-to-end wall time is filesystem-cache sensitive; writer-stage timings are the controlled causal evidence"
+}

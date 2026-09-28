@@ -65,16 +65,60 @@ The clean Phase 9 wall time is **200.052 s**. The original Phase 8 rebuild basel
 
 That is a **43.106 s / 27.47% slowdown** despite the substantial memory reduction. Earlier intermediate timing runs were contaminated by concurrent Lexicon scans; this Phase 9 run was not. No other Arcana/Lexicon/Cargo/Rust compilation job was active when the proof began, and the resident `cargo-reclaim` process showed zero CPU use over a two-second preflight sample.
 
-The memory restoration therefore passes, but rebuild throughput still has a measurable regression that should be treated as separate follow-up performance work rather than obscured by the successful RSS result.
+The memory restoration therefore passes. The apparent rebuild-throughput regression was investigated immediately afterward.
+
+## Throughput regression follow-up
+
+The follow-up added phase timing around compact ingestion/build/write and compared the repository writer with and without buffering on the same frozen Hermes snapshot.
+
+The regression source was the repository-store sink writing encoded records directly to `File`. The store contains millions of small encoded records, so the unbuffered path paid a large syscall/I/O overhead even though the final file is only 489.8 MB.
+
+A controlled warm-cache A/B isolated the writer stage:
+
+| Variant | Repository store write |
+| --- | ---: |
+| Original unbuffered writer | **44.674 s** |
+| 1 MiB `BufWriter` | **1.758–2.217 s** |
+
+Buffering removes about **42.9 s / 96.1%** of the repository-write stage, a **25.4×** speedup for that stage. The explicit full-store artifact checksum is only about **0.68–1.05 s**, so duplicate checksum work was not the regression source and remains unchanged.
+
+End-to-end wall time varied substantially with Windows filesystem cache state, especially in the node pass. Observed buffered production runs were:
+
+- **105.553 s** with a relatively cold node pass of **80.743 s**.
+- **40.236 s** with a warm node pass of **14.143 s**.
+
+The warm trace broke down as:
+
+| Phase | Time |
+| --- | ---: |
+| compact node pass | **14.143 s** |
+| compact relation pass | **14.793 s** |
+| compact build finish | **3.994 s** |
+| repository store write | **1.758 s** |
+| repository checksum | **0.680 s** |
+| compact graph compile | **2.006 s** |
+| total managed sync | **40.236 s** |
+
+Because the node-pass time is cache-sensitive, the end-to-end numbers should not be used as a controlled before/after speedup. The writer-stage A/B is the causal measurement.
+
+The warm buffered RSS trace peaked at **990,957,568 B**, during compact-build finalization. The writer stage itself peaked around **633 MB** and therefore is not the remaining memory ceiling.
+
+After the writer fix, both generated artifacts remain byte-identical to the Phase 8 oracle:
+
+- `repository.arcana`: `10cb311318a28703e3c9a510cae1b177e24f123c2d604ffafc194c3e55de0281`
+- `graph.arcana`: `ee64b0367905d5e39c64d75c1269b429fc3791b5a6287cce0576e32f22e8fd5d`
+
+Raw follow-up evidence: [throughput-regression.json](throughput-regression.json).
 
 ## Conclusion
 
-**Phase 9 passes the compact-sync proof.**
+**Phase 9 passes the compact-sync proof, and the subsequent throughput regression has been identified and repaired.**
 
 - Production managed sync runs through the compact path.
 - The frozen Hermes repository completes successfully without a rescan.
-- Peak process-tree RSS is below 1 GB.
+- Peak process-tree RSS remains below 1 GB.
 - Node, edge, and unresolved counts exactly match the oracle.
-- `repository.arcana` and `graph.arcana` are byte-identical to the oracle.
+- `repository.arcana` and `graph.arcana` remain byte-identical to the oracle.
 - Published storage size is unchanged.
-- The remaining known issue is rebuild wall time: the compact pipeline is currently about 27.5% slower than the original Phase 8 rebuild measurement.
+- The measured throughput regression came from unbuffered repository-store writes; buffering reduces that stage from **44.674 s** to **1.758–2.217 s**.
+- The dominant remaining runtime is now Lexicon ingestion, with node-pass timing strongly affected by filesystem cache state.
