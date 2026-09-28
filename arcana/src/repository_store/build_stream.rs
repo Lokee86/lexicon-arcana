@@ -67,13 +67,13 @@ impl CompactRepositoryAssembler {
         }
     }
 
-    pub(crate) fn reserve_nodes(&mut self, additional: usize) {
-        self.nodes.reserve_exact(additional);
+    pub(crate) fn reserve_nodes_to(&mut self, required: usize) {
+        reserve_to(&mut self.nodes, required);
     }
 
-    pub(crate) fn reserve_relations(&mut self, edges: usize, unresolved: usize) {
-        self.edges.reserve_exact(edges);
-        self.unresolved.reserve_exact(unresolved);
+    pub(crate) fn reserve_relations_to(&mut self, edges: usize, unresolved: usize) {
+        reserve_to(&mut self.edges, edges);
+        reserve_to(&mut self.unresolved, unresolved);
     }
 
     #[cfg(test)]
@@ -163,4 +163,15 @@ impl CompactRepositoryAssembler {
     pub(crate) fn finish(self) -> Result<CompactRepositoryBuild, RepositoryStoreWriteError> {
         finish_stream_build(self)
     }
+}
+
+fn reserve_to<T>(records: &mut Vec<T>, required: usize) {
+    if required <= records.capacity() {
+        return;
+    }
+
+    const MIN_HEADROOM: usize = 32_768;
+    let headroom = (required / 32).max(MIN_HEADROOM);
+    let target = required.saturating_add(headroom);
+    records.reserve_exact(target.saturating_sub(records.len()));
 }
