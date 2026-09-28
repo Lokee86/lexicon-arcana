@@ -1,11 +1,11 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use super::LexiconSnapshotError;
 use super::binary_v2_stream::{EdgeRef, NodeRef, UnresolvedRef};
 use super::identity::LexiconIdentity;
 use super::object::{NodeReference, RecordCounts};
 use super::stream_compact_convert::{compact_span, node_kind, relation_code, unresolved_reason};
-use super::stream_compact_node::{NodeSignature, optional_intern, signature, signature_digest};
+use super::stream_compact_node::{optional_intern, signature_digest};
 use crate::repository::{NodeKey, normalize_repository_path};
 use crate::repository_store::{
     CompactRepositoryAssembler, CompactRepositoryBuild, Sha256Identity, StagedNodeError,
@@ -14,9 +14,6 @@ use crate::repository_store::{
 pub(super) type CompatibilityCounts = BTreeMap<String, usize>;
 
 pub(super) struct CompactPass {
-    nodes: BTreeMap<LexiconIdentity, NodeSignature>,
-    keys: HashMap<NodeKey, LexiconIdentity>,
-    external_ids: HashMap<LexiconIdentity, NodeKey>,
     assembler: CompactRepositoryAssembler,
     planned_counts: RecordCounts,
     relation_counts: RecordCounts,
@@ -26,9 +23,6 @@ pub(super) struct CompactPass {
 impl CompactPass {
     pub(super) fn new() -> Self {
         Self {
-            nodes: BTreeMap::new(),
-            keys: HashMap::new(),
-            external_ids: HashMap::new(),
             assembler: CompactRepositoryAssembler::with_capacity(0, 0, 0),
             planned_counts: RecordCounts::default(),
             relation_counts: RecordCounts::default(),
@@ -73,17 +67,12 @@ impl CompactPass {
     }
 
     pub(super) fn ingest_node(&mut self, record: NodeRef<'_>) -> Result<(), LexiconSnapshotError> {
-        let signature = signature(&mut self.assembler, &record)?;
-
         validate_owner(record.owner)?;
         let path = normalized(record.path)?;
         if record.qualified_name.is_empty() {
             return Err(LexiconSnapshotError::Malformed("node qualified name"));
         }
         let key = record.id.node_key();
-        self.keys.insert(key, record.id);
-        self.external_ids.insert(record.id, key);
-
         let signature_digest = signature_digest(&record);
         let owner = optional_intern(&mut self.assembler, record.owner)?;
         let kind_code = node_kind(record.kind, &mut self.compatibility);
@@ -103,7 +92,6 @@ impl CompactPass {
             qualified_name,
             span,
         );
-        self.nodes.insert(record.id, signature);
         Ok(())
     }
 
@@ -111,9 +99,6 @@ impl CompactPass {
         self.assembler
             .canonicalize_nodes()
             .map_err(node_staging_error)?;
-        self.nodes.clear();
-        self.keys.clear();
-        self.keys.shrink_to_fit();
         Ok(())
     }
 
@@ -169,10 +154,8 @@ impl CompactPass {
         let Self {
             assembler,
             compatibility,
-            external_ids,
             ..
         } = self;
-        drop(external_ids);
         let warnings = compatibility
             .into_iter()
             .map(|(message, count)| format!("{message} ({count} record(s))"))

@@ -4,7 +4,7 @@ use crate::lexicon::object::NodeReference;
 use crate::repository_store::{Sha256Identity, TempStringId};
 
 #[test]
-fn identity_resolution_uses_canonical_staging_not_external_id_map() {
+fn identity_resolution_uses_canonical_staging() {
     let mut pass = CompactPass::new();
     let identity = LexiconIdentity::from_digest([7; 32]);
     let key = identity.node_key();
@@ -22,24 +22,18 @@ fn identity_resolution_uses_canonical_staging_not_external_id_map() {
     );
     pass.assembler.canonicalize_nodes().unwrap();
 
-    let unknown = LexiconIdentity::from_digest([8; 32]);
-    pass.external_ids.insert(unknown, key);
-
     assert_eq!(
         pass.resolve(NodeReference::Identity(identity)).unwrap(),
         key
     );
+
+    let unknown = LexiconIdentity::from_digest([8; 32]);
     assert!(matches!(
         pass.resolve(NodeReference::Identity(unknown)),
         Err(super::LexiconSnapshotError::Malformed(
             "unknown relationship node"
         ))
     ));
-    assert!(
-        !pass
-            .assembler
-            .contains_node_identity(key, Sha256Identity(unknown.digest()))
-    );
 }
 
 #[test]
