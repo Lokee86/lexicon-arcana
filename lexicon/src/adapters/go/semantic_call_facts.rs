@@ -2,12 +2,11 @@ use crate::{AdapterError, FactRecord, SourceSpan, UnresolvedRecord};
 
 use super::{
     discovery::Inventory,
-    observations::{CallForm, CallResolution, Observation, Span},
-    semantic_call_targets::{
-        TargetEvidence, TargetMaterialization, ensure_call_target, inferred_form,
-    },
+    observations::{CallResolution, Observation, Span},
+    semantic_call_targets::{TargetEvidence, TargetMaterialization, ensure_call_target},
     semantic_fact_index::FactIndex,
     semantic_facts_support::push_edge,
+    semantic_policy,
 };
 
 pub(super) fn add(
@@ -35,7 +34,8 @@ pub(super) fn add(
                 span: span.as_ref(),
                 generated: *generated,
             };
-            let form = inferred_form(&evidence);
+            let canonical = index.canonical_target_identity(semantic_key, namespace.as_deref())?;
+            let form = semantic_policy::inferred_call_form(&canonical);
             ensure_call_target(
                 evidence,
                 form,
@@ -58,7 +58,7 @@ pub(super) fn add(
             owner,
             span,
         } => {
-            let source_id = index.node_id(source_key)?;
+            let source_id = index.semantic_node_id(source_key)?;
             if !index.contains_node(&source_id) {
                 return Err(AdapterError::new(format!(
                     "Go semantic call source is not materialized: {source_key:?}"
@@ -71,7 +71,7 @@ pub(super) fn add(
                         "Go semantic callsite has targets without resolved evidence",
                     ));
                 }
-                let relation = call_relation(*form, targets.len());
+                let relation = semantic_policy::call_relation(*form, targets.len());
                 for target in targets {
                     let target_id = ensure_call_target(
                         TargetEvidence::from(target),
@@ -106,7 +106,7 @@ pub(super) fn add(
                 candidate_namespace: candidate_namespace.clone(),
                 expression: expression.clone().unwrap_or_default(),
                 owner: Some(owner.clone()),
-                reason: unresolved_reason(*form, *resolution).into(),
+                reason: semantic_policy::unresolved_reason(*form, *resolution).into(),
                 relation: "calls".into(),
                 source: source_id,
                 span: Some(source_span(owner, span)),
@@ -114,32 +114,6 @@ pub(super) fn add(
             Ok(true)
         }
         _ => Ok(false),
-    }
-}
-
-fn call_relation(form: CallForm, target_count: usize) -> &'static str {
-    if matches!(form, CallForm::Conversion) {
-        "converts-to"
-    } else if target_count == 1 {
-        "calls"
-    } else {
-        "possible-calls"
-    }
-}
-
-fn unresolved_reason(form: CallForm, resolution: CallResolution) -> &'static str {
-    match resolution {
-        CallResolution::Ambiguous => "ambiguous-target",
-        CallResolution::Unsupported => "unsupported-form",
-        CallResolution::Missing => match form {
-            CallForm::Interface | CallForm::Dynamic => "dynamic-target",
-            CallForm::Builtin => "builtin-target",
-            CallForm::Conversion => "type-conversion",
-            CallForm::Direct => "missing-target",
-        },
-        CallResolution::Resolved => {
-            unreachable!("resolved callsites are handled before unresolved")
-        }
     }
 }
 

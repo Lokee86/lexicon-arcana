@@ -2,9 +2,10 @@ use crate::{AdapterError, FactRecord, NodeRecord, SourceSpan};
 
 use super::{
     identities,
-    observations::{DataflowAccess, Observation, Span},
+    observations::{Observation, Span},
     semantic_fact_index::FactIndex,
     semantic_facts_support::push_edge,
+    semantic_policy,
 };
 
 pub(crate) fn add(
@@ -23,9 +24,10 @@ pub(crate) fn add(
         return Ok(false);
     };
 
-    let source_id = index.node_id(source_key)?;
-    let symbol = data_symbol(target_key)?;
-    let target_id = index.node_id_for_kind(target_key, symbol.kind)?;
+    let source_id = index.semantic_node_id(source_key)?;
+    let target_identity = index.canonical_semantic_identity(target_key)?;
+    let symbol = data_symbol(&target_identity)?;
+    let target_id = index.node_id_for_kind(&target_identity, symbol.kind)?;
     index.push_node(
         records,
         NodeRecord {
@@ -47,10 +49,7 @@ pub(crate) fn add(
         },
     );
 
-    let relation = match access {
-        DataflowAccess::Read => "reads",
-        DataflowAccess::Write => "writes",
-    };
+    let relation = semantic_policy::dataflow_relation(*access);
     push_edge(
         records,
         index,

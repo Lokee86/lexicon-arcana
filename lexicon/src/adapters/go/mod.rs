@@ -7,6 +7,7 @@ mod observations;
 mod protocol;
 mod semantic_call_contract_targets;
 mod semantic_call_facts;
+mod semantic_call_target_materialization;
 mod semantic_call_target_support;
 mod semantic_call_targets;
 mod semantic_capture_facts;
@@ -14,6 +15,8 @@ mod semantic_dataflow_facts;
 mod semantic_fact_index;
 mod semantic_facts;
 mod semantic_facts_support;
+mod semantic_identity_policy;
+mod semantic_policy;
 mod semantic_relationship_facts;
 mod semantic_ssa_target_support;
 
@@ -41,6 +44,8 @@ mod oracle_compare;
 mod oracle_parity_tests;
 #[cfg(test)]
 mod relationship_tests;
+#[cfg(test)]
+mod semantic_identity_policy_tests;
 #[cfg(test)]
 mod semantic_parity_tests;
 #[cfg(test)]
@@ -122,6 +127,10 @@ impl LanguageAdapter for GoAdapter {
                     include_bytes!("semantic_call_facts.rs"),
                 ),
                 (
+                    "semantic_call_target_materialization.rs",
+                    include_bytes!("semantic_call_target_materialization.rs"),
+                ),
+                (
                     "semantic_call_target_support.rs",
                     include_bytes!("semantic_call_target_support.rs"),
                 ),
@@ -150,6 +159,11 @@ impl LanguageAdapter for GoAdapter {
                     "semantic_relationship_facts.rs",
                     include_bytes!("semantic_relationship_facts.rs"),
                 ),
+                (
+                    "semantic_identity_policy.rs",
+                    include_bytes!("semantic_identity_policy.rs"),
+                ),
+                ("semantic_policy.rs", include_bytes!("semantic_policy.rs")),
                 (
                     "semantic_ssa_target_support.rs",
                     include_bytes!("semantic_ssa_target_support.rs"),

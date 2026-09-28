@@ -24,15 +24,16 @@ pub(super) fn add(
         return Ok(false);
     };
 
-    let source_id = index.node_id(source_key)?;
+    let source_id = index.semantic_node_id(source_key)?;
     if !index.contains_node(&source_id) {
         return Err(AdapterError::new(format!(
             "Go semantic capture source is not materialized: {source_key:?}"
         )));
     }
-    let identity = target_key
-        .clone()
-        .unwrap_or_else(|| identities::capture(&source_id, *capture_index, target_name));
+    let identity = match target_key {
+        Some(target_key) => index.canonical_semantic_identity(target_key)?,
+        None => identities::capture(&source_id, *capture_index, target_name),
+    };
     let target_id = index.node_id_for_kind(&identity, "variable")?;
     let location = span.as_ref().map(|value| source_span(owner, value));
     let node_location = location.as_ref().map(|value| SourceSpan {

@@ -5,6 +5,7 @@ use super::{
     observations::{Observation, RelationshipKind},
     semantic_fact_index::FactIndex,
     semantic_facts_support::{ensure_relationship_target, push_edge},
+    semantic_policy,
 };
 
 pub(super) fn add(
@@ -24,7 +25,7 @@ pub(super) fn add(
         return Ok(false);
     };
 
-    let source_id = index.node_id(source_key)?;
+    let source_id = index.semantic_node_id(source_key)?;
     if !index.contains_node(&source_id) {
         return Err(AdapterError::new(format!(
             "Go semantic relationship source is not materialized: {source_key:?}"
@@ -42,17 +43,9 @@ pub(super) fn add(
         index,
         source_id,
         target_id,
-        relationship_name(*kind),
+        semantic_policy::relationship_relation(*kind),
         edge_owner,
         None,
     );
     Ok(true)
-}
-
-fn relationship_name(kind: RelationshipKind) -> &'static str {
-    match kind {
-        RelationshipKind::Implements => "implements",
-        RelationshipKind::Extends => "extends",
-        RelationshipKind::Overrides => "overrides",
-    }
 }

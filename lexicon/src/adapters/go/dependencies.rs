@@ -12,6 +12,7 @@ use super::{
     identities,
     observations::{DeclarationKind, Observation},
     semantic_fact_index::FactIndex,
+    semantic_identity_policy,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -123,7 +124,9 @@ fn add_local_imports(
             .get("import_path")
             .map(String::as_str)
             .unwrap_or("");
-        if import_path.is_empty() || !is_internal_namespace(&inventory.modules, import_path) {
+        if import_path.is_empty()
+            || !semantic_identity_policy::is_internal_namespace(&inventory.modules, import_path)
+        {
             continue;
         }
         let alias = metadata
@@ -137,7 +140,7 @@ fn add_local_imports(
             .get("container")
             .map(String::as_str)
             .ok_or_else(|| AdapterError::new("Go import declaration is missing container"))?;
-        let source = index.node_id(source_identity)?;
+        let source = index.semantic_node_id(source_identity)?;
         let Some(target) = package_for_namespace(&packages, &inventory.modules, import_path) else {
             continue;
         };
@@ -324,16 +327,17 @@ fn package_candidates(
         else {
             continue;
         };
-        let body = semantic_key.strip_prefix("package:").ok_or_else(|| {
-            AdapterError::new(format!("invalid Go package identity {semantic_key:?}"))
+        let identity = index.canonical_semantic_identity(semantic_key)?;
+        let body = identity.strip_prefix("package:").ok_or_else(|| {
+            AdapterError::new(format!("invalid Go package identity {identity:?}"))
         })?;
         let (namespace, _) = body.rsplit_once(':').ok_or_else(|| {
-            AdapterError::new(format!("invalid Go package identity {semantic_key:?}"))
+            AdapterError::new(format!("invalid Go package identity {identity:?}"))
         })?;
         result.push(PackageCandidate {
             namespace: namespace.into(),
             name: name.clone(),
-            id: index.node_id_for_kind(semantic_key, "module")?,
+            id: index.node_id_for_kind(&identity, "module")?,
         });
     }
     Ok(result)
@@ -344,7 +348,7 @@ fn package_for_namespace(
     modules: &[Module],
     namespace: &str,
 ) -> Option<String> {
-    let namespace = canonical_namespace(modules, namespace);
+    let namespace = semantic_identity_policy::canonical_namespace(modules, namespace);
     let expected_name = namespace.rsplit('/').next().unwrap_or(&namespace);
     packages
         .iter()
@@ -361,30 +365,6 @@ fn package_for_namespace(
         })
         .max_by(|left, right| left.0.cmp(&right.0).then_with(|| right.1.cmp(&left.1)))
         .map(|(_, id)| id)
-}
-
-fn is_internal_namespace(modules: &[Module], namespace: &str) -> bool {
-    module_for_namespace(modules, &canonical_namespace(modules, namespace)).is_some()
-}
-
-fn canonical_namespace(modules: &[Module], namespace: &str) -> String {
-    let Some(base) = namespace.strip_suffix("_test") else {
-        return namespace.to_owned();
-    };
-    if module_for_namespace(modules, base).is_some() {
-        base.to_owned()
-    } else {
-        namespace.to_owned()
-    }
-}
-
-fn module_for_namespace<'a>(modules: &'a [Module], namespace: &str) -> Option<&'a Module> {
-    modules
-        .iter()
-        .filter(|module| {
-            namespace == module.path || namespace.starts_with(&format!("{}/", module.path))
-        })
-        .max_by_key(|module| module.path.len())
 }
 
 fn read_module_path(root: &Path) -> Result<String, AdapterError> {

@@ -17,7 +17,7 @@ pub(crate) fn add(
     semantic: &[Observation],
     records: &mut Vec<FactRecord>,
 ) -> Result<(u64, u64), AdapterError> {
-    let mut index = FactIndex::from_records(records);
+    let mut index = FactIndex::from_records(records, &inventory.modules);
 
     for observation in semantic {
         if matches!(observation, Observation::Diagnostic { .. }) {
@@ -49,7 +49,7 @@ pub(crate) fn add(
             ));
         };
         let location = source_span(owner, span);
-        let id = index.node_id_for_kind(semantic_key, fact_kind(*kind))?;
+        let id = index.semantic_node_id_for_kind(semantic_key, fact_kind(*kind))?;
         let (path, qualified_name) = node_location(*kind, name, owner, metadata)?;
 
         index.push_node(

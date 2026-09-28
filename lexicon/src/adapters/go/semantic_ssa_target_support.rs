@@ -23,7 +23,7 @@ pub(super) fn ensure_synthetic_function(
     if let Some(path) = internal_namespace_path(materialization.inventory, namespace) {
         let parent = match container {
             Some(identity) => {
-                let candidate = materialization.index.node_id(identity)?;
+                let candidate = materialization.index.semantic_node_id(identity)?;
                 if materialization.index.contains_node(&candidate) {
                     candidate
                 } else {
@@ -123,7 +123,7 @@ pub(super) fn ensure_generated_internal_function(
         },
     );
     if let Some(container) = container.filter(|value| !value.is_empty()) {
-        let parent = materialization.index.node_id(container)?;
+        let parent = materialization.index.semantic_node_id(container)?;
         if materialization.index.contains_node(&parent) {
             let owner = materialization.index.node_owner(&parent);
             push_edge(

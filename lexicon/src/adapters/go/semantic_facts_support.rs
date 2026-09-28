@@ -8,7 +8,7 @@ pub(super) fn container_id(
     metadata: &BTreeMap<String, String>,
     index: &mut FactIndex,
 ) -> Result<String, AdapterError> {
-    index.node_id(required(metadata, "container")?)
+    index.semantic_node_id(required(metadata, "container")?)
 }
 
 pub(super) fn required<'a>(
@@ -34,16 +34,17 @@ pub(super) fn parent_id(
 }
 
 pub(super) fn ensure_relationship_target(
-    identity: &str,
+    semantic_key: &str,
     inventory: &Inventory,
     records: &mut Vec<FactRecord>,
     index: &mut FactIndex,
 ) -> Result<String, AdapterError> {
-    let id = index.node_id(identity)?;
+    let identity = index.canonical_semantic_identity(semantic_key)?;
+    let id = index.node_id(&identity)?;
     if index.contains_node(&id) {
         return Ok(id);
     }
-    let (namespace, name) = external_named_type(identity, inventory)?;
+    let (namespace, name) = external_named_type(&identity, inventory)?;
     let path = namespace_path(namespace);
     let namespace_id = index.node_id(&identities::namespace(namespace))?;
 
