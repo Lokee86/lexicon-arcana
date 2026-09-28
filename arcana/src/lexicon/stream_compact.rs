@@ -5,7 +5,7 @@ use super::binary_v2_stream::{EdgeRef, NodeRef, UnresolvedRef};
 use super::identity::LexiconIdentity;
 use super::object::{NodeReference, RecordCounts};
 use super::stream_compact_convert::{compact_span, node_kind, relation_code, unresolved_reason};
-use super::stream_compact_node::{NodeSignature, optional_intern, signature};
+use super::stream_compact_node::{NodeSignature, optional_intern, signature, signature_digest};
 use crate::repository::{NodeKey, normalize_repository_path};
 use crate::repository_store::{CompactRepositoryAssembler, CompactRepositoryBuild, Sha256Identity};
 
@@ -96,6 +96,8 @@ impl CompactPass {
         }
         self.external_ids.insert(record.id, key);
 
+        let signature_digest = signature_digest(&record);
+        let owner = optional_intern(&mut self.assembler, record.owner)?;
         let kind_code = node_kind(record.kind, &mut self.compatibility);
         let path = self.assembler.intern(&path)?;
         let name = self.assembler.intern(record.name)?;
@@ -104,7 +106,9 @@ impl CompactPass {
         self.assembler.push_node(
             key,
             Sha256Identity(record.id.digest()),
+            signature_digest,
             record.content_id.map(LexiconIdentity::content_id),
+            owner,
             kind_code,
             path,
             name,

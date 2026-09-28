@@ -187,7 +187,9 @@ mod tests {
         nodes.push(TempNodeRecord {
             key: crate::repository::NodeKey::from_u64(1),
             external_identity: super::super::Sha256Identity([1; 32]),
+            signature_digest: [2; 32],
             content_id: None,
+            owner: None,
             path: TempStringId(0),
             name: TempStringId(0),
             qualified_name: TempStringId(0),
