@@ -4,6 +4,7 @@ These ADRs record consequential architecture choices and their supersession hist
 
 ## Current decisions
 
+- [ADR 0007: Authoritative frontends emit semantic observations](0007-authoritative-frontends-emit-observations.md) — authoritative language tooling emits language-specific compiler evidence; Rust adapters retain canonical identity, certainty, unresolved, ownership, and facts-v1 policy.
 - [ADR 0006: Retire Grimoire and lead with Lexicon + Arcana](0006-retire-grimoire-lead-with-lexicon-arcana.md) — retire the downstream discovery product, preserve Lexicon and Arcana as the lead deterministic repository-analysis products, and do not transfer retired responsibilities without a new owner/evidence decision.
 - [ADR 0003: Immutable generated state and atomic publication](0003-immutable-generated-state.md) — publish validated identity-bearing generations and reject stale or mismatched state; Lexicon/Arcana portions remain active.
 

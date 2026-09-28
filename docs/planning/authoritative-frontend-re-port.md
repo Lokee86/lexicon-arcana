@@ -110,6 +110,8 @@ The observation seam should expose only reusable compiler evidence, for example:
 
 The Rust adapter remains responsible for translating observations into Lexicon semantics.
 
+The Phase 1 ownership boundary is frozen in [ADR 0007](../decisions/0007-authoritative-frontends-emit-observations.md). It defines the Go reference observation vocabulary and explicitly keeps canonical identities, target ownership classification, call certainty, unresolved reasons, and facts-v1 materialization in Rust.
+
 **Gate:** the seam is sufficient for multiple languages without adding a second facts contract or a universal AST schema.
 
 ## Phase 2 — C/C++ pilot: Tree-sitter to Clang
