@@ -4,7 +4,7 @@ use super::build_stream::{
     CompactRepositoryAssembler, TempEdgeRecord, TempNodeRecord, TempSpan, TempUnresolvedRecord,
 };
 use super::{
-    CompactEdgeRecord, CompactNodeRecord, CompactSpan, CompactStringTable, CompactUnresolvedRecord,
+    CompactEdgeRecord, CompactNodeRecord, CompactSpan, CompactUnresolvedRecord,
     RepositoryStoreWriteError, StringId, TempStringId,
 };
 
@@ -24,7 +24,7 @@ pub(super) fn finish_stream_build(
         &staged_edges,
         &staged_unresolved,
     );
-    let (strings, remap) = canonical_strings(staged_strings, &used)?;
+    let (strings, remap) = staged_strings.freeze(&used)?;
 
     let nodes = finish_nodes(staged_nodes, &remap);
     let edges = finish_edges(staged_edges, &remap);
@@ -101,25 +101,6 @@ fn used_strings(
     used
 }
 
-fn canonical_strings(
-    strings: std::collections::BTreeMap<String, TempStringId>,
-    used: &[bool],
-) -> Result<(CompactStringTable, Vec<StringId>), RepositoryStoreWriteError> {
-    let mut remap = vec![StringId::ABSENT; used.len()];
-    let mut values = Vec::new();
-    for (value, old) in strings {
-        if !used[old.0 as usize] {
-            continue;
-        }
-        let new = u32::try_from(values.len())
-            .map(StringId)
-            .map_err(|_| super::StoreFormatError::TooManyStrings)?;
-        remap[old.0 as usize] = new;
-        values.push(value);
-    }
-    Ok((CompactStringTable::from_sorted(values)?, remap))
-}
-
 fn remap_node(record: TempNodeRecord, remap: &[StringId]) -> CompactNodeRecord {
     CompactNodeRecord {
         key: record.key,
@@ -175,57 +156,5 @@ fn optional_id(value: Option<TempStringId>, remap: &[StringId]) -> StringId {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn record_family_finalizers_consume_overallocated_staging_vectors() {
-        let remap = [StringId(0)];
-
-        let mut nodes = Vec::with_capacity(128);
-        nodes.push(TempNodeRecord {
-            key: crate::repository::NodeKey::from_u64(1),
-            external_identity: super::super::Sha256Identity([1; 32]),
-            signature_digest: [2; 32],
-            content_id: None,
-            owner: None,
-            path: TempStringId(0),
-            name: TempStringId(0),
-            qualified_name: TempStringId(0),
-            span: None,
-            kind_code: 1,
-        });
-        let node_capacity = nodes.capacity();
-        let nodes = finish_nodes(nodes, &remap);
-        assert_eq!(nodes.len(), 1);
-        assert!(nodes.capacity() < node_capacity);
-
-        let mut edges = Vec::with_capacity(128);
-        edges.push(TempEdgeRecord {
-            source: crate::repository::NodeKey::from_u64(1),
-            target: crate::repository::NodeKey::from_u64(1),
-            relation_code: 1,
-            span: None,
-        });
-        let edge_capacity = edges.capacity();
-        let edges = finish_edges(edges, &remap);
-        assert_eq!(edges.len(), 1);
-        assert!(edges.capacity() < edge_capacity);
-
-        let mut unresolved = Vec::with_capacity(128);
-        unresolved.push(TempUnresolvedRecord {
-            source: crate::repository::NodeKey::from_u64(1),
-            relation_code: 1,
-            reason_code: 1,
-            expression: TempStringId(0),
-            candidate_namespace: None,
-            candidate_name: None,
-            unknown_reason: None,
-            span: None,
-        });
-        let unresolved_capacity = unresolved.capacity();
-        let unresolved = finish_unresolved(unresolved, &remap);
-        assert_eq!(unresolved.len(), 1);
-        assert!(unresolved.capacity() < unresolved_capacity);
-    }
-}
+#[path = "build_stream_finish_tests.rs"]
+mod tests;

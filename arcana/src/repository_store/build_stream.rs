@@ -1,10 +1,9 @@
-use std::collections::BTreeMap;
-
 use crate::repository::{ContentId, NodeKey};
 
 use super::build::CompactRepositoryBuild;
 use super::build_stream_finish::finish_stream_build;
 use super::build_stream_nodes::{StagedNodeError, canonicalize_nodes};
+use super::string_arena::StagedStringArena;
 use super::{RepositoryStoreWriteError, Sha256Identity, TempStringId};
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -51,7 +50,7 @@ pub(super) struct TempUnresolvedRecord {
 }
 
 pub(crate) struct CompactRepositoryAssembler {
-    pub(super) strings: BTreeMap<String, TempStringId>,
+    pub(super) strings: StagedStringArena,
     pub(super) nodes: Vec<TempNodeRecord>,
     pub(super) edges: Vec<TempEdgeRecord>,
     pub(super) unresolved: Vec<TempUnresolvedRecord>,
@@ -60,7 +59,7 @@ pub(crate) struct CompactRepositoryAssembler {
 impl CompactRepositoryAssembler {
     pub(crate) fn with_capacity(nodes: usize, edges: usize, unresolved: usize) -> Self {
         Self {
-            strings: BTreeMap::new(),
+            strings: StagedStringArena::default(),
             nodes: Vec::with_capacity(nodes),
             edges: Vec::with_capacity(edges),
             unresolved: Vec::with_capacity(unresolved),
@@ -100,14 +99,7 @@ impl CompactRepositoryAssembler {
         &mut self,
         value: &str,
     ) -> Result<TempStringId, RepositoryStoreWriteError> {
-        if let Some(id) = self.strings.get(value) {
-            return Ok(*id);
-        }
-        let id = u32::try_from(self.strings.len())
-            .map(TempStringId)
-            .map_err(|_| super::StoreFormatError::TooManyStrings)?;
-        self.strings.insert(value.to_owned(), id);
-        Ok(id)
+        self.strings.intern(value).map_err(Into::into)
     }
 
     pub(crate) fn push_node(

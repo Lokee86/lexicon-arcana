@@ -32,7 +32,6 @@ mod reader_unresolved;
 mod reader_validation;
 mod record_io;
 mod span;
-#[allow(dead_code)]
 mod string_arena;
 mod string_view;
 mod strings;
