@@ -10,39 +10,67 @@ use super::{
 };
 
 pub(super) fn finish_stream_build(
-    mut build: CompactRepositoryAssembler,
+    build: CompactRepositoryAssembler,
 ) -> Result<CompactRepositoryBuild, RepositoryStoreWriteError> {
-    let used = used_strings(&build);
-    let (strings, remap) = canonical_strings(build.strings, &used)?;
+    let CompactRepositoryAssembler {
+        strings: staged_strings,
+        nodes: staged_nodes,
+        edges: staged_edges,
+        unresolved: staged_unresolved,
+    } = build;
 
-    let mut nodes = build
-        .nodes
-        .drain(..)
-        .map(|record| remap_node(record, &remap))
-        .collect::<Vec<_>>();
-    nodes.sort_unstable_by_key(|record| record.key);
+    let used = used_strings(
+        staged_strings.len(),
+        &staged_nodes,
+        &staged_edges,
+        &staged_unresolved,
+    );
+    let (strings, remap) = canonical_strings(staged_strings, &used)?;
 
-    let mut edges = build
-        .edges
-        .drain(..)
-        .map(|record| remap_edge(record, &remap))
-        .collect::<Vec<_>>();
-    canonicalize_edges(&mut edges);
-
-    let mut unresolved = build
-        .unresolved
-        .drain(..)
-        .map(|record| remap_unresolved(record, &remap))
-        .collect::<Vec<_>>();
-    canonicalize_unresolved(&mut unresolved);
+    let nodes = finish_nodes(staged_nodes, &remap);
+    let edges = finish_edges(staged_edges, &remap);
+    let unresolved = finish_unresolved(staged_unresolved, &remap);
 
     CompactRepositoryBuild::from_canonical_records(strings, nodes, edges, unresolved)
 }
 
-fn used_strings(build: &CompactRepositoryAssembler) -> Vec<bool> {
-    let mut used = vec![false; build.strings.len()];
+fn finish_nodes(records: Vec<TempNodeRecord>, remap: &[StringId]) -> Vec<CompactNodeRecord> {
+    let mut nodes = Vec::with_capacity(records.len());
+    nodes.extend(records.into_iter().map(|record| remap_node(record, remap)));
+    nodes.sort_unstable_by_key(|record| record.key);
+    nodes
+}
+
+fn finish_edges(records: Vec<TempEdgeRecord>, remap: &[StringId]) -> Vec<CompactEdgeRecord> {
+    let mut edges = Vec::with_capacity(records.len());
+    edges.extend(records.into_iter().map(|record| remap_edge(record, remap)));
+    canonicalize_edges(&mut edges);
+    edges
+}
+
+fn finish_unresolved(
+    records: Vec<TempUnresolvedRecord>,
+    remap: &[StringId],
+) -> Vec<CompactUnresolvedRecord> {
+    let mut unresolved = Vec::with_capacity(records.len());
+    unresolved.extend(
+        records
+            .into_iter()
+            .map(|record| remap_unresolved(record, remap)),
+    );
+    canonicalize_unresolved(&mut unresolved);
+    unresolved
+}
+
+fn used_strings(
+    string_count: usize,
+    nodes: &[TempNodeRecord],
+    edges: &[TempEdgeRecord],
+    unresolved: &[TempUnresolvedRecord],
+) -> Vec<bool> {
+    let mut used = vec![false; string_count];
     let mut mark = |id: TempStringId| used[id.0 as usize] = true;
-    for node in &build.nodes {
+    for node in nodes {
         for id in [node.path, node.name, node.qualified_name] {
             mark(id);
         }
@@ -50,12 +78,12 @@ fn used_strings(build: &CompactRepositoryAssembler) -> Vec<bool> {
             mark(span.path);
         }
     }
-    for edge in &build.edges {
+    for edge in edges {
         if let Some(span) = edge.span {
             mark(span.path);
         }
     }
-    for record in &build.unresolved {
+    for record in unresolved {
         mark(record.expression);
         for id in [
             record.candidate_namespace,
@@ -145,4 +173,58 @@ fn id(value: TempStringId, remap: &[StringId]) -> StringId {
 
 fn optional_id(value: Option<TempStringId>, remap: &[StringId]) -> StringId {
     StringId::optional(value.map(|value| id(value, remap)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn record_family_finalizers_consume_overallocated_staging_vectors() {
+        let remap = [StringId(0)];
+
+        let mut nodes = Vec::with_capacity(128);
+        nodes.push(TempNodeRecord {
+            key: crate::repository::NodeKey::from_u64(1),
+            external_identity: super::super::Sha256Identity([1; 32]),
+            content_id: None,
+            path: TempStringId(0),
+            name: TempStringId(0),
+            qualified_name: TempStringId(0),
+            span: None,
+            kind_code: 1,
+        });
+        let node_capacity = nodes.capacity();
+        let nodes = finish_nodes(nodes, &remap);
+        assert_eq!(nodes.len(), 1);
+        assert!(nodes.capacity() < node_capacity);
+
+        let mut edges = Vec::with_capacity(128);
+        edges.push(TempEdgeRecord {
+            source: crate::repository::NodeKey::from_u64(1),
+            target: crate::repository::NodeKey::from_u64(1),
+            relation_code: 1,
+            span: None,
+        });
+        let edge_capacity = edges.capacity();
+        let edges = finish_edges(edges, &remap);
+        assert_eq!(edges.len(), 1);
+        assert!(edges.capacity() < edge_capacity);
+
+        let mut unresolved = Vec::with_capacity(128);
+        unresolved.push(TempUnresolvedRecord {
+            source: crate::repository::NodeKey::from_u64(1),
+            relation_code: 1,
+            reason_code: 1,
+            expression: TempStringId(0),
+            candidate_namespace: None,
+            candidate_name: None,
+            unknown_reason: None,
+            span: None,
+        });
+        let unresolved_capacity = unresolved.capacity();
+        let unresolved = finish_unresolved(unresolved, &remap);
+        assert_eq!(unresolved.len(), 1);
+        assert!(unresolved.capacity() < unresolved_capacity);
+    }
 }
