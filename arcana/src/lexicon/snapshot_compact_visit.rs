@@ -95,7 +95,7 @@ fn visit_relation_object(
         visit_relations(
             &bytes,
             pass,
-            |_, _| Ok(()),
+            |pass, counts| pass.reserve_relation_object(counts),
             |pass, record| match record {
                 RelationRef::Edge(record) => pass.ingest_edge(record),
                 RelationRef::Unresolved(record) => pass.ingest_unresolved(record),
@@ -104,7 +104,8 @@ fn visit_relation_object(
         return Ok(());
     }
 
-    let (object, _counts) = parse_legacy(&bytes, RecordSelection::Relations)?;
+    let (object, counts) = parse_legacy(&bytes, RecordSelection::Relations)?;
+    pass.reserve_relation_object(counts)?;
     for record in object.records {
         match record {
             FactRecord::Edge(record) => stream_compact_legacy::ingest_edge(pass, record)?,
