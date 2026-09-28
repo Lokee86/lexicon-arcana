@@ -10,6 +10,8 @@ mod build_ownership;
 mod build_stream;
 #[allow(dead_code)]
 mod build_stream_finish;
+#[allow(dead_code)]
+mod build_stream_nodes;
 mod canonical;
 mod edge_record;
 mod error;
@@ -42,6 +44,7 @@ mod writer_sink;
 pub use build::CompactRepositoryBuild;
 #[allow(unused_imports)]
 pub(crate) use build_stream::{CompactRepositoryAssembler, TempSpan, TempStringId};
+pub(crate) use build_stream_nodes::StagedNodeError;
 pub use edge_record::CompactEdgeRecord;
 pub use error::StoreFormatError;
 pub use identity::Sha256Identity;

@@ -31,7 +31,7 @@ pub fn load_compact(
     let direct_v2 = visit_node_pass(&storage, &manifest, &mut pass)?;
     profile("compact-node-pass", node_started.elapsed());
 
-    pass.finish_node_pass();
+    pass.finish_node_pass()?;
 
     let relation_started = Instant::now();
     visit_relation_pass(&storage, &manifest, &mut pass)?;

@@ -4,6 +4,7 @@ use crate::repository::{ContentId, NodeKey};
 
 use super::build::CompactRepositoryBuild;
 use super::build_stream_finish::finish_stream_build;
+use super::build_stream_nodes::{StagedNodeError, canonicalize_nodes};
 use super::{RepositoryStoreWriteError, Sha256Identity};
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -76,6 +77,10 @@ impl CompactRepositoryAssembler {
     pub(crate) fn reserve_relations_to(&mut self, edges: usize, unresolved: usize) {
         reserve_to(&mut self.edges, edges);
         reserve_to(&mut self.unresolved, unresolved);
+    }
+
+    pub(crate) fn canonicalize_nodes(&mut self) -> Result<(), StagedNodeError> {
+        canonicalize_nodes(&mut self.nodes)
     }
 
     #[cfg(test)]

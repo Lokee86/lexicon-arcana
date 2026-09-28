@@ -7,7 +7,9 @@ use super::object::{NodeReference, RecordCounts};
 use super::stream_compact_convert::{compact_span, node_kind, relation_code, unresolved_reason};
 use super::stream_compact_node::{NodeSignature, optional_intern, signature, signature_digest};
 use crate::repository::{NodeKey, normalize_repository_path};
-use crate::repository_store::{CompactRepositoryAssembler, CompactRepositoryBuild, Sha256Identity};
+use crate::repository_store::{
+    CompactRepositoryAssembler, CompactRepositoryBuild, Sha256Identity, StagedNodeError,
+};
 
 pub(super) type CompatibilityCounts = BTreeMap<String, usize>;
 
@@ -72,14 +74,6 @@ impl CompactPass {
 
     pub(super) fn ingest_node(&mut self, record: NodeRef<'_>) -> Result<(), LexiconSnapshotError> {
         let signature = signature(&mut self.assembler, &record)?;
-        if let Some(existing) = self.nodes.get(&record.id) {
-            if existing != &signature {
-                return Err(LexiconSnapshotError::ConflictingNode(
-                    record.id.canonical_string(),
-                ));
-            }
-            return Ok(());
-        }
 
         validate_owner(record.owner)?;
         let path = normalized(record.path)?;
@@ -87,13 +81,7 @@ impl CompactPass {
             return Err(LexiconSnapshotError::Malformed("node qualified name"));
         }
         let key = record.id.node_key();
-        if self
-            .keys
-            .insert(key, record.id)
-            .is_some_and(|existing| existing != record.id)
-        {
-            return Err(LexiconSnapshotError::Malformed("node identity collision"));
-        }
+        self.keys.insert(key, record.id);
         self.external_ids.insert(record.id, key);
 
         let signature_digest = signature_digest(&record);
@@ -119,10 +107,14 @@ impl CompactPass {
         Ok(())
     }
 
-    pub(super) fn finish_node_pass(&mut self) {
+    pub(super) fn finish_node_pass(&mut self) -> Result<(), LexiconSnapshotError> {
+        self.assembler
+            .canonicalize_nodes()
+            .map_err(node_staging_error)?;
         self.nodes.clear();
         self.keys.clear();
         self.keys.shrink_to_fit();
+        Ok(())
     }
 
     pub(super) fn ingest_edge(&mut self, record: EdgeRef<'_>) -> Result<(), LexiconSnapshotError> {
@@ -200,6 +192,17 @@ impl CompactPass {
     }
 }
 
+fn node_staging_error(error: StagedNodeError) -> LexiconSnapshotError {
+    match error {
+        StagedNodeError::IdentityCollision { .. } => {
+            LexiconSnapshotError::Malformed("node identity collision")
+        }
+        StagedNodeError::ConflictingDefinition { identity } => {
+            LexiconSnapshotError::ConflictingNode(identity.canonical_string())
+        }
+    }
+}
+
 fn validate_owner(owner: Option<&str>) -> Result<(), LexiconSnapshotError> {
     if let Some(owner) = owner {
         normalized(owner)?;
@@ -239,7 +242,7 @@ mod tests {
         assert_eq!(edges, 0);
         assert_eq!(unresolved, 0);
 
-        pass.finish_node_pass();
+        pass.finish_node_pass().unwrap();
         let (_, edges, unresolved) = pass.assembler.capacities();
         assert_eq!(edges, 0);
         assert_eq!(unresolved, 0);
