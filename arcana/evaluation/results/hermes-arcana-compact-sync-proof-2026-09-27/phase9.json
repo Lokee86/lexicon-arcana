@@ -1,0 +1,59 @@
+{
+  "phase": 9,
+  "branch": "perf/arcana-compact-lexicon-sync",
+  "commit": "8bc45d32bfb91c5fbea4f0f9942234127f65ea3a",
+  "lexicon_snapshot": "sha256:ee46a8a475c443f908e0eff6db9efca62e3871fe1f541e62251ebd9f5ed2c621",
+  "rescan_performed": false,
+  "release_binary": true,
+  "mode": "rebuild",
+  "exit_code": 0,
+  "wall_seconds": 200.05158530001063,
+  "peak_process_tree_rss_bytes": 983207936,
+  "rss_sampling_interval_ms": 20,
+  "rss_samples": 5603,
+  "compatibility_warnings": 0,
+  "profile": {
+    "compact_graph_compile_ms": 2051.814
+  },
+  "counts": {
+    "nodes": 1125126,
+    "visible_edges": 2367423,
+    "unresolved": 699349
+  },
+  "artifacts": {
+    "repository.arcana": {
+      "size_bytes": 489778032,
+      "sha256": "10cb311318a28703e3c9a510cae1b177e24f123c2d604ffafc194c3e55de0281",
+      "oracle_byte_identical": true
+    },
+    "graph.arcana": {
+      "size_bytes": 46411248,
+      "sha256": "ee64b0367905d5e39c64d75c1269b429fc3791b5a6287cce0576e32f22e8fd5d",
+      "oracle_byte_identical": true
+    },
+    "graph.manifest": {
+      "size_bytes": 279
+    },
+    "repository.manifest": {
+      "size_bytes": 494
+    },
+    "lexicon.snapshot": {
+      "size_bytes": 72
+    },
+    "published_generation_total_bytes": 536190125
+  },
+  "identities": {
+    "repository_id": "342a2379cc36c43c",
+    "repository_store_checksum": "342a2379cc36c43c",
+    "graph_snapshot_id": "c8ff2f646b932c40",
+    "repository_snapshot_id": "fbb546730d9e0e33"
+  },
+  "baseline_comparison": {
+    "phase8_peak_rss_bytes": 1592414208,
+    "peak_rss_reduction_bytes": 609206272,
+    "peak_rss_reduction_percent": 38.256771946611515,
+    "phase8_wall_seconds": 156.946,
+    "wall_regression_seconds": 43.10558530001063,
+    "wall_regression_percent": 27.46523345609318
+  }
+}
