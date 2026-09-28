@@ -70,7 +70,7 @@ The counters are intentionally small and diagnostic rather than a general profil
 
 Phase 0 uses one controlled instrumented run for each baseline target after the helper and native adapter tests pass:
 
-1. the small Go oracle fixture at `lexicon/adapters/go/testdata/oracle/basic_calls`;
+1. the small Go oracle fixture at `lexicon/testdata/go_oracle/repositories/basic_calls`;
 2. Demon Docs at pinned revision `fa5ca9aea12e20c29c378d5d018647958b862cac`.
 
 The real-repository run uses the existing Phase 16 execution plan of 4 workers, 8 logical shards, and merge fan-in 4. Do not repeatedly rerun Demon Docs merely to smooth timing noise.
@@ -83,7 +83,7 @@ Captured 2026-09-26 with the native snapshot example built in Cargo's developmen
 
 ### Small fixture
 
-Target: `lexicon/adapters/go/testdata/oracle/basic_calls`.
+Target: `lexicon/testdata/go_oracle/repositories/basic_calls`.
 
 The instrumented run completed in approximately 3.62 seconds wall-clock.
 
@@ -312,7 +312,7 @@ Controlled measurements used the existing development-profile snapshot harness w
 
 ### Small fixture
 
-Target: `lexicon/adapters/go/testdata/oracle/basic_calls`.
+Target: `lexicon/testdata/go_oracle/repositories/basic_calls`.
 
 - helper response: **8,753 bytes**;
 - helper response encoding: **<0.001 ms**;

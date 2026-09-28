@@ -124,6 +124,13 @@ fn inspect_languages(
                 "configured adapter root is unavailable",
             );
         } else if let Some(root) = adapter_root {
+            if language == "go" {
+                match crate::adapters::go::verify_runtime_helper(root) {
+                    Ok(()) => report.pass("runtime helper: go"),
+                    Err(error) => report.fail("runtime helper: go", error),
+                }
+                continue;
+            }
             let directory = root.join(&language);
             if directory.is_dir() {
                 report.pass(format!("adapter directory: {language}"));

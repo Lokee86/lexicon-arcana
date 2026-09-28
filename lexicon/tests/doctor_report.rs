@@ -13,7 +13,7 @@ use support::TestDirectory;
 #[test]
 fn doctor_reports_passing_repository_checks_without_running_consumers() {
     let fixture = DoctorFixture::new("doctor-pass", &["go"]);
-    fixture.create_adapter_directory("go");
+    fixture.create_go_runtime_helper();
     fixture.write_consumer(
         "arcana.json",
         json!({
@@ -33,7 +33,7 @@ fn doctor_reports_passing_repository_checks_without_running_consumers() {
         "private Git state repository",
         "CURRENT snapshot and referenced objects",
         "configured adapter root",
-        "adapter directory: go",
+        "runtime helper: go",
         "consumer definition: arcana.json",
         "consumer command: arcana.json",
     ] {
@@ -48,13 +48,29 @@ fn doctor_maps_generic_libraries_and_skips_interstack() {
         &["generic-sh", "generic-sql", "interstack", "go"],
     );
     fixture.create_adapter_directory("generic");
-    fixture.create_adapter_directory("go");
+    fixture.create_go_runtime_helper();
 
     let report = doctor(&fixture.repository).unwrap();
     assert!(passed(&report, "adapter directory: generic"));
-    assert!(passed(&report, "adapter directory: go"));
+    assert!(passed(&report, "runtime helper: go"));
     assert!(!has_label(&report, "adapter directory: generic-sh"));
     assert!(!has_label(&report, "adapter directory: interstack"));
+}
+
+#[test]
+fn doctor_reports_missing_native_go_helper() {
+    let fixture = DoctorFixture::new("doctor-go-helper-missing", &["go"]);
+
+    let report = doctor(&fixture.repository).unwrap();
+    assert!(failed(&report, "runtime helper: go"));
+    let error = report
+        .checks
+        .iter()
+        .find(|check| check.label == "runtime helper: go")
+        .and_then(|check| check.error.as_deref())
+        .unwrap();
+    assert!(error.contains("install the packaged helper"), "{error}");
+    assert!(error.contains("LEXICON_GO_SEMANTIC_HELPER"), "{error}");
 }
 
 #[test]
@@ -152,6 +168,17 @@ impl DoctorFixture {
 
     fn create_adapter_directory(&self, language: &str) {
         fs::create_dir_all(self.adapters.join(language)).unwrap();
+    }
+
+    fn create_go_runtime_helper(&self) {
+        let name = if cfg!(windows) {
+            "lexicon-go-semantic.exe"
+        } else {
+            "lexicon-go-semantic"
+        };
+        let path = self.adapters.join("go-semantic").join(name);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, b"helper").unwrap();
     }
 
     fn write_consumer(&self, name: &str, value: serde_json::Value) {

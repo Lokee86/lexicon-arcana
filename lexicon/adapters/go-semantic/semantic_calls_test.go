@@ -6,7 +6,7 @@ import (
 )
 
 func TestTypedDirectCallsPreserveLegacyBasicClassification(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", "go", "testdata", "oracle", "basic_calls"))
+	root, err := filepath.Abs(filepath.Join("..", "..", "testdata", "go_oracle", "repositories", "basic_calls"))
 	if err != nil {
 		t.Fatal(err)
 	}

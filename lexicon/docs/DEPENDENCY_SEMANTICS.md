@@ -43,7 +43,7 @@ Unsupported forms include dynamic manifest construction, dependency execution, u
 
 | Language or boundary | Primary implementation | Related tests |
 | --- | --- | --- |
-| Go dependencies | `adapters/go/dependencies.go`, semantic package loading in `adapter.go` and `modules.go` | Go adapter semantic and package tests |
+| Go dependencies | Rust `src/adapters/go/dependencies.rs`; typed package loading in `adapters/go-semantic/` | Native Go adapter dependency/oracle tests |
 | GDScript dependencies | `adapters/gdscript/dependencies.go`, `project_config.go` | GDScript adapter tests |
 | Python dependencies | `adapters/python/lexicon_python/dependencies.py`, import extraction files | `adapters/python/tests/test_adapter.py` |
 | Ruby dependencies | `adapters/ruby/dependencies.rb`, Ripper import/call extraction | `adapters/ruby/test/test_adapter.rb` |

@@ -100,7 +100,9 @@ func (r Runner) command(ctx context.Context, request Request) (*exec.Cmd, error)
 	switch request.Language {
 	case "generic":
 		return nil, fmt.Errorf("generic adapter requires an extension-qualified language")
-	case "c-family", "go", "gdscript", "java", "kotlin", "lotusscript":
+	case "go":
+		return nil, fmt.Errorf("go adapter is native Rust-owned; the standalone Go facts-v1 adapter is retained as an oracle only")
+	case "c-family", "gdscript", "java", "kotlin", "lotusscript":
 		if executable, ok := packagedExecutable(r.Root, request.Language); ok {
 			return exec.CommandContext(ctx, executable, arguments...), nil
 		}

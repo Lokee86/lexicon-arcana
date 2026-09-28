@@ -29,8 +29,8 @@ class WorkflowSmokeTests(unittest.TestCase):
             (build / "bin").mkdir(parents=True)
             (build / "adapters" / "python").mkdir(parents=True)
             (build / "adapters" / "python" / "adapter.py").write_text("pass\n", encoding="utf-8")
-            (build / "adapters" / "go").mkdir()
-            (build / "adapters" / "go" / "lexicon-go.exe").write_bytes(b"adapter")
+            (build / "adapters" / "go-semantic").mkdir(parents=True)
+            (build / "adapters" / "go-semantic" / "lexicon-go-semantic.exe").write_bytes(b"helper")
             (build / "skills" / "lexicon-arcana").mkdir(parents=True)
             (build / "skills" / "lexicon-arcana" / "SKILL.md").write_text(
                 "---\nname: lexicon-arcana\n---\n", encoding="utf-8"
@@ -55,6 +55,8 @@ class WorkflowSmokeTests(unittest.TestCase):
                 self.assertIn("bin/lexicon.exe", names)
                 self.assertIn("bin/arcana.exe", names)
                 self.assertIn("adapters/python/adapter.py", names)
+                self.assertIn("adapters/go-semantic/lexicon-go-semantic.exe", names)
+                self.assertNotIn("adapters/go/lexicon-go.exe", names)
                 self.assertIn("install.py", names)
                 self.assertIn("skills/lexicon-arcana/SKILL.md", names)
                 self.assertNotIn("bin/grimoire.exe", names)
@@ -70,6 +72,9 @@ class WorkflowSmokeTests(unittest.TestCase):
             self.assertTrue((installed / "lexicon.exe").is_file())
             self.assertTrue((installed / "arcana.exe").is_file())
             self.assertTrue((installed / "adapters" / "python" / "adapter.py").is_file())
+            self.assertTrue(
+                (installed / "adapters" / "go-semantic" / "lexicon-go-semantic.exe").is_file()
+            )
             self.assertTrue((skills / "lexicon-arcana" / "SKILL.md").is_file())
             self.assertFalse((installed / "grimoire.exe").exists())
 
@@ -79,6 +84,70 @@ class WorkflowSmokeTests(unittest.TestCase):
             self.assertTrue((subset / "lexicon.exe").is_file())
             self.assertFalse((subset / "arcana.exe").exists())
             self.assertFalse((subset_skills / "lexicon-arcana" / "SKILL.md").exists())
+
+    def test_lexicon_adapter_packaging_builds_semantic_helper_runtime_payload(self) -> None:
+        def fake_copytree(_source: Path, destination: Path, **_kwargs: object) -> None:
+            (destination / "go-semantic").mkdir(parents=True)
+            (destination / "go-semantic" / "source.go").write_text("package main\n", encoding="utf-8")
+
+        with tempfile.TemporaryDirectory(prefix="lexicon-adapter-cutover-") as temporary, \
+                mock.patch.object(workflow.shutil, "copytree", side_effect=fake_copytree), \
+                mock.patch.object(workflow, "run") as run, \
+                mock.patch.object(workflow, "verify_go_semantic_helper") as verify_helper, \
+                mock.patch.object(workflow, "build_java_adapter"), \
+                mock.patch.object(workflow, "build_csharp"), \
+                mock.patch.object(workflow, "copy_file") as copy_file:
+            output = Path(temporary) / "build"
+            workflow.package_lexicon_adapters(
+                output,
+                "cargo",
+                2,
+                {},
+            )
+
+            adapter_root = workflow.ROOT / "lexicon" / "adapters"
+            working_directories = [call.args[1] for call in run.call_args_list]
+            self.assertIn(adapter_root / "go-semantic", working_directories)
+            self.assertNotIn(adapter_root / "go", working_directories)
+            self.assertIn(adapter_root / "c-family", working_directories)
+            self.assertIn(adapter_root / "gdscript", working_directories)
+            self.assertIn(adapter_root / "kotlin", working_directories)
+            self.assertIn(adapter_root / "generic", working_directories)
+            self.assertFalse((output / "adapters" / "go").exists())
+            self.assertFalse((output / "adapters" / "go-semantic" / "source.go").exists())
+            self.assertTrue((output / "adapters" / "go-semantic").is_dir())
+            copy_file.assert_any_call(
+                adapter_root / "go-semantic" / "VERSION",
+                output / "adapters" / "go-semantic" / "VERSION",
+            )
+            verify_helper.assert_called_once_with(
+                output / "adapters" / "go-semantic" / workflow.executable_name("lexicon-go-semantic")
+            )
+
+    def test_go_semantic_helper_version_verifier(self) -> None:
+        helper = Path("lexicon-go-semantic.exe")
+        expected = f"lexicon-go-semantic {workflow.go_semantic_helper_version()}"
+        with mock.patch.object(
+            workflow.subprocess,
+            "run",
+            return_value=mock.Mock(returncode=0, stdout=expected + "\n", stderr=""),
+        ) as run:
+            workflow.verify_go_semantic_helper(helper)
+            run.assert_called_once_with(
+                [helper, "--version"],
+                cwd=helper.parent,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+        with mock.patch.object(
+            workflow.subprocess,
+            "run",
+            return_value=mock.Mock(returncode=0, stdout="lexicon-go-semantic stale\n", stderr=""),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "reported .* expected"):
+                workflow.verify_go_semantic_helper(helper)
 
     def test_build_defaults_to_surviving_components(self) -> None:
         with tempfile.TemporaryDirectory(prefix="lexicon-arcana-build-") as temporary, \

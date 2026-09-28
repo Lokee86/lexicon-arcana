@@ -8,7 +8,7 @@ import (
 )
 
 func TestStructuralScanKeepsInactiveBuildVariants(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", "go", "testdata", "oracle", "build_tags"))
+	root, err := filepath.Abs(filepath.Join("..", "..", "testdata", "go_oracle", "repositories", "build_tags"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -95,7 +95,7 @@ fn compare_nodes(
             actual_to_expected.insert(actual_id.clone(), expected_id.clone());
             differences.push(Difference {
                 kind: DifferenceKind::IdentityMismatch,
-                detail: format!("{locator}: legacy id {expected_id}, native id {actual_id}"),
+                detail: format!("{locator}: oracle id {expected_id}, native id {actual_id}"),
             });
             compare_node(
                 expected_nodes[expected_id],
@@ -172,7 +172,7 @@ fn compare_edges(
         if left.is_empty() || right.is_empty() {
             differences.push(Difference {
                 kind: DifferenceKind::MissingEdge,
-                detail: format!("{endpoint}: legacy={} native={}", left.len(), right.len()),
+                detail: format!("{endpoint}: oracle={} native={}", left.len(), right.len()),
             });
             continue;
         }
@@ -190,7 +190,7 @@ fn compare_edges(
                 differences.push(Difference {
                     kind: DifferenceKind::RelationMismatch,
                     detail: format!(
-                        "{endpoint}: relation {relation} legacy={} native={}",
+                        "{endpoint}: relation {relation} oracle={} native={}",
                         left.len(),
                         right.len()
                     ),
@@ -207,7 +207,7 @@ fn compare_edges(
                 differences.push(Difference {
                     kind: DifferenceKind::MissingEdge,
                     detail: format!(
-                        "{endpoint} {relation}: legacy={} native={}",
+                        "{endpoint} {relation}: oracle={} native={}",
                         left.len(),
                         right.len()
                     ),
@@ -272,7 +272,7 @@ fn compare_unresolved(
         if left.len() != right.len() {
             differences.push(Difference {
                 kind: DifferenceKind::UnresolvedMismatch,
-                detail: format!("{key}: legacy={} native={}", left.len(), right.len()),
+                detail: format!("{key}: oracle={} native={}", left.len(), right.len()),
             });
         }
         for index in 0..left.len().min(right.len()) {

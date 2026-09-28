@@ -14,23 +14,28 @@ An adapter converts repository source into deterministic semantic evidence:
 
 ```text
 repository source
-  -> discovery + parser/compiler frontend
-  -> declarations + semantic resolution
+  -> authoritative language frontend
+  -> language-native semantic observations
+  -> Lexicon normalization + materialization
   -> nodes / edges / unresolved records
   -> Lexicon validation + immutable snapshot
 ```
 
-Adapters own language semantics. They do not own snapshot storage, Arcana graph behavior, ranking, agent orchestration, or documentation policy.
+The language frontend owns authoritative syntax and compiler semantics. The Lexicon adapter owns translation into Lexicon's normalized semantic model, canonical identities, source ownership, relationship certainty, unresolved evidence, and deterministic materialization. It may add Lexicon-specific analysis over frontend evidence where the language implementation does not directly answer a Lexicon relationship question.
+
+Adapters do not own snapshot storage, Arcana graph behavior, ranking, agent orchestration, or documentation policy.
 
 ## Choose the target
 
-New first-party adapter work should target the native Rust `LanguageAdapter` contract under:
+New first-party adapter work should expose the native Rust `LanguageAdapter` contract under:
 
 ```text
 lexicon/src/adapters/<language>/
 ```
 
-The Rust host accepts typed `Analysis` directly. Do not create a subprocess or JSONL bridge for new Rust-native adapters.
+The Rust host accepts typed `Analysis` directly. That is the Lexicon-facing interface, not a requirement that parsing or compiler analysis run in Rust. When the authoritative frontend belongs to another runtime or toolchain, prefer a private language-native helper with a narrow, versioned observation protocol over reimplementing that frontend in Rust. The Go adapter's private semantic helper is the reference shape.
+
+Do not use facts-v1 JSONL as the helper protocol. Helpers should return language-semantic observations; the Rust adapter remains responsible for Lexicon identities, facts materialization, ownership, validation, and publication integration.
 
 The optimized Go Lexicon at `758af9daf6e71fc0a7ebb837875efe366f6403fd` remains the recommended operator runtime until Rust optimization catches up. If a new adapter must work there immediately, implement the additional compatibility boundary in [ADAPTER_GO_COMPATIBILITY.md](ADAPTER_GO_COMPATIBILITY.md).
 
@@ -38,18 +43,38 @@ There is currently no drop-in third-party adapter directory. Adding a supported 
 
 ## Define the semantic boundary first
 
-Before choosing a parser, write down:
+Before choosing the integration shape, write down:
 
 - canonical language name;
 - owned source extensions;
+- authoritative language frontend and its runtime/toolchain requirements;
 - project/config files affecting discovery;
 - declarations the adapter promises to model;
-- relationships it can prove;
+- relationships the frontend can prove directly;
+- Lexicon-specific analysis that must be layered over frontend evidence;
 - dynamic/unsupported forms that remain unresolved;
 - canonical identity rules;
 - minimum safe analysis unit: file, package, crate, project, translation unit, or repository.
 
-Tree-sitter, compiler APIs, standard-library parsers, and custom parsers are all acceptable. The contract is semantic evidence, not parser choice.
+## Language-authoritative frontend invariant
+
+Lexicon does not independently implement programming-language grammar or compiler semantics when an authoritative language frontend is available under usable terms.
+
+Prefer, in order:
+
+1. the language implementation's public compiler or analysis API;
+2. the language implementation's official parser or semantic frontend;
+3. a narrowly isolated integration with the language implementation's internal frontend when no stable public surface exists;
+4. an established third-party parser only when the authoritative frontend is unavailable or impractical;
+5. a Lexicon-owned parser only as a documented exception.
+
+Open source alone does not require in-process coupling. If the authoritative frontend is unstable, runtime-specific, or awkward to embed, isolate it behind a private helper executable and a small versioned observation protocol. Toolchain availability should be reported explicitly rather than hidden behind a semantically weaker parser fallback.
+
+A bespoke parser or compiler-semantic implementation requires documentation of why the authoritative frontend is unavailable or impractical. Convenience, implementation language, avoiding a helper process, or preserving an existing parser are not sufficient reasons.
+
+Lexicon-specific semantic analysis may augment authoritative frontend output. It must not duplicate syntax, name binding, type resolution, overload selection, preprocessing, macro expansion, inheritance, or other compiler semantics merely to avoid integrating the language's own frontend.
+
+The compatibility contract is Lexicon semantic evidence, canonical identity, ownership, determinism, and versioned facts—not the continued existence or exact mistakes of a particular parser implementation.
 
 ## Implement full analysis first
 
@@ -90,7 +115,7 @@ A native language normally requires:
 2. module export in `src/adapters/mod.rs`;
 3. a `LanguageDefinition` in `src/languages/definition.rs`;
 4. registration in `AdapterHost::new`;
-5. parser/compiler dependencies in `lexicon/Cargo.toml` when needed;
+5. authoritative frontend integration, including private helper/runtime assets and explicit toolchain requirements when needed;
 6. focused fixtures/tests;
 7. adapter README, adapter index, and status updates.
 
@@ -182,7 +207,8 @@ A usable adapter needs positive and negative fixtures for:
 - unresolved evidence;
 - reads/writes when claimed;
 - inheritance/interfaces/traits when claimed;
-- malformed/unsupported syntax;
+- malformed/unsupported syntax and authoritative-frontend diagnostics;
+- missing/incompatible required toolchain behavior when the frontend is external;
 - repeat-run determinism;
 - full-analysis behavior.
 
@@ -193,6 +219,8 @@ When incremental analysis is added, test changed files, removals, shared facts, 
 Before merge:
 
 - language definition and host registration are correct;
+- the adapter uses the authoritative language frontend, or the exception is explicitly documented with the concrete reason;
+- any private helper protocol is narrow, versioned, and carries semantic observations rather than facts-v1 records;
 - full analysis works before incremental optimization;
 - identities contain no absolute checkout state;
 - definite and possible relations remain distinct;

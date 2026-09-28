@@ -6,7 +6,7 @@ import (
 )
 
 func TestSSACapturesFreeVariables(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", "go", "testdata", "oracle", "higher_order"))
+	root, err := filepath.Abs(filepath.Join("..", "..", "testdata", "go_oracle", "repositories", "higher_order"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestSSACapturesFreeVariables(t *testing.T) {
 }
 
 func TestSSAResolvesHigherOrderAndClosureCalls(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", "go", "testdata", "oracle", "higher_order"))
+	root, err := filepath.Abs(filepath.Join("..", "..", "testdata", "go_oracle", "repositories", "higher_order"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +122,7 @@ func caller() {
 }
 
 func TestSSAResolvesInterfaceInvokeToConcreteMethods(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", "go", "testdata", "oracle", "relationships"))
+	root, err := filepath.Abs(filepath.Join("..", "..", "testdata", "go_oracle", "repositories", "relationships"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +171,7 @@ func TestSSAMergeDropsInterfaceContractWhenConcreteTargetsExist(t *testing.T) {
 			},
 		},
 	}
-	merged := mergeSSAOutcomes(direct, outcomes)
+	merged := mergeSSAOutcomes(direct, outcomes, nil)
 	if hasCallTarget(merged,
 		"function:example.com/test:invoke",
 		"interface-method:example.com/test:Runner.Run",
@@ -184,4 +184,74 @@ func TestSSAMergeDropsInterfaceContractWhenConcreteTargetsExist(t *testing.T) {
 	assertSemanticCall(t, merged,
 		"function:example.com/test:invoke",
 		"method:example.com/test:Second.Run", "possible")
+}
+
+func TestSSAMergeDropsContractTargetReturnedByVTAWhenConcreteTargetExists(t *testing.T) {
+	location := span{StartLine: 10, StartColumn: 2, EndLine: 10, EndColumn: 9}
+	direct := []semanticRecord{callObservation{
+		Record: "call",
+		Source: "function:example.com/test:invoke",
+		Target: "method:example.com/test:Concrete.Run",
+		Kind:   "definite",
+		Class:  "interface",
+		Owner:  "main.go",
+		Span:   location,
+	}}
+	key := recordCallsiteKey(direct[0])
+	outcomes := map[string]*ssaOutcome{
+		key: {
+			Invoke: true,
+			Targets: map[string]ssaTarget{
+				"interface-method:example.com/test:Runner.Run": {
+					Identity: "interface-method:example.com/test:Runner.Run",
+					Internal: true,
+				},
+				"method:example.com/test:Concrete.Run": {
+					Identity: "method:example.com/test:Concrete.Run",
+					Internal: true,
+				},
+			},
+		},
+	}
+	merged := mergeSSAOutcomes(direct, outcomes, nil)
+	if hasCallTarget(merged,
+		"function:example.com/test:invoke",
+		"interface-method:example.com/test:Runner.Run",
+	) {
+		t.Fatalf("interface contract survived concrete merge: %#v", callRecords(merged))
+	}
+	assertSemanticCall(t, merged,
+		"function:example.com/test:invoke",
+		"method:example.com/test:Concrete.Run", "definite")
+}
+
+func TestSSAMergePreservesEarlierModuleResolutionForDynamicCall(t *testing.T) {
+	location := span{StartLine: 10, StartColumn: 2, EndLine: 10, EndColumn: 9}
+	direct := []semanticRecord{unresolvedObservation{
+		Record:   "unresolved",
+		Source:   "function:example.com/test:caller",
+		Relation: "calls",
+		Reason:   "dynamic-target",
+		Class:    "dynamic",
+		Owner:    "main.go",
+		Span:     location,
+	}}
+	key := recordCallsiteKey(direct[0])
+	outcomes := map[string]*ssaOutcome{
+		key: {
+			Targets: map[string]ssaTarget{
+				"function:example.com/test:override": {
+					Identity: "function:example.com/test:override",
+					Internal: true,
+				},
+			},
+		},
+	}
+	merged := mergeSSAOutcomes(direct, outcomes, map[string]bool{key: true})
+	if len(merged) != 1 {
+		t.Fatalf("records = %d, want 1: %#v", len(merged), merged)
+	}
+	if _, ok := merged[0].(unresolvedObservation); !ok {
+		t.Fatalf("later-module SSA replaced an earlier resolution: %#v", merged)
+	}
 }

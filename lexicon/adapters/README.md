@@ -34,7 +34,7 @@ Those boundaries keep one language implementation reusable by every Warlock cons
 | Folder | Language surface | Implementation | Primary semantic frontend |
 | --- | --- | --- | --- |
 | [c-family/](c-family/README.md) | C and C++ | Go | Official Tree-sitter C and C++ grammars |
-| [go/](go/README.md) | Go | Go | `go/parser`, `go/types`, packages, SSA, and VTA |
+| [go-semantic/](go-semantic/) | Go private semantic helper | Go | Rust-supplied inventory + `go/parser`, `go/types`, packages, SSA, and VTA |
 | [gdscript/](gdscript/README.md) | GDScript | Go | Dedicated parser and bounded type-flow model |
 | [csharp/](csharp/README.md) | C# | C# | Roslyn compiler APIs with optional MSBuild project loading |
 | [java/](java/README.md) | Java | Go + Java | Deterministic parser plus compiler-backed `jdk.compiler` attribution |
@@ -76,7 +76,7 @@ Adapters must not select an arbitrary same-named declaration to avoid an unresol
 
 The application may execute independent adapters concurrently. An adapter must therefore keep all mutable execution state process-local and must not write shared repository files outside its requested output.
 
-The Go adapter also accepts worker, logical-shard, and merge-fan-in parameters. Its shard-local semantic work must merge deterministically and produce the same facts for every valid execution plan.
+The native Go adapter also accepts worker, logical-shard, and merge-fan-in parameters. Its shard-local semantic work must merge deterministically and produce the same facts for every valid execution plan; frozen compatibility fixtures and canonical outputs live under `../testdata/go_oracle/`.
 
 Other adapters may add safe process or project partitioning later, but partition boundaries must preserve language semantics and deterministic ownership. Arbitrary file sharding is not acceptable when it changes the available type, import, or dispatch context.
 
@@ -92,7 +92,7 @@ Every new adapter still requires explicit identities, exclusions, semantic fixtu
 
 Native Rust parser, resolver, model, emitter, fixtures, and tests belong under `src/adapters/<language>/`.
 
-Legacy executable/parity-oracle code needed by the Go runtime belongs under `adapters/<language>/`.
+Legacy executable/parity-oracle code retained for historical Go-runtime compatibility or oracle coverage belongs under `adapters/<language>/`; retired runtime paths must not be wired back into the native Rust host.
 
 Cross-language record meaning belongs in `spec/`. Shared scan/storage orchestration belongs outside adapters. Do not create a cross-runtime helper dependency merely to share implementation convenience; share behavior through versioned contracts and acceptance fixtures.
 
@@ -104,7 +104,7 @@ Cross-language record meaning belongs in `spec/`. Shared scan/storage orchestrat
 | Adapter discovery, fingerprints, and execution | `internal/adapters/registry.go`, `runner.go`, `runner_packaged.go` | adapter runner/registry tests |
 | Shared facts contract | `spec/facts-v1.md` | object-store contract tests |
 | C/C++ | `adapters/c-family/` | package-local Go tests |
-| Go | `adapters/go/` | package-local Go tests |
+| Go private semantic helper | `adapters/go-semantic/` | helper Go tests plus native Rust Go-adapter tests |
 | GDScript | `adapters/gdscript/` | package-local Go tests |
 | C# | `adapters/csharp/` | .NET adapter tests |
 | Java | `adapters/java/` | package-local Go tests plus embedded compiler fixtures |

@@ -8,7 +8,7 @@ import (
 )
 
 func TestParallelSemanticCollectionMatchesSerialAndReductionShapes(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", "go", "testdata", "oracle", "parallel"))
+	root, err := filepath.Abs(filepath.Join("..", "..", "testdata", "go_oracle", "repositories", "parallel"))
 	if err != nil {
 		t.Fatal(err)
 	}

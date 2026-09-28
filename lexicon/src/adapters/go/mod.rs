@@ -28,10 +28,6 @@ mod dataflow_tests;
 #[cfg(test)]
 mod dependencies_tests;
 #[cfg(test)]
-mod differential_compare;
-#[cfg(test)]
-mod differential_tests;
-#[cfg(test)]
 mod discovery_boundary_tests;
 #[cfg(test)]
 mod discovery_tests;
@@ -39,6 +35,10 @@ mod discovery_tests;
 mod identities_tests;
 #[cfg(test)]
 mod incremental_tests;
+#[cfg(test)]
+mod oracle_compare;
+#[cfg(test)]
+mod oracle_parity_tests;
 #[cfg(test)]
 mod relationship_tests;
 #[cfg(test)]
@@ -81,6 +81,17 @@ impl GoAdapter {
     fn with_helper(helper: HelperRunner) -> Self {
         Self { helper }
     }
+}
+
+pub(crate) fn verify_runtime_helper(adapter_root: &Path) -> Result<(), AdapterError> {
+    HelperRunner::discover(
+        adapter_root,
+        HELPER_DIRECTORY,
+        HELPER_EXECUTABLE,
+        HELPER_ENVIRONMENT,
+    )
+    .resolve()
+    .map(|_| ())
 }
 
 impl LanguageAdapter for GoAdapter {
@@ -220,6 +231,8 @@ fn helper_arguments() -> Vec<OsString> {
     vec![
         OsString::from("--protocol-version"),
         OsString::from(protocol::PROTOCOL_VERSION.to_string()),
+        OsString::from("--helper-version"),
+        OsString::from(protocol::HELPER_VERSION),
     ]
 }
 

@@ -10,7 +10,7 @@ This document records Lexicon's current implemented capabilities, adapter covera
 
 Status claims distinguish implemented behavior, measured evidence, and explicit non-claims. Future possibilities remain outside this document until implementation exists.
 
-Status date: September 25, 2026.
+Status date: September 27, 2026.
 
 This document describes the implementation in the current source tree. Dated validation reports record evidence from specific runs and should not be treated as permanent performance guarantees.
 
@@ -22,11 +22,11 @@ For normal operator use, the recommended Lexicon runtime is the last optimized G
 
 Implemented on the active Rust-migration branch:
 
-- pinned Go parity oracle and migration fixture registry under `evaluation/rust_migration/`, plus the frozen Go-adapter semantic oracle under `adapters/go/testdata/oracle/`;
+- pinned application migration fixture registry under `evaluation/rust_migration/`, plus the frozen Go-language semantic oracle under `testdata/go_oracle/`;
 - private Go semantic-helper protocol v1 with strict request/response validation, canonical semantic identities, repository-relative owner paths/spans, and no facts-v1/persistence coupling;
 - native Rust `GoAdapter` shell registered in `AdapterHost`, with helper-version-aware fingerprinting and a reusable bounded private-helper process runner;
 - Rust-owned Go repository discovery, permanent exclusions, deterministic `.go`/`go.mod` inventory, nearest-`go.mod` module ownership, root/multi-module repository identity, and direct repository/directory/file fact emission;
-- extracted `adapters/go-semantic/` structural helper for package/import/type/function/method/test/interface-method/closure declarations, including inactive build-tag source; Rust materializes those semantic declarations into exact legacy-compatible structural nodes and containment/import relationships while typed dataflow remains deferred;
+- extracted `adapters/go-semantic/` private semantic helper for package/import/type/function/method/test/interface-method/closure declarations plus typed relationships, calls, SSA/VTA reconciliation, captures, and dataflow; Rust owns repository discovery, canonical identities, fact materialization, validation, storage, and scan orchestration;
 - Rust-owned Go identity authority in `src/adapters/go/identities.rs`, covering the legacy canonical identity vocabulary, semantic-prefix → Lexicon-kind mapping, `_test` namespace normalization, absolute-path rejection, and exact node-SHA parity for every permanent migration fixture;
 - extracted Go typed semantic index in `adapters/go-semantic/` using `go/packages` and `go/types`, with test-enabled `LoadAllSyntax | NeedModule`, deterministic package flattening, generic origins, alias unwrapping, completed interfaces, value/pointer method sets, Rust-inventory ownership filtering, and structured package diagnostics;
 - Go type relationships now cross the semantic-helper boundary as canonical identities and are materialized by Rust with exact legacy `extends`/`implements`/`overrides` semantics, endpoint validation, self-edge rejection, and seven-fixture parity;
@@ -58,7 +58,7 @@ Implemented on the active Rust-migration branch:
 - a separate Rust `lexicon-cli` crate providing the replacement `lexicon` executable over the library, including the existing operational Go command surface, repository discovery, option parsing, signal handling, and formatting.
 - bounded Rust snapshot lookup for deterministic node discovery, exact node resolution, direct references, and direct call evidence; `find`/`show` use node-only object decoding while `refs`/`calls` preserve resolved and unresolved relationship semantics.
 
-The Go application remains the migration parity oracle and current operator recommendation; the replacement executable and reusable integration surface are Rust-owned but not yet performance-ready as the default. See [RUST_MIGRATION.md](RUST_MIGRATION.md).
+The broader Lexicon migration still uses the pinned Go application as historical/parity reference where untranslated behavior remains, and the operator-runtime recommendation above is unchanged. The Go-language adapter migration itself is complete: native Rust `GoAdapter` owns Go analysis; the retired standalone Go facts adapter is removed; immutable compatibility fixtures/goldens live under `testdata/go_oracle/`; and the private `lexicon-go-semantic[.exe]` helper is packaged, version-verified, installed, and discovered from the normal adapter-root layout. Typed Go semantics still require an installed `go` executable because the helper uses `go/packages`; absence fails closed with an actionable runtime diagnostic. See [GO_ADAPTER.md](GO_ADAPTER.md) and [RUST_MIGRATION.md](RUST_MIGRATION.md).
 
 ## Application
 
@@ -167,7 +167,8 @@ Current acceptance mechanisms include:
 - pinned Git, Codebase Memory, LevelDB, fmt, Catch2, and nlohmann/json judgments for the C/C++ shared adapter;
 - call-site, possible-target-fanout, resolution-provenance, macro-expansion-depth, and direct argument-flow reporting for C-family corpus outputs;
 - fixture and application smoke coverage for the C/C++ shared adapter;
-- separate dated Go real-repository validation.
+- completed native Go Phase 16 real-repository calibration: exact legacy/native parity on pinned Demon Docs and Space Rocks plus Lexicon self-host, repeated deterministic native output on the pinned repositories, and successful Arcana ingestion/query acceptance;
+- completed Go Phase 19 hard cut: live standalone adapter removed, permanent native parity against immutable frozen canonical facts, helper protocol coverage retained with the production helper, and no Go facts-runtime fallback.
 
 See:
 

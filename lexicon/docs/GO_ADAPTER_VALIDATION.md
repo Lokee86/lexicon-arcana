@@ -146,7 +146,7 @@ Commands, repository revisions, measurement tables, unresolved classifications, 
 
 ## Related docs
 
-- [Go adapter README](../adapters/go/README.md)
+- [Go adapter](GO_ADAPTER.md)
 - [Semantic acceptance gates](SEMANTIC_ACCEPTANCE.md)
 - [Semantic corpus validation](SEMANTIC_CORPUS_VALIDATION.md)
 - [Development and verification](DEVELOPMENT.md)

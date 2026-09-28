@@ -90,7 +90,7 @@ The optimized Go Lexicon at `758af9daf6e71fc0a7ebb837875efe366f6403fd` is the cu
 
 The root release workflow's `lexicon` executable is produced by `lexicon-cli/Cargo.toml` and delegates to the Rust `lexicon` library. Treat that binary as a migration/development artifact until the outstanding optimization work is complete.
 
-Some packaged adapter assets remain external during migration. Exact migration status is maintained in [Rust migration](RUST_MIGRATION.md).
+Some packaged adapter assets remain external during migration. The retired `lexicon-go` standalone facts adapter is not built, and its oracle source tree is excluded from runtime archives. Native Go analysis belongs to the Rust `GoAdapter`, and its private `lexicon-go-semantic[.exe]` helper plus `VERSION` are packaged under `adapters/go-semantic/`, version-verified, archived, and installed with Lexicon. There is no legacy facts-v1 runtime fallback. The helper itself is prebuilt, but typed Go semantics use `go/packages`, so an installed `go` executable remains a runtime prerequisite. Exact migration status is maintained in [Rust migration](RUST_MIGRATION.md).
 
 ## Verification
 

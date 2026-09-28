@@ -173,6 +173,6 @@ fn write_test_file(root: &Path, relative: &str, content: &str) {
 
 fn fixture(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("adapters/go/testdata/oracle")
+        .join("testdata/go_oracle/repositories")
         .join(name)
 }

@@ -25,6 +25,7 @@ pub(crate) trait ProtocolResponse {
 pub(crate) struct HelperRunner {
     candidates: Vec<PathBuf>,
     prefix_args: Vec<OsString>,
+    environment_override: Option<String>,
 }
 
 impl HelperRunner {
@@ -49,6 +50,7 @@ impl HelperRunner {
         Self {
             candidates,
             prefix_args: Vec::new(),
+            environment_override: Some(environment.to_owned()),
         }
     }
 
@@ -57,6 +59,7 @@ impl HelperRunner {
         Self {
             candidates: vec![program],
             prefix_args,
+            environment_override: None,
         }
     }
 
@@ -190,19 +193,25 @@ impl HelperRunner {
         Ok(response)
     }
 
-    fn resolve(&self) -> Result<PathBuf, AdapterError> {
+    pub(crate) fn resolve(&self) -> Result<PathBuf, AdapterError> {
         self.candidates
             .iter()
             .find(|candidate| candidate.is_file())
             .cloned()
             .ok_or_else(|| {
+                let checked = self
+                    .candidates
+                    .iter()
+                    .map(|path| path.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let override_hint = self
+                    .environment_override
+                    .as_deref()
+                    .map(|name| format!("; set {name} to an explicit helper path"))
+                    .unwrap_or_default();
                 AdapterError::new(format!(
-                    "semantic helper executable not found; checked {}",
-                    self.candidates
-                        .iter()
-                        .map(|path| path.display().to_string())
-                        .collect::<Vec<_>>()
-                        .join(", ")
+                    "semantic helper executable not found; install the packaged helper{override_hint}; checked {checked}"
                 ))
             })
     }
