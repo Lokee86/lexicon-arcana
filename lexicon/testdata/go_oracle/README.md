@@ -28,3 +28,29 @@ The completed Phase 16 calibration used:
 - Space Rocks: `431625042dbdb1a884954cab6ec726413aa36e2b`
 
 Those revisions remain historical calibration evidence; routine tests use the compact fixture corpus here.
+
+## Phase 1 frontend-seam reconciliation
+
+The canonical frontend seam was reconciled against this oracle after responsibility was split into:
+
+```text
+Go compiler frontend -> semantic observations -> Rust Go adapter policy -> facts-v1
+```
+
+Reconciliation covers all seven fixtures: `basic_calls`, `relationships`, `higher_order`,
+`dataflow`, `build_tags`, `multi_module`, and `parallel`.
+
+The adjudication result is deliberately simple:
+
+- regressions: **0**;
+- intentional facts-contract/oracle changes: **0**;
+- obsolete non-contractual expectations: **0**;
+- golden files changed: **0**.
+
+The migrated seam therefore preserves the frozen facts contract exactly. Internal helper record shapes,
+phase-specific migration structures, and transport mechanics are not compatibility requirements; only the
+published semantic header and facts are compared. Any future difference is a regression until it is
+explicitly reviewed as either an intentional contract change or an obsolete non-contractual expectation.
+
+Full/incremental equivalence remains covered by the Go incremental tests. Deterministic scheduling remains
+covered by the serial and alternate worker/shard/fan-in oracle runs.

@@ -45,9 +45,9 @@ mod oracle_parity_tests;
 #[cfg(test)]
 mod relationship_tests;
 #[cfg(test)]
-mod semantic_identity_policy_tests;
+mod seam_reconciliation_tests;
 #[cfg(test)]
-mod semantic_parity_tests;
+mod semantic_identity_policy_tests;
 #[cfg(test)]
 mod ssa_tests;
 #[cfg(test)]
