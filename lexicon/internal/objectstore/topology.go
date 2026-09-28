@@ -10,7 +10,7 @@ func (s Store) DirectChangesRequireFull(language string, roots []string) (bool, 
 	return fullRequired, err
 }
 
-func repositorySensitiveUnresolved(reason string) bool {
+func additionSensitiveUnresolved(reason string) bool {
 	switch reason {
 	case "missing-target", "ambiguous-target", "generated-target":
 		return true
@@ -19,12 +19,12 @@ func repositorySensitiveUnresolved(reason string) bool {
 	}
 }
 
-func semanticRelation(relation string) bool {
-	switch relation {
-	case "contains", "defines":
-		return false
-	default:
+func topologySensitiveUnresolved(reason string) bool {
+	switch reason {
+	case "ambiguous-target", "generated-target":
 		return true
+	default:
+		return false
 	}
 }
 
@@ -55,12 +55,19 @@ func (s Store) RequiresFullAnalysis(language string, changedFiles []string, anal
 		files[file.Path] = file
 	}
 	selected := make(map[string]struct{}, len(changedFiles))
+	added := make(map[string]struct{})
 	previous := make(map[string]map[string]struct{}, len(changedFiles))
 	for _, path := range changedFiles {
+		path = normalizeOwner(path)
+		if path == "" {
+			return true, nil
+		}
 		selected[path] = struct{}{}
 		file, ok := files[path]
 		if !ok {
-			return true, nil
+			added[path] = struct{}{}
+			previous[path] = map[string]struct{}{}
+			continue
 		}
 		object, err := s.LoadObject(file.ObjectID)
 		if err != nil {
@@ -69,7 +76,7 @@ func (s Store) RequiresFullAnalysis(language string, changedFiles []string, anal
 		previous[path] = relationKeys(object.Records)
 	}
 	if analysis.partitions != nil {
-		return partitionedAnalysisRequiresFull(analysis.partitions, selected, previous)
+		return partitionedAnalysisRequiresFull(analysis.partitions, selected, added, previous)
 	}
 	owners := nodeOwners(analysis.records)
 	for _, record := range analysis.records {
@@ -87,8 +94,21 @@ func (s Store) RequiresFullAnalysis(language string, changedFiles []string, anal
 		if _, ok := selected[owner]; !ok {
 			return true, nil
 		}
-		if _, existed := previous[owner][key]; !existed {
-			return true, nil
+		_, isAdded := added[owner]
+		if _, existed := previous[owner][key]; existed {
+			continue
+		}
+		if record.value.Record == "unresolved" {
+			var unresolved topologyRecord
+			if err := json.Unmarshal(record.raw, &unresolved); err != nil {
+				return true, err
+			}
+			if topologySensitiveUnresolved(unresolved.Reason) {
+				return true, nil
+			}
+		}
+		if isAdded {
+			continue
 		}
 	}
 	return false, nil
@@ -96,7 +116,7 @@ func (s Store) RequiresFullAnalysis(language string, changedFiles []string, anal
 
 func partitionedAnalysisRequiresFull(
 	partitions *analysisPartitions,
-	selected map[string]struct{},
+	selected, added map[string]struct{},
 	previous map[string]map[string]struct{},
 ) (bool, error) {
 	for owner, records := range partitions.groups {
@@ -111,8 +131,8 @@ func partitionedAnalysisRequiresFull(
 			if err != nil {
 				return true, err
 			}
-			if _, existed := previous[owner][key]; !existed {
-				return true, nil
+			if _, existed := previous[owner][key]; existed {
+				continue
 			}
 		}
 		for _, record := range records.unresolved {
@@ -122,8 +142,14 @@ func partitionedAnalysisRequiresFull(
 			if err != nil {
 				return true, err
 			}
-			if _, existed := previous[owner][key]; !existed {
+			if _, existed := previous[owner][key]; existed {
+				continue
+			}
+			if topologySensitiveUnresolved(record.Reason) {
 				return true, nil
+			}
+			if _, isAdded := added[owner]; isAdded {
+				continue
 			}
 		}
 	}

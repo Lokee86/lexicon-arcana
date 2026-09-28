@@ -72,6 +72,17 @@ func (r *Repository) Head() (string, error) {
 	return r.output("rev-parse", "HEAD")
 }
 
+func (r *Repository) HeadSource(path string) ([]byte, error) {
+	if filepath.IsAbs(path) {
+		return nil, fmt.Errorf("source path must be relative: %s", path)
+	}
+	normalized := filepath.ToSlash(filepath.Clean(filepath.FromSlash(path)))
+	if normalized == "." || normalized == "" || normalized == ".." || strings.HasPrefix(normalized, "../") {
+		return nil, fmt.Errorf("invalid source path: %s", path)
+	}
+	return r.outputBytes("show", "HEAD:source/"+normalized)
+}
+
 func (r *Repository) HasStagedChanges() bool {
 	command := exec.Command("git", "diff", "--cached", "--quiet")
 	command.Dir = r.Root

@@ -154,6 +154,7 @@ func (s *Scanner) analyzePlan(
 	if err != nil {
 		return objectstore.Manifest{}, err
 	}
+	replaceShared := analysis.Header.SharedComplete != nil && *analysis.Header.SharedComplete
 	entry, err := s.Store.BuildIncrementalLanguage(
 		previous,
 		analysis,
@@ -162,7 +163,7 @@ func (s *Scanner) analyzePlan(
 		fingerprint,
 		plan.ChangedFiles,
 		plan.RemovedFiles,
-		false,
+		replaceShared,
 	)
 	if err != nil {
 		return objectstore.Manifest{}, err
@@ -202,8 +203,16 @@ func (s *Scanner) adapterFingerprint(language string) (string, error) {
 func (s *Scanner) analysisRequest(plan analysisPlan, sourceRoot, temporary, output string) (adapters.Request, error) {
 	repository := sourceRoot
 	if !plan.Full {
+		contextFiles := append([]string(nil), plan.ContextFiles...)
+		if plan.Language == "python" && len(plan.ChangedFiles) > 0 {
+			changedContext, err := pythonChangedContext(sourceRoot, plan.ChangedFiles)
+			if err != nil {
+				return adapters.Request{}, err
+			}
+			contextFiles = uniqueSorted(append(contextFiles, changedContext...))
+		}
 		var err error
-		repository, err = analysisscope.Build(sourceRoot, filepath.Join(temporary, "scopes"), plan.Language, plan.ContextFiles)
+		repository, err = analysisscope.Build(sourceRoot, filepath.Join(temporary, "scopes"), plan.Language, contextFiles)
 		if err != nil {
 			return adapters.Request{}, err
 		}

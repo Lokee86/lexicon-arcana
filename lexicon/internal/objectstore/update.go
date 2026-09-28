@@ -1,6 +1,7 @@
 package objectstore
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -94,6 +95,14 @@ func (s Store) BuildIncrementalLanguage(
 	}
 
 	entry := languageMetadata(analysis.Header, analysisConfigID, adapterFingerprint)
+	var invalidatedNodes map[string]struct{}
+	if replaceShared {
+		var err error
+		invalidatedNodes, err = s.invalidatedNodeIDs(previous, changed, removed)
+		if err != nil {
+			return LanguageEntry{}, err
+		}
+	}
 	files := make(map[string]FileEntry, len(previous.Files)+len(changed))
 	for _, file := range previous.Files {
 		if !changed[file.Path] && !removed[file.Path] {
@@ -121,13 +130,158 @@ func (s Store) BuildIncrementalLanguage(
 	sort.Slice(entry.Files, func(left, right int) bool { return entry.Files[left].Path < entry.Files[right].Path })
 	entry.SharedObjectID = previous.SharedObjectID
 	if replaceShared {
-		sharedObjectID, err := s.writeSharedObject(entry, shared)
+		sharedObjectID, err := s.mergeSharedObject(entry, previous.SharedObjectID, shared, invalidatedNodes)
 		if err != nil {
 			return LanguageEntry{}, err
 		}
 		entry.SharedObjectID = sharedObjectID
 	}
 	return entry, nil
+}
+
+func (s Store) invalidatedNodeIDs(
+	previous LanguageEntry,
+	changed, removed map[string]bool,
+) (map[string]struct{}, error) {
+	result := make(map[string]struct{})
+	for _, file := range previous.Files {
+		if !changed[file.Path] && !removed[file.Path] {
+			continue
+		}
+		object, err := s.LoadObject(file.ObjectID)
+		if err != nil {
+			return nil, err
+		}
+		records, err := parseTypedRecords(object.Records)
+		if err != nil {
+			return nil, err
+		}
+		for _, node := range records.nodes {
+			if node.ID != "" {
+				result[node.ID] = struct{}{}
+			}
+		}
+	}
+	if previous.SharedObjectID == "" {
+		return result, nil
+	}
+	sharedObject, err := s.LoadObject(previous.SharedObjectID)
+	if err != nil {
+		return nil, err
+	}
+	shared, err := parseTypedRecords(sharedObject.Records)
+	if err != nil {
+		return nil, err
+	}
+	for _, node := range shared.nodes {
+		path := normalizeOwner(node.Path)
+		if path == "" || (!changed[path] && !removed[path]) {
+			continue
+		}
+		if node.ID != "" {
+			result[node.ID] = struct{}{}
+		}
+	}
+	return result, nil
+}
+
+func (s Store) mergeSharedObject(
+	entry LanguageEntry,
+	previousID string,
+	updates typedRecords,
+	invalidatedNodes map[string]struct{},
+) (string, error) {
+	if previousID == "" {
+		return s.writeSharedObject(entry, updates)
+	}
+	previousObject, err := s.LoadObject(previousID)
+	if err != nil {
+		return "", err
+	}
+	previous, err := parseTypedRecords(previousObject.Records)
+	if err != nil {
+		return "", err
+	}
+	previous = withoutInvalidatedRelationships(previous, invalidatedNodes)
+	merged, err := mergeTypedRecords(previous, updates)
+	if err != nil {
+		return "", err
+	}
+	return s.writeSharedObject(entry, merged)
+}
+
+func withoutInvalidatedRelationships(
+	records typedRecords,
+	invalidatedNodes map[string]struct{},
+) typedRecords {
+	if len(invalidatedNodes) == 0 {
+		return records
+	}
+	filtered := typedRecords{}
+	for _, node := range records.nodes {
+		if _, invalid := invalidatedNodes[node.ID]; invalid {
+			continue
+		}
+		filtered.nodes = append(filtered.nodes, node)
+	}
+	for _, edge := range records.edges {
+		if _, invalid := invalidatedNodes[edge.Source]; invalid {
+			continue
+		}
+		if _, invalid := invalidatedNodes[edge.Target]; invalid {
+			continue
+		}
+		filtered.edges = append(filtered.edges, edge)
+	}
+	for _, unresolved := range records.unresolved {
+		if _, invalid := invalidatedNodes[unresolved.Source]; invalid {
+			continue
+		}
+		filtered.unresolved = append(filtered.unresolved, unresolved)
+	}
+	return filtered
+}
+
+func mergeTypedRecords(previous, updates typedRecords) (typedRecords, error) {
+	previousRaw, err := previous.raw()
+	if err != nil {
+		return typedRecords{}, err
+	}
+	updateRaw, err := updates.raw()
+	if err != nil {
+		return typedRecords{}, err
+	}
+	records := make(map[string]json.RawMessage, len(previousRaw)+len(updateRaw))
+	add := func(values []json.RawMessage) error {
+		exported, err := exportRecords(values)
+		if err != nil {
+			return err
+		}
+		for _, record := range exported {
+			records[record.key] = append(json.RawMessage(nil), record.raw...)
+		}
+		return nil
+	}
+	if err := add(previousRaw); err != nil {
+		return typedRecords{}, err
+	}
+	if err := add(updateRaw); err != nil {
+		return typedRecords{}, err
+	}
+	keys := make([]string, 0, len(records))
+	for key := range records {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	result := typedRecords{}
+	for _, key := range keys {
+		record, err := parseTypedRecord(records[key])
+		if err != nil {
+			return typedRecords{}, err
+		}
+		result.append(record)
+	}
+	return result, nil
 }
 
 func languageMetadata(header Header, analysisConfigID, adapterFingerprint string) LanguageEntry {
