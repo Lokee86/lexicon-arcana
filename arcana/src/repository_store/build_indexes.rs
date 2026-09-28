@@ -12,13 +12,14 @@ pub(super) fn sorted_dense_ids(
     nodes: &[CompactNodeRecord],
     key: impl Fn(&CompactNodeRecord) -> StringId,
 ) -> Result<Vec<NodeId>, RepositoryStoreWriteError> {
-    let mut ids = (0..nodes.len())
-        .map(|index| {
+    let mut ids = Vec::with_capacity(nodes.len());
+    for index in 0..nodes.len() {
+        ids.push(
             u32::try_from(index)
                 .map(NodeId)
-                .map_err(|_| RepositoryStoreWriteError::TooManyNodes)
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+                .map_err(|_| RepositoryStoreWriteError::TooManyNodes)?,
+        );
+    }
     ids.sort_unstable_by_key(|id| (key(&nodes[id.0 as usize]), *id));
     Ok(ids)
 }
@@ -26,18 +27,15 @@ pub(super) fn sorted_dense_ids(
 pub(super) fn sorted_kind_index(
     nodes: &[CompactNodeRecord],
 ) -> Result<Vec<CompactKindIndexRecord>, RepositoryStoreWriteError> {
-    let mut records = nodes
-        .iter()
-        .enumerate()
-        .map(|(index, node)| {
-            Ok(CompactKindIndexRecord {
-                kind_code: node.kind_code,
-                node_id: u32::try_from(index)
-                    .map(NodeId)
-                    .map_err(|_| RepositoryStoreWriteError::TooManyNodes)?,
-            })
-        })
-        .collect::<Result<Vec<_>, RepositoryStoreWriteError>>()?;
+    let mut records = Vec::with_capacity(nodes.len());
+    for (index, node) in nodes.iter().enumerate() {
+        records.push(CompactKindIndexRecord {
+            kind_code: node.kind_code,
+            node_id: u32::try_from(index)
+                .map(NodeId)
+                .map_err(|_| RepositoryStoreWriteError::TooManyNodes)?,
+        });
+    }
     records.sort_unstable_by_key(|record| (record.kind_code, record.node_id));
     Ok(records)
 }
@@ -84,8 +82,37 @@ fn optional(id: StringId) -> Option<StringId> {
 mod tests {
     use crate::repository::NodeKey;
 
+    use super::super::Sha256Identity;
     use super::super::format::relation_code;
     use super::*;
+
+    #[test]
+    fn final_node_indexes_preallocate_from_known_node_count() {
+        let nodes = (0..17)
+            .map(|index| CompactNodeRecord {
+                key: NodeKey::from_u64(index as u64),
+                external_identity: Some(Sha256Identity([index as u8; 32])),
+                content_id: None,
+                path: StringId((16 - index) as u32),
+                name: StringId(index as u32),
+                qualified_name: StringId(index as u32),
+                span: None,
+                occurrence_count: 1,
+                kind_code: (index % 3) as u16,
+            })
+            .collect::<Vec<_>>();
+
+        let names = sorted_dense_ids(&nodes, |record| record.name).unwrap();
+        let paths = sorted_dense_ids(&nodes, |record| record.path).unwrap();
+        let kinds = sorted_kind_index(&nodes).unwrap();
+
+        assert_eq!(names.len(), nodes.len());
+        assert_eq!(paths.len(), nodes.len());
+        assert_eq!(kinds.len(), nodes.len());
+        assert!(names.capacity() >= nodes.len());
+        assert!(paths.capacity() >= nodes.len());
+        assert!(kinds.capacity() >= nodes.len());
+    }
 
     #[test]
     fn edge_order_uses_relation_semantics_not_store_codes() {
