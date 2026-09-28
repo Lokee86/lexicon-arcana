@@ -87,5 +87,40 @@
     "tasks not randomly sampled",
     "public outcomes do not isolate causal contribution",
     "investigations mixed Arcana with ordinary developer tools"
-  ]
+  ],
+  "updated": "2026-09-28",
+  "follow_up": {
+    "date": "2026-09-28",
+    "task_class": "multi-phase architectural ownership refactor",
+    "observations": [
+      "effective refactor unit shifted from files to ownership domains",
+      "structural evidence influenced extraction order and hard-cut sequencing",
+      "distant cross-layer consumers remained a material source of refactor risk",
+      "graph structure did not replace behavioral, packaging, runtime, or review verification",
+      "negative structural evidence helped change diagnostic mode",
+      "structural blast-radius visibility appeared to reduce the uncertainty cost of hard-cut ownership moves"
+    ],
+    "updated_interpretation": "During broad Hermes refactors, Arcana's main observed contribution is repository-scale architectural situational awareness: ownership, dependency direction, cross-layer consumers, and blast radius can affect refactor boundaries and sequencing before code is moved.",
+    "hermes_scale_evidence": {
+      "same_generation_nodes": 1136365,
+      "same_generation_visible_edges": 2401702,
+      "same_generation_unresolved": 697792,
+      "graph_arcana_bytes": 47002416,
+      "legacy_generation_bytes": 1214675796,
+      "current_generation_bytes": 541201469,
+      "generation_reduction_bytes": 673474327,
+      "generation_reduction_percent": 55.44,
+      "rebuild_wall_seconds": 156.946,
+      "rebuild_peak_rss_bytes": 1592414208,
+      "overlay_wall_seconds": 201.966,
+      "overlay_peak_rss_bytes": 2219360256
+    },
+    "reciprocal_product_evidence": [
+      "real Hermes use exposed missing TypeScript/TSX callable and call coverage",
+      "Hermes scale exposed incremental/shared-relationship and materialization problems",
+      "the packed graph remained about 47 MB; repository metadata and object lifetimes were the dominant storage/memory problem",
+      "stale generated Arcana state can become unusable when the query implementation advances format expectations"
+    ],
+    "evidence_status": "observational_retrospective_with_recorded_repository_measurements"
+  }
 }

@@ -48,6 +48,63 @@ The log must retain tasks where Arcana was unnecessary, unavailable, or added li
 | [Issue #120526](https://github.com/NousResearch/hermes-agent/issues/120526) / [PR #120678](https://github.com/NousResearch/hermes-agent/pull/120678) | Local MCP configuration transformation | Missing interpolation behavior was localized enough that direct inspection plus a regression test was the natural path. |
 | Early `nous_cli` strangler setup | Small bounded refactor setup | Full structural machinery was not useful for the initial mechanical boundary creation; direct inspection was cheaper until ownership analysis became the bottleneck. |
 
+
+## Follow-up observations — Hermes ownership refactor, 2026-09-28
+
+This follow-up records a second retrospective review after several additional days of Hermes Gateway, runtime, plugin, profile, and provider-ownership refactoring. It remains observational evidence rather than a controlled comparison. The new observations are supported by the Hermes refactor history, the existing field cases above, and the repository-scale Hermes measurements gathered while Arcana itself was being repaired.
+
+### Refactor-shape observations
+
+| Observation | Hermes evidence | Interpretation |
+| --- | --- | --- |
+| Arcana shifted the effective unit of refactoring from files to ownership domains. | The Gateway work progressed through explicit ownership extractions for host/service lifecycle, migration CLI, profiles, process identity/containment, subprocess behavior, stdio/resource limits, storage helpers, plugin dispatch, provider identity, provider discovery, provider declarations, and live auth projection. | Large source files were symptoms; the useful question became which subsystem owns a capability and which dependencies cross that boundary. |
+| Structural evidence influenced extraction order, not only discovery. | Provider identity was established before provider declarations and live auth projection; runtime/process ownership was extracted before later storage and plugin/provider work. Boundary tests and import guards were repeatedly used to close the old dependency direction before proceeding. | Arcana's value in this class of work is partly prospective: it helps choose a seam and sequence the hard cut before implementation, rather than merely explaining the repository afterward. |
+| Distant consumers are a material source of refactor risk. | Gateway/profile/provider work repeatedly required tracing consumers outside the directory being changed, including command, runtime, test, launch/service, and agent-facing surfaces. | Repository-scale relationship and impact inspection is most useful where lexical locality is a poor proxy for architectural dependency. |
+| Structural truth does not replace behavioral verification. | Public-facade regressions, invalid imports, packaging omissions, inert monkeypatch/test seams, and runtime-specific defects were found by tests, source/AST inspection, CLI execution, or review rather than by graph structure alone. | Arcana is an architectural evidence source, not a substitute for compatibility tests, packaging checks, runtime instrumentation, or code review. |
+| Negative structural evidence can change diagnostic mode. | Earlier corruption work used static elimination to justify SQL-write tracing; the refactor similarly used closed ownership/import boundaries to narrow remaining failures toward behavior, compatibility, or test-contract defects. | A useful Arcana result can be that the suspected architectural path is absent, allowing investigation to move to a different evidence source. |
+| The presence of structural evidence appears to reduce the uncertainty cost of hard-cut refactoring. | The refactor increasingly moved authority to a canonical owner and repaired genuine consumers rather than preserving every shallow wrapper or monkeypatch seam. | This is a qualitative workflow observation, not a causal speed claim. Arcana appears to make aggressive ownership cuts easier to reason about because the blast radius can be inspected independently of file layout. |
+
+The strongest updated interpretation is therefore narrower than “Arcana finds code faster” and stronger than simple navigation assistance:
+
+> During broad Hermes refactors, Arcana's main observed contribution is repository-scale architectural situational awareness: representing ownership, dependency direction, cross-layer consumers, and blast radius well enough to affect refactor boundaries and sequencing before code is moved.
+
+### Hermes as a reciprocal Arcana workload
+
+Hermes has also changed Arcana. Real use exposed graph-coverage and implementation problems that synthetic or smaller workloads did not make as obvious:
+
+- the #119664 investigation exposed missing TypeScript/TSX callable/call coverage;
+- Hermes scale exposed stale/shared-relationship and incremental-planning problems;
+- Rust-port restoration work exposed materialization and ownership-copy costs in Lexicon;
+- Arcana ingestion of the Hermes snapshot exposed that repository-fact representation and managed-sync lifetimes, not packed graph topology, were the dominant storage/memory problem.
+
+The same-generation Hermes storage evidence from 2026-09-27 is concrete:
+
+| Measurement | Legacy | Current measured implementation |
+| --- | ---: | ---: |
+| Nodes | 1,136,365 | 1,136,365 |
+| Visible edges | 2,401,702 | 2,401,702 |
+| Unresolved references | 697,792 | 697,792 |
+| Packed `graph.arcana` | 47,002,416 B | 47,002,416 B |
+| Repository metadata / store | 1,167,673,380 B across TSV metadata | 494,199,053 B including `repository.arcana` + manifest binding |
+| Total published generation | 1,214,675,796 B | 541,201,469 B |
+| Total reduction | — | 673,474,327 B / 55.44% |
+
+The byte-identical packed graph is important: a roughly 1.14-million-node / 2.40-million-edge Hermes graph occupies about 47 MB. The major storage pathology was outside the graph representation.
+
+Runtime memory remains a separate limitation. On the 2026-09-27 Hermes measurements:
+
+- rebuild: **156.946 s**, **1,592,414,208 B peak process-tree RSS**;
+- managed overlay: **201.966 s**, **2,219,360,256 B peak process-tree RSS**;
+- a second graph-neutral TypeScript parity case measured **120.623 s / 2,001,457,152 B** for overlay versus **96.947 s / 1,606,561,792 B** for a clean rebuild.
+
+These measurements show that storage restoration and semantic parity passed, while managed-sync lifetime/memory work remained incomplete. Hermes therefore functions not only as a consumer of Arcana but as a repository-scale integration workload that has directly exposed Arcana/Lexicon design defects.
+
+### Operational-friction observation
+
+A 2026-09-28 attempt to query the Hermes Arcana state from the integrated Lexicon/Arcana branch also exposed an operational boundary. Hermes's checked-out `.arcana/CURRENT` still referenced the older TSV/v1 generation for Lexicon snapshot `a73b0627...`; the current integrated Arcana protocol rejected that stale repository manifest as malformed for the newer format.
+
+This is not evidence of semantic graph corruption: the referenced generation is the preserved legacy generation used in the storage comparison. It is evidence that analysis infrastructure loses practical value when generated state and the querying implementation drift apart. For refactor-time use, refresh/version compatibility needs to be cheap and conspicuous enough that Arcana remains operationally close to invisible.
+
 ## Current interpretation
 
 The Hermes field cases are consistent with, but do not independently prove, the benchmark-era task-size inversion.
@@ -115,7 +172,7 @@ This field log is complementary to, not a replacement for, the controlled benchm
 
 The controlled work measures matched conditions with explicit telemetry and hidden rubrics. The Hermes evidence measures ecological validity: whether the same task-sensitive behavior appears while solving unplanned production-repository problems.
 
-The notable point as of 2026-09-25 is that both evidence streams currently point in the same direction: **structured repository intelligence is most valuable when it reduces genuine architectural uncertainty, and should get out of the way once direct inspection is cheaper.**
+The notable point through the 2026-09-28 follow-up is that both evidence streams currently point in the same direction: **structured repository intelligence is most valuable when it reduces genuine architectural uncertainty, and should get out of the way once direct inspection is cheaper.**
 
 ## Limitations
 
