@@ -48,6 +48,7 @@ The product family should ship and operate as deterministic analysis libraries w
 
 ## Lexicon work
 
+- Execute the [Authoritative Frontend Re-port](authoritative-frontend-re-port.md): move language parsing/compiler semantics onto authoritative frontends, preserve Lexicon's normalized semantic/fact ownership, and explicitly pursue compiler-native wall-time/RSS advantages alongside semantic correctness.
 - Continue semantic-fact coverage where judged consumers need richer language semantics.
 - Improve adapter correctness and unresolved-evidence quality before adding speculative cross-language inference.
 - Measure initialization and incremental scan cost on substantially larger repositories.
