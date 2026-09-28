@@ -11,40 +11,57 @@ use super::{RepositoryStoreWriteError, StringId};
 pub(super) fn build_ownership(
     build: &CompactRepositoryBuild,
 ) -> Result<(Vec<CompactOwnershipRecord>, Vec<Contribution>), RepositoryStoreWriteError> {
-    let mut node_owners = BTreeMap::<NodeKey, StringId>::new();
+    let owner_by_node = build_node_owners(build)?;
     let mut ownership = BTreeMap::<StringId, Vec<Contribution>>::new();
 
-    for (index, node) in build.nodes.iter().enumerate() {
-        if let Some(path) = node_owner(build, node)? {
-            if let Some(previous) = node_owners.insert(node.key, path)
-                && previous != path
-            {
-                return Err(RepositoryStoreWriteError::DuplicateCompactNodeOwner { key: node.key });
-            }
+    for (index, owner) in owner_by_node.iter().copied().enumerate() {
+        if let Some(path) = owner.present() {
             add(&mut ownership, path, ContributionKind::Node, index)?;
         }
     }
     for (index, edge) in build.edges.iter().enumerate() {
-        if let Some(path) = edge
+        let path = edge
             .span
             .map(|span| span.path)
-            .or_else(|| node_owners.get(&edge.source).copied())
-            .or_else(|| node_owners.get(&edge.target).copied())
-        {
+            .or_else(|| node_owner_by_key(build, &owner_by_node, edge.source))
+            .or_else(|| node_owner_by_key(build, &owner_by_node, edge.target));
+        if let Some(path) = path {
             add(&mut ownership, path, ContributionKind::Edge, index)?;
         }
     }
     for (index, reference) in build.unresolved.iter().enumerate() {
-        if let Some(path) = reference
+        let path = reference
             .span
             .map(|span| span.path)
-            .or_else(|| node_owners.get(&reference.source).copied())
-        {
+            .or_else(|| node_owner_by_key(build, &owner_by_node, reference.source));
+        if let Some(path) = path {
             add(&mut ownership, path, ContributionKind::Unresolved, index)?;
         }
     }
 
     flatten(ownership)
+}
+
+fn build_node_owners(
+    build: &CompactRepositoryBuild,
+) -> Result<Vec<StringId>, RepositoryStoreWriteError> {
+    build
+        .nodes
+        .iter()
+        .map(|node| node_owner(build, node).map(StringId::optional))
+        .collect()
+}
+
+fn node_owner_by_key(
+    build: &CompactRepositoryBuild,
+    owner_by_node: &[StringId],
+    key: NodeKey,
+) -> Option<StringId> {
+    build
+        .nodes
+        .binary_search_by_key(&key, |node| node.key)
+        .ok()
+        .and_then(|index| owner_by_node[index].present())
 }
 
 fn node_owner(
@@ -102,4 +119,24 @@ fn flatten(
         contributions.extend(values);
     }
     Ok((records, contributions))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::repository_store::writer_test_support::sample_facts;
+
+    #[test]
+    fn node_owners_are_dense_and_aligned_to_canonical_nodes() {
+        let build = CompactRepositoryBuild::from_facts(&sample_facts()).unwrap();
+        let owner_by_node = build_node_owners(&build).unwrap();
+
+        assert_eq!(owner_by_node.len(), build.nodes.len());
+        for (index, node) in build.nodes.iter().enumerate() {
+            assert_eq!(
+                node_owner_by_key(&build, &owner_by_node, node.key),
+                owner_by_node[index].present()
+            );
+        }
+    }
 }
