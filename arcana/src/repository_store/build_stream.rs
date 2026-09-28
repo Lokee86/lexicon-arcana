@@ -83,6 +83,13 @@ impl CompactRepositoryAssembler {
         canonicalize_nodes(&mut self.nodes)
     }
 
+    pub(crate) fn contains_node_identity(&self, key: NodeKey, identity: Sha256Identity) -> bool {
+        self.nodes
+            .binary_search_by_key(&key, |node| node.key)
+            .ok()
+            .is_some_and(|index| self.nodes[index].external_identity == identity)
+    }
+
     #[cfg(test)]
     pub(crate) fn capacities(&self) -> (usize, usize, usize) {
         (

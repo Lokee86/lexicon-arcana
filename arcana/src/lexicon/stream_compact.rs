@@ -183,11 +183,13 @@ impl CompactPass {
     fn resolve(&self, reference: NodeReference) -> Result<NodeKey, LexiconSnapshotError> {
         match reference {
             NodeReference::Key(key) => Ok(key),
-            NodeReference::Identity(identity) => self
-                .external_ids
-                .get(&identity)
-                .copied()
-                .ok_or(LexiconSnapshotError::Malformed("unknown relationship node")),
+            NodeReference::Identity(identity) => {
+                let key = identity.node_key();
+                self.assembler
+                    .contains_node_identity(key, Sha256Identity(identity.digest()))
+                    .then_some(key)
+                    .ok_or(LexiconSnapshotError::Malformed("unknown relationship node"))
+            }
         }
     }
 }
@@ -218,43 +220,5 @@ fn normalized(path: &str) -> Result<String, LexiconSnapshotError> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{CompactPass, RecordCounts};
-
-    #[test]
-    fn relation_capacity_is_planned_during_nodes_and_reserved_during_relations() {
-        let mut pass = CompactPass::new();
-        let first = RecordCounts {
-            nodes: 3,
-            edges: 5,
-            unresolved: 7,
-        };
-        let second = RecordCounts {
-            nodes: 2,
-            edges: 11,
-            unresolved: 13,
-        };
-
-        pass.reserve_object(first).unwrap();
-        pass.reserve_object(second).unwrap();
-        let (nodes, edges, unresolved) = pass.assembler.capacities();
-        assert!(nodes >= 5);
-        assert_eq!(edges, 0);
-        assert_eq!(unresolved, 0);
-
-        pass.finish_node_pass().unwrap();
-        let (_, edges, unresolved) = pass.assembler.capacities();
-        assert_eq!(edges, 0);
-        assert_eq!(unresolved, 0);
-
-        pass.reserve_relation_object(first).unwrap();
-        let (_, edges, unresolved) = pass.assembler.capacities();
-        assert!(edges >= 5);
-        assert!(unresolved >= 7);
-
-        pass.reserve_relation_object(second).unwrap();
-        let (_, edges, unresolved) = pass.assembler.capacities();
-        assert!(edges >= 16);
-        assert!(unresolved >= 20);
-    }
-}
+#[path = "stream_compact_tests.rs"]
+mod tests;
