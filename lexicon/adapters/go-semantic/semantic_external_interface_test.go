@@ -23,14 +23,16 @@ func modTime(info fs.FileInfo) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, record := range result.records {
-		call, ok := record.(callObservation)
-		if !ok || call.Source != "function:example.com/external-interface:modTime" {
+	calls := callRecords(result.Observations)
+	for _, call := range calls {
+		if call.SourceKey != "function:example.com/external-interface:modTime" || call.Form != "interface" {
 			continue
 		}
-		if call.Target == "method:io/fs:FileInfo.ModTime" && call.Class == "interface" {
-			return
+		for _, target := range call.Targets {
+			if target.SemanticKey == "method:io/fs:FileInfo.ModTime" {
+				return
+			}
 		}
 	}
-	t.Fatalf("external interface contract not resolved: %#v", callRecords(result.records))
+	t.Fatalf("external interface contract not resolved: %#v", calls)
 }

@@ -39,13 +39,13 @@ func TestValue(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, record := range result.records {
-		target, ok := record.(targetObservation)
+	for _, value := range result.Observations {
+		target, ok := value.(symbolObservation)
 		if !ok {
 			continue
 		}
-		if target.Identity == "function:example.com/test-main/internal/sample.test:main" &&
-			target.Class == "internal" &&
+		if target.SemanticKey == "function:example.com/test-main/internal/sample.test:main" &&
+			target.Generated &&
 			target.Name == "main" &&
 			target.Namespace == "example.com/test-main/internal/sample.test" {
 			return

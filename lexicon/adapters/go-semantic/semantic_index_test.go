@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func loadSemanticIndex(value request) (*semanticIndex, []diagnostic) {
+func loadSemanticIndex(value request) (*semanticIndex, []diagnosticObservation) {
 	if len(value.Modules) != 1 {
 		panic("semantic index test helper requires exactly one module")
 	}
@@ -91,14 +91,14 @@ var _ string = 1
 		t.Fatal(err)
 	}
 	found := false
-	for _, record := range result.records {
-		value, ok := record.(diagnostic)
+	for _, record := range result.Observations {
+		value, ok := record.(diagnosticObservation)
 		if ok && value.Code == "go-package" && value.Severity == "error" {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("missing structured package diagnostic: %#v", result.records)
+		t.Fatalf("missing structured package diagnostic: %#v", result.Observations)
 	}
 }
 

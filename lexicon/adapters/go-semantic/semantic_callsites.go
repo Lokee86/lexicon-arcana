@@ -36,7 +36,6 @@ func callsiteStartKey(source, owner string, position token.Position) string {
 	)
 }
 
-func recordCallsiteKey(record semanticRecord) string {
-	owner, location := recordLocation(record)
-	return callsiteRecordKey(recordSource(record), owner, location)
+func callsiteObservationKey(value callsiteObservation) string {
+	return callsiteRecordKey(value.SourceKey, value.Owner, value.Span)
 }

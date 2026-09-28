@@ -8,48 +8,80 @@ import (
 	"go/types"
 )
 
-func callRecord(source, target, kind, class, owner string, location span) callObservation {
-	return callObservation{
-		Record: "call", Source: source, Target: target, Kind: kind,
-		Class: class, Owner: owner, Span: location,
-	}
-}
-
-func callRecordWithTarget(
-	source, target, kind, class, targetName, targetNamespace, targetContainer, owner string,
+func resolvedCall(
+	source, target, form, owner string,
 	location span,
-) callObservation {
-	return callObservation{
-		Record: "call", Source: source, Target: target, Kind: kind,
-		Class: class, TargetName: targetName, TargetNamespace: targetNamespace,
-		TargetContainer: targetContainer, Owner: owner, Span: location,
+) callsiteObservation {
+	return callsiteObservation{
+		Observation: "callsite",
+		SourceKey:   source,
+		Form:        form,
+		Resolution:  "resolved",
+		Targets:     []callTargetObservation{{SemanticKey: target}},
+		Owner:       owner,
+		Span:        location,
 	}
 }
 
-func callRecordWithTargetProvenance(
-	source, target, kind, class, targetName, targetNamespace, targetContainer,
+func resolvedCallWithTarget(
+	source, target, form, targetName, targetNamespace, targetContainer, owner string,
+	location span,
+) callsiteObservation {
+	return callsiteObservation{
+		Observation: "callsite",
+		SourceKey:   source,
+		Form:        form,
+		Resolution:  "resolved",
+		Targets: []callTargetObservation{{
+			SemanticKey:  target,
+			Name:         targetName,
+			Namespace:    targetNamespace,
+			ContainerKey: targetContainer,
+		}},
+		Owner: owner,
+		Span:  location,
+	}
+}
+
+func resolvedCallWithTargetProvenance(
+	source, target, form, targetName, targetNamespace, targetContainer,
 	targetOwner string, targetSpan span, owner string, location span,
-) callObservation {
-	return callObservation{
-		Record: "call", Source: source, Target: target, Kind: kind,
-		Class: class, TargetName: targetName, TargetNamespace: targetNamespace,
-		TargetContainer: targetContainer, TargetOwner: targetOwner, TargetSpan: &targetSpan,
-		Owner: owner, Span: location,
+) callsiteObservation {
+	return callsiteObservation{
+		Observation: "callsite",
+		SourceKey:   source,
+		Form:        form,
+		Resolution:  "resolved",
+		Targets: []callTargetObservation{{
+			SemanticKey:  target,
+			Name:         targetName,
+			Namespace:    targetNamespace,
+			ContainerKey: targetContainer,
+			Owner:        targetOwner,
+			Span:         &targetSpan,
+		}},
+		Owner: owner,
+		Span:  location,
 	}
 }
 
-func unresolvedForPackage(
+func unresolvedCall(
 	set *token.FileSet,
 	source, owner string,
 	call *ast.CallExpr,
-	reason, namespace, name, class string,
+	resolution, namespace, name, form string,
 	location span,
-) unresolvedObservation {
-	return unresolvedObservation{
-		Record: "unresolved", Source: source, Relation: "calls",
+) callsiteObservation {
+	return callsiteObservation{
+		Observation:        "callsite",
+		SourceKey:          source,
+		Form:               form,
+		Resolution:         resolution,
 		Expression:         expressionText(set, call.Fun),
-		CandidateNamespace: namespace, CandidateName: name,
-		Reason: reason, Class: class, Owner: owner, Span: location,
+		CandidateNamespace: namespace,
+		CandidateName:      name,
+		Owner:              owner,
+		Span:               location,
 	}
 }
 
@@ -120,9 +152,9 @@ func typeIdentityFromType(modules []module, value types.Type) string {
 
 func classifyCallExpression(expression ast.Expr) (string, string, string) {
 	if selector, ok := expression.(*ast.SelectorExpr); ok {
-		return "unsupported-form", expressionName(selector.X), selector.Sel.Name
+		return "unsupported", expressionName(selector.X), selector.Sel.Name
 	}
-	return "dynamic-target", "", expressionName(expression)
+	return "missing", "", expressionName(expression)
 }
 
 func expressionText(set *token.FileSet, expression ast.Expr) string {
@@ -133,31 +165,12 @@ func expressionText(set *token.FileSet, expression ast.Expr) string {
 	return output.String()
 }
 
-func recordLocation(record semanticRecord) (string, span) {
-	switch value := record.(type) {
-	case callObservation:
-		return value.Owner, value.Span
-	case unresolvedObservation:
-		return value.Owner, value.Span
-	default:
-		return "", span{}
+func mergeCallForm(left, right string) string {
+	priority := map[string]int{
+		"direct": 0, "builtin": 1, "conversion": 2, "dynamic": 3, "interface": 4,
 	}
-}
-
-func recordSource(record semanticRecord) string {
-	switch value := record.(type) {
-	case callObservation:
-		return value.Source
-	case unresolvedObservation:
-		return value.Source
-	default:
-		return ""
+	if priority[right] > priority[left] {
+		return right
 	}
-}
-
-func recordTarget(record semanticRecord) string {
-	if value, ok := record.(callObservation); ok {
-		return value.Target
-	}
-	return ""
+	return left
 }

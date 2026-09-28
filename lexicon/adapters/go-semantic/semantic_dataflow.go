@@ -13,12 +13,12 @@ import (
 // collectDataflow preserves the legacy adapter's conservative typed reads/writes.
 // It deliberately reports only repository-local go/types objects and skips nested
 // function literals; closure free-variable evidence remains the SSA capture pass.
-func (index *semanticIndex) collectDataflow() []semanticRecord {
-	var result []semanticRecord
+func (index *semanticIndex) collectDataflow() []dataflowObservation {
+	var result []dataflowObservation
 	for _, job := range index.semanticFileJobs() {
 		result = append(result, index.collectDataflowForFile(job.pkg, job.file, job.owner)...)
 	}
-	sortDataflowRecords(result)
+	sortDataflowObservations(result)
 	return result
 }
 
@@ -26,8 +26,8 @@ func (index *semanticIndex) collectDataflowForFile(
 	pkg *packages.Package,
 	file *ast.File,
 	owner string,
-) []semanticRecord {
-	var result []semanticRecord
+) []dataflowObservation {
+	var result []dataflowObservation
 	for _, declaration := range file.Decls {
 		function, ok := declaration.(*ast.FuncDecl)
 		if !ok || function.Body == nil {
@@ -55,7 +55,7 @@ type dataflowVisitor struct {
 	pkg    *packages.Package
 	owner  string
 	source string
-	result *[]semanticRecord
+	result *[]dataflowObservation
 }
 
 func (visitor *dataflowVisitor) visitBlock(block *ast.BlockStmt) {
@@ -204,20 +204,23 @@ func (visitor *dataflowVisitor) addObject(identifier *ast.Ident, write bool, for
 	}
 	target := fmt.Sprintf("%s:%s:%s:%d:%d:%s",
 		kind, namespace, targetOwner, position.Line, position.Column, object.Name())
-	relation := "read"
+	access := "read"
 	if write || (len(forceWrite) > 0 && forceWrite[0]) {
-		relation = "write"
+		access = "write"
 	}
 	*visitor.result = append(*visitor.result, dataflowObservation{
-		Record: "dataflow", Source: visitor.source, Target: target, Kind: relation,
-		Owner: visitor.owner, Span: sourceSpan(visitor.pkg.Fset, identifier.Pos(), identifier.End()),
+		Observation: "dataflow",
+		SourceKey:   visitor.source,
+		TargetKey:   target,
+		Access:      access,
+		Owner:       visitor.owner,
+		Span:        sourceSpan(visitor.pkg.Fset, identifier.Pos(), identifier.End()),
 	})
 }
 
-func sortDataflowRecords(records []semanticRecord) {
-	sort.SliceStable(records, func(i, j int) bool {
-		left := records[i].(dataflowObservation)
-		right := records[j].(dataflowObservation)
+func sortDataflowObservations(values []dataflowObservation) {
+	sort.SliceStable(values, func(i, j int) bool {
+		left, right := values[i], values[j]
 		if left.Owner != right.Owner {
 			return left.Owner < right.Owner
 		}
@@ -227,12 +230,12 @@ func sortDataflowRecords(records []semanticRecord) {
 		if left.Span.StartColumn != right.Span.StartColumn {
 			return left.Span.StartColumn < right.Span.StartColumn
 		}
-		if left.Source != right.Source {
-			return left.Source < right.Source
+		if left.SourceKey != right.SourceKey {
+			return left.SourceKey < right.SourceKey
 		}
-		if left.Target != right.Target {
-			return left.Target < right.Target
+		if left.TargetKey != right.TargetKey {
+			return left.TargetKey < right.TargetKey
 		}
-		return left.Kind < right.Kind
+		return left.Access < right.Access
 	})
 }

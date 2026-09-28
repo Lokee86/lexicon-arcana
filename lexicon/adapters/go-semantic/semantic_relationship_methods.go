@@ -7,13 +7,13 @@ import (
 
 func (index *semanticIndex) implementedMethodRelationships(
 	candidate, contract typedType,
-) []relationship {
+) []relationshipObservation {
 	receiver := types.Type(candidate.Named)
 	if !types.Implements(receiver, contract.Interface) {
 		receiver = types.NewPointer(candidate.Named)
 	}
 	methodSet := types.NewMethodSet(receiver)
-	var result []relationship
+	var result []relationshipObservation
 	for position := 0; position < contract.Interface.NumMethods(); position++ {
 		interfaceMethod := contract.Interface.Method(position)
 		selection := methodSet.Lookup(interfaceMethod.Pkg(), interfaceMethod.Name())
@@ -82,34 +82,38 @@ func dereference(value types.Type) types.Type {
 	}
 }
 
-func relation(source, target, kind, owner string, evidence span) relationship {
-	return relationship{
-		Record: "relationship", Source: source, Target: target,
-		Kind: kind, Owner: owner, Span: &evidence,
+func relation(source, target, kind, owner string, evidence span) relationshipObservation {
+	return relationshipObservation{
+		Observation: "relationship",
+		SourceKey:   source,
+		TargetKey:   target,
+		Kind:        kind,
+		Owner:       owner,
+		Span:        &evidence,
 	}
 }
 
-func sortRelationships(values []relationship) {
+func sortRelationships(values []relationshipObservation) {
 	sort.Slice(values, func(i, j int) bool {
 		left, right := values[i], values[j]
-		if left.Source != right.Source {
-			return left.Source < right.Source
+		if left.SourceKey != right.SourceKey {
+			return left.SourceKey < right.SourceKey
 		}
-		if left.Target != right.Target {
-			return left.Target < right.Target
+		if left.TargetKey != right.TargetKey {
+			return left.TargetKey < right.TargetKey
 		}
 		return left.Kind < right.Kind
 	})
 }
 
-func uniqueRelationships(values []relationship) []relationship {
+func uniqueRelationships(values []relationshipObservation) []relationshipObservation {
 	if len(values) < 2 {
 		return values
 	}
 	result := values[:1]
 	for _, value := range values[1:] {
 		last := result[len(result)-1]
-		if value.Source != last.Source || value.Target != last.Target || value.Kind != last.Kind {
+		if value.SourceKey != last.SourceKey || value.TargetKey != last.TargetKey || value.Kind != last.Kind {
 			result = append(result, value)
 		}
 	}

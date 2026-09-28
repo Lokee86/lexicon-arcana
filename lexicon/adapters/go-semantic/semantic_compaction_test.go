@@ -5,35 +5,44 @@ import (
 	"testing"
 )
 
-func TestDirectCallShardMergeMatchesGlobalCompaction(t *testing.T) {
+func TestDirectCallShardMergeMatchesGlobalObservationMerge(t *testing.T) {
 	location := span{StartLine: 9, StartColumn: 3, EndLine: 9, EndColumn: 14}
-	unresolved := unresolvedObservation{
-		Record: "unresolved", Source: "function:example.com/test:caller",
-		Relation: "calls", Expression: "service.Run", CandidateName: "Run",
-		Reason: "dynamic-target", Class: "dynamic", Owner: "main.go", Span: location,
+	unresolved := callsiteObservation{
+		Observation:   "callsite",
+		SourceKey:     "function:example.com/test:caller",
+		Form:          "dynamic",
+		Resolution:    "missing",
+		Expression:    "service.Run",
+		CandidateName: "Run",
+		Owner:         "main.go",
+		Span:          location,
 	}
-	first := callRecord(
+	first := resolvedCall(
 		"function:example.com/test:caller",
 		"method:example.com/test:First.Run",
-		"definite", "internal", "main.go", location,
+		"direct",
+		"main.go",
+		location,
 	)
-	second := callRecord(
+	second := resolvedCall(
 		"function:example.com/test:caller",
 		"method:example.com/test:Second.Run",
-		"definite", "dynamic", "main.go", location,
+		"dynamic",
+		"main.go",
+		location,
 	)
-	leftRaw := []semanticRecord{unresolved, first, first}
-	rightRaw := []semanticRecord{unresolved, second}
+	leftRaw := []callsiteObservation{unresolved, first, first}
+	rightRaw := []callsiteObservation{unresolved, second}
 
 	var left directCallAccumulator
-	left.addRecords(leftRaw)
+	left.addObservations(leftRaw)
 	var right directCallAccumulator
-	right.addRecords(rightRaw)
+	right.addObservations(rightRaw)
 	left.merge(right)
 
-	want := mergeDirectCallRecords(append(append([]semanticRecord(nil), leftRaw...), rightRaw...))
-	got := left.records()
-	if !reflect.DeepEqual(got, want) {
+	want := mergeCallsiteObservations(first, second)
+	got := left.observations()
+	if len(got) != 1 || !reflect.DeepEqual(got[0], want) {
 		t.Fatalf("shard compaction changed call semantics\ngot:  %#v\nwant: %#v", got, want)
 	}
 	if left.raw != len(leftRaw)+len(rightRaw) {
@@ -41,37 +50,38 @@ func TestDirectCallShardMergeMatchesGlobalCompaction(t *testing.T) {
 	}
 }
 
-func TestDataflowShardMergeDeduplicatesExactRecords(t *testing.T) {
+func TestDataflowShardMergeDeduplicatesExactObservations(t *testing.T) {
 	first := dataflowObservation{
-		Record: "dataflow",
-		Source: "function:example.com/test:caller",
-		Target: "variable:example.com/test:main.go:3:5:value",
-		Kind:   "read",
-		Owner:  "main.go",
-		Span:   span{StartLine: 9, StartColumn: 3, EndLine: 9, EndColumn: 8},
+		Observation: "dataflow",
+		SourceKey:   "function:example.com/test:caller",
+		TargetKey:   "variable:example.com/test:main.go:3:5:value",
+		Access:      "read",
+		Owner:       "main.go",
+		Span:        span{StartLine: 9, StartColumn: 3, EndLine: 9, EndColumn: 8},
 	}
 	second := dataflowObservation{
-		Record: "dataflow",
-		Source: first.Source,
-		Target: first.Target,
-		Kind:   "write",
-		Owner:  first.Owner,
-		Span:   span{StartLine: 10, StartColumn: 3, EndLine: 10, EndColumn: 8},
+		Observation: "dataflow",
+		SourceKey:   first.SourceKey,
+		TargetKey:   first.TargetKey,
+		Access:      "write",
+		Owner:       first.Owner,
+		Span:        span{StartLine: 10, StartColumn: 3, EndLine: 10, EndColumn: 8},
 	}
 
 	var left dataflowAccumulator
-	left.addRecords([]semanticRecord{first, first})
+	left.addObservations([]dataflowObservation{first, first})
 	var right dataflowAccumulator
-	right.addRecords([]semanticRecord{first, second})
+	right.addObservations([]dataflowObservation{first, second})
 	left.merge(right)
 
-	got := left.records()
+	gotRaw := left.observations()
 	if left.raw != 4 {
 		t.Fatalf("raw dataflow = %d, want 4", left.raw)
 	}
-	if len(got) != 2 {
-		t.Fatalf("compacted dataflow = %d, want 2: %#v", len(got), got)
+	if len(gotRaw) != 2 {
+		t.Fatalf("compacted dataflow = %d, want 2: %#v", len(gotRaw), gotRaw)
 	}
+	got := []dataflowObservation{gotRaw[0].(dataflowObservation), gotRaw[1].(dataflowObservation)}
 	if got[0] != first || got[1] != second {
 		t.Fatalf("unexpected compacted ordering: %#v", got)
 	}

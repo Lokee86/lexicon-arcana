@@ -2,45 +2,82 @@ package main
 
 import "testing"
 
-func TestMergeDirectCallsPrefersResolvedPackageView(t *testing.T) {
+func TestMergeCallsitesPrefersResolvedEvidence(t *testing.T) {
 	location := span{StartLine: 7, StartColumn: 2, EndLine: 7, EndColumn: 12}
-	unresolved := unresolvedObservation{
-		Record: "unresolved", Source: "function:example.com/test:caller",
-		Relation: "calls", Expression: "info.Size", CandidateName: "Size",
-		Reason: "dynamic-target", Class: "dynamic", Owner: "main.go", Span: location,
+	unresolved := callsiteObservation{
+		Observation:   "callsite",
+		SourceKey:     "function:example.com/test:caller",
+		Form:          "dynamic",
+		Resolution:    "missing",
+		Expression:    "info.Size",
+		CandidateName: "Size",
+		Owner:         "main.go",
+		Span:          location,
 	}
-	resolved := callRecord(
+	resolved := resolvedCall(
 		"function:example.com/test:caller",
 		"method:io/fs:FileInfo.Size",
-		"definite", "external", "main.go", location,
+		"direct",
+		"main.go",
+		location,
 	)
 
-	merged := mergeDirectCallRecords([]semanticRecord{unresolved, resolved, unresolved})
-	if len(merged) != 1 {
-		t.Fatalf("merged records = %d, want 1: %#v", len(merged), merged)
+	merged := mergeCallsiteObservations(unresolved, resolved)
+	if !hasResolvedCall(merged) || len(merged.Targets) != 1 {
+		t.Fatalf("merged callsite = %#v", merged)
 	}
-	call, ok := merged[0].(callObservation)
-	if !ok || call.Target != "method:io/fs:FileInfo.Size" || call.Kind != "definite" {
-		t.Fatalf("merged call = %#v", merged[0])
+	if merged.Targets[0].SemanticKey != "method:io/fs:FileInfo.Size" {
+		t.Fatalf("merged target = %#v", merged.Targets)
 	}
 }
 
-func TestMergeDirectCallsPromotesMultipleTargetsToPossible(t *testing.T) {
+func TestMergeCallsitesCombinesTargetsWithoutCertaintyPolicy(t *testing.T) {
 	location := span{StartLine: 8, StartColumn: 2, EndLine: 8, EndColumn: 9}
-	records := []semanticRecord{
-		callRecord("function:example.com/test:caller", "function:example.com/test:first",
-			"definite", "internal", "main.go", location),
-		callRecord("function:example.com/test:caller", "function:example.com/test:second",
-			"definite", "dynamic", "main.go", location),
+	first := resolvedCall(
+		"function:example.com/test:caller",
+		"function:example.com/test:first",
+		"direct",
+		"main.go",
+		location,
+	)
+	second := resolvedCall(
+		"function:example.com/test:caller",
+		"function:example.com/test:second",
+		"dynamic",
+		"main.go",
+		location,
+	)
+	merged := mergeCallsiteObservations(first, second)
+	if merged.Form != "dynamic" || merged.Resolution != "resolved" {
+		t.Fatalf("merged callsite = %#v", merged)
 	}
-	merged := mergeDirectCallRecords(records)
-	if len(merged) != 2 {
-		t.Fatalf("merged records = %d, want 2", len(merged))
+	if len(merged.Targets) != 2 {
+		t.Fatalf("merged targets = %d, want 2: %#v", len(merged.Targets), merged.Targets)
 	}
-	for _, record := range merged {
-		call := record.(callObservation)
-		if call.Kind != "possible" || call.Class != "dynamic" {
-			t.Fatalf("merged call = %#v", call)
-		}
+}
+
+func TestNormalizedCallsiteDeduplicatesTargetEvidence(t *testing.T) {
+	value := callsiteObservation{
+		Observation: "callsite",
+		SourceKey:   "function:example.com/test:invoke",
+		Form:        "interface",
+		Resolution:  "resolved",
+		Targets: []callTargetObservation{
+			{SemanticKey: "method:example.com/test:Fast.Run"},
+			{
+				SemanticKey: "method:example.com/test:Fast.Run",
+				Name:        "Run",
+				Namespace:   "example.com/test",
+			},
+		},
+		Owner: "main.go",
+		Span:  span{StartLine: 10, StartColumn: 2, EndLine: 10, EndColumn: 9},
+	}
+	got := normalizedCallsite(value)
+	if len(got.Targets) != 1 {
+		t.Fatalf("targets = %d, want 1: %#v", len(got.Targets), got.Targets)
+	}
+	if got.Targets[0].Name != "Run" || got.Targets[0].Namespace != "example.com/test" {
+		t.Fatalf("duplicate target evidence was not merged: %#v", got.Targets[0])
 	}
 }

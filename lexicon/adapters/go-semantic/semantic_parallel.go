@@ -50,10 +50,10 @@ func (index *semanticIndex) collectParallelSemantics(
 				local.callsiteKeys = make(map[string]string)
 				result := &semanticShardResult{callsiteKeys: local.callsiteKeys}
 				for _, job := range shards[shardIndex] {
-					result.calls.addRecords(
+					result.calls.addObservations(
 						local.collectDirectCallsForFile(job.pkg, job.file, job.owner),
 					)
-					result.dataflow.addRecords(
+					result.dataflow.addObservations(
 						local.collectDataflowForFile(job.pkg, job.file, job.owner),
 					)
 				}

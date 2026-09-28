@@ -74,15 +74,15 @@ func (index *semanticIndex) ssaTargetIdentity(
 			}
 			if len(targets) == 1 {
 				return ssaTarget{
-					Identity: targets[0].Identity, Class: "internal",
-					Name: typed.Name(), Namespace: namespace, Internal: true,
+					Identity: targets[0].Identity,
+					Name:     typed.Name(), Namespace: namespace, Internal: true,
 				}, true
 			}
 			return index.generatedInternalTarget(typed, namespace), true
 		}
 		return ssaTarget{
 			Identity: semanticFunctionIdentity(index.request.Modules, typed),
-			Class:    "external", Name: typed.Name(), Namespace: namespace,
+			Name:     typed.Name(), Namespace: namespace,
 		}, true
 	}
 	if literal, ok := function.Syntax().(*ast.FuncLit); ok {
@@ -92,8 +92,8 @@ func (index *semanticIndex) ssaTargetIdentity(
 			identity := closureIdentity(namespace, owner, position)
 			if index.structuralClosures[identity] {
 				return ssaTarget{
-					Identity: identity,
-					Class:    "dynamic", Name: function.Name(),
+					Identity:  identity,
+					Name:      function.Name(),
 					Namespace: namespace, Internal: true,
 				}, true
 			}
@@ -117,8 +117,9 @@ func (index *semanticIndex) ssaTargetIdentity(
 		container = index.packageContainerIdentity(namespace)
 	}
 	return ssaTarget{
-		Identity: identity, Class: "dynamic", Name: name,
+		Identity: identity, Name: name,
 		Namespace: namespace, Container: container, Internal: internal,
+		Generated: true,
 	}, true
 }
 
@@ -166,7 +167,6 @@ func (index *semanticIndex) generatedInternalTarget(
 ) ssaTarget {
 	return ssaTarget{
 		Identity:  semanticFunctionIdentity(index.request.Modules, function),
-		Class:     "internal",
 		Name:      function.Name(),
 		Namespace: namespace,
 		Container: index.packageContainerIdentity(namespace),

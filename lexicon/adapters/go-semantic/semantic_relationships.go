@@ -5,7 +5,7 @@ import (
 	"sort"
 )
 
-func (index *semanticIndex) collectRelationships() []relationship {
+func (index *semanticIndex) collectRelationships() []relationshipObservation {
 	var concrete []typedType
 	var interfaces []typedType
 	for _, entry := range index.typesByID {
@@ -18,7 +18,7 @@ func (index *semanticIndex) collectRelationships() []relationship {
 	sort.Slice(concrete, func(i, j int) bool { return concrete[i].Identity < concrete[j].Identity })
 	sort.Slice(interfaces, func(i, j int) bool { return interfaces[i].Identity < interfaces[j].Identity })
 
-	var result []relationship
+	var result []relationshipObservation
 	for _, entry := range concrete {
 		if structure, ok := entry.Named.Underlying().(*types.Struct); ok {
 			result = append(result, index.embeddedRelationships(entry, structure)...)
@@ -48,8 +48,8 @@ func (index *semanticIndex) collectRelationships() []relationship {
 func (index *semanticIndex) embeddedRelationships(
 	entry typedType,
 	structure *types.Struct,
-) []relationship {
-	var result []relationship
+) []relationshipObservation {
+	var result []relationshipObservation
 	for fieldIndex := 0; fieldIndex < structure.NumFields(); fieldIndex++ {
 		field := structure.Field(fieldIndex)
 		if !field.Embedded() {
@@ -70,8 +70,8 @@ func (index *semanticIndex) embeddedRelationships(
 	return result
 }
 
-func (index *semanticIndex) embeddedInterfaceRelationships(entry typedType) []relationship {
-	var result []relationship
+func (index *semanticIndex) embeddedInterfaceRelationships(entry typedType) []relationshipObservation {
+	var result []relationshipObservation
 	for position := 0; position < entry.Interface.NumEmbeddeds(); position++ {
 		embedded := dereference(entry.Interface.EmbeddedType(position))
 		named, ok := types.Unalias(embedded).(*types.Named)
@@ -90,8 +90,8 @@ func (index *semanticIndex) embeddedInterfaceRelationships(entry typedType) []re
 func (index *semanticIndex) overrideRelationships(
 	entry typedType,
 	embedded *types.Named,
-) []relationship {
-	var result []relationship
+) []relationshipObservation {
+	var result []relationshipObservation
 	methods := types.NewMethodSet(types.NewPointer(embedded))
 	for position := 0; position < entry.Named.NumMethods(); position++ {
 		method := entry.Named.Method(position)

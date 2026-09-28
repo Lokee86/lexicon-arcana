@@ -28,13 +28,13 @@ func invoke(value Runner) { value.Run() }
 		"method:example.com/interface-impl:First.Run":  true,
 		"method:example.com/interface-impl:Second.Run": true,
 	}
-	for _, record := range result.records {
-		call, ok := record.(callObservation)
-		if !ok || call.Source != "function:example.com/interface-impl:invoke" {
+	for _, call := range callRecords(result.Observations) {
+		if call.SourceKey != "function:example.com/interface-impl:invoke" ||
+			call.Form != "interface" || !hasResolvedCall(call) {
 			continue
 		}
-		if call.Kind == "possible" && call.Class == "interface" {
-			delete(want, call.Target)
+		for _, target := range call.Targets {
+			delete(want, target.SemanticKey)
 		}
 	}
 	if len(want) != 0 {

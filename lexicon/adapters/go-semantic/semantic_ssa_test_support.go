@@ -1,57 +1,64 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func assertSemanticCall(
 	t *testing.T,
-	records []semanticRecord,
-	source, target, kind string,
+	calls []callsiteObservation,
+	source, target string,
 ) {
 	t.Helper()
-	for _, record := range records {
-		value, ok := record.(callObservation)
-		if ok && value.Source == source && value.Target == target && value.Kind == kind {
-			return
-		}
+	if hasSemanticCallTarget(calls, source, target) {
+		return
 	}
-	t.Fatalf("missing %s call %s -> %s", kind, source, target)
+	t.Fatalf("missing call %s -> %s", source, target)
 }
 
-func assertNoUnresolvedCalls(t *testing.T, records []semanticRecord) {
+func assertNoUnresolvedCalls(t *testing.T, calls []callsiteObservation) {
 	t.Helper()
-	for _, record := range records {
-		if value, ok := record.(unresolvedObservation); ok && value.Relation == "calls" {
-			t.Fatalf("unexpected unresolved call: %#v", value)
+	for _, call := range calls {
+		if !hasResolvedCall(call) {
+			t.Fatalf("unexpected unresolved call: %#v", call)
 		}
 	}
 }
 
-func hasCallTarget(records []semanticRecord, source, target string) bool {
-	for _, record := range records {
-		value, ok := record.(callObservation)
-		if ok && value.Source == source && value.Target == target {
-			return true
+func hasSemanticCallTarget(calls []callsiteObservation, source, target string) bool {
+	for _, call := range calls {
+		if call.SourceKey != source {
+			continue
 		}
-	}
-	return false
-}
-
-func hasCallPrefix(records []semanticRecord, source, prefix string) bool {
-	for _, record := range records {
-		value, ok := record.(callObservation)
-		if ok && value.Source == source && len(value.Target) >= len(prefix) &&
-			value.Target[:len(prefix)] == prefix {
-			return true
+		for _, candidate := range call.Targets {
+			if candidate.SemanticKey == target {
+				return true
+			}
 		}
 	}
 	return false
 }
 
-func callRecords(records []semanticRecord) []callObservation {
-	var result []callObservation
-	for _, record := range records {
-		if value, ok := record.(callObservation); ok {
-			result = append(result, value)
+func hasCallPrefix(calls []callsiteObservation, source, prefix string) bool {
+	for _, call := range calls {
+		if call.SourceKey != source {
+			continue
+		}
+		for _, candidate := range call.Targets {
+			if strings.HasPrefix(candidate.SemanticKey, prefix) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func callRecords(values []observation) []callsiteObservation {
+	var result []callsiteObservation
+	for _, value := range values {
+		if call, ok := value.(callsiteObservation); ok {
+			result = append(result, call)
 		}
 	}
 	return result

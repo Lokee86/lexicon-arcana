@@ -27,34 +27,34 @@ func TestSemanticDataflowPreservesLegacyCompoundAndShadowing(t *testing.T) {
 	field := "field:example.com/oracle/dataflow:main.go:4:2:Field"
 	constant := "constant:example.com/oracle/dataflow:main.go:7:7:Constant"
 
-	if !hasDataflow(result.records, local, "write", 15, 2) {
+	if !hasDataflow(result.Observations, local, "write", 15, 2) {
 		t.Fatal("missing compound local write")
 	}
-	if hasDataflow(result.records, local, "read", 15, 2) {
+	if hasDataflow(result.Observations, local, "read", 15, 2) {
 		t.Fatal("compound access widened beyond the legacy oracle")
 	}
 	for _, target := range []string{outer, shadow, field, constant} {
-		if !hasDataflowTarget(result.records, target) {
+		if !hasDataflowTarget(result.Observations, target) {
 			t.Fatalf("missing typed dataflow target %q", target)
 		}
 	}
 }
 
-func hasDataflow(records []semanticRecord, target, kind string, line, column uint32) bool {
-	for _, value := range records {
-		record, ok := value.(dataflowObservation)
-		if ok && record.Target == target && record.Kind == kind &&
-			record.Span.StartLine == line && record.Span.StartColumn == column {
+func hasDataflow(values []observation, target, access string, line, column uint32) bool {
+	for _, value := range values {
+		item, ok := value.(dataflowObservation)
+		if ok && item.TargetKey == target && item.Access == access &&
+			item.Span.StartLine == line && item.Span.StartColumn == column {
 			return true
 		}
 	}
 	return false
 }
 
-func hasDataflowTarget(records []semanticRecord, target string) bool {
-	for _, value := range records {
-		record, ok := value.(dataflowObservation)
-		if ok && record.Target == target {
+func hasDataflowTarget(values []observation, target string) bool {
+	for _, value := range values {
+		item, ok := value.(dataflowObservation)
+		if ok && item.TargetKey == target {
 			return true
 		}
 	}

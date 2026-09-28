@@ -12,7 +12,7 @@ import (
 func (index *semanticIndex) collectSSACaptures(
 	functions map[*ssa.Function]bool,
 	set *token.FileSet,
-) []semanticRecord {
+) []captureObservation {
 	ordered := make([]*ssa.Function, 0, len(functions))
 	for function := range functions {
 		ordered = append(ordered, function)
@@ -21,7 +21,7 @@ func (index *semanticIndex) collectSSACaptures(
 		return ordered[i].String() < ordered[j].String()
 	})
 
-	var result []semanticRecord
+	var result []captureObservation
 	for _, function := range ordered {
 		literal, ok := function.Syntax().(*ast.FuncLit)
 		if !ok || len(function.FreeVars) == 0 {
@@ -39,16 +39,18 @@ func (index *semanticIndex) collectSSACaptures(
 		}
 
 		for captureIndex, variable := range function.FreeVars {
-			captureIndex := captureIndex
-			record := relationship{
-				Record: "relationship", Source: closure, Kind: "references",
-				TargetName: variable.Name(), CaptureIndex: &captureIndex, Owner: owner,
+			value := captureObservation{
+				Observation:  "capture",
+				SourceKey:    closure,
+				TargetName:   variable.Name(),
+				CaptureIndex: captureIndex,
+				Owner:        owner,
 			}
 			variablePosition := set.PositionFor(variable.Pos(), false)
 			if variablePosition.IsValid() {
 				if variableOwner, exists := index.ownerForPosition(variablePosition.Filename); exists {
-					record.Owner = variableOwner
-					record.Target = fmt.Sprintf(
+					value.Owner = variableOwner
+					value.TargetKey = fmt.Sprintf(
 						"variable:%s:%s:%d:%d:%s",
 						moduleImportPath(index.request, variableOwner),
 						variableOwner,
@@ -57,19 +59,17 @@ func (index *semanticIndex) collectSSACaptures(
 						variable.Name(),
 					)
 					evidence := pointSpan(variablePosition)
-					record.Span = &evidence
+					value.Span = &evidence
 				}
 			}
-			result = append(result, record)
+			result = append(result, value)
 		}
 	}
 	sort.SliceStable(result, func(i, j int) bool {
-		left := result[i].(relationship)
-		right := result[j].(relationship)
-		if left.Source != right.Source {
-			return left.Source < right.Source
+		if result[i].SourceKey != result[j].SourceKey {
+			return result[i].SourceKey < result[j].SourceKey
 		}
-		return *left.CaptureIndex < *right.CaptureIndex
+		return result[i].CaptureIndex < result[j].CaptureIndex
 	})
 	return result
 }

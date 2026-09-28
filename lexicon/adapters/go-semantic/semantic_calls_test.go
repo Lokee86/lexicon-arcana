@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestTypedDirectCallsPreserveLegacyBasicClassification(t *testing.T) {
+func TestTypedDirectCallsEmitCompilerEvidence(t *testing.T) {
 	root, err := filepath.Abs(filepath.Join("..", "..", "testdata", "go_oracle", "repositories", "basic_calls"))
 	if err != nil {
 		t.Fatal(err)
@@ -25,55 +25,54 @@ func TestTypedDirectCallsPreserveLegacyBasicClassification(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var definite, conversions, unresolved int
-	classes := make(map[string]int)
-	for _, record := range result.records {
-		switch value := record.(type) {
-		case callObservation:
-			classes[value.Class]++
-			switch value.Kind {
-			case "definite":
-				definite++
-			case "conversion":
+	var resolved, conversions, unresolved int
+	forms := make(map[string]int)
+	for _, value := range result.Observations {
+		call, ok := value.(callsiteObservation)
+		if !ok {
+			continue
+		}
+		forms[call.Form]++
+		if hasResolvedCall(call) {
+			resolved++
+			if call.Form == "conversion" {
 				conversions++
 			}
-		case unresolvedObservation:
-			unresolved++
-			classes[value.Class]++
-			if value.Expression != "dynamic" || value.Reason != "dynamic-target" {
-				t.Fatalf("dynamic unresolved = %#v", value)
-			}
+			continue
+		}
+		unresolved++
+		if call.Expression != "dynamic" || call.Resolution != "missing" || call.Form != "dynamic" {
+			t.Fatalf("dynamic unresolved = %#v", call)
 		}
 	}
-	if definite != 7 || conversions != 1 || unresolved != 1 {
+	if resolved != 8 || conversions != 1 || unresolved != 1 {
 		t.Fatalf(
-			"calls = definite %d conversion %d unresolved %d, want 7/1/1",
-			definite, conversions, unresolved,
+			"calls = resolved %d conversion %d unresolved %d, want 8/1/1",
+			resolved, conversions, unresolved,
 		)
 	}
-	if classes["builtin"] != 1 || classes["conversion"] != 1 ||
-		classes["external"] != 1 || classes["dynamic"] != 1 {
-		t.Fatalf("call classes = %#v", classes)
+	if forms["builtin"] != 1 || forms["conversion"] != 1 || forms["dynamic"] != 1 {
+		t.Fatalf("call forms = %#v", forms)
 	}
 
-	assertCallObservation(t, result.records,
+	assertCallsiteTarget(t, result.Observations,
 		"function:example.com/oracle/basic:recursive",
-		"function:example.com/oracle/basic:recursive", "internal")
-	assertCallObservation(t, result.records,
+		"function:example.com/oracle/basic:recursive", "direct")
+	assertCallsiteTarget(t, result.Observations,
 		"function:example.com/oracle/basic:caller",
-		"function:example.com/oracle/basic/internal/sub:Function", "internal")
-	assertCallObservation(t, result.records,
+		"function:example.com/oracle/basic/internal/sub:Function", "direct")
+	assertCallsiteTarget(t, result.Observations,
 		"function:example.com/oracle/basic:caller",
-		"method:example.com/oracle/basic/internal/sub:Thing.Method", "internal")
-	assertCallObservation(t, result.records,
+		"method:example.com/oracle/basic/internal/sub:Thing.Method", "direct")
+	assertCallsiteTarget(t, result.Observations,
 		"function:example.com/oracle/basic:caller",
-		"function:fmt:Println", "external")
-	assertCallObservation(t, result.records,
+		"function:fmt:Println", "direct")
+	assertCallsiteTarget(t, result.Observations,
 		"function:example.com/oracle/basic:caller",
 		"function:go:builtins:len", "builtin")
 }
 
-func TestTypedDirectCallsClassifyInterfaceDispatchForSSAFollowup(t *testing.T) {
+func TestTypedDirectCallsEmitInterfaceDispatchEvidenceForSSAFollowup(t *testing.T) {
 	root := t.TempDir()
 	writeSemanticFile(t, root, "go.mod", "module example.com/typed\n\ngo 1.22\n")
 	writeSemanticFile(t, root, "main.go", `package typed
@@ -89,30 +88,35 @@ func invoke(value Runner) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, record := range result.records {
-		value, ok := record.(unresolvedObservation)
-		if ok && value.Source == "function:example.com/typed:invoke" &&
-			value.CandidateName == "Run" {
-			if value.Class != "interface" || value.Reason != "dynamic-target" {
-				t.Fatalf("interface call = %#v", value)
+	for _, value := range result.Observations {
+		call, ok := value.(callsiteObservation)
+		if ok && call.SourceKey == "function:example.com/typed:invoke" &&
+			call.CandidateName == "Run" {
+			if call.Form != "interface" || call.Resolution != "missing" {
+				t.Fatalf("interface call = %#v", call)
 			}
 			return
 		}
 	}
-	t.Fatalf("missing interface call classification: %#v", result.records)
+	t.Fatalf("missing interface call evidence: %#v", result.Observations)
 }
 
-func assertCallObservation(
+func assertCallsiteTarget(
 	t *testing.T,
-	records []semanticRecord,
-	source, target, class string,
+	values []observation,
+	source, target, form string,
 ) {
 	t.Helper()
-	for _, record := range records {
-		value, ok := record.(callObservation)
-		if ok && value.Source == source && value.Target == target && value.Class == class {
-			return
+	for _, value := range values {
+		call, ok := value.(callsiteObservation)
+		if !ok || call.SourceKey != source || call.Form != form {
+			continue
+		}
+		for _, candidate := range call.Targets {
+			if candidate.SemanticKey == target {
+				return
+			}
 		}
 	}
-	t.Fatalf("missing %s call %s -> %s", class, source, target)
+	t.Fatalf("missing %s call %s -> %s", form, source, target)
 }

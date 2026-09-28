@@ -23,51 +23,23 @@ func TestSemanticRelationshipsMatchEmbeddedAndInterfaceSemantics(t *testing.T) {
 	}
 
 	expected := []struct{ source, target, kind string }{
-		{
-			"type:example.com/oracle/relationships:Embedded",
-			"type:example.com/oracle/relationships:Base",
-			"extends",
-		},
-		{
-			"type:example.com/oracle/relationships:Extended",
-			"type:example.com/oracle/relationships:Contract",
-			"extends",
-		},
-		{
-			"type:example.com/oracle/relationships:Base",
-			"type:example.com/oracle/relationships:Contract",
-			"implements",
-		},
-		{
-			"type:example.com/oracle/relationships:Embedded",
-			"type:example.com/oracle/relationships:Contract",
-			"implements",
-		},
-		{
-			"type:example.com/oracle/relationships:Direct",
-			"type:example.com/oracle/relationships:Contract",
-			"implements",
-		},
-		{
-			"method:example.com/oracle/relationships:Base.Run",
-			"interface-method:example.com/oracle/relationships:Contract.Run",
-			"implements",
-		},
-		{
-			"method:example.com/oracle/relationships:Direct.Run",
-			"interface-method:example.com/oracle/relationships:Contract.Run",
-			"implements",
-		},
+		{"type:example.com/oracle/relationships:Embedded", "type:example.com/oracle/relationships:Base", "extends"},
+		{"type:example.com/oracle/relationships:Extended", "type:example.com/oracle/relationships:Contract", "extends"},
+		{"type:example.com/oracle/relationships:Base", "type:example.com/oracle/relationships:Contract", "implements"},
+		{"type:example.com/oracle/relationships:Embedded", "type:example.com/oracle/relationships:Contract", "implements"},
+		{"type:example.com/oracle/relationships:Direct", "type:example.com/oracle/relationships:Contract", "implements"},
+		{"method:example.com/oracle/relationships:Base.Run", "interface-method:example.com/oracle/relationships:Contract.Run", "implements"},
+		{"method:example.com/oracle/relationships:Direct.Run", "interface-method:example.com/oracle/relationships:Contract.Run", "implements"},
 	}
 	for _, want := range expected {
-		if !hasRelationship(result.records, want.source, want.target, want.kind) {
+		if !hasRelationship(result.Observations, want.source, want.target, want.kind) {
 			t.Fatalf("missing %s %s -> %s", want.kind, want.source, want.target)
 		}
 	}
-	for _, value := range result.records {
-		record, ok := value.(relationship)
-		if ok && record.Kind == "implements" && record.Source == record.Target {
-			t.Fatalf("implements self-edge: %#v", record)
+	for _, value := range result.Observations {
+		item, ok := value.(relationshipObservation)
+		if ok && item.Kind == "implements" && item.SourceKey == item.TargetKey {
+			t.Fatalf("implements self-edge: %#v", item)
 		}
 	}
 }
@@ -93,12 +65,12 @@ type Wrapped struct{ io.Reader }
 		t.Fatal(err)
 	}
 	if !hasRelationship(
-		result.records,
+		result.Observations,
 		"type:example.com/external:Wrapped",
 		"type:io:Reader",
 		"extends",
 	) {
-		t.Fatalf("missing external extends relationship: %#v", relationships(result.records))
+		t.Fatalf("missing external extends relationship: %#v", relationships(result.Observations))
 	}
 }
 
@@ -125,30 +97,30 @@ func (Derived) Run() {}
 		t.Fatal(err)
 	}
 	if !hasRelationship(
-		result.records,
+		result.Observations,
 		"method:example.com/override:Derived.Run",
 		"method:example.com/override:Base.Run",
 		"overrides",
 	) {
-		t.Fatalf("missing override relationship: %#v", relationships(result.records))
+		t.Fatalf("missing override relationship: %#v", relationships(result.Observations))
 	}
 }
 
-func hasRelationship(records []semanticRecord, source, target, kind string) bool {
-	for _, value := range records {
-		record, ok := value.(relationship)
-		if ok && record.Source == source && record.Target == target && record.Kind == kind {
+func hasRelationship(values []observation, source, target, kind string) bool {
+	for _, value := range values {
+		item, ok := value.(relationshipObservation)
+		if ok && item.SourceKey == source && item.TargetKey == target && item.Kind == kind {
 			return true
 		}
 	}
 	return false
 }
 
-func relationships(records []semanticRecord) []relationship {
-	var result []relationship
-	for _, value := range records {
-		if record, ok := value.(relationship); ok {
-			result = append(result, record)
+func relationships(values []observation) []relationshipObservation {
+	var result []relationshipObservation
+	for _, value := range values {
+		if item, ok := value.(relationshipObservation); ok {
+			result = append(result, item)
 		}
 	}
 	return result

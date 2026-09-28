@@ -31,17 +31,19 @@ func caller() {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, record := range result.records {
-		call, ok := record.(callObservation)
-		if !ok || call.Source != "function:example.com/package-literal:caller" {
+	calls := callRecords(result.Observations)
+	for _, call := range calls {
+		if call.SourceKey != "function:example.com/package-literal:caller" {
 			continue
 		}
-		if strings.HasPrefix(call.Target, "closure:") {
-			t.Fatalf("package-level literal used structural closure target: %#v", call)
-		}
-		if strings.HasPrefix(call.Target, "ssa-function:example.com/package-literal:") {
-			return
+		for _, target := range call.Targets {
+			if strings.HasPrefix(target.SemanticKey, "closure:") {
+				t.Fatalf("package-level literal used structural closure target: %#v", call)
+			}
+			if strings.HasPrefix(target.SemanticKey, "ssa-function:example.com/package-literal:") {
+				return
+			}
 		}
 	}
-	t.Fatalf("synthetic SSA target not found: %#v", callRecords(result.records))
+	t.Fatalf("synthetic SSA target not found: %#v", calls)
 }

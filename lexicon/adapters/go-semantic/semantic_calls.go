@@ -8,12 +8,12 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-func (index *semanticIndex) collectDirectCalls() []semanticRecord {
-	var result []semanticRecord
+func (index *semanticIndex) collectDirectCalls() []callsiteObservation {
+	var result []callsiteObservation
 	for _, job := range index.semanticFileJobs() {
 		result = append(result, index.collectDirectCallsForFile(job.pkg, job.file, job.owner)...)
 	}
-	sortSemanticCallRecords(result)
+	sortCallsiteObservations(result)
 	return result
 }
 
@@ -21,8 +21,8 @@ func (index *semanticIndex) collectDirectCallsForFile(
 	pkg *packages.Package,
 	file *ast.File,
 	owner string,
-) []semanticRecord {
-	var result []semanticRecord
+) []callsiteObservation {
+	var result []callsiteObservation
 	for _, declaration := range file.Decls {
 		function, ok := declaration.(*ast.FuncDecl)
 		if !ok || function.Body == nil {
@@ -45,7 +45,7 @@ func (index *semanticIndex) collectCallableCalls(
 	pkg *packages.Package,
 	owner, caller string,
 	body *ast.BlockStmt,
-	result *[]semanticRecord,
+	result *[]callsiteObservation,
 ) {
 	ast.Inspect(body, func(node ast.Node) bool {
 		if node != body {
@@ -80,27 +80,43 @@ func (index *semanticIndex) resolveDirectCall(
 	owner, caller string,
 	call *ast.CallExpr,
 	location span,
-) []semanticRecord {
+) []callsiteObservation {
 	if typed, exists := pkg.TypesInfo.Types[call.Fun]; exists && typed.IsType() {
-		return []semanticRecord{callRecord(caller, typeIdentityFromType(index.request.Modules, typed.Type),
-			"conversion", "conversion", owner, location)}
+		return []callsiteObservation{resolvedCall(
+			caller,
+			typeIdentityFromType(index.request.Modules, typed.Type),
+			"conversion",
+			owner,
+			location,
+		)}
 	}
 	object := calledObject(pkg.TypesInfo, call.Fun)
 	switch object := object.(type) {
 	case *types.Builtin:
-		return []semanticRecord{callRecord(caller, "function:go:builtins:"+object.Name(),
-			"definite", "builtin", owner, location)}
+		return []callsiteObservation{resolvedCall(
+			caller, "function:go:builtins:"+object.Name(), "builtin", owner, location,
+		)}
 	case *types.TypeName:
-		return []semanticRecord{callRecord(caller, typeIdentityFromType(index.request.Modules, object.Type()),
-			"conversion", "conversion", owner, location)}
+		return []callsiteObservation{resolvedCall(
+			caller,
+			typeIdentityFromType(index.request.Modules, object.Type()),
+			"conversion",
+			owner,
+			location,
+		)}
 	case *types.Func:
 		return index.resolveFunctionCall(pkg, owner, caller, call, object, location)
 	case nil:
-		reason, namespace, name := classifyCallExpression(call.Fun)
-		return []semanticRecord{unresolvedForPackage(pkg.Fset, caller, owner, call, reason, namespace, name, "dynamic", location)}
+		resolution, namespace, name := classifyCallExpression(call.Fun)
+		return []callsiteObservation{unresolvedCall(
+			pkg.Fset, caller, owner, call,
+			resolution, namespace, name, "dynamic", location,
+		)}
 	default:
-		return []semanticRecord{unresolvedForPackage(pkg.Fset, caller, owner, call, "dynamic-target", "",
-			expressionName(call.Fun), "dynamic", location)}
+		return []callsiteObservation{unresolvedCall(
+			pkg.Fset, caller, owner, call,
+			"missing", "", expressionName(call.Fun), "dynamic", location,
+		)}
 	}
 }
 
@@ -110,28 +126,28 @@ func (index *semanticIndex) resolveFunctionCall(
 	call *ast.CallExpr,
 	function *types.Func,
 	location span,
-) []semanticRecord {
+) []callsiteObservation {
 	namespace := canonicalNamespace(index.request.Modules, objectNamespace(function))
 	semanticID := semanticFunctionIdentity(index.request.Modules, function)
 	internal := internalNamespace(index.request.Modules, namespace)
 	if isInterfaceCall(pkg.TypesInfo, call.Fun) {
 		if !internal {
-			return []semanticRecord{callRecord(caller, semanticID, "definite", "interface", owner, location)}
+			return []callsiteObservation{
+				resolvedCall(caller, semanticID, "interface", owner, location),
+			}
 		}
 		if contract, named := index.targetsByObject[function]; named {
 			implementations := index.interfaceImplementations[contract.Identity]
 			if len(implementations) == 0 {
-				return []semanticRecord{unresolvedForPackage(pkg.Fset, caller, owner, call, "dynamic-target", namespace,
-					function.Name(), "interface", location)}
+				return []callsiteObservation{unresolvedCall(
+					pkg.Fset, caller, owner, call,
+					"missing", namespace, function.Name(), "interface", location,
+				)}
 			}
-			kind := "definite"
-			if len(implementations) > 1 {
-				kind = "possible"
-			}
-			result := make([]semanticRecord, 0, len(implementations))
+			result := make([]callsiteObservation, 0, len(implementations))
 			for _, target := range implementations {
-				result = append(result, callRecord(
-					caller, target.Identity, kind, "interface", owner, location,
+				result = append(result, resolvedCall(
+					caller, target.Identity, "interface", owner, location,
 				))
 			}
 			return result
@@ -139,41 +155,63 @@ func (index *semanticIndex) resolveFunctionCall(
 		position := pkg.Fset.PositionFor(function.Pos(), false)
 		targetOwner, ok := index.ownerForPosition(position.Filename)
 		if !ok {
-			return []semanticRecord{unresolvedForPackage(pkg.Fset, caller, owner, call, "dynamic-target", namespace,
-				function.Name(), "interface", location)}
+			return []callsiteObservation{unresolvedCall(
+				pkg.Fset, caller, owner, call,
+				"missing", namespace, function.Name(), "interface", location,
+			)}
 		}
-		return []semanticRecord{callRecordWithTargetProvenance(
-			caller, semanticID, "definite", "interface", function.Name(), namespace,
-			index.packageContainerIdentity(namespace), targetOwner, pointSpan(position), owner, location,
+		return []callsiteObservation{resolvedCallWithTargetProvenance(
+			caller,
+			semanticID,
+			"interface",
+			function.Name(),
+			namespace,
+			index.packageContainerIdentity(namespace),
+			targetOwner,
+			pointSpan(position),
+			owner,
+			location,
 		)}
 	}
 	if internal {
 		targets := index.targetCandidates(function)
 		if len(targets) != 1 {
-			return []semanticRecord{unresolvedForPackage(pkg.Fset, caller, owner, call, "ambiguous-target", namespace,
-				function.Name(), "internal", location)}
+			return []callsiteObservation{unresolvedCall(
+				pkg.Fset, caller, owner, call,
+				"ambiguous", namespace, function.Name(), "direct", location,
+			)}
 		}
-		return []semanticRecord{callRecord(caller, targets[0].Identity, "definite", "internal", owner, location)}
+		return []callsiteObservation{
+			resolvedCall(caller, targets[0].Identity, "direct", owner, location),
+		}
 	}
-	return []semanticRecord{callRecord(caller, semanticID, "definite", "external", owner, location)}
+	return []callsiteObservation{
+		resolvedCall(caller, semanticID, "direct", owner, location),
+	}
 }
 
-func sortSemanticCallRecords(records []semanticRecord) {
-	sort.SliceStable(records, func(i, j int) bool {
-		leftOwner, leftSpan := recordLocation(records[i])
-		rightOwner, rightSpan := recordLocation(records[j])
-		if leftOwner != rightOwner {
-			return leftOwner < rightOwner
+func sortCallsiteObservations(values []callsiteObservation) {
+	sort.SliceStable(values, func(i, j int) bool {
+		left, right := values[i], values[j]
+		if left.Owner != right.Owner {
+			return left.Owner < right.Owner
 		}
-		if leftSpan.StartLine != rightSpan.StartLine {
-			return leftSpan.StartLine < rightSpan.StartLine
+		if left.Span.StartLine != right.Span.StartLine {
+			return left.Span.StartLine < right.Span.StartLine
 		}
-		if leftSpan.StartColumn != rightSpan.StartColumn {
-			return leftSpan.StartColumn < rightSpan.StartColumn
+		if left.Span.StartColumn != right.Span.StartColumn {
+			return left.Span.StartColumn < right.Span.StartColumn
 		}
-		if recordSource(records[i]) != recordSource(records[j]) {
-			return recordSource(records[i]) < recordSource(records[j])
+		if left.SourceKey != right.SourceKey {
+			return left.SourceKey < right.SourceKey
 		}
-		return recordTarget(records[i]) < recordTarget(records[j])
+		return callsiteSortTarget(left) < callsiteSortTarget(right)
 	})
+}
+
+func callsiteSortTarget(value callsiteObservation) string {
+	if len(value.Targets) == 0 {
+		return ""
+	}
+	return value.Targets[0].SemanticKey
 }

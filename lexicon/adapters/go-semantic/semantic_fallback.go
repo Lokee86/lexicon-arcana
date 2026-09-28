@@ -14,16 +14,15 @@ type structuralFile struct {
 	file        *ast.File
 }
 
-func (scanner *structuralScanner) collectFallbackCalls(covered []semanticRecord) []semanticRecord {
+func (scanner *structuralScanner) collectFallbackCalls(
+	covered []callsiteObservation,
+) []callsiteObservation {
 	coveredKeys := make(map[string]bool)
-	for _, record := range covered {
-		switch record.(type) {
-		case callObservation, unresolvedObservation:
-			coveredKeys[recordCallsiteKey(record)] = true
-		}
+	for _, value := range covered {
+		coveredKeys[callsiteObservationKey(value)] = true
 	}
 	targets := scanner.fallbackTargets()
-	var result []semanticRecord
+	var result []callsiteObservation
 	for _, file := range scanner.files {
 		imports := scanner.fallbackImports(file.file)
 		scope := file.importPath + "\x00" + file.packageName
@@ -38,7 +37,7 @@ func (scanner *structuralScanner) collectFallbackCalls(covered []semanticRecord)
 			)
 		}
 	}
-	sortSemanticCallRecords(result)
+	sortCallsiteObservations(result)
 	return result
 }
 
@@ -49,7 +48,7 @@ func (scanner *structuralScanner) collectFallbackCallable(
 	imports map[string]string,
 	targets map[string][]string,
 	covered map[string]bool,
-	result *[]semanticRecord,
+	result *[]callsiteObservation,
 ) {
 	ast.Inspect(body, func(node ast.Node) bool {
 		if node != body {
@@ -86,13 +85,12 @@ func (scanner *structuralScanner) resolveFallbackCall(
 	location span,
 	imports map[string]string,
 	targets map[string][]string,
-) semanticRecord {
+) callsiteObservation {
 	if literal := fallbackFuncLiteral(call.Fun); literal != nil {
 		position := scanner.set.PositionFor(literal.Pos(), false)
-		return callRecord(
+		return resolvedCall(
 			source,
 			closureIdentity(file.importPath, file.owner, position),
-			"definite",
 			"dynamic",
 			file.owner,
 			location,
@@ -102,24 +100,18 @@ func (scanner *structuralScanner) resolveFallbackCall(
 		receiver := expressionName(selector.X)
 		if identifier, ok := selector.X.(*ast.Ident); ok {
 			if namespace := imports[identifier.Name]; namespace != "" {
-				class := "external"
-				if internalNamespace(scanner.request.Modules, namespace) {
-					class = "internal"
-				}
-				return callRecord(
+				return resolvedCall(
 					source,
 					"function:"+canonicalNamespace(scanner.request.Modules, namespace)+":"+selector.Sel.Name,
-					"definite",
-					class,
+					"direct",
 					file.owner,
 					location,
 				)
 			}
 		}
-		return callRecord(
+		return resolvedCall(
 			source,
 			"dynamic-method:"+receiver+"."+selector.Sel.Name,
-			"definite",
 			"dynamic",
 			file.owner,
 			location,
@@ -127,37 +119,34 @@ func (scanner *structuralScanner) resolveFallbackCall(
 	}
 	identifier, ok := call.Fun.(*ast.Ident)
 	if !ok {
-		reason, namespace, name := classifyCallExpression(call.Fun)
-		return unresolvedForPackage(
+		resolution, namespace, name := classifyCallExpression(call.Fun)
+		return unresolvedCall(
 			scanner.set, source, file.owner, call,
-			reason, namespace, name, "dynamic", location,
+			resolution, namespace, name, "dynamic", location,
 		)
 	}
 	candidates := targets[identifier.Name]
 	switch len(candidates) {
 	case 0:
 		if fallbackBuiltin(identifier.Name) {
-			return callRecord(
+			return resolvedCall(
 				source,
 				"function:go:builtins:"+identifier.Name,
-				"definite",
 				"builtin",
 				file.owner,
 				location,
 			)
 		}
-		return unresolvedForPackage(
+		return unresolvedCall(
 			scanner.set, source, file.owner, call,
-			"missing-target", file.importPath, identifier.Name, "internal", location,
+			"missing", file.importPath, identifier.Name, "direct", location,
 		)
 	case 1:
-		return callRecord(
-			source, candidates[0], "definite", "internal", file.owner, location,
-		)
+		return resolvedCall(source, candidates[0], "direct", file.owner, location)
 	default:
-		return unresolvedForPackage(
+		return unresolvedCall(
 			scanner.set, source, file.owner, call,
-			"ambiguous-target", file.importPath, identifier.Name, "internal", location,
+			"ambiguous", file.importPath, identifier.Name, "direct", location,
 		)
 	}
 }

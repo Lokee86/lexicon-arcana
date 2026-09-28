@@ -44,7 +44,7 @@ func loadSemanticModuleIndexProfiled(
 	value request,
 	module module,
 	profile *performanceProfile,
-) (*semanticIndex, []diagnostic) {
+) (*semanticIndex, []diagnosticObservation) {
 	index := newSemanticIndex(value)
 	root := value.RepositoryRoot
 	if module.Root != "." {
@@ -64,7 +64,7 @@ func loadSemanticModuleIndexProfiled(
 		profile.PackageLoad += time.Since(loadStarted)
 	}
 	if err != nil {
-		return index, []diagnostic{packageLoadDiagnostic(module.Path, err)}
+		return index, []diagnosticObservation{packageLoadDiagnostic(module.Path, err)}
 	}
 
 	index.roots = roots
@@ -147,27 +147,27 @@ func flattenPackages(roots []*packages.Package) []*packages.Package {
 	return result
 }
 
-func packageDiagnostics(values []*packages.Package) []diagnostic {
-	var result []diagnostic
+func packageDiagnostics(values []*packages.Package) []diagnosticObservation {
+	var result []diagnosticObservation
 	for _, pkg := range values {
 		for _, issue := range pkg.Errors {
-			result = append(result, diagnostic{
-				Record:   "diagnostic",
-				Severity: "error",
-				Code:     "go-package",
-				Message:  issue.Error(),
+			result = append(result, diagnosticObservation{
+				Observation: "diagnostic",
+				Severity:    "error",
+				Code:        "go-package",
+				Message:     issue.Error(),
 			})
 		}
 	}
 	return result
 }
 
-func packageLoadDiagnostic(modulePath string, err error) diagnostic {
-	return diagnostic{
-		Record:   "diagnostic",
-		Severity: "error",
-		Code:     "go-package-load",
-		Message:  "load Go module " + modulePath + ": " + err.Error(),
+func packageLoadDiagnostic(modulePath string, err error) diagnosticObservation {
+	return diagnosticObservation{
+		Observation: "diagnostic",
+		Severity:    "error",
+		Code:        "go-package-load",
+		Message:     "load Go module " + modulePath + ": " + err.Error(),
 	}
 }
 

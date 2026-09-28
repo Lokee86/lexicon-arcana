@@ -13,7 +13,6 @@ type captureKey struct {
 	target       string
 	targetName   string
 	captureIndex int
-	hasIndex     bool
 	owner        string
 	hasSpan      bool
 	startLine    uint32
@@ -27,25 +26,25 @@ type semanticRepositoryState struct {
 	dataflow             dataflowAccumulator
 	finalCalls           directCallAccumulator
 	resolvedCallsiteKeys map[string]bool
-	relationships        map[relationshipKey]relationship
-	targets              map[string]targetObservation
-	captures             map[captureKey]relationship
+	relationships        map[relationshipKey]relationshipObservation
+	symbols              map[string]symbolObservation
+	captures             map[captureKey]captureObservation
 }
 
 func newSemanticRepositoryState() *semanticRepositoryState {
 	return &semanticRepositoryState{
 		resolvedCallsiteKeys: make(map[string]bool),
-		relationships:        make(map[relationshipKey]relationship),
-		targets:              make(map[string]targetObservation),
-		captures:             make(map[captureKey]relationship),
+		relationships:        make(map[relationshipKey]relationshipObservation),
+		symbols:              make(map[string]symbolObservation),
+		captures:             make(map[captureKey]captureObservation),
 	}
 }
 
-func (state *semanticRepositoryState) addRelationships(values []relationship) {
+func (state *semanticRepositoryState) addRelationships(values []relationshipObservation) {
 	for _, value := range values {
 		key := relationshipKey{
-			source: value.Source,
-			target: value.Target,
+			source: value.SourceKey,
+			target: value.TargetKey,
 			kind:   value.Kind,
 		}
 		if _, exists := state.relationships[key]; !exists {
@@ -63,104 +62,93 @@ func (state *semanticRepositoryState) resolvedCallsites() map[string]bool {
 	return state.resolvedCallsiteKeys
 }
 
-func (state *semanticRepositoryState) addSSARecords(values []semanticRecord) {
+func (state *semanticRepositoryState) addSSAObservations(values []observation) {
 	for _, value := range values {
-		switch record := value.(type) {
-		case callObservation:
-			state.finalCalls.addWithoutCounting(record)
-			state.resolvedCallsiteKeys[recordCallsiteKey(record)] = true
-		case unresolvedObservation:
-			state.finalCalls.addWithoutCounting(record)
-		case targetObservation:
-			if _, exists := state.targets[record.Identity]; !exists {
-				state.targets[record.Identity] = record
+		switch item := value.(type) {
+		case callsiteObservation:
+			state.finalCalls.addWithoutCounting(item)
+			if hasResolvedCall(item) {
+				state.resolvedCallsiteKeys[callsiteObservationKey(item)] = true
 			}
-		case relationship:
-			key := captureRecordKey(record)
+		case symbolObservation:
+			if _, exists := state.symbols[item.SemanticKey]; !exists {
+				state.symbols[item.SemanticKey] = item
+			}
+		case captureObservation:
+			key := captureObservationKey(item)
 			if _, exists := state.captures[key]; !exists {
-				state.captures[key] = record
+				state.captures[key] = item
 			}
 		default:
-			panic("unexpected SSA semantic record")
+			panic("unexpected SSA semantic observation")
 		}
 	}
 }
 
-func (state *semanticRepositoryState) relationshipRecords() []semanticRecord {
-	values := make([]relationship, 0, len(state.relationships))
+func (state *semanticRepositoryState) relationshipObservations() []observation {
+	values := make([]relationshipObservation, 0, len(state.relationships))
 	for _, value := range state.relationships {
 		values = append(values, value)
 	}
 	sortRelationships(values)
-	result := make([]semanticRecord, 0, len(values))
+	result := make([]observation, 0, len(values))
 	for _, value := range values {
 		result = append(result, value)
 	}
 	return result
 }
 
-func (state *semanticRepositoryState) targetRecords() []semanticRecord {
-	identities := make([]string, 0, len(state.targets))
-	for identity := range state.targets {
-		identities = append(identities, identity)
+func (state *semanticRepositoryState) symbolObservations() []observation {
+	keys := make([]string, 0, len(state.symbols))
+	for key := range state.symbols {
+		keys = append(keys, key)
 	}
-	sort.Strings(identities)
-	result := make([]semanticRecord, 0, len(identities))
-	for _, identity := range identities {
-		result = append(result, state.targets[identity])
+	sort.Strings(keys)
+	result := make([]observation, 0, len(keys))
+	for _, key := range keys {
+		result = append(result, state.symbols[key])
 	}
 	return result
 }
 
-func (state *semanticRepositoryState) captureRecords() []semanticRecord {
-	values := make([]relationship, 0, len(state.captures))
+func (state *semanticRepositoryState) captureObservations() []observation {
+	values := make([]captureObservation, 0, len(state.captures))
 	for _, value := range state.captures {
 		values = append(values, value)
 	}
 	sort.SliceStable(values, func(i, j int) bool {
-		if values[i].Source != values[j].Source {
-			return values[i].Source < values[j].Source
+		if values[i].SourceKey != values[j].SourceKey {
+			return values[i].SourceKey < values[j].SourceKey
 		}
-		left := -1
-		if values[i].CaptureIndex != nil {
-			left = *values[i].CaptureIndex
+		if values[i].CaptureIndex != values[j].CaptureIndex {
+			return values[i].CaptureIndex < values[j].CaptureIndex
 		}
-		right := -1
-		if values[j].CaptureIndex != nil {
-			right = *values[j].CaptureIndex
-		}
-		if left != right {
-			return left < right
-		}
-		if values[i].Target != values[j].Target {
-			return values[i].Target < values[j].Target
+		if values[i].TargetKey != values[j].TargetKey {
+			return values[i].TargetKey < values[j].TargetKey
 		}
 		return values[i].TargetName < values[j].TargetName
 	})
-	result := make([]semanticRecord, 0, len(values))
+	result := make([]observation, 0, len(values))
 	for _, value := range values {
 		result = append(result, value)
 	}
 	return result
 }
 
-func captureRecordKey(record relationship) captureKey {
+func captureObservationKey(value captureObservation) captureKey {
 	key := captureKey{
-		source:     record.Source,
-		target:     record.Target,
-		targetName: record.TargetName,
-		owner:      record.Owner,
+		source:       value.SourceKey,
+		target:       value.TargetKey,
+		targetName:   value.TargetName,
+		captureIndex: value.CaptureIndex,
+		owner:        value.Owner,
 	}
-	if record.CaptureIndex != nil {
-		key.captureIndex = *record.CaptureIndex
-		key.hasIndex = true
-	}
-	if record.Span != nil {
+	if value.Span != nil {
 		key.hasSpan = true
-		key.startLine = record.Span.StartLine
-		key.startColumn = record.Span.StartColumn
-		key.endLine = record.Span.EndLine
-		key.endColumn = record.Span.EndColumn
+		key.startLine = value.Span.StartLine
+		key.startColumn = value.Span.StartColumn
+		key.endLine = value.Span.EndLine
+		key.endColumn = value.Span.EndColumn
 	}
 	return key
 }

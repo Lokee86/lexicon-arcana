@@ -10,11 +10,11 @@ import (
 )
 
 type structuralScanner struct {
-	request  request
-	set      *token.FileSet
-	records  []semanticRecord
-	files    []structuralFile
-	closures map[string]bool
+	request      request
+	set          *token.FileSet
+	observations []observation
+	files        []structuralFile
+	closures     map[string]bool
 }
 
 func scanStructural(value request) (response, error) {
@@ -51,7 +51,7 @@ func scanStructuralWithProfile(value request, profile *performanceProfile) (resp
 	}
 
 	state := newSemanticRepositoryState()
-	var diagnostics []diagnostic
+	var diagnostics []diagnosticObservation
 	for _, module := range value.Modules {
 		if profile != nil {
 			profile.ProcessedModules++
@@ -86,8 +86,8 @@ func scanStructuralWithProfile(value request, profile *performanceProfile) (resp
 		if profile != nil {
 			ssaStarted = time.Now()
 		}
-		state.addSSARecords(index.mergeSSASemantics(
-			collection.calls.records(),
+		state.addSSAObservations(index.mergeSSASemantics(
+			collection.calls.observations(),
 			state.resolvedCallsites(),
 		))
 		if profile != nil {
@@ -102,13 +102,14 @@ func scanStructuralWithProfile(value request, profile *performanceProfile) (resp
 		profile.CompactedDataflow = len(state.dataflow.order)
 	}
 
-	scanner.records = append(scanner.records, state.relationshipRecords()...)
-	scanner.records = append(scanner.records, state.dataflow.records()...)
-	scanner.records = append(scanner.records, state.targetRecords()...)
-	resolvedCalls := state.finalCalls.records()
-	scanner.records = append(scanner.records, resolvedCalls...)
-	scanner.records = append(scanner.records, state.captureRecords()...)
-	scanner.records = append(scanner.records, scanner.collectFallbackCalls(resolvedCalls)...)
+	scanner.observations = append(scanner.observations, state.relationshipObservations()...)
+	scanner.observations = append(scanner.observations, state.dataflow.observations()...)
+	scanner.observations = append(scanner.observations, state.symbolObservations()...)
+	resolvedCalls := state.finalCalls.observations()
+	scanner.observations = append(scanner.observations, callsitesAsObservations(resolvedCalls)...)
+	scanner.observations = append(scanner.observations, state.captureObservations()...)
+	fallback := scanner.collectFallbackCalls(resolvedCalls)
+	scanner.observations = append(scanner.observations, callsitesAsObservations(fallback)...)
 
 	sort.Slice(diagnostics, func(i, j int) bool {
 		if diagnostics[i].Code != diagnostics[j].Code {
@@ -116,10 +117,18 @@ func scanStructuralWithProfile(value request, profile *performanceProfile) (resp
 		}
 		return diagnostics[i].Message < diagnostics[j].Message
 	})
-	for _, record := range diagnostics {
-		scanner.records = append(scanner.records, record)
+	for _, value := range diagnostics {
+		scanner.observations = append(scanner.observations, value)
 	}
-	return responseFromRecords(scanner.records), nil
+	return response{ProtocolVersion: protocolVersion, Observations: scanner.observations}, nil
+}
+
+func callsitesAsObservations(values []callsiteObservation) []observation {
+	result := make([]observation, 0, len(values))
+	for _, value := range values {
+		result = append(result, value)
+	}
+	return result
 }
 
 func (scanner *structuralScanner) parseFile(owner string) error {
@@ -151,12 +160,17 @@ func (scanner *structuralScanner) parseFile(owner string) error {
 }
 
 func (scanner *structuralScanner) add(
-	kind, identity, name, owner string,
+	kind, semanticKey, name, owner string,
 	location span,
 	metadata map[string]string,
 ) {
-	scanner.records = append(scanner.records, declaration{
-		Record: "declaration", Identity: identity, Kind: kind, Name: name,
-		Owner: owner, Span: location, Metadata: metadata,
+	scanner.observations = append(scanner.observations, declarationObservation{
+		Observation: "declaration",
+		SemanticKey: semanticKey,
+		Kind:        kind,
+		Name:        name,
+		Owner:       owner,
+		Span:        location,
+		Metadata:    metadata,
 	})
 }

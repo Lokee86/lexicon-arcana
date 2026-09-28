@@ -21,14 +21,17 @@ func message(err error) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, record := range result.records {
-		call, ok := record.(callObservation)
-		if !ok || call.Source != "function:example.com/error-interface:message" {
+	calls := callRecords(result.Observations)
+	for _, call := range calls {
+		if call.SourceKey != "function:example.com/error-interface:message" ||
+			call.Form != "interface" {
 			continue
 		}
-		if call.Target == "method:go:unknown:error.Error" && call.Class == "interface" {
-			return
+		for _, target := range call.Targets {
+			if target.SemanticKey == "method:go:unknown:error.Error" {
+				return
+			}
 		}
 	}
-	t.Fatalf("go:unknown error method not resolved: %#v", callRecords(result.records))
+	t.Fatalf("go:unknown error method not resolved: %#v", calls)
 }

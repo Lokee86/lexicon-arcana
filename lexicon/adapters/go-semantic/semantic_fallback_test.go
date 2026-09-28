@@ -35,10 +35,12 @@ func TestSyntaxFallbackPreservesInactiveBuildVariantCalls(t *testing.T) {
 		"dynamic-method:t.Fatal":                     true,
 		"dynamic-method:cmd.Start":                   true,
 	}
-	for _, record := range result.records {
-		call, ok := record.(callObservation)
-		if ok && call.Source == source {
-			delete(want, call.Target)
+	for _, call := range callRecords(result.Observations) {
+		if call.SourceKey != source {
+			continue
+		}
+		for _, target := range call.Targets {
+			delete(want, target.SemanticKey)
 		}
 	}
 	if len(want) != 0 {

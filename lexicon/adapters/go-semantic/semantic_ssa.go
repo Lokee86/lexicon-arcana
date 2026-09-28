@@ -16,7 +16,6 @@ type ssaOutcome struct {
 
 type ssaTarget struct {
 	Identity  string
-	Class     string
 	Name      string
 	Namespace string
 	Container string
@@ -25,13 +24,13 @@ type ssaTarget struct {
 }
 
 func (index *semanticIndex) mergeSSASemantics(
-	direct []semanticRecord,
+	direct []callsiteObservation,
 	previouslyResolved map[string]bool,
-) []semanticRecord {
+) []observation {
 	if len(index.roots) == 0 {
-		return direct
+		return callsitesAsObservations(direct)
 	}
-	var captures []semanticRecord
+	var captures []captureObservation
 	outcomes := make(map[string]*ssaOutcome)
 	materializations := make(map[string]ssaTarget)
 	for _, target := range index.generatedTestMainTargets() {
@@ -85,38 +84,56 @@ func (index *semanticIndex) mergeSSASemantics(
 			}
 		}
 	}
-	var result []semanticRecord
+
+	result := make([]observation, 0, len(materializations)+len(direct)+len(captures))
 	for _, target := range sortedSSATargets(materializations) {
-		result = append(result, targetObservation{
-			Record: "target", Identity: target.Identity, Class: target.Class,
-			Name: target.Name, Namespace: target.Namespace, Container: target.Container,
+		result = append(result, symbolObservation{
+			Observation:  "symbol",
+			SemanticKey:  target.Identity,
+			Name:         target.Name,
+			Namespace:    target.Namespace,
+			ContainerKey: target.Container,
+			Generated:    target.Generated,
 		})
 	}
 	if len(direct) != 0 {
-		result = append(result, mergeSSAOutcomes(direct, outcomes, previouslyResolved)...)
+		for _, call := range mergeSSAOutcomes(direct, outcomes, previouslyResolved) {
+			result = append(result, call)
+		}
 	}
-	result = append(result, captures...)
+	for _, capture := range captures {
+		result = append(result, capture)
+	}
 	return result
 }
 
 func mergeSSAOutcomes(
-	direct []semanticRecord,
+	direct []callsiteObservation,
 	outcomes map[string]*ssaOutcome,
 	previouslyResolved map[string]bool,
-) []semanticRecord {
-	byKey := make(map[string][]semanticRecord)
-	for _, record := range direct {
-		key := recordCallsiteKey(record)
-		byKey[key] = append(byKey[key], record)
+) []callsiteObservation {
+	byKey := make(map[string]callsiteObservation, len(direct))
+	order := make([]string, 0, len(direct))
+	for _, value := range direct {
+		key := callsiteObservationKey(value)
+		if _, exists := byKey[key]; !exists {
+			order = append(order, key)
+		}
+		if existing, exists := byKey[key]; exists {
+			byKey[key] = mergeCallsiteObservations(existing, value)
+		} else {
+			byKey[key] = normalizedCallsite(value)
+		}
 	}
+
 	keys := make([]string, 0, len(outcomes))
 	for key := range outcomes {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
 	for _, key := range keys {
-		existing := byKey[key]
-		if len(existing) == 0 {
+		existing, exists := byKey[key]
+		if !exists {
 			continue
 		}
 		outcome := outcomes[key]
@@ -127,53 +144,57 @@ func mergeSSAOutcomes(
 		if len(targets) == 0 {
 			continue
 		}
-		source := recordSource(existing[0])
-		owner, location := recordLocation(existing[0])
-		kind := "possible"
-		if len(targets) == 1 {
-			kind = "definite"
-		}
-		class := "dynamic"
+
+		form := "dynamic"
 		if outcome.Invoke {
-			class = "interface"
+			form = "interface"
 		}
-		replacement := make([]semanticRecord, 0, len(targets)+len(existing))
+		replacement := callsiteObservation{
+			Observation: "callsite",
+			SourceKey:   existing.SourceKey,
+			Form:        form,
+			Resolution:  "resolved",
+			Owner:       existing.Owner,
+			Span:        existing.Span,
+		}
+
 		hasConcreteExisting := false
-		if outcome.Invoke {
-			for _, record := range existing {
-				call, resolved := record.(callObservation)
-				if resolved && !strings.HasPrefix(call.Target, "interface-method:") {
-					replacement = append(replacement, record)
-					hasConcreteExisting = true
+		if outcome.Invoke && hasResolvedCall(existing) {
+			for _, target := range existing.Targets {
+				if strings.HasPrefix(target.SemanticKey, "interface-method:") {
+					continue
 				}
+				replacement.Targets = append(replacement.Targets, target)
+				hasConcreteExisting = true
 			}
 		}
 		for _, target := range targets {
-			if outcome.Invoke && hasConcreteExisting && strings.HasPrefix(target.Identity, "interface-method:") {
+			if outcome.Invoke && hasConcreteExisting &&
+				strings.HasPrefix(target.Identity, "interface-method:") {
 				continue
 			}
-			replacement = append(replacement, callRecordWithTarget(
-				source, target.Identity, kind, class,
-				target.Name, target.Namespace, target.Container, owner, location,
-			))
+			replacement.Targets = append(replacement.Targets, callTargetObservation{
+				SemanticKey:  target.Identity,
+				Name:         target.Name,
+				Namespace:    target.Namespace,
+				ContainerKey: target.Container,
+				Generated:    target.Generated,
+			})
 		}
-		byKey[key] = mergeDirectCallRecords(replacement)
+		replacement.Form = mergeCallForm(existing.Form, replacement.Form)
+		byKey[key] = normalizedCallsite(replacement)
 	}
-	var result []semanticRecord
-	for _, records := range byKey {
-		result = append(result, records...)
+
+	result := make([]callsiteObservation, 0, len(byKey))
+	for _, key := range order {
+		result = append(result, byKey[key])
 	}
-	sortSemanticCallRecords(result)
+	sortCallsiteObservations(result)
 	return result
 }
 
-func hasResolvedCall(records []semanticRecord) bool {
-	for _, record := range records {
-		if _, ok := record.(callObservation); ok {
-			return true
-		}
-	}
-	return false
+func hasResolvedCall(value callsiteObservation) bool {
+	return value.Resolution == "resolved" && len(value.Targets) != 0
 }
 
 func sortedSSATargets(values map[string]ssaTarget) []ssaTarget {
