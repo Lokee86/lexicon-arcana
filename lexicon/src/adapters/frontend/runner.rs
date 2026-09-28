@@ -9,12 +9,11 @@ use std::{
 
 use serde::{Serialize, de::DeserializeOwned};
 
-use super::{
-    AdapterError,
-    helper_capture::{capture_stderr, replay_stderr, stderr_suffix, terminate},
-};
+use crate::adapters::AdapterError;
 
-// Keep helper IPC bounded while allowing measured multi-module repository responses.
+use super::capture::{capture_stderr, replay_stderr, stderr_suffix, terminate};
+
+// Keep frontend IPC bounded while allowing measured multi-module repository responses.
 const MAX_RESPONSE_BYTES: u64 = 128 * 1024 * 1024;
 
 pub(crate) trait ProtocolResponse {
@@ -22,18 +21,20 @@ pub(crate) trait ProtocolResponse {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct HelperRunner {
+pub(crate) struct FrontendRunner {
     candidates: Vec<PathBuf>,
     prefix_args: Vec<OsString>,
     environment_override: Option<String>,
+    metric_namespace: Option<String>,
 }
 
-impl HelperRunner {
+impl FrontendRunner {
     pub(crate) fn discover(
         adapter_root: &Path,
         directory: &str,
         executable: &str,
         environment: &str,
+        metric_namespace: &str,
     ) -> Self {
         let executable = executable_name(executable);
         let mut candidates = Vec::new();
@@ -51,6 +52,7 @@ impl HelperRunner {
             candidates,
             prefix_args: Vec::new(),
             environment_override: Some(environment.to_owned()),
+            metric_namespace: Some(metric_namespace.to_owned()),
         }
     }
 
@@ -60,6 +62,7 @@ impl HelperRunner {
             candidates: vec![program],
             prefix_args,
             environment_override: None,
+            metric_namespace: None,
         }
     }
 
@@ -76,13 +79,10 @@ impl HelperRunner {
         Response: DeserializeOwned + ProtocolResponse,
     {
         let request = serde_json::to_vec(request)
-            .map_err(|error| AdapterError::new(format!("encode helper request: {error}")))?;
+            .map_err(|error| AdapterError::new(format!("encode frontend request: {error}")))?;
         let request_bytes = request.len() as u64;
-        let profile_go = crate::perf::enabled()
-            && environment.iter().any(|(key, value)| {
-                key.to_string_lossy() == "LEXICON_HELPER" && value.to_string_lossy() == "go"
-            });
-        let ipc_started = profile_go.then(Instant::now);
+        let profile = crate::perf::enabled() && self.metric_namespace.is_some();
+        let ipc_started = profile.then(Instant::now);
         let program = self.resolve()?;
         let mut child = Command::new(&program)
             .args(&self.prefix_args)
@@ -95,7 +95,7 @@ impl HelperRunner {
             .spawn()
             .map_err(|error| {
                 AdapterError::new(format!(
-                    "start semantic helper {}: {error}",
+                    "start semantic frontend {}: {error}",
                     program.display()
                 ))
             })?;
@@ -110,7 +110,7 @@ impl HelperRunner {
             return Err(terminate(
                 &mut child,
                 stderr_thread,
-                format!("write semantic helper request: {error}"),
+                format!("write semantic frontend request: {error}"),
             ));
         }
 
@@ -125,14 +125,14 @@ impl HelperRunner {
             return Err(terminate(
                 &mut child,
                 stderr_thread,
-                format!("read semantic helper response: {error}"),
+                format!("read semantic frontend response: {error}"),
             ));
         }
         if frame.is_empty() || frame.len() as u64 > MAX_RESPONSE_BYTES {
             return Err(terminate(
                 &mut child,
                 stderr_thread,
-                "semantic helper response frame is empty or too large".into(),
+                "semantic frontend response frame is empty or too large".into(),
             ));
         }
         while matches!(frame.last(), Some(b'\n' | b'\r')) {
@@ -140,14 +140,14 @@ impl HelperRunner {
         }
 
         let response_bytes = frame.len() as u64;
-        let decode_started = profile_go.then(Instant::now);
+        let decode_started = profile.then(Instant::now);
         let response: Response = match serde_json::from_slice(&frame) {
             Ok(response) => response,
             Err(error) => {
                 return Err(terminate(
                     &mut child,
                     stderr_thread,
-                    format!("decode semantic helper response: {error}"),
+                    format!("decode semantic frontend response: {error}"),
                 ));
             }
         };
@@ -157,7 +157,7 @@ impl HelperRunner {
                 &mut child,
                 stderr_thread,
                 format!(
-                    "semantic helper protocol mismatch: got {version}, expected {expected_protocol}"
+                    "semantic frontend protocol mismatch: got {version}, expected {expected_protocol}"
                 ),
             ));
         }
@@ -166,26 +166,32 @@ impl HelperRunner {
         drop(reader);
         let status = child
             .wait()
-            .map_err(|error| AdapterError::new(format!("wait for semantic helper: {error}")))?;
+            .map_err(|error| AdapterError::new(format!("wait for semantic frontend: {error}")))?;
         let stderr = stderr_thread.join().unwrap_or_default();
         if !status.success() {
             return Err(AdapterError::new(format!(
-                "semantic helper exited with {status}{}",
+                "semantic frontend exited with {status}{}",
                 stderr_suffix(&stderr)
             )));
         }
-        if let (Some(ipc_started), Some(decode_elapsed)) = (ipc_started, decode_elapsed) {
+        if let (Some(namespace), Some(ipc_started), Some(decode_elapsed)) = (
+            self.metric_namespace.as_deref(),
+            ipc_started,
+            decode_elapsed,
+        ) {
             replay_stderr(&stderr);
+            let ipc_stage = format!("{namespace}.helper_ipc");
             crate::perf::emit(
-                "go.helper_ipc",
+                &ipc_stage,
                 ipc_started.elapsed(),
                 &[
                     ("helper_request_bytes", request_bytes),
                     ("helper_response_bytes", response_bytes),
                 ],
             );
+            let decode_stage = format!("{namespace}.rust_response_decode");
             crate::perf::emit(
-                "go.rust_response_decode",
+                &decode_stage,
                 decode_elapsed,
                 &[("helper_response_bytes", response_bytes)],
             );
@@ -208,10 +214,10 @@ impl HelperRunner {
                 let override_hint = self
                     .environment_override
                     .as_deref()
-                    .map(|name| format!("; set {name} to an explicit helper path"))
+                    .map(|name| format!("; set {name} to an explicit frontend path"))
                     .unwrap_or_default();
                 AdapterError::new(format!(
-                    "semantic helper executable not found; install the packaged helper{override_hint}; checked {checked}"
+                    "semantic frontend executable not found; install the packaged frontend{override_hint}; checked {checked}"
                 ))
             })
     }

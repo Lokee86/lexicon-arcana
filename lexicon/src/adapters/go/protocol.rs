@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::adapters::helper::ProtocolResponse;
+use crate::adapters::frontend::ProtocolResponse;
 
 use super::protocol_records::Record;
 

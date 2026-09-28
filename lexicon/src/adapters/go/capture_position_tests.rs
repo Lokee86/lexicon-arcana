@@ -26,7 +26,7 @@ fn positioned_capture_keeps_legacy_point_span() {
     let response = format!(
         r#"{{"protocol_version":1,"records":[{{"record":"declaration","identity":"package:example.com/capture-position:capture","kind":"package","name":"capture","owner":"main.go","span":{{"start_line":1,"start_column":9,"end_line":1,"end_column":16}}}},{{"record":"declaration","identity":"function:example.com/capture-position:caller","kind":"function","name":"caller","owner":"main.go","span":{{"start_line":2,"start_column":1,"end_line":2,"end_column":69}},"metadata":{{"container":"package:example.com/capture-position:capture"}}}},{{"record":"declaration","identity":"{closure}","kind":"function","name":"closure@2:33","owner":"main.go","span":{{"start_line":2,"start_column":33,"end_line":2,"end_column":68}},"metadata":{{"container":"function:example.com/capture-position:caller"}}}},{{"record":"relationship","source":"{closure}","target":"{target}","kind":"references","target_name":"value","capture_index":0,"owner":"main.go","span":{{"start_line":2,"start_column":17,"end_line":2,"end_column":17}}}}]}}"#
     );
-    let adapter = GoAdapter::with_helper(synthetic_helper(&root.path, &response));
+    let adapter = GoAdapter::with_frontend(synthetic_helper(&root.path, &response));
     let analysis = adapter
         .analyze(&AdapterRequest {
             language: "go".into(),

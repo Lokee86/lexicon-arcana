@@ -9,7 +9,7 @@ use super::{GoAdapter, tests::real_helper};
 #[test]
 fn incremental_adapter_emits_complete_scoped_analysis_before_host_filtering() {
     let repository = fixture("basic_calls");
-    let adapter = GoAdapter::with_helper(real_helper());
+    let adapter = GoAdapter::with_frontend(real_helper());
     let full = adapter
         .analyze(&AdapterRequest {
             language: "go".into(),
@@ -39,7 +39,7 @@ fn incremental_adapter_emits_complete_scoped_analysis_before_host_filtering() {
 #[test]
 fn base_incremental_filter_keeps_changed_and_shared_go_facts() {
     let repository = fixture("basic_calls");
-    let adapter = GoAdapter::with_helper(real_helper());
+    let adapter = GoAdapter::with_frontend(real_helper());
     let mut analysis = adapter
         .analyze(&AdapterRequest {
             language: "go".into(),
@@ -103,7 +103,7 @@ fn package_scoped_incremental_matches_full_changed_owner() {
         "package unrelated\n\nfunc Other() {}\n",
     );
 
-    let adapter = GoAdapter::with_helper(real_helper());
+    let adapter = GoAdapter::with_frontend(real_helper());
     let mut expected = adapter
         .analyze(&AdapterRequest {
             language: "go".into(),

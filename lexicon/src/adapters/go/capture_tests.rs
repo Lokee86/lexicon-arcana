@@ -25,7 +25,7 @@ fn materializes_positionless_capture_with_legacy_identity() {
     let response = format!(
         r#"{{"protocol_version":1,"records":[{{"record":"declaration","identity":"package:example.com/capture:capture","kind":"package","name":"capture","owner":"main.go","span":{{"start_line":1,"start_column":9,"end_line":1,"end_column":16}}}},{{"record":"declaration","identity":"function:example.com/capture:caller","kind":"function","name":"caller","owner":"main.go","span":{{"start_line":2,"start_column":1,"end_line":2,"end_column":31}},"metadata":{{"container":"package:example.com/capture:capture"}}}},{{"record":"declaration","identity":"{closure}","kind":"function","name":"closure@2:21","owner":"main.go","span":{{"start_line":2,"start_column":21,"end_line":2,"end_column":30}},"metadata":{{"container":"function:example.com/capture:caller"}}}},{{"record":"relationship","source":"{closure}","kind":"references","target_name":"value","capture_index":0,"owner":"main.go"}}]}}"#
     );
-    let adapter = GoAdapter::with_helper(synthetic_helper(&root.path, &response));
+    let adapter = GoAdapter::with_frontend(synthetic_helper(&root.path, &response));
     let analysis = adapter
         .analyze(&AdapterRequest {
             language: "go".into(),

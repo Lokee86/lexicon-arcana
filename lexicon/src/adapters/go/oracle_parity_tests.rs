@@ -82,7 +82,7 @@ fn assert_case(name: &str, execution: Execution) {
 }
 
 fn native_analysis(repository: &Path, execution: Execution) -> Analysis {
-    GoAdapter::with_helper(real_helper())
+    GoAdapter::with_frontend(real_helper())
         .analyze(&AdapterRequest {
             language: "go".into(),
             repository: repository.to_path_buf(),

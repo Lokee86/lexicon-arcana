@@ -52,7 +52,7 @@ use std::{collections::BTreeMap, ffi::OsString, path::Path};
 
 use crate::{AdapterError, AdapterRequest, Analysis, LanguageAdapter};
 
-use super::helper::HelperRunner;
+use super::frontend::FrontendRunner;
 
 pub const ADAPTER_VERSION: &str = "0.1.0";
 
@@ -62,33 +62,35 @@ const HELPER_ENVIRONMENT: &str = "LEXICON_GO_SEMANTIC_HELPER";
 
 #[derive(Debug, Clone)]
 pub struct GoAdapter {
-    helper: HelperRunner,
+    frontend: FrontendRunner,
 }
 
 impl GoAdapter {
     pub(crate) fn new(adapter_root: &Path) -> Self {
         Self {
-            helper: HelperRunner::discover(
+            frontend: FrontendRunner::discover(
                 adapter_root,
                 HELPER_DIRECTORY,
                 HELPER_EXECUTABLE,
                 HELPER_ENVIRONMENT,
+                "go",
             ),
         }
     }
 
     #[cfg(test)]
-    fn with_helper(helper: HelperRunner) -> Self {
-        Self { helper }
+    fn with_frontend(frontend: FrontendRunner) -> Self {
+        Self { frontend }
     }
 }
 
 pub(crate) fn verify_runtime_helper(adapter_root: &Path) -> Result<(), AdapterError> {
-    HelperRunner::discover(
+    FrontendRunner::discover(
         adapter_root,
         HELPER_DIRECTORY,
         HELPER_EXECUTABLE,
         HELPER_ENVIRONMENT,
+        "go",
     )
     .resolve()
     .map(|_| ())
@@ -152,10 +154,14 @@ impl LanguageAdapter for GoAdapter {
                     "semantic_ssa_target_support.rs",
                     include_bytes!("semantic_ssa_target_support.rs"),
                 ),
-                ("../helper.rs", include_bytes!("../helper.rs")),
+                ("../frontend/mod.rs", include_bytes!("../frontend/mod.rs")),
                 (
-                    "../helper_capture.rs",
-                    include_bytes!("../helper_capture.rs"),
+                    "../frontend/runner.rs",
+                    include_bytes!("../frontend/runner.rs"),
+                ),
+                (
+                    "../frontend/capture.rs",
+                    include_bytes!("../frontend/capture.rs"),
                 ),
                 ("go-helper-version", protocol::HELPER_VERSION.as_bytes()),
             ],
@@ -194,7 +200,7 @@ impl LanguageAdapter for GoAdapter {
             );
         }
         let wire = semantic_request(&repository, &inventory, request)?;
-        let response: protocol::Response = self.helper.run_json(
+        let response: protocol::Response = self.frontend.run_json(
             &repository,
             &helper_arguments(),
             &helper_environment(),

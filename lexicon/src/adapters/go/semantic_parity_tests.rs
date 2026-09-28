@@ -16,7 +16,7 @@ fn all_oracle_through_phase_fourteen_matches_legacy() {
         "parallel",
     ] {
         let repository = fixture(name);
-        let adapter = GoAdapter::with_helper(real_helper());
+        let adapter = GoAdapter::with_frontend(real_helper());
         let analysis = adapter
             .analyze(&AdapterRequest {
                 language: "go".into(),
@@ -83,7 +83,7 @@ fn all_oracle_through_phase_fourteen_matches_legacy() {
 #[test]
 fn native_parallel_execution_is_deterministic() {
     let repository = fixture("parallel");
-    let adapter = GoAdapter::with_helper(real_helper());
+    let adapter = GoAdapter::with_frontend(real_helper());
     let configurations = [(1, 1, 2), (4, 8, 4), (3, 6, 8)];
     let mut baseline = None;
     for (workers, shards, merge_fan_in) in configurations {

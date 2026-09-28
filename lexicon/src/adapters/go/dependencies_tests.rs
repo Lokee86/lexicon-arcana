@@ -28,7 +28,7 @@ fn rust_owns_manifest_and_local_import_dependencies() {
     .unwrap();
 
     let response = r#"{"protocol_version":1,"records":[{"record":"declaration","identity":"package:example.com/app:app","kind":"package","name":"app","owner":"main.go","span":{"start_line":1,"start_column":9,"end_line":1,"end_column":12}},{"record":"declaration","identity":"import:internal:example.com/app/shared","kind":"import","name":"example.com/app/shared","owner":"main.go","span":{"start_line":2,"start_column":8,"end_line":2,"end_column":32},"metadata":{"container":"package:example.com/app:app","import_alias":"","import_class":"internal","import_path":"example.com/app/shared"}},{"record":"declaration","identity":"function:example.com/app:Run","kind":"function","name":"Run","owner":"main.go","span":{"start_line":3,"start_column":1,"end_line":3,"end_column":14},"metadata":{"container":"package:example.com/app:app"}},{"record":"declaration","identity":"package:example.com/app/shared:shared","kind":"package","name":"shared","owner":"shared/shared.go","span":{"start_line":1,"start_column":9,"end_line":1,"end_column":15}}]}"#;
-    let adapter = GoAdapter::with_helper(synthetic_helper(&root.path, response));
+    let adapter = GoAdapter::with_frontend(synthetic_helper(&root.path, response));
     let analysis = adapter
         .analyze(&AdapterRequest {
             language: "go".into(),
@@ -80,7 +80,7 @@ fn blank_and_dot_imports_do_not_create_local_dependencies() {
     fs::write(root.path.join("main.go"), "package app\nfunc Run() {}\n").unwrap();
 
     let response = r#"{"protocol_version":1,"records":[{"record":"declaration","identity":"package:example.com/app:app","kind":"package","name":"app","owner":"main.go","span":{"start_line":1,"start_column":9,"end_line":1,"end_column":12}},{"record":"declaration","identity":"import:internal:example.com/app/shared","kind":"import","name":"example.com/app/shared","owner":"main.go","span":{"start_line":1,"start_column":1,"end_line":1,"end_column":2},"metadata":{"container":"package:example.com/app:app","import_alias":"_","import_class":"internal","import_path":"example.com/app/shared"}},{"record":"declaration","identity":"package:example.com/app/shared:shared","kind":"package","name":"shared","owner":"main.go","span":{"start_line":1,"start_column":9,"end_line":1,"end_column":12}}]}"#;
-    let adapter = GoAdapter::with_helper(synthetic_helper(&root.path, response));
+    let adapter = GoAdapter::with_frontend(synthetic_helper(&root.path, response));
     let analysis = adapter
         .analyze(&AdapterRequest {
             language: "go".into(),

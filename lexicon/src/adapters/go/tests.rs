@@ -12,7 +12,7 @@ use std::{
 use crate::{AdapterHost, AdapterRequest, LanguageAdapter, ScanEngine, StateRepository, Store};
 
 use super::{GoAdapter, helper_arguments, helper_environment};
-use crate::adapters::helper::HelperRunner;
+use crate::adapters::frontend::FrontendRunner;
 
 #[test]
 fn adapter_host_registers_go() {
@@ -50,7 +50,7 @@ fn native_go_adapter_owns_full_and_incremental_scan_path() {
 
     let helper = synthetic_helper(&root.path, r#"{"protocol_version":1,"records":[]}"#);
     let mut host = AdapterHost::new(&adapter_root);
-    host.register("go", Arc::new(GoAdapter::with_helper(helper)));
+    host.register("go", Arc::new(GoAdapter::with_frontend(helper)));
     let git = StateRepository::ensure(&state_root).unwrap();
     let engine = ScanEngine::new(
         &repository,
@@ -113,7 +113,7 @@ fn minimal_helper_response_produces_valid_native_analysis() {
     )
     .unwrap();
     let helper = synthetic_helper(&root.path, r#"{"protocol_version":1,"records":[]}"#);
-    let adapter = GoAdapter::with_helper(helper);
+    let adapter = GoAdapter::with_frontend(helper);
     let request = AdapterRequest {
         language: "go".into(),
         repository: root.path.clone(),
@@ -143,7 +143,7 @@ fn structured_helper_diagnostics_do_not_change_fact_materialization() {
         &root.path,
         r#"{"protocol_version":1,"records":[{"record":"diagnostic","severity":"error","code":"go-package","message":"type-check failed"}]}"#,
     );
-    let adapter = GoAdapter::with_helper(helper);
+    let adapter = GoAdapter::with_frontend(helper);
     let analysis = adapter
         .analyze(&AdapterRequest {
             language: "go".into(),
@@ -162,7 +162,7 @@ fn helper_handshake_rejects_protocol_mismatch() {
     let root = TempDirectory::new("mismatch");
     fs::write(root.path.join("go.mod"), "module example.com/mismatch\n").unwrap();
     let helper = synthetic_helper(&root.path, r#"{"protocol_version":2,"records":[]}"#);
-    let adapter = GoAdapter::with_helper(helper);
+    let adapter = GoAdapter::with_frontend(helper);
     let request = AdapterRequest {
         language: "go".into(),
         repository: root.path.clone(),
@@ -220,7 +220,7 @@ fn fixture(name: &str) -> PathBuf {
         .join(name)
 }
 
-pub(super) fn real_helper() -> HelperRunner {
+pub(super) fn real_helper() -> FrontendRunner {
     static BINARY: OnceLock<PathBuf> = OnceLock::new();
     let binary = BINARY.get_or_init(|| {
         let directory =
@@ -241,10 +241,10 @@ pub(super) fn real_helper() -> HelperRunner {
         assert!(status.success(), "Go semantic helper build failed");
         binary
     });
-    HelperRunner::explicit(binary.clone(), Vec::new())
+    FrontendRunner::explicit(binary.clone(), Vec::new())
 }
 
-pub(super) fn synthetic_helper(root: &Path, response: &str) -> HelperRunner {
+pub(super) fn synthetic_helper(root: &Path, response: &str) -> FrontendRunner {
     #[cfg(windows)]
     {
         let script = root.join("helper.ps1");
@@ -262,7 +262,7 @@ pub(super) fn synthetic_helper(root: &Path, response: &str) -> HelperRunner {
             .join("WindowsPowerShell")
             .join("v1.0")
             .join("powershell.exe");
-        HelperRunner::explicit(
+        FrontendRunner::explicit(
             program,
             vec![
                 OsString::from("-NoProfile"),
@@ -282,7 +282,7 @@ pub(super) fn synthetic_helper(root: &Path, response: &str) -> HelperRunner {
             ),
         )
         .unwrap();
-        HelperRunner::explicit(PathBuf::from("/bin/sh"), vec![script.into_os_string()])
+        FrontendRunner::explicit(PathBuf::from("/bin/sh"), vec![script.into_os_string()])
     }
 }
 

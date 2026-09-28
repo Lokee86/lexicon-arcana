@@ -4,7 +4,7 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use super::AdapterError;
+use crate::adapters::AdapterError;
 
 const MAX_STDERR_BYTES: usize = 16 * 1024;
 
@@ -46,7 +46,7 @@ pub(crate) fn replay_stderr(stderr: &StderrCapture) {
     }
     eprint!("{}", String::from_utf8_lossy(&stderr.bytes));
     if stderr.truncated {
-        eprintln!("[lexicon-perf] helper_stderr_truncated=1");
+        eprintln!("[lexicon-perf] frontend_stderr_truncated=1");
     } else if !stderr.bytes.ends_with(b"\n") {
         eprintln!();
     }
