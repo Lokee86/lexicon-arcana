@@ -55,3 +55,35 @@ fn freeze_is_deterministic_across_insertion_orders() {
     assert_eq!(forward, reverse);
     assert_eq!(forward.encode().unwrap(), reverse.encode().unwrap());
 }
+
+#[test]
+fn freeze_preserves_controls_utf8_and_exact_binary_bytes() {
+    let mut arena = StagedStringArena::default();
+    for value in ["☃", "line\n", "a\0b", "", "tab\t"] {
+        arena.intern(value).unwrap();
+    }
+    let used = vec![true; arena.len()];
+    let (table, _) = arena.freeze(&used).unwrap();
+
+    assert_eq!(
+        table.values().collect::<Vec<_>>(),
+        vec!["", "a\0b", "line\n", "tab\t", "☃"]
+    );
+
+    let expected_values = ["", "a\0b", "line\n", "tab\t", "☃"];
+    let mut expected = Vec::new();
+    let mut offset = 0_u64;
+    for value in expected_values {
+        expected.extend_from_slice(&offset.to_le_bytes());
+        expected.extend_from_slice(&(value.len() as u32).to_le_bytes());
+        expected.extend_from_slice(&0_u32.to_le_bytes());
+        offset += value.len() as u64;
+    }
+    for value in expected_values {
+        expected.extend_from_slice(value.as_bytes());
+    }
+
+    assert_eq!(table.encode().unwrap(), expected);
+    let decoded = CompactStringTable::decode(&expected, expected_values.len() as u64).unwrap();
+    assert_eq!(decoded, table);
+}
