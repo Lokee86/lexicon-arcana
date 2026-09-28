@@ -1,7 +1,9 @@
+use std::cell::Cell;
 use std::hint::black_box;
 use std::time::Instant;
 
 use super::binary::{parse_binary_object, parse_binary_object_selected};
+use super::binary_v2_stream::{visit_nodes, visit_relations};
 use super::object::{FactRecord, NodeReference, RecordSelection, parse_json_object};
 use super::records::build_repository_facts;
 
@@ -104,6 +106,51 @@ fn v2_section_selective_decode_preserves_counts_and_required_records() {
     let full = parse_binary_object(&bytes).unwrap();
     let full = build_repository_facts(full.records).unwrap();
     assert_eq!(selective, full);
+}
+
+#[test]
+fn v2_stream_reports_counts_before_record_callbacks() {
+    let bytes = decode_hex(GOLDEN_V2_HEX);
+
+    let node_counts_seen = Cell::new(false);
+    let node_records_seen = Cell::new(0_usize);
+    visit_nodes(
+        &bytes,
+        |counts| {
+            assert_eq!(counts.nodes, 2);
+            assert_eq!(counts.edges, 1);
+            assert_eq!(counts.unresolved, 1);
+            node_counts_seen.set(true);
+            Ok(())
+        },
+        |_| {
+            assert!(node_counts_seen.get());
+            node_records_seen.set(node_records_seen.get() + 1);
+            Ok(())
+        },
+    )
+    .unwrap();
+    assert_eq!(node_records_seen.get(), 2);
+
+    let relation_counts_seen = Cell::new(false);
+    let relation_records_seen = Cell::new(0_usize);
+    visit_relations(
+        &bytes,
+        |counts| {
+            assert_eq!(counts.nodes, 2);
+            assert_eq!(counts.edges, 1);
+            assert_eq!(counts.unresolved, 1);
+            relation_counts_seen.set(true);
+            Ok(())
+        },
+        |_| {
+            assert!(relation_counts_seen.get());
+            relation_records_seen.set(relation_records_seen.get() + 1);
+            Ok(())
+        },
+    )
+    .unwrap();
+    assert_eq!(relation_records_seen.get(), 2);
 }
 
 #[test]

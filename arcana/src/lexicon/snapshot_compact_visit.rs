@@ -6,7 +6,7 @@ use super::binary::{is_binary_object, parse_binary_object_selected};
 use super::binary_v2::MAGIC;
 use super::binary_v2_stream::{RelationRef, visit_nodes, visit_relations};
 use super::format::{LanguageEntry, Manifest};
-use super::object::{FactObject, FactRecord, RecordSelection, parse_json_object};
+use super::object::{FactObject, FactRecord, RecordCounts, RecordSelection, parse_json_object};
 use super::snapshot::{OBJECT_DOMAIN, validate_object};
 use super::snapshot_support::{hex_id, validate_id, verify_content};
 use super::stream_compact::CompactPass;
@@ -64,12 +64,12 @@ fn visit_node_object(
 ) -> Result<bool, LexiconSnapshotError> {
     let bytes = read_object(storage, id)?;
     if bytes.starts_with(MAGIC) {
-        let (object, _) = visit_nodes(&bytes, |record| pass.ingest_node(record))?;
+        let object = visit_nodes(&bytes, |_| Ok(()), |record| pass.ingest_node(record))?;
         validate_object(&object, language, owner, content_id)?;
         return Ok(true);
     }
 
-    let object = parse_legacy(&bytes, RecordSelection::Nodes)?;
+    let (object, _counts) = parse_legacy(&bytes, RecordSelection::Nodes)?;
     validate_object(&object, language, owner, content_id)?;
     for record in object.records {
         if let FactRecord::Node(record) = record {
@@ -86,14 +86,19 @@ fn visit_relation_object(
 ) -> Result<(), LexiconSnapshotError> {
     let bytes = read_object(storage, id)?;
     if bytes.starts_with(MAGIC) {
-        visit_relations(&bytes, |record| match record {
-            RelationRef::Edge(record) => pass.ingest_edge(record),
-            RelationRef::Unresolved(record) => pass.ingest_unresolved(record),
-        })?;
+        visit_relations(
+            &bytes,
+            |_| Ok(()),
+            |record| match record {
+                RelationRef::Edge(record) => pass.ingest_edge(record),
+                RelationRef::Unresolved(record) => pass.ingest_unresolved(record),
+            },
+        )?;
         return Ok(());
     }
 
-    for record in parse_legacy(&bytes, RecordSelection::Relations)?.records {
+    let (object, _counts) = parse_legacy(&bytes, RecordSelection::Relations)?;
+    for record in object.records {
         match record {
             FactRecord::Edge(record) => stream_compact_legacy::ingest_edge(pass, record)?,
             FactRecord::Unresolved(record) => {
@@ -108,13 +113,14 @@ fn visit_relation_object(
 fn parse_legacy(
     bytes: &[u8],
     selection: RecordSelection,
-) -> Result<FactObject, LexiconSnapshotError> {
+) -> Result<(FactObject, RecordCounts), LexiconSnapshotError> {
     if is_binary_object(bytes) {
-        return parse_binary_object_selected(bytes, selection).map(|(object, _)| object);
+        return parse_binary_object_selected(bytes, selection);
     }
     let mut object = parse_json_object(bytes)?;
+    let counts = RecordCounts::from_records(&object.records);
     object.records.retain(|record| selection.includes(record));
-    Ok(object)
+    Ok((object, counts))
 }
 
 fn read_object(storage: &Path, id: &str) -> Result<Vec<u8>, LexiconSnapshotError> {
@@ -138,4 +144,65 @@ fn normalize_file_path(path: &str) -> Result<String, LexiconSnapshotError> {
         field: "file",
         path: path.to_owned(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_legacy;
+    use crate::lexicon::object::{RecordCounts, RecordSelection};
+
+    const LEGACY_JSON: &[u8] = br#"{
+        "version": 1,
+        "language": "go",
+        "owner": null,
+        "source_content_id": null,
+        "adapter_version": "1",
+        "schema_version": 1,
+        "analysis_config_id": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "records": [
+            {
+                "record": "node",
+                "id": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                "kind": "repository",
+                "name": "repo",
+                "owner": null,
+                "path": "repo",
+                "qualified_name": "repo",
+                "content_id": null
+            },
+            {
+                "record": "edge",
+                "owner": null,
+                "relation": "contains",
+                "source": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                "target": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            {
+                "record": "unresolved",
+                "expression": "missing",
+                "owner": null,
+                "reason": "dynamic-target",
+                "relation": "calls",
+                "source": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            }
+        ]
+    }"#;
+
+    #[test]
+    fn legacy_parse_exposes_full_counts_before_selected_records_are_consumed() {
+        let expected = RecordCounts {
+            nodes: 1,
+            edges: 1,
+            unresolved: 1,
+        };
+
+        let (nodes, node_counts) = parse_legacy(LEGACY_JSON, RecordSelection::Nodes).unwrap();
+        assert_eq!(node_counts, expected);
+        assert_eq!(nodes.records.len(), 1);
+
+        let (relations, relation_counts) =
+            parse_legacy(LEGACY_JSON, RecordSelection::Relations).unwrap();
+        assert_eq!(relation_counts, expected);
+        assert_eq!(relations.records.len(), 2);
+    }
 }

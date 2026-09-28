@@ -45,9 +45,11 @@ pub(super) enum RelationRef<'a> {
 
 pub(super) fn visit_nodes(
     bytes: &[u8],
+    before_records: impl FnOnce(RecordCounts) -> Result<(), LexiconSnapshotError>,
     mut visit: impl FnMut(NodeRef<'_>) -> Result<(), LexiconSnapshotError>,
-) -> Result<(FactObject, RecordCounts), LexiconSnapshotError> {
+) -> Result<FactObject, LexiconSnapshotError> {
     let envelope = parse_envelope(bytes, false)?;
+    before_records(envelope.counts)?;
     let mut reader = Reader::new(envelope.nodes);
     let count = reader.count("node records", 20_000_000)?;
     for _ in 0..count {
@@ -84,15 +86,16 @@ pub(super) fn visit_nodes(
         })?;
     }
     reader.finish("node section")?;
-    let counts = envelope.counts;
-    Ok((metadata(envelope), counts))
+    Ok(metadata(envelope))
 }
 
 pub(super) fn visit_relations(
     bytes: &[u8],
+    before_records: impl FnOnce(RecordCounts) -> Result<(), LexiconSnapshotError>,
     mut visit: impl FnMut(RelationRef<'_>) -> Result<(), LexiconSnapshotError>,
-) -> Result<(FactObject, RecordCounts), LexiconSnapshotError> {
+) -> Result<FactObject, LexiconSnapshotError> {
     let envelope = parse_envelope(bytes, true)?;
+    before_records(envelope.counts)?;
     let node_keys = decode_node_keys(envelope.nodes, &envelope.strings)?;
 
     let mut edges = Reader::new(envelope.edges);
@@ -144,8 +147,7 @@ pub(super) fn visit_relations(
     }
     unresolved.finish("unresolved section")?;
 
-    let counts = envelope.counts;
-    Ok((metadata(envelope), counts))
+    Ok(metadata(envelope))
 }
 
 fn metadata(envelope: Envelope<'_>) -> FactObject {
