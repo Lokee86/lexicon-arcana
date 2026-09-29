@@ -121,7 +121,7 @@ pub(crate) fn add(
     dependencies::add(request, inventory, semantic, records, &mut index)?;
     if let Some(dependency_started) = dependency_started {
         crate::perf::emit(
-            "go.dependency_construction",
+            "go.lexicon.semantic_extensions",
             dependency_started.elapsed(),
             &[("final_fact_count", records.len() as u64)],
         );

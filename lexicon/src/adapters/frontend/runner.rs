@@ -180,7 +180,7 @@ impl FrontendRunner {
             decode_elapsed,
         ) {
             replay_stderr(&stderr);
-            let ipc_stage = format!("{namespace}.helper_ipc");
+            let ipc_stage = format!("{namespace}.helper.ipc");
             crate::perf::emit(
                 &ipc_stage,
                 ipc_started.elapsed(),
@@ -189,7 +189,7 @@ impl FrontendRunner {
                     ("helper_response_bytes", response_bytes),
                 ],
             );
-            let decode_stage = format!("{namespace}.rust_response_decode");
+            let decode_stage = format!("{namespace}.frontend_response_decode");
             crate::perf::emit(
                 &decode_stage,
                 decode_elapsed,

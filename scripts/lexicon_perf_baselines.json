@@ -63,9 +63,9 @@
     "max_wall_ms": 30000,
     "max": {
       "go.repository_discovery.retained_source_bytes": 8192,
-      "go.helper_ipc.helper_response_bytes": 65536,
-      "go.fact_materialization.elapsed_ms": 250,
-      "go.canonicalization.elapsed_ms": 100,
+      "go.helper.ipc.helper_response_bytes": 65536,
+      "go.lexicon.materialization.elapsed_ms": 250,
+      "go.lexicon.canonicalization.elapsed_ms": 100,
       "go.final_serialization_storage.output_bytes": 32768
     },
     "min": {
@@ -85,10 +85,10 @@
       "max_wall_ms": 120000,
       "max": {
         "go.repository_discovery.retained_source_bytes": 65536,
-        "go.calls_dataflow.compacted_dataflow": 100000,
-        "go.helper_ipc.helper_response_bytes": 50000000,
-        "go.fact_materialization.elapsed_ms": 8000,
-        "go.canonicalization.elapsed_ms": 2500,
+        "go.frontend.semantic_analysis.compacted_dataflow": 100000,
+        "go.helper.ipc.helper_response_bytes": 50000000,
+        "go.lexicon.materialization.elapsed_ms": 8000,
+        "go.lexicon.canonicalization.elapsed_ms": 2500,
         "go.final_serialization_storage.output_bytes": 60000000
       },
       "min": {
@@ -107,16 +107,16 @@
       "max_wall_ms": 180000,
       "max": {
         "go.repository_discovery.retained_source_bytes": 65536,
-        "go.calls_dataflow.compacted_dataflow": 150000,
-        "go.packages_load.peak_live_packages": 700,
-        "go.helper_ipc.helper_response_bytes": 96000000,
-        "go.fact_materialization.elapsed_ms": 12000,
-        "go.canonicalization.elapsed_ms": 4000,
+        "go.frontend.semantic_analysis.compacted_dataflow": 150000,
+        "go.frontend.project_load.peak_live_packages": 700,
+        "go.helper.ipc.helper_response_bytes": 96000000,
+        "go.lexicon.materialization.elapsed_ms": 12000,
+        "go.lexicon.canonicalization.elapsed_ms": 4000,
         "go.final_serialization_storage.output_bytes": 100000000,
         "derived.peak_live_package_fraction": 0.6
       },
       "min": {
-        "go.packages_load.processed_modules": 2,
+        "go.frontend.project_load.processed_modules": 2,
         "derived.identity_cache_hit_rate": 0.75
       }
     },
@@ -130,16 +130,16 @@
       "max_wall_ms": 180000,
       "max": {
         "go.repository_discovery.retained_source_bytes": 65536,
-        "go.calls_dataflow.compacted_dataflow": 100000,
-        "go.packages_load.peak_live_packages": 300,
-        "go.helper_ipc.helper_response_bytes": 48000000,
-        "go.fact_materialization.elapsed_ms": 8000,
-        "go.canonicalization.elapsed_ms": 2500,
+        "go.frontend.semantic_analysis.compacted_dataflow": 100000,
+        "go.frontend.project_load.peak_live_packages": 300,
+        "go.helper.ipc.helper_response_bytes": 48000000,
+        "go.lexicon.materialization.elapsed_ms": 8000,
+        "go.lexicon.canonicalization.elapsed_ms": 2500,
         "go.final_serialization_storage.output_bytes": 60000000,
         "derived.peak_live_package_fraction": 0.35
       },
       "min": {
-        "go.packages_load.processed_modules": 2,
+        "go.frontend.project_load.processed_modules": 2,
         "derived.identity_cache_hit_rate": 0.75
       }
     }

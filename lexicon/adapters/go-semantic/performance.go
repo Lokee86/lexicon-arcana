@@ -46,23 +46,24 @@ func (profile performanceProfile) emit(responseEncoding time.Duration, responseR
 	if !performanceEnabled() {
 		return
 	}
-	emitPerformance("go.structural_parsing", profile.StructuralParsing,
+	emitPerformance("go.frontend.parse", profile.StructuralParsing,
 		performanceCounter{"parsed_files", profile.ParsedFiles})
-	emitPerformance("go.packages_load", profile.PackageLoad,
+	emitPerformance("go.frontend.project_load", profile.PackageLoad,
 		performanceCounter{"loaded_packages", profile.LoadedPackages},
 		performanceCounter{"peak_live_packages", profile.PeakLivePackages},
 		performanceCounter{"processed_modules", profile.ProcessedModules})
-	emitPerformance("go.semantic_index", profile.SemanticIndex,
+	semanticAnalysis := profile.SemanticIndex +
+		profile.Relationships +
+		profile.CallsDataflow +
+		profile.SSAVTA
+	emitPerformance("go.frontend.semantic_analysis", semanticAnalysis,
 		performanceCounter{"typed_targets", profile.TypedTargets},
-		performanceCounter{"typed_types", profile.TypedTypes})
-	emitPerformance("go.relationships", profile.Relationships)
-	emitPerformance("go.calls_dataflow", profile.CallsDataflow,
+		performanceCounter{"typed_types", profile.TypedTypes},
 		performanceCounter{"raw_call_observations", profile.RawCalls},
 		performanceCounter{"compacted_calls", profile.CompactedCalls},
 		performanceCounter{"raw_dataflow_records", profile.RawDataflow},
 		performanceCounter{"compacted_dataflow", profile.CompactedDataflow})
-	emitPerformance("go.ssa_vta", profile.SSAVTA)
-	emitPerformance("go.helper_response_encoding", responseEncoding,
+	emitPerformance("go.frontend.observation_emit", responseEncoding,
 		performanceCounter{"response_records", responseRecords})
 }
 

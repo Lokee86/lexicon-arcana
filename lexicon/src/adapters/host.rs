@@ -84,7 +84,7 @@ impl AdapterHost {
             .map_err(|error| AdapterError::new(error.to_string()))?;
         if let Some(canonical_started) = canonical_started {
             crate::perf::emit(
-                &format!("{}.canonicalization", request.language),
+                &format!("{}.lexicon.canonicalization", request.language),
                 canonical_started.elapsed(),
                 &[("fact_count", analysis.records.len() as u64)],
             );

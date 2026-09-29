@@ -73,7 +73,7 @@ pub(crate) fn structural_analysis(
             .filter(|record| matches!(record, FactRecord::Edge(_)))
             .count() as u64;
         crate::perf::emit(
-            "go.fact_materialization",
+            "go.lexicon.materialization",
             materialization_started.elapsed(),
             &[
                 ("materialized_nodes", materialized_nodes),
@@ -100,17 +100,9 @@ pub(crate) fn structural_analysis(
         },
         records,
     );
-    let canonicalization_started = crate::perf::start();
     analysis
         .canonicalize()
         .map_err(|error| crate::AdapterError::new(error.to_string()))?;
-    if let Some(canonicalization_started) = canonicalization_started {
-        crate::perf::emit(
-            "go.canonicalization",
-            canonicalization_started.elapsed(),
-            &[("final_fact_count", analysis.records.len() as u64)],
-        );
-    }
     Ok(analysis)
 }
 

@@ -20,6 +20,17 @@ ROOT = Path(__file__).resolve().parents[1]
 LEXICON = ROOT / "lexicon"
 CONFIG = json.loads((ROOT / "scripts/lexicon_perf_baselines.json").read_text())
 PERF = re.compile(r"^\[lexicon-perf\] stage=([^ ]+) elapsed_ms=([0-9.]+)(.*)$")
+REQUIRED_GO_STAGES = {
+    "go.frontend.project_load",
+    "go.frontend.parse",
+    "go.frontend.semantic_analysis",
+    "go.frontend.observation_emit",
+    "go.helper.ipc",
+    "go.frontend_response_decode",
+    "go.lexicon.materialization",
+    "go.lexicon.semantic_extensions",
+    "go.lexicon.canonicalization",
+}
 
 
 def run(command: list[str], cwd: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
@@ -64,11 +75,11 @@ def flatten(stages: dict[str, dict[str, float | int]]) -> dict[str, float]:
         for stage, values in stages.items()
         for key, value in values.items()
     }
-    material = stages.get("go.fact_materialization", {})
+    material = stages.get("go.lexicon.materialization", {})
     hits = float(material.get("identity_cache_hits", 0))
     misses = float(material.get("identity_cache_misses", 0))
     result["derived.identity_cache_hit_rate"] = hits / max(hits + misses, 1)
-    packages = stages.get("go.packages_load", {})
+    packages = stages.get("go.frontend.project_load", {})
     loaded = float(packages.get("loaded_packages", 0))
     peak = float(packages.get("peak_live_packages", 0))
     result["derived.peak_live_package_fraction"] = peak / max(loaded, 1)
@@ -77,6 +88,11 @@ def flatten(stages: dict[str, dict[str, float | int]]) -> dict[str, float]:
 
 def check_limits(name: str, spec: dict, result: dict) -> list[str]:
     failures: list[str] = []
+    missing_stages = sorted(REQUIRED_GO_STAGES.difference(result["stages"]))
+    if missing_stages:
+        failures.append(
+            f"{name}: missing canonical Go performance stages: {', '.join(missing_stages)}"
+        )
     if expected := spec.get("sha256"):
         if result["sha256"] != expected:
             failures.append(f"{name}: SHA-256 changed: {result['sha256']}")
