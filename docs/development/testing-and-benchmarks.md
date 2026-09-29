@@ -112,6 +112,16 @@ The thresholds in `scripts/lexicon_perf_baselines.json` intentionally prefer det
 
 See [Lexicon-wide Performance Restoration](lexicon-wide-performance-restoration.md) for the Rust-wide restoration measurements and Phase 8 regression coverage. The older [Go-path Performance Restoration](lexicon-performance-restoration.md) remains historical evidence for the Go-specific gates.
 
+### C-family authoritative-frontend baseline
+
+Phase 2 of the authoritative-frontend re-port has a separate pre-Clang semantic/performance freeze. With the pinned calibration checkouts under a corpus root, run:
+
+```bash
+python scripts/c_family_phase2_baseline.py --corpus-root /path/to/corpus --output lexicon/evaluation/performance/c-family-phase2-baseline.json
+```
+
+The runner analyzes Git, the Codebase Memory C backend, LevelDB, fmt, Catch2 `src/`, and nlohmann/json `include/nlohmann/` twice, requires deterministic canonical hashes, and records fact/cardinality, call-site, macro, wall-time, and process-tree RSS evidence. The frozen 2026-09-28 result and exact fixture oracle are described in [C-family Phase 2 oracle freeze](c-family-phase2-oracle-freeze-2026-09-28.md).
+
 ## Repository-agent benchmark
 
 The active runner is:

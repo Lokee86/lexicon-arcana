@@ -1,0 +1,367 @@
+{
+  "adapter_version": "0.5.0",
+  "cases": {
+    "catch2": {
+      "cold": {
+        "completed": true,
+        "peak_process_tree_rss_bytes": 92209152,
+        "wall_ms": 3637.5666999956593
+      },
+      "facts": {
+        "call_sites": {
+          "definite_only": 2191,
+          "possible_only": 858,
+          "possible_target_fanout_p90": 6,
+          "total": 4391,
+          "unresolved_only": 1342
+        },
+        "edges": 26325,
+        "fact_count": 38858,
+        "jsonl_bytes": 16443320,
+        "macro": {
+          "expansion_reference_edges": 359,
+          "max_expansion_depth": 2,
+          "mediated_call_edges": 0
+        },
+        "nodes": 9848,
+        "relations": {
+          "calls": 2191,
+          "contains": 289,
+          "defines": 9809,
+          "extends": 87,
+          "includes": 974,
+          "passes-to": 517,
+          "possible-calls": 3340,
+          "reads": 7399,
+          "references": 359,
+          "unresolved:calls": 2200,
+          "unresolved:extends": 66,
+          "unresolved:imports": 376,
+          "unresolved:references": 43,
+          "writes": 1360
+        },
+        "sha256": "9bd8fe596706c1ea090b06ee0e3c1b66b58b413b029f9f581aee81c68b31dc65",
+        "source_bytes": 1116005,
+        "source_files": 289,
+        "unresolved": 2685,
+        "unresolved_reasons": {
+          "ambiguous-target": 900,
+          "dynamic-target": 7,
+          "external-target": 1382,
+          "missing-target": 24,
+          "unsupported-form": 43,
+          "unsupported-macro-expansion": 329
+        }
+      },
+      "repository": "C:\\!bin\\workspace\\corpus\\catch2\\src",
+      "repository_revision": "191fa38c9b1596cd2576ab531d4ab4d5e8e05190",
+      "warm": {
+        "completed": true,
+        "peak_process_tree_rss_bytes": 93310976,
+        "wall_ms": 1144.006399961654
+      }
+    },
+    "codebase-memory": {
+      "cold": {
+        "completed": true,
+        "peak_process_tree_rss_bytes": 1406361600,
+        "wall_ms": 21047.077300027013
+      },
+      "facts": {
+        "call_sites": {
+          "definite_only": 39637,
+          "definite_plus_possible": 1998,
+          "possible_only": 1338,
+          "possible_target_fanout_p90": 4,
+          "total": 82353,
+          "unresolved_only": 39380
+        },
+        "edges": 482396,
+        "fact_count": 608129,
+        "jsonl_bytes": 243587182,
+        "macro": {
+          "expansion_reference_edges": 6508,
+          "max_expansion_depth": 1,
+          "mediated_call_edges": 10625
+        },
+        "nodes": 80307,
+        "relations": {
+          "calls": 43724,
+          "contains": 623,
+          "defines": 80589,
+          "includes": 1874,
+          "passes-to": 58220,
+          "possible-calls": 8081,
+          "reads": 241947,
+          "references": 6508,
+          "unresolved:calls": 43286,
+          "unresolved:imports": 2071,
+          "unresolved:references": 69,
+          "writes": 40830
+        },
+        "sha256": "1d6fecf663c01438d7722d9df4c85fcad9afef7f5f068063b3aa77013ca3c3b7",
+        "source_bytes": 21104857,
+        "source_files": 623,
+        "unresolved": 45426,
+        "unresolved_reasons": {
+          "ambiguous-target": 1234,
+          "dynamic-target": 122,
+          "external-target": 43082,
+          "missing-target": 311,
+          "unsupported-form": 69,
+          "unsupported-macro-expansion": 608
+        }
+      },
+      "repository": "C:\\!bin\\workspace\\corpus\\codebase-memory-mcp",
+      "repository_revision": "97ce23f9827177fff3858831156e9795c6832b18",
+      "warm": {
+        "completed": true,
+        "peak_process_tree_rss_bytes": 1393152000,
+        "wall_ms": 26142.824699985795
+      }
+    },
+    "fmt": {
+      "cold": {
+        "completed": true,
+        "peak_process_tree_rss_bytes": 256929792,
+        "wall_ms": 5178.314599965233
+      },
+      "facts": {
+        "call_sites": {
+          "definite_only": 6958,
+          "definite_plus_possible": 127,
+          "possible_only": 4127,
+          "possible_target_fanout_p90": 13,
+          "total": 16948,
+          "unresolved_only": 5736
+        },
+        "edges": 79319,
+        "fact_count": 107092,
+        "jsonl_bytes": 45008535,
+        "macro": {
+          "expansion_reference_edges": 8754,
+          "max_expansion_depth": 5,
+          "mediated_call_edges": 1105
+        },
+        "nodes": 17024,
+        "relations": {
+          "calls": 7115,
+          "contains": 70,
+          "defines": 18292,
+          "extends": 218,
+          "includes": 165,
+          "passes-to": 2862,
+          "possible-calls": 19782,
+          "reads": 17887,
+          "references": 8754,
+          "unresolved:calls": 10023,
+          "unresolved:extends": 127,
+          "unresolved:imports": 565,
+          "unresolved:references": 34,
+          "writes": 4174
+        },
+        "sha256": "b85b8d3889fa8a2ca14e8545bdededc4bd67bc0ab3df04bea86a171eb955c3b1",
+        "source_bytes": 2496513,
+        "source_files": 70,
+        "unresolved": 10749,
+        "unresolved_reasons": {
+          "ambiguous-target": 3936,
+          "external-target": 3506,
+          "macro-argument-mismatch": 5,
+          "missing-target": 129,
+          "unsupported-form": 34,
+          "unsupported-macro-expansion": 3139
+        }
+      },
+      "repository": "C:\\!bin\\workspace\\corpus\\fmt",
+      "repository_revision": "407c905e45ad75fc29bf0f9bb7c5c2fd3475976f",
+      "warm": {
+        "completed": true,
+        "peak_process_tree_rss_bytes": 257392640,
+        "wall_ms": 3796.6739000403322
+      }
+    },
+    "git": {
+      "cold": {
+        "completed": true,
+        "peak_process_tree_rss_bytes": 1590026240,
+        "wall_ms": 20390.798099979293
+      },
+      "facts": {
+        "call_sites": {
+          "definite_only": 64456,
+          "definite_plus_possible": 3,
+          "possible_only": 1858,
+          "possible_target_fanout_p90": 3,
+          "total": 88512,
+          "unresolved_only": 22195
+        },
+        "edges": 576725,
+        "fact_count": 714152,
+        "jsonl_bytes": 262682380,
+        "macro": {
+          "expansion_reference_edges": 24923,
+          "max_expansion_depth": 3,
+          "mediated_call_edges": 6549
+        },
+        "nodes": 113286,
+        "relations": {
+          "calls": 65238,
+          "contains": 982,
+          "defines": 112480,
+          "includes": 6657,
+          "passes-to": 44616,
+          "possible-calls": 2720,
+          "reads": 262431,
+          "references": 24923,
+          "unresolved:calls": 23433,
+          "unresolved:imports": 310,
+          "unresolved:references": 398,
+          "writes": 56678
+        },
+        "sha256": "f13eed82337ffd9e97c2030666882d8012752d3aeb03dc4066792543ba282d7f",
+        "source_bytes": 12071660,
+        "source_files": 982,
+        "unresolved": 24141,
+        "unresolved_reasons": {
+          "ambiguous-target": 125,
+          "dynamic-target": 541,
+          "external-target": 18247,
+          "macro-argument-mismatch": 167,
+          "macro-expansion-cycle": 315,
+          "missing-target": 22,
+          "unsupported-form": 398,
+          "unsupported-macro-expansion": 4326
+        }
+      },
+      "repository": "C:\\!bin\\workspace\\corpus\\git",
+      "repository_revision": "9a0c4701dcd5725c4184599322b52933ff5005ca",
+      "warm": {
+        "completed": true,
+        "peak_process_tree_rss_bytes": 1552666624,
+        "wall_ms": 22124.845699989237
+      }
+    },
+    "leveldb": {
+      "cold": {
+        "completed": true,
+        "peak_process_tree_rss_bytes": 131706880,
+        "wall_ms": 2760.562299983576
+      },
+      "facts": {
+        "call_sites": {
+          "definite_only": 4855,
+          "possible_only": 1520,
+          "possible_target_fanout_p90": 10,
+          "total": 9542,
+          "unresolved_only": 3167
+        },
+        "edges": 40025,
+        "fact_count": 54624,
+        "jsonl_bytes": 20493095,
+        "macro": {
+          "expansion_reference_edges": 359,
+          "max_expansion_depth": 0,
+          "mediated_call_edges": 0
+        },
+        "nodes": 9201,
+        "relations": {
+          "calls": 4855,
+          "contains": 132,
+          "defines": 9080,
+          "extends": 13,
+          "includes": 489,
+          "passes-to": 1784,
+          "possible-calls": 6834,
+          "reads": 13255,
+          "references": 359,
+          "unresolved:calls": 5022,
+          "unresolved:extends": 70,
+          "unresolved:imports": 274,
+          "unresolved:references": 32,
+          "writes": 3224
+        },
+        "sha256": "f40ab82569bea55b2fb4727ba64275dc36b97d6e62415f65f8f514e0f0cd6c4b",
+        "source_bytes": 891631,
+        "source_files": 132,
+        "unresolved": 5398,
+        "unresolved_reasons": {
+          "ambiguous-target": 1562,
+          "dynamic-target": 2,
+          "external-target": 3719,
+          "missing-target": 64,
+          "unsupported-form": 32,
+          "unsupported-macro-expansion": 19
+        }
+      },
+      "repository": "C:\\!bin\\workspace\\corpus\\leveldb",
+      "repository_revision": "99b3c03b3284f5886f9ef9a4ef703d57373e61be",
+      "warm": {
+        "completed": true,
+        "peak_process_tree_rss_bytes": 126414848,
+        "wall_ms": 1699.0075000212528
+      }
+    },
+    "nlohmann-json": {
+      "cold": {
+        "completed": true,
+        "peak_process_tree_rss_bytes": 63180800,
+        "wall_ms": 1169.6736000012606
+      },
+      "facts": {
+        "call_sites": {
+          "definite_only": 1876,
+          "possible_only": 1027,
+          "possible_target_fanout_p90": 7,
+          "total": 4076,
+          "unresolved_only": 1173
+        },
+        "edges": 17234,
+        "fact_count": 23189,
+        "jsonl_bytes": 9127905,
+        "macro": {
+          "expansion_reference_edges": 487,
+          "max_expansion_depth": 0,
+          "mediated_call_edges": 0
+        },
+        "nodes": 3485,
+        "relations": {
+          "calls": 1876,
+          "contains": 46,
+          "defines": 4090,
+          "extends": 35,
+          "includes": 158,
+          "passes-to": 504,
+          "possible-calls": 3556,
+          "reads": 5641,
+          "references": 487,
+          "unresolved:calls": 2200,
+          "unresolved:extends": 29,
+          "unresolved:imports": 197,
+          "unresolved:references": 44,
+          "writes": 841
+        },
+        "sha256": "57eef3523889711f5f19ccbc59374db82c2e3e7850e7fcc5045b48e2932142c9",
+        "source_bytes": 953214,
+        "source_files": 46,
+        "unresolved": 2470,
+        "unresolved_reasons": {
+          "ambiguous-target": 1027,
+          "external-target": 1365,
+          "macro-argument-mismatch": 5,
+          "missing-target": 29,
+          "unsupported-form": 44
+        }
+      },
+      "repository": "C:\\!bin\\workspace\\corpus\\nlohmann-json\\include\\nlohmann",
+      "repository_revision": "55f93686c01528224f448c19128836e7df245f72",
+      "warm": {
+        "completed": true,
+        "peak_process_tree_rss_bytes": 61616128,
+        "wall_ms": 612.928299990017
+      }
+    }
+  },
+  "lexicon_revision": "7dcbcfea122c1c92f00b96e4253792341b10fe4a",
+  "schema": "lexicon.c-family.phase2-baseline.v1"
+}

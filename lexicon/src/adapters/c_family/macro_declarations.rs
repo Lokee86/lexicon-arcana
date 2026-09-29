@@ -68,12 +68,34 @@ pub fn is_include_guard(node: Node<'_>, source: &[u8]) -> bool {
     let Some(name) = captures.get(1) else {
         return false;
     };
-    let sample = &text[..text.len().min(2048)];
+    let sample = bounded_prefix(text, 2048);
     let pattern = format!(r"(?m)^\s*#\s*define\s+{}\b", regex::escape(name.as_str()));
     Regex::new(&pattern).is_ok_and(|value| value.is_match(sample))
+}
+
+fn bounded_prefix(value: &str, max_bytes: usize) -> &str {
+    let mut end = value.len().min(max_bytes);
+    while !value.is_char_boundary(end) {
+        end -= 1;
+    }
+    &value[..end]
 }
 
 fn include_guard_name() -> &'static Regex {
     static VALUE: OnceLock<Regex> = OnceLock::new();
     VALUE.get_or_init(|| Regex::new(r"^\s*#\s*ifndef\s+([A-Za-z_][A-Za-z0-9_]*)\b").unwrap())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::bounded_prefix;
+
+    #[test]
+    fn bounded_prefix_never_splits_utf8() {
+        let value = format!("{}─tail", "a".repeat(2046));
+        let sample = bounded_prefix(&value, 2048);
+
+        assert_eq!(sample.len(), 2046);
+        assert_eq!(sample, "a".repeat(2046));
+    }
 }

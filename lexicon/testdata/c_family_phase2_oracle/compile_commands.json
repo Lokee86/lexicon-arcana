@@ -1,0 +1,7 @@
+[
+  {
+    "directory": ".",
+    "file": "forced.c",
+    "command": "clang++ -x c++ -c forced.c"
+  }
+]
