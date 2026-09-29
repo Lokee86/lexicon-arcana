@@ -58,7 +58,7 @@ fn add_file_records(
 
     let mut attributes = Map::new();
     attributes.insert("language".into(), Value::String(file.language.clone()));
-    attributes.insert("parser".into(), Value::String("tree-sitter".into()));
+    attributes.insert("parser".into(), Value::String(file.parser.clone()));
     attributes.insert(
         "parser_language".into(),
         Value::String(file.parser_language.clone()),
@@ -103,7 +103,7 @@ fn add_file_records(
 
     if file.parse_error {
         records.push(FactRecord::Unresolved(UnresolvedRecord {
-            attributes: Some(json!({ "parser": "tree-sitter" })),
+            attributes: Some(json!({ "parser": file.parser })),
             candidate_name: None,
             candidate_namespace: None,
             expression: file.path.clone(),

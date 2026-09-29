@@ -6,7 +6,9 @@ use std::{
 
 use crate::{AdapterError, adapters::frontend::FrontendRunner};
 
-use super::clang_protocol::{self, CapabilitiesRequest, CapabilitiesResponse};
+use super::clang_protocol::{
+    self, CapabilitiesRequest, CapabilitiesResponse, StructuralRequest, StructuralResponse,
+};
 
 #[cfg(test)]
 mod tests;
@@ -63,13 +65,38 @@ impl ClangFrontend {
             clang_protocol::PROTOCOL_VERSION,
             &CapabilitiesRequest::new(repository_root),
         )?;
-        if response.helper_version != clang_protocol::HELPER_VERSION {
-            return Err(AdapterError::new(format!(
-                "C-family Clang helper version mismatch: got {:?}, expected {:?}",
-                response.helper_version,
-                clang_protocol::HELPER_VERSION
-            )));
+        verify_helper_version(&response.helper_version)?;
+        Ok(response)
+    }
+
+    pub(crate) fn structural(
+        &self,
+        repository: &Path,
+        files: Vec<String>,
+    ) -> Result<StructuralResponse, AdapterError> {
+        let repository = repository.canonicalize().map_err(|error| {
+            AdapterError::new(format!(
+                "cannot resolve C-family repository {}: {error}",
+                repository.display()
+            ))
+        })?;
+        if !repository.is_dir() {
+            return Err(AdapterError::new(
+                "C-family repository path is not a directory",
+            ));
         }
+        let repository_root = repository
+            .to_str()
+            .map(str::to_owned)
+            .ok_or_else(|| AdapterError::new("repository path is not valid UTF-8"))?;
+        let response: StructuralResponse = self.runner.run_json(
+            &repository,
+            &helper_arguments(),
+            &helper_environment(),
+            clang_protocol::PROTOCOL_VERSION,
+            &StructuralRequest::new(repository_root, files),
+        )?;
+        verify_helper_version(&response.helper_version)?;
         Ok(response)
     }
 
@@ -77,6 +104,16 @@ impl ClangFrontend {
     fn with_runner(runner: FrontendRunner) -> Self {
         Self { runner }
     }
+}
+
+fn verify_helper_version(actual: &str) -> Result<(), AdapterError> {
+    if actual == clang_protocol::HELPER_VERSION {
+        return Ok(());
+    }
+    Err(AdapterError::new(format!(
+        "C-family Clang helper version mismatch: got {actual:?}, expected {:?}",
+        clang_protocol::HELPER_VERSION
+    )))
 }
 
 fn helper_arguments() -> Vec<OsString> {

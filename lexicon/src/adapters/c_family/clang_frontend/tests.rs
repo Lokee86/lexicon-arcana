@@ -27,6 +27,25 @@ fn capabilities_uses_versioned_private_frontend_contract() {
 }
 
 #[test]
+fn structural_uses_versioned_private_frontend_contract() {
+    let root = TestDirectory::new("structural");
+    fs::write(root.path.join("main.c"), b"int main(void) { return 0; }\n").unwrap();
+    let response = format!(
+        r#"{{"protocol_version":1,"helper_version":"{}","clang_version":"clang test","compilation_database":false,"translation_units":[{{"path":"main.c","language":"c","directory":".","arguments":["clang","-xc","main.c"],"synthesized":true}}],"files":[{{"path":"main.c","languages":["c"],"translation_units":["main.c"]}}],"diagnostics":[]}}"#,
+        clang_protocol::HELPER_VERSION
+    );
+    let frontend = ClangFrontend::with_runner(scripted_frontend(&root.path, &response));
+    let structural = frontend
+        .structural(&root.path, vec!["main.c".into()])
+        .unwrap();
+
+    assert_eq!(structural.files.len(), 1);
+    assert_eq!(structural.files[0].path, "main.c");
+    assert_eq!(structural.translation_units[0].language, "c");
+    assert!(structural.translation_units[0].synthesized);
+}
+
+#[test]
 fn capabilities_rejects_helper_version_mismatch() {
     let root = TestDirectory::new("version-mismatch");
     let response = r#"{"protocol_version":1,"helper_version":"stale","clang_version":"clang test","capabilities":[],"compilation_database":false}"#;

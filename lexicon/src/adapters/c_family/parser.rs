@@ -44,6 +44,7 @@ pub fn parse_repository(root: &Path) -> Result<RepositoryModel, AdapterError> {
         let mut file = SourceFile {
             path,
             language,
+            parser: "tree-sitter".into(),
             parser_language,
             parse_error: tree.root_node().has_error(),
             content,

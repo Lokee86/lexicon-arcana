@@ -33,6 +33,12 @@ impl<'a> FileIndex<'a> {
     }
 
     pub fn local_target(&self, observation: &IncludeObservation) -> Option<&'a SourceFile> {
+        if !observation.resolved_path.is_empty()
+            && let Some(file) = self.by_path.get(observation.resolved_path.as_str())
+        {
+            return Some(*file);
+        }
+
         let target = lexical_path(&observation.target);
         if let Some(file) = self.by_path.get(target.as_str()) {
             return Some(*file);
@@ -68,6 +74,7 @@ pub fn extract(file: &mut SourceFile, node: Node<'_>, source: &[u8]) {
         module_id: node_id("c-family", "module", &file.path),
         path: file.path.clone(),
         target,
+        resolved_path: String::new(),
         expression,
         system: path_node.kind() == "system_lib_string",
         span: span(&file.path, node),

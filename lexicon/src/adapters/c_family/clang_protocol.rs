@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::adapters::frontend::ProtocolResponse;
+use crate::{SourceSpan, adapters::frontend::ProtocolResponse};
 
 pub(crate) const PROTOCOL_VERSION: u32 = 1;
 pub(crate) const HELPER_VERSION: &str = include_str!("../../../adapters/c-family-clang/VERSION");
@@ -23,6 +23,26 @@ impl CapabilitiesRequest {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct StructuralRequest {
+    pub protocol_version: u32,
+    pub operation: &'static str,
+    pub repository_root: String,
+    pub files: Vec<String>,
+}
+
+impl StructuralRequest {
+    pub(crate) fn new(repository_root: String, files: Vec<String>) -> Self {
+        Self {
+            protocol_version: PROTOCOL_VERSION,
+            operation: "structural",
+            repository_root,
+            files,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct CapabilitiesResponse {
@@ -39,4 +59,124 @@ impl ProtocolResponse for CapabilitiesResponse {
     fn protocol_version(&self) -> u32 {
         self.protocol_version
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct StructuralResponse {
+    pub protocol_version: u32,
+    pub helper_version: String,
+    pub clang_version: String,
+    pub compilation_database: bool,
+    #[serde(default)]
+    pub translation_units: Vec<TranslationUnitObservation>,
+    #[serde(default)]
+    pub files: Vec<FileObservation>,
+    #[serde(default)]
+    pub diagnostics: Vec<DiagnosticObservation>,
+}
+
+impl ProtocolResponse for StructuralResponse {
+    fn protocol_version(&self) -> u32 {
+        self.protocol_version
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct TranslationUnitObservation {
+    pub path: String,
+    pub language: String,
+    pub directory: String,
+    pub arguments: Vec<String>,
+    pub synthesized: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct FileObservation {
+    pub path: String,
+    #[serde(default)]
+    pub languages: Vec<String>,
+    #[serde(default)]
+    pub translation_units: Vec<String>,
+    #[serde(default)]
+    pub declarations: Vec<DeclarationObservation>,
+    #[serde(default)]
+    pub includes: Vec<IncludeObservation>,
+    #[serde(default)]
+    pub macros: Vec<MacroObservation>,
+    #[serde(default)]
+    pub diagnostics: Vec<DiagnosticObservation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct DeclarationObservation {
+    pub compiler_id: String,
+    pub kind: String,
+    pub name: String,
+    pub qualified_name: String,
+    #[serde(default)]
+    pub signature: String,
+    #[serde(default)]
+    pub type_name: String,
+    #[serde(default)]
+    pub tag: String,
+    #[serde(default)]
+    pub container_compiler_id: String,
+    #[serde(default)]
+    pub parent_type_compiler_id: String,
+    pub span: SourceSpan,
+    pub callable: bool,
+    pub definition: bool,
+    pub internal: bool,
+    pub template: bool,
+    pub virtual_member: bool,
+    pub function_pointer: bool,
+    pub alias: bool,
+    pub enum_member: bool,
+    #[serde(default)]
+    pub alias_target: String,
+    #[serde(default)]
+    pub parameter_index: Option<usize>,
+    #[serde(default)]
+    pub parameter_count: Option<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct IncludeObservation {
+    pub target: String,
+    #[serde(default)]
+    pub resolved_path: String,
+    pub expression: String,
+    pub system: bool,
+    pub offset: u64,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct MacroObservation {
+    pub compiler_id: String,
+    pub name: String,
+    pub replacement: String,
+    pub function_like: bool,
+    pub conditional: bool,
+    #[serde(default)]
+    pub parameters: Vec<String>,
+    pub offset: u64,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct DiagnosticObservation {
+    pub severity: String,
+    pub message: String,
+    #[serde(default)]
+    pub path: String,
+    #[serde(default)]
+    pub span: Option<SourceSpan>,
 }

@@ -10,6 +10,8 @@
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include "structural.h"
+
 namespace {
 
 constexpr int kProtocolVersion = 1;
@@ -118,5 +120,22 @@ int main(int argc, char **argv) {
   if (!object) {
     return fail("C-family Clang request must be an object");
   }
-  return emit_capabilities(*object);
+  auto operation = object->getString("operation");
+  if (!operation) {
+    return fail("C-family Clang operation is required");
+  }
+  if (*operation == "capabilities") {
+    return emit_capabilities(*object);
+  }
+  if (*operation == "structural") {
+    llvm::json::Object response;
+    std::string error;
+    if (!emit_structural(*object, response, error)) {
+      return fail(error);
+    }
+    llvm::outs() << llvm::formatv("{0}\n",
+                                  llvm::json::Value(std::move(response)));
+    return 0;
+  }
+  return fail("unsupported C-family Clang operation");
 }

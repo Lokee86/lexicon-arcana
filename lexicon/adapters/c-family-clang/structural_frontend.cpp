@@ -1,0 +1,86 @@
+#include "structural_frontend.h"
+
+#include <string>
+#include <utility>
+
+#include "clang/AST/ASTConsumer.h"
+#include "clang/AST/RecursiveASTVisitor.h"
+#include "clang/Frontend/CompilerInstance.h"
+
+#include "structural_declaration_support.h"
+#include "structural_source.h"
+
+namespace lexicon::clang_frontend {
+namespace {
+
+class DeclarationVisitor
+    : public clang::RecursiveASTVisitor<DeclarationVisitor> {
+public:
+  DeclarationVisitor(State &state, clang::ASTContext &context,
+                     std::string root, std::string translation_unit,
+                     std::string language)
+      : state_(state), context_(context), sources_(context.getSourceManager()),
+        root_(std::move(root)), translation_unit_(std::move(translation_unit)),
+        language_(std::move(language)) {}
+
+  bool VisitDecl(clang::Decl *declaration) {
+    if (!declaration || declaration->isImplicit() ||
+        declaration->getLocation().isInvalid()) {
+      return true;
+    }
+    auto path = source_path(sources_, declaration->getLocation(), root_);
+    if (!path) {
+      return true;
+    }
+    auto *named = llvm::dyn_cast<clang::NamedDecl>(declaration);
+    if (!named) {
+      return true;
+    }
+    if (llvm::isa<clang::ParmVarDecl>(named) && named->getName().empty()) {
+      return true;
+    }
+
+    auto observation = classify_declaration(*named, *path, context_);
+    if (observation) {
+      state_.file(*path, language_, translation_unit_)
+          .declarations.push_back(std::move(*observation));
+    }
+    return true;
+  }
+
+private:
+  State &state_;
+  clang::ASTContext &context_;
+  clang::SourceManager &sources_;
+  std::string root_;
+  std::string translation_unit_;
+  std::string language_;
+};
+
+class VisitorConsumer final : public clang::ASTConsumer {
+public:
+  VisitorConsumer(State &state, clang::ASTContext &context, std::string root,
+                  std::string translation_unit, std::string language)
+      : visitor_(state, context, std::move(root),
+                 std::move(translation_unit), std::move(language)) {}
+
+  void HandleTranslationUnit(clang::ASTContext &context) override {
+    visitor_.TraverseDecl(context.getTranslationUnitDecl());
+  }
+
+private:
+  DeclarationVisitor visitor_;
+};
+
+} // namespace
+
+std::unique_ptr<clang::ASTConsumer>
+make_ast_consumer(State &state, clang::CompilerInstance &compiler,
+                  std::string repository_root, std::string translation_unit,
+                  std::string language) {
+  return std::make_unique<VisitorConsumer>(
+      state, compiler.getASTContext(), std::move(repository_root),
+      std::move(translation_unit), std::move(language));
+}
+
+} // namespace lexicon::clang_frontend

@@ -13,6 +13,7 @@ pub struct RepositoryModel {
 pub struct SourceFile {
     pub path: String,
     pub language: String,
+    pub parser: String,
     pub parser_language: String,
     pub content: Vec<u8>,
     pub parse_error: bool,
@@ -80,6 +81,7 @@ pub struct IncludeObservation {
     pub module_id: String,
     pub path: String,
     pub target: String,
+    pub resolved_path: String,
     pub expression: String,
     pub system: bool,
     pub span: SourceSpan,

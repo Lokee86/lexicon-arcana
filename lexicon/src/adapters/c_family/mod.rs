@@ -13,6 +13,8 @@ mod callables;
 #[allow(dead_code)]
 mod clang_frontend;
 #[allow(dead_code)]
+mod clang_materialization;
+#[allow(dead_code)]
 mod clang_protocol;
 mod dataflow;
 mod dataflow_extract;
