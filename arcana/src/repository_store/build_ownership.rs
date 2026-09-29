@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::repository::{NodeKey, NodeKind};
@@ -12,34 +11,93 @@ pub(super) fn build_ownership(
     build: &CompactRepositoryBuild,
 ) -> Result<(Vec<CompactOwnershipRecord>, Vec<Contribution>), RepositoryStoreWriteError> {
     let owner_by_node = build_node_owners(build)?;
-    let mut ownership = BTreeMap::<StringId, Vec<Contribution>>::new();
+    let mut slots = vec![0_u64; build.strings.len()];
 
+    count_contributions(build, &owner_by_node, &mut slots)?;
+    let (records, total) = prefix_ownership(&mut slots)?;
+    let mut contributions = vec![
+        Contribution {
+            kind: ContributionKind::Node,
+            record_index: 0,
+        };
+        total
+    ];
+    fill_contributions(build, &owner_by_node, &mut slots, &mut contributions)?;
+
+    Ok((records, contributions))
+}
+
+fn count_contributions(
+    build: &CompactRepositoryBuild,
+    owner_by_node: &[StringId],
+    counts: &mut [u64],
+) -> Result<(), RepositoryStoreWriteError> {
+    for owner in owner_by_node.iter().copied().filter_map(StringId::present) {
+        increment(counts, owner)?;
+    }
+    for edge in &build.edges {
+        if let Some(owner) = edge_owner(build, owner_by_node, edge) {
+            increment(counts, owner)?;
+        }
+    }
+    for reference in &build.unresolved {
+        if let Some(owner) = unresolved_owner(build, owner_by_node, reference) {
+            increment(counts, owner)?;
+        }
+    }
+    Ok(())
+}
+
+fn prefix_ownership(
+    slots: &mut [u64],
+) -> Result<(Vec<CompactOwnershipRecord>, usize), RepositoryStoreWriteError> {
+    let owner_count = slots.iter().filter(|count| **count != 0).count();
+    let mut records = Vec::with_capacity(owner_count);
+    let mut total = 0_u64;
+
+    for (path, count) in slots.iter_mut().enumerate() {
+        let contribution_count = *count;
+        if contribution_count == 0 {
+            continue;
+        }
+        records.push(CompactOwnershipRecord {
+            path: StringId(path as u32),
+            contribution_start: total,
+            contribution_count,
+        });
+        *count = total;
+        total = total
+            .checked_add(contribution_count)
+            .ok_or(RepositoryStoreWriteError::TooManyContributions)?;
+    }
+
+    let total =
+        usize::try_from(total).map_err(|_| RepositoryStoreWriteError::TooManyContributions)?;
+    Ok((records, total))
+}
+
+fn fill_contributions(
+    build: &CompactRepositoryBuild,
+    owner_by_node: &[StringId],
+    cursors: &mut [u64],
+    output: &mut [Contribution],
+) -> Result<(), RepositoryStoreWriteError> {
     for (index, owner) in owner_by_node.iter().copied().enumerate() {
-        if let Some(path) = owner.present() {
-            add(&mut ownership, path, ContributionKind::Node, index)?;
+        if let Some(owner) = owner.present() {
+            write(output, cursors, owner, ContributionKind::Node, index)?;
         }
     }
     for (index, edge) in build.edges.iter().enumerate() {
-        let path = edge
-            .span
-            .map(|span| span.path)
-            .or_else(|| node_owner_by_key(build, &owner_by_node, edge.source))
-            .or_else(|| node_owner_by_key(build, &owner_by_node, edge.target));
-        if let Some(path) = path {
-            add(&mut ownership, path, ContributionKind::Edge, index)?;
+        if let Some(owner) = edge_owner(build, owner_by_node, edge) {
+            write(output, cursors, owner, ContributionKind::Edge, index)?;
         }
     }
     for (index, reference) in build.unresolved.iter().enumerate() {
-        let path = reference
-            .span
-            .map(|span| span.path)
-            .or_else(|| node_owner_by_key(build, &owner_by_node, reference.source));
-        if let Some(path) = path {
-            add(&mut ownership, path, ContributionKind::Unresolved, index)?;
+        if let Some(owner) = unresolved_owner(build, owner_by_node, reference) {
+            write(output, cursors, owner, ContributionKind::Unresolved, index)?;
         }
     }
-
-    flatten(ownership)
+    Ok(())
 }
 
 fn build_node_owners(
@@ -50,6 +108,28 @@ fn build_node_owners(
         .iter()
         .map(|node| node_owner(build, node).map(StringId::optional))
         .collect()
+}
+
+fn edge_owner(
+    build: &CompactRepositoryBuild,
+    owner_by_node: &[StringId],
+    edge: &super::CompactEdgeRecord,
+) -> Option<StringId> {
+    edge.span
+        .map(|span| span.path)
+        .or_else(|| node_owner_by_key(build, owner_by_node, edge.source))
+        .or_else(|| node_owner_by_key(build, owner_by_node, edge.target))
+}
+
+fn unresolved_owner(
+    build: &CompactRepositoryBuild,
+    owner_by_node: &[StringId],
+    reference: &super::CompactUnresolvedRecord,
+) -> Option<StringId> {
+    reference
+        .span
+        .map(|span| span.path)
+        .or_else(|| node_owner_by_key(build, owner_by_node, reference.source))
 }
 
 fn node_owner_by_key(
@@ -84,59 +164,33 @@ fn node_owner(
     Ok(Some(node.path))
 }
 
-fn add(
-    ownership: &mut BTreeMap<StringId, Vec<Contribution>>,
+fn increment(counts: &mut [u64], path: StringId) -> Result<(), RepositoryStoreWriteError> {
+    let count = &mut counts[path.0 as usize];
+    *count = count
+        .checked_add(1)
+        .ok_or(RepositoryStoreWriteError::TooManyContributions)?;
+    Ok(())
+}
+
+fn write(
+    output: &mut [Contribution],
+    cursors: &mut [u64],
     path: StringId,
     kind: ContributionKind,
     index: usize,
 ) -> Result<(), RepositoryStoreWriteError> {
+    let cursor = &mut cursors[path.0 as usize];
+    let position =
+        usize::try_from(*cursor).map_err(|_| RepositoryStoreWriteError::TooManyContributions)?;
     let record_index =
         u64::try_from(index).map_err(|_| RepositoryStoreWriteError::TooManyContributions)?;
-    ownership
-        .entry(path)
-        .or_default()
-        .push(Contribution { kind, record_index });
+    output[position] = Contribution { kind, record_index };
+    *cursor = cursor
+        .checked_add(1)
+        .ok_or(RepositoryStoreWriteError::TooManyContributions)?;
     Ok(())
 }
 
-fn flatten(
-    ownership: BTreeMap<StringId, Vec<Contribution>>,
-) -> Result<(Vec<CompactOwnershipRecord>, Vec<Contribution>), RepositoryStoreWriteError> {
-    let total = ownership
-        .values()
-        .try_fold(0_usize, |total, values| total.checked_add(values.len()))
-        .ok_or(RepositoryStoreWriteError::TooManyContributions)?;
-    let mut records = Vec::with_capacity(ownership.len());
-    let mut contributions = Vec::with_capacity(total);
-    for (path, values) in ownership {
-        records.push(CompactOwnershipRecord {
-            path,
-            contribution_start: u64::try_from(contributions.len())
-                .map_err(|_| RepositoryStoreWriteError::TooManyContributions)?,
-            contribution_count: u64::try_from(values.len())
-                .map_err(|_| RepositoryStoreWriteError::TooManyContributions)?,
-        });
-        contributions.extend(values);
-    }
-    Ok((records, contributions))
-}
-
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::repository_store::writer_test_support::sample_facts;
-
-    #[test]
-    fn node_owners_are_dense_and_aligned_to_canonical_nodes() {
-        let build = CompactRepositoryBuild::from_facts(&sample_facts()).unwrap();
-        let owner_by_node = build_node_owners(&build).unwrap();
-
-        assert_eq!(owner_by_node.len(), build.nodes.len());
-        for (index, node) in build.nodes.iter().enumerate() {
-            assert_eq!(
-                node_owner_by_key(&build, &owner_by_node, node.key),
-                owner_by_node[index].present()
-            );
-        }
-    }
-}
+#[path = "build_ownership_tests.rs"]
+mod tests;
