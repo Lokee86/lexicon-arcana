@@ -23,8 +23,8 @@ For normal operator use, the recommended Lexicon runtime is the last optimized G
 Implemented on the active Rust-migration branch:
 
 - pinned application migration fixture registry under `evaluation/rust_migration/`, plus the frozen Go-language semantic oracle under `testdata/go_oracle/`;
-- private Go semantic-helper protocol v1 with strict request/response validation, canonical semantic identities, repository-relative owner paths/spans, and no facts-v1/persistence coupling;
-- native Rust `GoAdapter` shell registered in `AdapterHost`, with helper-version-aware fingerprinting and a reusable bounded private-helper process runner;
+- private Go semantic-observation protocol v2 with strict request/response validation, repository-relative owner paths/spans, helper-local semantic keys, and no facts-v1/persistence coupling; Rust owns canonical Lexicon identity and semantic policy;
+- native Rust `GoAdapter` registered in `AdapterHost`, with helper-version-aware fingerprinting and the shared bounded, semantic-free `FrontendRunner`;
 - Rust-owned Go repository discovery, permanent exclusions, deterministic `.go`/`go.mod` inventory, nearest-`go.mod` module ownership, root/multi-module repository identity, and direct repository/directory/file fact emission;
 - extracted `adapters/go-semantic/` private semantic helper for package/import/type/function/method/test/interface-method/closure declarations plus typed relationships, calls, SSA/VTA reconciliation, captures, and dataflow; Rust owns repository discovery, canonical identities, fact materialization, validation, storage, and scan orchestration;
 - Rust-owned Go identity authority in `src/adapters/go/identities.rs`, covering the legacy canonical identity vocabulary, semantic-prefix → Lexicon-kind mapping, `_test` namespace normalization, absolute-path rejection, and exact node-SHA parity for every permanent migration fixture;

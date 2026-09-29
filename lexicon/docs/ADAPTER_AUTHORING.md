@@ -37,6 +37,25 @@ The Rust host accepts typed `Analysis` directly. That is the Lexicon-facing inte
 
 Do not use facts-v1 JSONL as the helper protocol. Helpers should return language-semantic observations; the Rust adapter remains responsible for Lexicon identities, facts materialization, ownership, validation, and publication integration.
 
+### Canonical frontend seam
+
+Keep the cross-process seam deliberately shallow:
+
+```text
+authoritative language frontend
+  -> language-specific semantic observations
+  -> Rust language adapter policy
+  -> Analysis / facts-v1
+```
+
+Observation protocols are private to one language integration. Do not create a universal AST, universal compiler IR, cross-language observation enum, or second facts contract. A frontend may emit helper-local semantic keys for correlating observations, but those keys are not Lexicon node IDs and must carry enough evidence for the Rust adapter to construct canonical Lexicon identity.
+
+The shared `src/adapters/frontend/` runner owns transport mechanics only: executable discovery, bounded request/response framing, stderr capture, protocol-version rejection, and transport performance metrics. It must not contain Go-specific or other language-specific semantic policy.
+
+The Rust language adapter owns final relationship certainty, unresolved reasons, canonical identity, facts-v1 materialization, source ownership, deterministic ordering, and Lexicon-specific semantic extensions. A migrated adapter has one production frontend path: do not retain the replaced parser, a legacy protocol reader, a facts-v1 helper output mode, or a semantically weaker fallback merely to preserve the migration path.
+
+The Go protocol v2 + `FrontendRunner` integration is the current reference implementation of this boundary.
+
 The optimized Go Lexicon at `758af9daf6e71fc0a7ebb837875efe366f6403fd` remains the recommended operator runtime until Rust optimization catches up. If a new adapter must work there immediately, implement the additional compatibility boundary in [ADAPTER_GO_COMPATIBILITY.md](ADAPTER_GO_COMPATIBILITY.md).
 
 There is currently no drop-in third-party adapter directory. Adding a supported language requires registering it in Lexicon source.

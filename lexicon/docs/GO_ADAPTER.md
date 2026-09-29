@@ -107,10 +107,10 @@ Incremental output must remain semantically equivalent to the corresponding full
 | --- | --- | --- |
 | Rust adapter shell | `src/adapters/go/mod.rs` | `src/adapters/go/tests.rs` |
 | Repository discovery/module ownership | `src/adapters/go/discovery.rs`, `module_ownership.rs` | discovery tests + frozen oracle |
-| Identity and facts materialization | `src/adapters/go/identities.rs`, `facts.rs`, `semantic_*_facts.rs` | identity/semantic parity tests |
+| Identity and facts materialization | `src/adapters/go/identities.rs`, `facts.rs`, `semantic_*_facts.rs` | identity tests + seam reconciliation + frozen oracle |
 | Private protocol | `src/adapters/go/protocol*.rs`, `adapters/go-semantic/protocol.go` | Rust protocol decoding + helper protocol tests |
 | Typed Go semantics | `adapters/go-semantic/semantic_*.go` | helper Go tests |
-| Runtime helper execution | `src/adapters/helper.rs`, `adapters/go-semantic/runtime.go` | helper/runtime/doctor tests |
+| Runtime helper execution | `src/adapters/frontend/runner.rs`, `src/adapters/go/mod.rs`, `adapters/go-semantic/runtime.go` | frontend/helper/runtime/doctor tests |
 | Packaging | `../scripts/workflow.py` | `../scripts/test_workflow.py`, `tests/go_packaged_runtime.rs` |
 | Frozen semantic oracle | `testdata/go_oracle/` | `src/adapters/go/oracle_parity_tests.rs` |
 

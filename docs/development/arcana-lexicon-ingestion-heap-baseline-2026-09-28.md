@@ -1,5 +1,7 @@
 # Arcana Lexicon ingestion heap baseline — 2026-09-28
 
+Parent index: [Development](INDEX.md)
+
 This document freezes the measured baseline used by the Arcana Lexicon ingestion
 memory refactor. It is historical evidence for comparison at later integration
 gates; it is not a fresh benchmark run.

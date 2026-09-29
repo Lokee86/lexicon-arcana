@@ -69,7 +69,11 @@ fn doctor_reports_missing_native_go_helper() {
         .find(|check| check.label == "runtime helper: go")
         .and_then(|check| check.error.as_deref())
         .unwrap();
-    assert!(error.contains("install the packaged helper"), "{error}");
+    assert!(
+        error.contains("semantic frontend executable not found"),
+        "{error}"
+    );
+    assert!(error.contains("install the packaged frontend"), "{error}");
     assert!(error.contains("LEXICON_GO_SEMANTIC_HELPER"), "{error}");
 }
 
