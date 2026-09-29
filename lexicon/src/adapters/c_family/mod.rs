@@ -9,6 +9,11 @@ mod call_candidates;
 mod call_facts;
 mod call_references;
 mod callables;
+// Phase 2 stages the private Clang boundary before production cutover.
+#[allow(dead_code)]
+mod clang_frontend;
+#[allow(dead_code)]
+mod clang_protocol;
 mod dataflow;
 mod dataflow_extract;
 mod dataflow_facts;
@@ -46,9 +51,17 @@ mod visibility;
 #[cfg(test)]
 mod visibility_tests;
 
+use std::path::Path;
+
 use crate::{AdapterError, AdapterRequest, Analysis, LanguageAdapter};
 
 pub const ADAPTER_VERSION: &str = "0.5.0";
+
+pub(crate) fn verify_runtime_helper(adapter_root: &Path) -> Result<(), AdapterError> {
+    clang_frontend::ClangFrontend::discover(adapter_root)
+        .resolve()
+        .map(|_| ())
+}
 
 #[derive(Debug, Default)]
 pub struct CFamilyAdapter;

@@ -78,6 +78,34 @@ fn doctor_reports_missing_native_go_helper() {
 }
 
 #[test]
+fn doctor_reports_c_family_clang_runtime() {
+    let fixture = DoctorFixture::new("doctor-c-family-helper", &["c-family"]);
+    fixture.create_c_family_runtime_helper();
+
+    let report = doctor(&fixture.repository).unwrap();
+    assert!(passed(&report, "runtime helper: c-family"));
+}
+
+#[test]
+fn doctor_reports_missing_c_family_clang_runtime() {
+    let fixture = DoctorFixture::new("doctor-c-family-helper-missing", &["c-family"]);
+
+    let report = doctor(&fixture.repository).unwrap();
+    assert!(failed(&report, "runtime helper: c-family"));
+    let error = report
+        .checks
+        .iter()
+        .find(|check| check.label == "runtime helper: c-family")
+        .and_then(|check| check.error.as_deref())
+        .unwrap();
+    assert!(
+        error.contains("semantic frontend executable not found"),
+        "{error}"
+    );
+    assert!(error.contains("LEXICON_C_FAMILY_CLANG_HELPER"), "{error}");
+}
+
+#[test]
 fn doctor_checks_adapter_directories_without_runtime_requirements() {
     let fixture = DoctorFixture::new("doctor-native-adapters", &["java", "kotlin", "csharp"]);
     for language in ["java", "kotlin", "csharp"] {
@@ -181,6 +209,17 @@ impl DoctorFixture {
             "lexicon-go-semantic"
         };
         let path = self.adapters.join("go-semantic").join(name);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, b"helper").unwrap();
+    }
+
+    fn create_c_family_runtime_helper(&self) {
+        let name = if cfg!(windows) {
+            "lexicon-c-family-clang.exe"
+        } else {
+            "lexicon-c-family-clang"
+        };
+        let path = self.adapters.join("c-family-clang").join(name);
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(path, b"helper").unwrap();
     }

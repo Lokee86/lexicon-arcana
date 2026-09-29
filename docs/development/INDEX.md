@@ -11,6 +11,7 @@ Development documentation defines current L+A verification/release practice and 
 - [Testing and benchmarks](testing-and-benchmarks.md) — component/evaluation procedures and retained report artifacts.
 - [Arcana Lexicon ingestion heap baseline](arcana-lexicon-ingestion-heap-baseline-2026-09-28.md) — frozen pre-refactor heap, allocation, fixture, and artifact-oracle measurements for the bounded-memory ingestion refactor.
 - [C-family Phase 2 oracle freeze](c-family-phase2-oracle-freeze-2026-09-28.md) — pre-Clang canonical fixture, pinned C/C++ semantic metrics, wall/RSS baselines, and the Phase 2 calibration boundary.
+- [C-family Phase 2.2 Clang runtime boundary](c-family-phase2-clang-boundary-2026-09-28.md) — private LibTooling protocol/runtime seam, diagnostics, packaging ownership, and pre-cutover verification.
 - [Lexicon-wide performance restoration](lexicon-wide-performance-restoration.md) — active Rust-wide restoration project; Phases 0, 1, 2, 4, 5, 6, 7, and 8 complete, with Phase 3 still pending.
 - [Lexicon-wide pre-port optimization parity matrix](lexicon-wide-optimization-parity-matrix.md) — permanent Phase 5 audit of the mature pre-Rust performance sequence and current ownership/status.
 - [Lexicon Go-path performance restoration](lexicon-performance-restoration.md) — completed Go adapter/helper optimization project retained as historical evidence.

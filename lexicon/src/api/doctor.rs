@@ -131,6 +131,13 @@ fn inspect_languages(
                 }
                 continue;
             }
+            if language == "c-family" {
+                match crate::adapters::c_family::verify_runtime_helper(root) {
+                    Ok(()) => report.pass("runtime helper: c-family"),
+                    Err(error) => report.fail("runtime helper: c-family", error),
+                }
+                continue;
+            }
             let directory = root.join(&language);
             if directory.is_dir() {
                 report.pass(format!("adapter directory: {language}"));

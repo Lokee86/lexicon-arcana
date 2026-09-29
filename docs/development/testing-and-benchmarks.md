@@ -122,6 +122,8 @@ python scripts/c_family_phase2_baseline.py --corpus-root /path/to/corpus --outpu
 
 The runner analyzes Git, the Codebase Memory C backend, LevelDB, fmt, Catch2 `src/`, and nlohmann/json `include/nlohmann/` twice, requires deterministic canonical hashes, and records fact/cardinality, call-site, macro, wall-time, and process-tree RSS evidence. The frozen 2026-09-28 result and exact fixture oracle are described in [C-family Phase 2 oracle freeze](c-family-phase2-oracle-freeze-2026-09-28.md).
 
+The staged Clang/LibTooling helper and its build/runtime verification are described in [C-family Phase 2.2 Clang runtime boundary](c-family-phase2-clang-boundary-2026-09-28.md). Native helper builds require discoverable LLVM and Clang development CMake packages; ordinary Rust C-family tests do not compile the C++ helper.
+
 ## Repository-agent benchmark
 
 The active runner is:

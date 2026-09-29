@@ -31,6 +31,7 @@ ARCANA_REQUIRED_OPERATIONS = {
 LEXICON_TOOLS = ROOT / "lexicon" / "tools"
 if str(LEXICON_TOOLS) not in sys.path:
     sys.path.insert(0, str(LEXICON_TOOLS))
+from build_c_family_clang import build as build_c_family_clang_frontend
 from java_release import build_java_adapter
 from package_release import build_csharp
 
@@ -209,7 +210,25 @@ def package_lexicon_adapters(
     )
     verify_go_semantic_helper(semantic_helper)
 
-    for language in ("c-family", "gdscript", "kotlin", "generic"):
+    clang_runtime = destination / "c-family-clang"
+    if clang_runtime.exists():
+        shutil.rmtree(clang_runtime)
+    clang_runtime.mkdir(parents=True)
+    copy_file(source / "c-family-clang" / "VERSION", clang_runtime / "VERSION")
+    llvm_dir = Path(environment["LLVM_DIR"]) if environment.get("LLVM_DIR") else None
+    clang_dir = Path(environment["Clang_DIR"]) if environment.get("Clang_DIR") else None
+    with tempfile.TemporaryDirectory(prefix="lexicon-c-family-clang-") as temporary:
+        built_clang_helper = build_c_family_clang_frontend(
+            Path(temporary),
+            llvm_dir,
+            clang_dir,
+            "Release",
+        )
+        clang_helper = clang_runtime / executable_name("lexicon-c-family-clang")
+        copy_file(built_clang_helper, clang_helper)
+    verify_c_family_clang_helper(clang_helper)
+
+    for language in ("gdscript", "kotlin", "generic"):
         run(
             [
                 "go", "build", "-p", str(jobs), "-trimpath", "-buildvcs=false",
@@ -255,6 +274,29 @@ def go_semantic_helper_version() -> str:
 
 def verify_go_semantic_helper(helper: Path) -> None:
     expected = f"lexicon-go-semantic {go_semantic_helper_version()}"
+    completed = subprocess.run(
+        [helper, "--version"],
+        cwd=helper.parent,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    actual = completed.stdout.strip()
+    if actual != expected:
+        raise RuntimeError(f"{helper} reported {actual!r}; expected {expected!r}")
+
+
+def c_family_clang_helper_version() -> str:
+    version = (ROOT / "lexicon" / "adapters" / "c-family-clang" / "VERSION").read_text(
+        encoding="utf-8"
+    ).strip()
+    if not version:
+        raise RuntimeError("C-family Clang helper VERSION is empty")
+    return version
+
+
+def verify_c_family_clang_helper(helper: Path) -> None:
+    expected = f"lexicon-c-family-clang {c_family_clang_helper_version()}"
     completed = subprocess.run(
         [helper, "--version"],
         cwd=helper.parent,

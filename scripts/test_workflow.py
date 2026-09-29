@@ -31,6 +31,10 @@ class WorkflowSmokeTests(unittest.TestCase):
             (build / "adapters" / "python" / "adapter.py").write_text("pass\n", encoding="utf-8")
             (build / "adapters" / "go-semantic").mkdir(parents=True)
             (build / "adapters" / "go-semantic" / "lexicon-go-semantic.exe").write_bytes(b"helper")
+            (build / "adapters" / "c-family-clang").mkdir(parents=True)
+            (build / "adapters" / "c-family-clang" / "lexicon-c-family-clang.exe").write_bytes(
+                b"clang-helper"
+            )
             (build / "skills" / "lexicon-arcana").mkdir(parents=True)
             (build / "skills" / "lexicon-arcana" / "SKILL.md").write_text(
                 "---\nname: lexicon-arcana\n---\n", encoding="utf-8"
@@ -56,6 +60,7 @@ class WorkflowSmokeTests(unittest.TestCase):
                 self.assertIn("bin/arcana.exe", names)
                 self.assertIn("adapters/python/adapter.py", names)
                 self.assertIn("adapters/go-semantic/lexicon-go-semantic.exe", names)
+                self.assertIn("adapters/c-family-clang/lexicon-c-family-clang.exe", names)
                 self.assertNotIn("adapters/go/lexicon-go.exe", names)
                 self.assertIn("install.py", names)
                 self.assertIn("skills/lexicon-arcana/SKILL.md", names)
@@ -74,6 +79,9 @@ class WorkflowSmokeTests(unittest.TestCase):
             self.assertTrue((installed / "adapters" / "python" / "adapter.py").is_file())
             self.assertTrue(
                 (installed / "adapters" / "go-semantic" / "lexicon-go-semantic.exe").is_file()
+            )
+            self.assertTrue(
+                (installed / "adapters" / "c-family-clang" / "lexicon-c-family-clang.exe").is_file()
             )
             self.assertTrue((skills / "lexicon-arcana" / "SKILL.md").is_file())
             self.assertFalse((installed / "grimoire.exe").exists())
@@ -94,6 +102,14 @@ class WorkflowSmokeTests(unittest.TestCase):
                 mock.patch.object(workflow.shutil, "copytree", side_effect=fake_copytree), \
                 mock.patch.object(workflow, "run") as run, \
                 mock.patch.object(workflow, "verify_go_semantic_helper") as verify_helper, \
+                mock.patch.object(
+                    workflow,
+                    "build_c_family_clang_frontend",
+                    return_value=Path("built-clang-helper"),
+                ) as build_clang, \
+                mock.patch.object(
+                    workflow, "verify_c_family_clang_helper"
+                ) as verify_clang, \
                 mock.patch.object(workflow, "build_java_adapter"), \
                 mock.patch.object(workflow, "build_csharp"), \
                 mock.patch.object(workflow, "copy_file") as copy_file:
@@ -109,19 +125,40 @@ class WorkflowSmokeTests(unittest.TestCase):
             working_directories = [call.args[1] for call in run.call_args_list]
             self.assertIn(adapter_root / "go-semantic", working_directories)
             self.assertNotIn(adapter_root / "go", working_directories)
-            self.assertIn(adapter_root / "c-family", working_directories)
+            self.assertNotIn(adapter_root / "c-family", working_directories)
             self.assertIn(adapter_root / "gdscript", working_directories)
             self.assertIn(adapter_root / "kotlin", working_directories)
             self.assertIn(adapter_root / "generic", working_directories)
             self.assertFalse((output / "adapters" / "go").exists())
             self.assertFalse((output / "adapters" / "go-semantic" / "source.go").exists())
             self.assertTrue((output / "adapters" / "go-semantic").is_dir())
+            self.assertTrue((output / "adapters" / "c-family-clang").is_dir())
             copy_file.assert_any_call(
                 adapter_root / "go-semantic" / "VERSION",
                 output / "adapters" / "go-semantic" / "VERSION",
             )
+            copy_file.assert_any_call(
+                adapter_root / "c-family-clang" / "VERSION",
+                output / "adapters" / "c-family-clang" / "VERSION",
+            )
             verify_helper.assert_called_once_with(
                 output / "adapters" / "go-semantic" / workflow.executable_name("lexicon-go-semantic")
+            )
+            self.assertEqual(build_clang.call_count, 1)
+            clang_call = build_clang.call_args.args
+            self.assertEqual(clang_call[1:], (None, None, "Release"))
+            copy_file.assert_any_call(
+                Path("built-clang-helper"),
+                output
+                / "adapters"
+                / "c-family-clang"
+                / workflow.executable_name("lexicon-c-family-clang"),
+            )
+            verify_clang.assert_called_once_with(
+                output
+                / "adapters"
+                / "c-family-clang"
+                / workflow.executable_name("lexicon-c-family-clang")
             )
 
     def test_go_semantic_helper_version_verifier(self) -> None:
@@ -148,6 +185,35 @@ class WorkflowSmokeTests(unittest.TestCase):
         ):
             with self.assertRaisesRegex(RuntimeError, "reported .* expected"):
                 workflow.verify_go_semantic_helper(helper)
+
+    def test_c_family_clang_helper_version_verifier(self) -> None:
+        helper = Path("lexicon-c-family-clang.exe")
+        expected = f"lexicon-c-family-clang {workflow.c_family_clang_helper_version()}"
+        with mock.patch.object(
+            workflow.subprocess,
+            "run",
+            return_value=mock.Mock(returncode=0, stdout=expected + "\n", stderr=""),
+        ) as run:
+            workflow.verify_c_family_clang_helper(helper)
+            run.assert_called_once_with(
+                [helper, "--version"],
+                cwd=helper.parent,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+        with mock.patch.object(
+            workflow.subprocess,
+            "run",
+            return_value=mock.Mock(
+                returncode=0,
+                stdout="lexicon-c-family-clang stale\n",
+                stderr="",
+            ),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "reported .* expected"):
+                workflow.verify_c_family_clang_helper(helper)
 
     def test_build_defaults_to_surviving_components(self) -> None:
         with tempfile.TemporaryDirectory(prefix="lexicon-arcana-build-") as temporary, \
