@@ -10,7 +10,7 @@ use super::{RepositoryStoreWriteError, StringId};
 pub(super) fn build_ownership(
     build: &CompactRepositoryBuild,
 ) -> Result<(Vec<CompactOwnershipRecord>, Vec<Contribution>), RepositoryStoreWriteError> {
-    let owner_by_node = build_node_owners(build)?;
+    let owner_by_node = build_owner_by_node(build)?;
     let mut slots = vec![0_u64; build.strings.len()];
 
     count_contributions(build, &owner_by_node, &mut slots)?;
@@ -100,7 +100,7 @@ fn fill_contributions(
     Ok(())
 }
 
-fn build_node_owners(
+fn build_owner_by_node(
     build: &CompactRepositoryBuild,
 ) -> Result<Vec<StringId>, RepositoryStoreWriteError> {
     build
