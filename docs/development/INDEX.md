@@ -13,6 +13,7 @@ Development documentation defines current L+A verification/release practice and 
 - [C-family Phase 2 oracle freeze](c-family-phase2-oracle-freeze-2026-09-28.md) — pre-Clang canonical fixture, pinned C/C++ semantic metrics, wall/RSS baselines, and the Phase 2 calibration boundary.
 - [C-family Phase 2.2 Clang runtime boundary](c-family-phase2-clang-boundary-2026-09-28.md) — private LibTooling protocol/runtime seam, diagnostics, packaging ownership, and pre-cutover verification.
 - [C-family Phase 2.3 structural Clang observations](c-family-phase2-structural-clang-2026-09-28.md) — staged Clang translation-unit/declaration/include/macro evidence, Rust identity materialization, and pre-production structural parity.
+- [C-family Phase 2.4 semantic Clang observations](c-family-phase2-semantic-clang-2026-09-28.md) — staged Clang inheritance/override/call/receiver/overload evidence with Rust-owned target, certainty, and unresolved policy.
 - [Lexicon-wide performance restoration](lexicon-wide-performance-restoration.md) — active Rust-wide restoration project; Phases 0, 1, 2, 4, 5, 6, 7, and 8 complete, with Phase 3 still pending.
 - [Lexicon-wide pre-port optimization parity matrix](lexicon-wide-optimization-parity-matrix.md) — permanent Phase 5 audit of the mature pre-Rust performance sequence and current ownership/status.
 - [Lexicon Go-path performance restoration](lexicon-performance-restoration.md) — completed Go adapter/helper optimization project retained as historical evidence.

@@ -7,18 +7,19 @@
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/Frontend/CompilerInstance.h"
 
+#include "structural_calls.h"
 #include "structural_declaration_support.h"
+#include "structural_relationships.h"
 #include "structural_source.h"
 
 namespace lexicon::clang_frontend {
 namespace {
 
-class DeclarationVisitor
-    : public clang::RecursiveASTVisitor<DeclarationVisitor> {
+class SemanticVisitor
+    : public clang::RecursiveASTVisitor<SemanticVisitor> {
 public:
-  DeclarationVisitor(State &state, clang::ASTContext &context,
-                     std::string root, std::string translation_unit,
-                     std::string language)
+  SemanticVisitor(State &state, clang::ASTContext &context, std::string root,
+                  std::string translation_unit, std::string language)
       : state_(state), context_(context), sources_(context.getSourceManager()),
         root_(std::move(root)), translation_unit_(std::move(translation_unit)),
         language_(std::move(language)) {}
@@ -33,10 +34,8 @@ public:
       return true;
     }
     auto *named = llvm::dyn_cast<clang::NamedDecl>(declaration);
-    if (!named) {
-      return true;
-    }
-    if (llvm::isa<clang::ParmVarDecl>(named) && named->getName().empty()) {
+    if (!named ||
+        (llvm::isa<clang::ParmVarDecl>(named) && named->getName().empty())) {
       return true;
     }
 
@@ -44,6 +43,37 @@ public:
     if (observation) {
       state_.file(*path, language_, translation_unit_)
           .declarations.push_back(std::move(*observation));
+    }
+    return true;
+  }
+
+  bool VisitCXXRecordDecl(clang::CXXRecordDecl *record) {
+    if (record) {
+      observe_inheritance(state_, context_, *record, root_, translation_unit_,
+                          language_);
+    }
+    return true;
+  }
+
+  bool VisitCXXMethodDecl(clang::CXXMethodDecl *method) {
+    if (method) {
+      observe_overrides(state_, context_, *method, root_, translation_unit_,
+                        language_);
+    }
+    return true;
+  }
+
+  bool VisitCallExpr(clang::CallExpr *call) {
+    if (call) {
+      observe_call(state_, context_, *call, root_, translation_unit_, language_);
+    }
+    return true;
+  }
+
+  bool VisitCXXConstructExpr(clang::CXXConstructExpr *call) {
+    if (call) {
+      observe_constructor(state_, context_, *call, root_, translation_unit_,
+                          language_);
     }
     return true;
   }
@@ -69,7 +99,7 @@ public:
   }
 
 private:
-  DeclarationVisitor visitor_;
+  SemanticVisitor visitor_;
 };
 
 } // namespace

@@ -3,6 +3,7 @@ use std::{collections::HashMap, fs, path::Path};
 use crate::{AdapterError, node_id};
 
 mod declarations;
+mod semantics;
 #[cfg(test)]
 mod tests;
 
@@ -30,13 +31,14 @@ pub(crate) fn materialize(
         .iter()
         .map(|file| (file.path.clone(), declarations::identity_map(file)))
         .collect::<HashMap<_, _>>();
+    let references = semantics::ReferenceIndex::new(&files, &ids);
 
     let mut materialized = Vec::with_capacity(files.len());
     for file in files {
         let local_ids = ids
             .get(&file.path)
             .expect("C-family Clang local identity map");
-        materialized.push(materialize_file(&root, file, local_ids)?);
+        materialized.push(materialize_file(&root, file, local_ids, &ids, &references)?);
     }
     let index = FileIndex::new(&materialized);
     let visibility = VisibilityIndex::new(&materialized, &index);
@@ -55,6 +57,8 @@ fn materialize_file(
     root: &Path,
     observation: &FileObservation,
     ids: &HashMap<String, String>,
+    all_ids: &semantics::IdentityMaps,
+    references: &semantics::ReferenceIndex,
 ) -> Result<SourceFile, AdapterError> {
     validate_relative(&observation.path)?;
     let content = fs::read(root.join(observation.path.replace('/', std::path::MAIN_SEPARATOR_STR)))
@@ -67,6 +71,8 @@ fn materialize_file(
         .any(|value| matches!(value.severity.as_str(), "error" | "fatal"));
 
     let declarations = declarations::materialize(observation, &language, &module_id, ids);
+    let (semantic_relationships, semantic_calls) =
+        semantics::materialize(observation, all_ids, references)?;
     let mut includes = observation
         .includes
         .iter()
@@ -107,6 +113,8 @@ fn materialize_file(
         includes,
         inheritance: Vec::new(),
         calls: Vec::new(),
+        semantic_relationships,
+        semantic_calls,
         pointer_bindings: Vec::new(),
         accesses: Vec::new(),
     })

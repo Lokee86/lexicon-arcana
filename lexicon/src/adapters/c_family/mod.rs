@@ -47,6 +47,7 @@ mod relationship_facts;
 mod resolution;
 #[cfg(test)]
 mod resolution_tests;
+mod semantic_call_facts;
 mod syntax;
 mod type_declarations;
 mod visibility;

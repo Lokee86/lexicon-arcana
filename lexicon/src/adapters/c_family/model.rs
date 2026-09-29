@@ -21,6 +21,8 @@ pub struct SourceFile {
     pub includes: Vec<IncludeObservation>,
     pub inheritance: Vec<InheritanceObservation>,
     pub calls: Vec<CallObservation>,
+    pub semantic_relationships: Vec<SemanticRelationshipObservation>,
+    pub semantic_calls: Vec<SemanticCallObservation>,
     pub pointer_bindings: Vec<PointerBindingObservation>,
     pub accesses: Vec<AccessObservation>,
 }
@@ -37,6 +39,62 @@ pub struct CallObservation {
     pub member: bool,
     pub receiver: String,
     pub receiver_type_id: String,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SemanticRelationshipKind {
+    Extends,
+    Overrides,
+}
+
+#[derive(Debug, Clone)]
+pub struct SemanticRelationshipObservation {
+    pub source_id: String,
+    pub target_id: String,
+    pub target_name: String,
+    pub external: bool,
+    pub path: String,
+    pub expression: String,
+    pub kind: SemanticRelationshipKind,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SemanticCallForm {
+    Direct,
+    Member,
+    Constructor,
+    Operator,
+    Destructor,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SemanticCallResolution {
+    Resolved,
+    Ambiguous,
+    Missing,
+    Dependent,
+    Indirect,
+}
+
+#[derive(Debug, Clone)]
+pub struct SemanticCallObservation {
+    pub source_id: String,
+    pub path: String,
+    pub expression: String,
+    pub form: SemanticCallForm,
+    pub resolution: SemanticCallResolution,
+    pub dispatch: String,
+    pub overload_selected: bool,
+    pub target_id: String,
+    pub target_name: String,
+    pub candidate_ids: Vec<String>,
+    pub compiler_candidate_count: usize,
+    pub external_candidate_count: usize,
+    pub receiver_type_id: String,
+    pub receiver_type: String,
+    pub argument_expressions: Vec<String>,
     pub span: SourceSpan,
 }
 

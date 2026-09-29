@@ -52,6 +52,8 @@ pub fn parse_repository(root: &Path) -> Result<RepositoryModel, AdapterError> {
             includes: Vec::new(),
             inheritance: Vec::new(),
             calls: Vec::new(),
+            semantic_relationships: Vec::new(),
+            semantic_calls: Vec::new(),
             pointer_bindings: Vec::new(),
             accesses: Vec::new(),
         };

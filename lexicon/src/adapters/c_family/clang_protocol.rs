@@ -107,6 +107,10 @@ pub(crate) struct FileObservation {
     #[serde(default)]
     pub macros: Vec<MacroObservation>,
     #[serde(default)]
+    pub relationships: Vec<SemanticRelationshipObservation>,
+    #[serde(default)]
+    pub calls: Vec<SemanticCallObservation>,
+    #[serde(default)]
     pub diagnostics: Vec<DiagnosticObservation>,
 }
 
@@ -167,6 +171,54 @@ pub(crate) struct MacroObservation {
     #[serde(default)]
     pub parameters: Vec<String>,
     pub offset: u64,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct SymbolReferenceObservation {
+    pub compiler_id: String,
+    #[serde(default)]
+    pub path: String,
+    #[serde(default)]
+    pub qualified_name: String,
+    #[serde(default)]
+    pub kind: String,
+    pub external: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct SemanticRelationshipObservation {
+    pub kind: String,
+    pub source_compiler_id: String,
+    pub target: SymbolReferenceObservation,
+    #[serde(default)]
+    pub expression: String,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct SemanticCallObservation {
+    pub source_compiler_id: String,
+    pub form: String,
+    pub resolution: String,
+    pub expression: String,
+    #[serde(default)]
+    pub target: Option<SymbolReferenceObservation>,
+    #[serde(default)]
+    pub candidates: Vec<SymbolReferenceObservation>,
+    #[serde(default)]
+    pub receiver_type: Option<SymbolReferenceObservation>,
+    #[serde(default)]
+    pub receiver_type_name: String,
+    pub virtual_dispatch: bool,
+    #[serde(default)]
+    pub overload_selected: bool,
+    pub compiler_candidate_count: usize,
+    #[serde(default)]
+    pub arguments: Vec<String>,
     pub span: SourceSpan,
 }
 

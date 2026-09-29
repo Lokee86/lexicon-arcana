@@ -70,6 +70,38 @@ struct Diagnostic {
   std::optional<Span> span;
 };
 
+struct SymbolReference {
+  std::string compiler_id;
+  std::string path;
+  std::string qualified_name;
+  std::string kind;
+  bool external = false;
+};
+
+struct SemanticRelationship {
+  std::string kind;
+  std::string source_compiler_id;
+  SymbolReference target;
+  std::string expression;
+  Span span;
+};
+
+struct SemanticCall {
+  std::string source_compiler_id;
+  std::string form;
+  std::string resolution;
+  std::string expression;
+  std::optional<SymbolReference> target;
+  std::vector<SymbolReference> candidates;
+  std::optional<SymbolReference> receiver_type;
+  std::string receiver_type_name;
+  bool virtual_dispatch = false;
+  bool overload_selected = false;
+  std::size_t compiler_candidate_count = 0;
+  std::vector<std::string> arguments;
+  Span span;
+};
+
 struct File {
   std::string path;
   std::set<std::string> languages;
@@ -77,6 +109,8 @@ struct File {
   std::vector<Declaration> declarations;
   std::vector<Include> includes;
   std::vector<Macro> macros;
+  std::vector<SemanticRelationship> relationships;
+  std::vector<SemanticCall> calls;
   std::vector<Diagnostic> diagnostics;
 };
 

@@ -16,10 +16,14 @@ add_executable(
     main.cpp
     structural.cpp
     structural_action.cpp
+    structural_calls.cpp
     structural_declaration_support.cpp
     structural_declarations.cpp
     structural_frontend.cpp
     structural_model.cpp
+    structural_relationships.cpp
+    structural_semantic_support.cpp
+    structural_semantics.cpp
     structural_source.cpp
 )
 target_compile_features(lexicon-c-family-clang PRIVATE cxx_std_20)
