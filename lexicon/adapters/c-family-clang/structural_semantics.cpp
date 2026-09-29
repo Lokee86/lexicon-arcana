@@ -25,10 +25,21 @@ llvm::json::Array symbols_json(const std::vector<SymbolReference> &values) {
   return result;
 }
 
-llvm::json::Array strings_json(const std::vector<std::string> &values) {
+llvm::json::Object argument_json(const SemanticArgument &value) {
+  llvm::json::Object result{{"expression", value.expression}};
+  if (value.value) {
+    result["value"] = symbol_json(*value.value);
+  }
+  if (value.callable) {
+    result["callable"] = symbol_json(*value.callable);
+  }
+  return result;
+}
+
+llvm::json::Array arguments_json(const std::vector<SemanticArgument> &values) {
   llvm::json::Array result;
   for (const auto &value : values) {
-    result.emplace_back(value);
+    result.emplace_back(argument_json(value));
   }
   return result;
 }
@@ -53,9 +64,10 @@ llvm::json::Object call_json(const SemanticCall &value) {
       {"receiver_type_name", value.receiver_type_name},
       {"virtual_dispatch", value.virtual_dispatch},
       {"overload_selected", value.overload_selected},
+      {"macro_expanded", value.macro_expanded},
       {"compiler_candidate_count",
        static_cast<std::int64_t>(value.compiler_candidate_count)},
-      {"arguments", strings_json(value.arguments)},
+      {"arguments", arguments_json(value.arguments)},
       {"span", span_json(value.span)},
   };
   if (value.target) {
@@ -63,6 +75,9 @@ llvm::json::Object call_json(const SemanticCall &value) {
   }
   if (value.receiver_type) {
     result["receiver_type"] = symbol_json(*value.receiver_type);
+  }
+  if (value.callee_value) {
+    result["callee_value"] = symbol_json(*value.callee_value);
   }
   return result;
 }

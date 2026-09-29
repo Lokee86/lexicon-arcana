@@ -23,6 +23,8 @@ pub struct SourceFile {
     pub calls: Vec<CallObservation>,
     pub semantic_relationships: Vec<SemanticRelationshipObservation>,
     pub semantic_calls: Vec<SemanticCallObservation>,
+    pub semantic_pointer_bindings: Vec<SemanticPointerBindingObservation>,
+    pub semantic_accesses: Vec<SemanticAccessObservation>,
     pub pointer_bindings: Vec<PointerBindingObservation>,
     pub accesses: Vec<AccessObservation>,
 }
@@ -79,6 +81,28 @@ pub enum SemanticCallResolution {
 }
 
 #[derive(Debug, Clone)]
+pub struct SemanticArgumentObservation {
+    pub expression: String,
+    pub value_id: String,
+    pub callable_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct SemanticPointerBindingObservation {
+    pub pointer_id: String,
+    pub target_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct SemanticAccessObservation {
+    pub source_id: String,
+    pub target_id: String,
+    pub path: String,
+    pub relation: String,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone)]
 pub struct SemanticCallObservation {
     pub source_id: String,
     pub path: String,
@@ -87,6 +111,7 @@ pub struct SemanticCallObservation {
     pub resolution: SemanticCallResolution,
     pub dispatch: String,
     pub overload_selected: bool,
+    pub macro_expanded: bool,
     pub target_id: String,
     pub target_name: String,
     pub candidate_ids: Vec<String>,
@@ -94,7 +119,8 @@ pub struct SemanticCallObservation {
     pub external_candidate_count: usize,
     pub receiver_type_id: String,
     pub receiver_type: String,
-    pub argument_expressions: Vec<String>,
+    pub callee_value_id: String,
+    pub arguments: Vec<SemanticArgumentObservation>,
     pub span: SourceSpan,
 }
 

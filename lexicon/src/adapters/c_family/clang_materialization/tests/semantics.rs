@@ -19,7 +19,7 @@ fn clang_semantics_materialize_relationships_and_call_policy() {
 
     let response: StructuralResponse = serde_json::from_value(json!({
         "protocol_version": 1,
-        "helper_version": "0.3.0",
+        "helper_version": "0.4.0",
         "clang_version": "clang test",
         "compilation_database": true,
         "files": [{
@@ -62,7 +62,7 @@ fn clang_semantics_materialize_relationships_and_call_policy() {
                     "receiver_type_name": "",
                     "virtual_dispatch": false,
                     "compiler_candidate_count": 1,
-                    "arguments": ["1"],
+                    "arguments": [{"expression": "1"}],
                     "span": span("semantic.cpp", 2, 1, 2, 6)
                 },
                 {
@@ -77,7 +77,7 @@ fn clang_semantics_materialize_relationships_and_call_policy() {
                     "receiver_type_name": "",
                     "virtual_dispatch": false,
                     "compiler_candidate_count": 2,
-                    "arguments": ["value"],
+                    "arguments": [{"expression": "value"}],
                     "span": span("semantic.cpp", 3, 1, 3, 10)
                 },
                 {
@@ -165,7 +165,7 @@ fn resolved_external_clang_target_stays_unresolved_in_lexicon_policy() {
     .unwrap();
     let response: StructuralResponse = serde_json::from_value(json!({
         "protocol_version": 1,
-        "helper_version": "0.3.0",
+        "helper_version": "0.4.0",
         "clang_version": "clang test",
         "compilation_database": true,
         "files": [{
@@ -185,7 +185,7 @@ fn resolved_external_clang_target_stays_unresolved_in_lexicon_policy() {
                 "receiver_type_name": "",
                 "virtual_dispatch": false,
                 "compiler_candidate_count": 1,
-                "arguments": ["\"x\""],
+                "arguments": [{"expression": "\"x\""}],
                 "span": span("main.c", 1, 27, 1, 36)
             }]
         }]
@@ -219,7 +219,7 @@ fn clang_entity_prefers_repository_definition_when_callsite_has_no_same_file_red
 
     let response: StructuralResponse = serde_json::from_value(json!({
         "protocol_version": 1,
-        "helper_version": "0.3.0",
+        "helper_version": "0.4.0",
         "clang_version": "clang test",
         "compilation_database": true,
         "files": [
@@ -274,7 +274,7 @@ fn clang_entity_prefers_repository_definition_when_callsite_has_no_same_file_red
                     "receiver_type_name": "",
                     "virtual_dispatch": false,
                     "compiler_candidate_count": 1,
-                    "arguments": ["1"],
+                    "arguments": [{"expression": "1"}],
                     "span": span("caller.cpp", 2, 23, 2, 32)
                 }]
             },

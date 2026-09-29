@@ -111,6 +111,10 @@ pub(crate) struct FileObservation {
     #[serde(default)]
     pub calls: Vec<SemanticCallObservation>,
     #[serde(default)]
+    pub pointer_bindings: Vec<SemanticPointerBindingObservation>,
+    #[serde(default)]
+    pub accesses: Vec<SemanticAccessObservation>,
+    #[serde(default)]
     pub diagnostics: Vec<DiagnosticObservation>,
 }
 
@@ -200,6 +204,37 @@ pub(crate) struct SemanticRelationshipObservation {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub(crate) struct SemanticArgumentObservation {
+    pub expression: String,
+    #[serde(default)]
+    pub value: Option<SymbolReferenceObservation>,
+    #[serde(default)]
+    pub callable: Option<SymbolReferenceObservation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct SemanticPointerBindingObservation {
+    pub pointer: SymbolReferenceObservation,
+    pub target: SymbolReferenceObservation,
+    #[serde(default)]
+    pub expression: String,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct SemanticAccessObservation {
+    pub source_compiler_id: String,
+    pub target: SymbolReferenceObservation,
+    pub relation: String,
+    #[serde(default)]
+    pub expression: String,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct SemanticCallObservation {
     pub source_compiler_id: String,
     pub form: String,
@@ -212,13 +247,17 @@ pub(crate) struct SemanticCallObservation {
     #[serde(default)]
     pub receiver_type: Option<SymbolReferenceObservation>,
     #[serde(default)]
+    pub callee_value: Option<SymbolReferenceObservation>,
+    #[serde(default)]
     pub receiver_type_name: String,
     pub virtual_dispatch: bool,
     #[serde(default)]
     pub overload_selected: bool,
+    #[serde(default)]
+    pub macro_expanded: bool,
     pub compiler_candidate_count: usize,
     #[serde(default)]
-    pub arguments: Vec<String>,
+    pub arguments: Vec<SemanticArgumentObservation>,
     pub span: SourceSpan,
 }
 

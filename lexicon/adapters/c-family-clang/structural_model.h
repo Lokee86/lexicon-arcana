@@ -86,6 +86,27 @@ struct SemanticRelationship {
   Span span;
 };
 
+struct SemanticArgument {
+  std::string expression;
+  std::optional<SymbolReference> value;
+  std::optional<SymbolReference> callable;
+};
+
+struct SemanticPointerBinding {
+  SymbolReference pointer;
+  SymbolReference target;
+  std::string expression;
+  Span span;
+};
+
+struct SemanticAccess {
+  std::string source_compiler_id;
+  SymbolReference target;
+  std::string relation;
+  std::string expression;
+  Span span;
+};
+
 struct SemanticCall {
   std::string source_compiler_id;
   std::string form;
@@ -94,11 +115,13 @@ struct SemanticCall {
   std::optional<SymbolReference> target;
   std::vector<SymbolReference> candidates;
   std::optional<SymbolReference> receiver_type;
+  std::optional<SymbolReference> callee_value;
   std::string receiver_type_name;
   bool virtual_dispatch = false;
   bool overload_selected = false;
+  bool macro_expanded = false;
   std::size_t compiler_candidate_count = 0;
-  std::vector<std::string> arguments;
+  std::vector<SemanticArgument> arguments;
   Span span;
 };
 
@@ -111,6 +134,8 @@ struct File {
   std::vector<Macro> macros;
   std::vector<SemanticRelationship> relationships;
   std::vector<SemanticCall> calls;
+  std::vector<SemanticPointerBinding> pointer_bindings;
+  std::vector<SemanticAccess> accesses;
   std::vector<Diagnostic> diagnostics;
 };
 

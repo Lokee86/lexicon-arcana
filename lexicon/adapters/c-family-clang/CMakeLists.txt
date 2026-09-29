@@ -16,6 +16,7 @@ add_executable(
     main.cpp
     structural.cpp
     structural_action.cpp
+    structural_access_flow.cpp
     structural_calls.cpp
     structural_declaration_support.cpp
     structural_declarations.cpp
@@ -25,6 +26,8 @@ add_executable(
     structural_semantic_support.cpp
     structural_semantics.cpp
     structural_source.cpp
+    structural_value_flow.cpp
+    structural_value_flow_json.cpp
 )
 target_compile_features(lexicon-c-family-clang PRIVATE cxx_std_20)
 target_include_directories(

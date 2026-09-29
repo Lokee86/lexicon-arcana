@@ -8,8 +8,8 @@ use crate::{EdgeRecord, FactRecord, UnresolvedRecord};
 use serde_json::json;
 
 pub fn add(model: &super::model::RepositoryModel, records: &mut Vec<FactRecord>) {
-    super::semantic_call_facts::add(model, records);
     let index = DeclarationIndex::new(model);
+    super::semantic_call_facts::add(model, &index, records);
     let indirect = IndirectCallIndex::build(model, &index);
     for file in &model.files {
         for observation in &file.calls {

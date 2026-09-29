@@ -15,18 +15,29 @@ namespace lexicon::clang_frontend {
 SymbolReference symbol_reference(const clang::NamedDecl *declaration,
                                  const clang::SourceManager &sources,
                                  llvm::StringRef repository_root);
+std::optional<SymbolReference>
+value_reference(const clang::Expr *expression,
+                const clang::SourceManager &sources,
+                llvm::StringRef repository_root);
+std::optional<SymbolReference>
+callable_reference(const clang::Expr *expression,
+                   const clang::SourceManager &sources,
+                   llvm::StringRef repository_root);
 const clang::FunctionDecl *enclosing_function(clang::ASTContext &context,
                                               const clang::Stmt &statement);
 std::vector<SymbolReference>
 overload_candidates(const clang::Expr *callee,
                     const clang::SourceManager &sources,
                     llvm::StringRef repository_root);
-std::vector<std::string> argument_texts(const clang::CallExpr &call,
-                                        const clang::SourceManager &sources,
-                                        const clang::LangOptions &language);
-std::vector<std::string>
-constructor_argument_texts(const clang::CXXConstructExpr &call,
-                           const clang::SourceManager &sources,
-                           const clang::LangOptions &language);
+std::vector<SemanticArgument>
+semantic_arguments(const clang::CallExpr &call,
+                   const clang::SourceManager &sources,
+                   const clang::LangOptions &language,
+                   llvm::StringRef repository_root);
+std::vector<SemanticArgument>
+semantic_arguments(const clang::CXXConstructExpr &call,
+                   const clang::SourceManager &sources,
+                   const clang::LangOptions &language,
+                   llvm::StringRef repository_root);
 
 } // namespace lexicon::clang_frontend

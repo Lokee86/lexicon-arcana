@@ -3,9 +3,11 @@ use std::{collections::HashMap, fs, path::Path};
 use crate::{AdapterError, node_id};
 
 mod declarations;
+mod references;
 mod semantics;
 #[cfg(test)]
 mod tests;
+mod value_flow;
 
 use super::{
     clang_protocol::{FileObservation, StructuralResponse},
@@ -31,7 +33,7 @@ pub(crate) fn materialize(
         .iter()
         .map(|file| (file.path.clone(), declarations::identity_map(file)))
         .collect::<HashMap<_, _>>();
-    let references = semantics::ReferenceIndex::new(&files, &ids);
+    let references = references::ReferenceIndex::new(&files, &ids);
 
     let mut materialized = Vec::with_capacity(files.len());
     for file in files {
@@ -57,8 +59,8 @@ fn materialize_file(
     root: &Path,
     observation: &FileObservation,
     ids: &HashMap<String, String>,
-    all_ids: &semantics::IdentityMaps,
-    references: &semantics::ReferenceIndex,
+    all_ids: &references::IdentityMaps,
+    references: &references::ReferenceIndex,
 ) -> Result<SourceFile, AdapterError> {
     validate_relative(&observation.path)?;
     let content = fs::read(root.join(observation.path.replace('/', std::path::MAIN_SEPARATOR_STR)))
@@ -73,6 +75,8 @@ fn materialize_file(
     let declarations = declarations::materialize(observation, &language, &module_id, ids);
     let (semantic_relationships, semantic_calls) =
         semantics::materialize(observation, all_ids, references)?;
+    let (semantic_pointer_bindings, semantic_accesses) =
+        value_flow::materialize(observation, ids, references)?;
     let mut includes = observation
         .includes
         .iter()
@@ -115,6 +119,8 @@ fn materialize_file(
         calls: Vec::new(),
         semantic_relationships,
         semantic_calls,
+        semantic_pointer_bindings,
+        semantic_accesses,
         pointer_bindings: Vec::new(),
         accesses: Vec::new(),
     })

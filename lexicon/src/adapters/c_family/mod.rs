@@ -48,6 +48,9 @@ mod resolution;
 #[cfg(test)]
 mod resolution_tests;
 mod semantic_call_facts;
+mod semantic_call_records;
+mod semantic_dataflow_facts;
+mod semantic_pointer_index;
 mod syntax;
 mod type_declarations;
 mod visibility;

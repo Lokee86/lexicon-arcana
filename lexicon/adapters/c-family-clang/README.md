@@ -4,7 +4,7 @@ This directory owns Lexicon's private C/C++ compiler frontend process.
 
 The helper is a process boundary. Clang/LLVM types do not cross into the Rust adapter; it emits versioned compiler observations while Rust remains responsible for Lexicon identities, fact policy, canonicalization, and storage.
 
-Phase 2.4 extends the staged path with compiler-owned inheritance, override, call-target, overload, receiver-type, and virtual-dispatch observations. It does **not** own production C-family facts yet.
+Phase 2.5 extends the staged path with compiler-bound arguments, indirect callee values, pointer bindings, reads/writes, and macro-expansion provenance on top of the Phase 2.4 relationship/call observations. It does **not** own production C-family facts yet.
 
 ## Requirements
 
@@ -33,7 +33,7 @@ It reads one JSON request line from stdin and writes one JSON response line to s
 Protocol v1 exposes:
 
 - `capabilities` — linked Clang version and compilation-database visibility;
-- `structural` — translation-unit/build context plus source-language, declaration, include, macro, diagnostic, inheritance/override, call-target, overload, receiver-type, and virtual-dispatch observations.
+- `structural` — translation-unit/build context plus source-language, declaration, include, macro, diagnostic, inheritance/override, call-target, overload, receiver-type, virtual-dispatch, compiler-bound argument/value-flow, pointer-binding, access, and macro-expansion observations.
 
 The structural request receives the repository root and the Rust-discovered C-family source inventory. Compilation-database commands are used when available. Uncovered source files use synthesized Clang commands; headers are normally observed through source translation units, with only orphan headers receiving direct Clang analysis.
 

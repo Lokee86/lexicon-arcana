@@ -11,6 +11,7 @@
 #include "structural_declaration_support.h"
 #include "structural_relationships.h"
 #include "structural_source.h"
+#include "structural_value_flow.h"
 
 namespace lexicon::clang_frontend {
 namespace {
@@ -74,6 +75,54 @@ public:
     if (call) {
       observe_constructor(state_, context_, *call, root_, translation_unit_,
                           language_);
+    }
+    return true;
+  }
+
+  bool VisitDeclRefExpr(clang::DeclRefExpr *expression) {
+    if (expression) {
+      observe_value_access(state_, context_, *expression, root_,
+                           translation_unit_, language_);
+    }
+    return true;
+  }
+
+  bool VisitMemberExpr(clang::MemberExpr *expression) {
+    if (expression) {
+      observe_value_access(state_, context_, *expression, root_,
+                           translation_unit_, language_);
+    }
+    return true;
+  }
+
+  bool VisitVarDecl(clang::VarDecl *declaration) {
+    if (declaration) {
+      observe_variable(state_, context_, *declaration, root_,
+                       translation_unit_, language_);
+    }
+    return true;
+  }
+
+  bool VisitFieldDecl(clang::FieldDecl *declaration) {
+    if (declaration) {
+      observe_pointer_field(state_, context_, *declaration, root_,
+                            translation_unit_, language_);
+    }
+    return true;
+  }
+
+  bool VisitBinaryOperator(clang::BinaryOperator *assignment) {
+    if (assignment) {
+      observe_pointer_assignment(state_, context_, *assignment, root_,
+                                 translation_unit_, language_);
+    }
+    return true;
+  }
+
+  bool VisitDesignatedInitExpr(clang::DesignatedInitExpr *initializer) {
+    if (initializer) {
+      observe_designated_pointer(state_, context_, *initializer, root_,
+                                 translation_unit_, language_);
     }
     return true;
   }

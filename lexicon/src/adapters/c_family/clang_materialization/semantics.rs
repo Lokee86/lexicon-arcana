@@ -2,89 +2,20 @@ use std::collections::HashMap;
 
 use crate::AdapterError;
 
-use super::super::{
-    clang_protocol::{
-        FileObservation, SemanticCallObservation as ProtocolCall,
-        SemanticRelationshipObservation as ProtocolRelationship, SymbolReferenceObservation,
+use super::{
+    super::{
+        clang_protocol::{
+            FileObservation, SemanticArgumentObservation as ProtocolArgument,
+            SemanticCallObservation as ProtocolCall,
+            SemanticRelationshipObservation as ProtocolRelationship,
+        },
+        model::{
+            SemanticArgumentObservation, SemanticCallForm, SemanticCallObservation,
+            SemanticCallResolution, SemanticRelationshipKind, SemanticRelationshipObservation,
+        },
     },
-    model::{
-        SemanticCallForm, SemanticCallObservation, SemanticCallResolution,
-        SemanticRelationshipKind, SemanticRelationshipObservation,
-    },
+    references::{IdentityMaps, ReferenceIndex},
 };
-
-pub(super) type IdentityMaps = HashMap<String, HashMap<String, String>>;
-
-#[derive(Debug)]
-pub(super) struct ReferenceIndex {
-    by_compiler: HashMap<String, Vec<ReferenceCandidate>>,
-}
-
-#[derive(Debug, Clone)]
-struct ReferenceCandidate {
-    path: String,
-    id: String,
-    definition: bool,
-}
-
-impl ReferenceIndex {
-    pub(super) fn new(files: &[&FileObservation], ids: &IdentityMaps) -> Self {
-        let mut by_compiler = HashMap::<String, Vec<ReferenceCandidate>>::new();
-        for file in files {
-            let Some(file_ids) = ids.get(&file.path) else {
-                continue;
-            };
-            for declaration in &file.declarations {
-                let Some(id) = file_ids.get(&declaration.compiler_id) else {
-                    continue;
-                };
-                by_compiler
-                    .entry(declaration.compiler_id.clone())
-                    .or_default()
-                    .push(ReferenceCandidate {
-                        path: file.path.clone(),
-                        id: id.clone(),
-                        definition: declaration.definition,
-                    });
-            }
-        }
-        for values in by_compiler.values_mut() {
-            values.sort_by(|left, right| {
-                (!left.definition, left.path.as_str(), left.id.as_str()).cmp(&(
-                    !right.definition,
-                    right.path.as_str(),
-                    right.id.as_str(),
-                ))
-            });
-            values.dedup_by(|left, right| left.id == right.id);
-        }
-        Self { by_compiler }
-    }
-
-    fn resolve(&self, reference: &SymbolReferenceObservation, source_path: &str) -> String {
-        if reference.external {
-            return String::new();
-        }
-        let Some(candidates) = self.by_compiler.get(&reference.compiler_id) else {
-            return String::new();
-        };
-        if let Some(value) = candidates.iter().find(|value| value.path == source_path) {
-            return value.id.clone();
-        }
-        if let Some(value) = candidates.iter().find(|value| value.definition) {
-            return value.id.clone();
-        }
-        if !reference.path.is_empty()
-            && let Some(value) = candidates.iter().find(|value| value.path == reference.path)
-        {
-            return value.id.clone();
-        }
-        candidates
-            .first()
-            .map(|value| value.id.clone())
-            .unwrap_or_default()
-    }
-}
 
 pub(super) fn materialize(
     file: &FileObservation,
@@ -212,6 +143,11 @@ fn call(
         .as_ref()
         .map(|target| references.resolve(target, path))
         .unwrap_or_default();
+    let callee_value_id = value
+        .callee_value
+        .as_ref()
+        .map(|target| references.resolve(target, path))
+        .unwrap_or_default();
     let external_candidate_count = value
         .candidates
         .iter()
@@ -231,6 +167,7 @@ fn call(
             "static".into()
         },
         overload_selected: value.overload_selected,
+        macro_expanded: value.macro_expanded,
         target_id,
         target_name,
         candidate_ids,
@@ -238,7 +175,32 @@ fn call(
         external_candidate_count,
         receiver_type_id,
         receiver_type: value.receiver_type_name.clone(),
-        argument_expressions: value.arguments.clone(),
+        callee_value_id,
+        arguments: value
+            .arguments
+            .iter()
+            .map(|argument| materialize_argument(argument, path, references))
+            .collect(),
         span: value.span.clone(),
     })
+}
+
+fn materialize_argument(
+    value: &ProtocolArgument,
+    path: &str,
+    references: &ReferenceIndex,
+) -> SemanticArgumentObservation {
+    SemanticArgumentObservation {
+        expression: value.expression.clone(),
+        value_id: value
+            .value
+            .as_ref()
+            .map(|target| references.resolve(target, path))
+            .unwrap_or_default(),
+        callable_id: value
+            .callable
+            .as_ref()
+            .map(|target| references.resolve(target, path))
+            .unwrap_or_default(),
+    }
 }

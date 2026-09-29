@@ -3,12 +3,37 @@
 #include <deque>
 #include <set>
 
+#include "clang/AST/Decl.h"
 #include "clang/AST/ParentMapContext.h"
 
 #include "structural_declaration_support.h"
 #include "structural_source.h"
 
 namespace lexicon::clang_frontend {
+namespace {
+
+const clang::NamedDecl *referenced_named_decl(const clang::Expr *expression) {
+  if (!expression) {
+    return nullptr;
+  }
+  const auto *value = expression->IgnoreParenImpCasts();
+  const auto *declaration = value->getReferencedDeclOfCallee();
+  return llvm::dyn_cast_or_null<clang::NamedDecl>(declaration);
+}
+
+SemanticArgument argument(const clang::Expr &expression,
+                          const clang::SourceManager &sources,
+                          const clang::LangOptions &language,
+                          llvm::StringRef repository_root) {
+  return {
+      .expression = normalize_space(
+          source_text(sources, language, expression.getSourceRange())),
+      .value = value_reference(&expression, sources, repository_root),
+      .callable = callable_reference(&expression, sources, repository_root),
+  };
+}
+
+} // namespace
 
 SymbolReference symbol_reference(const clang::NamedDecl *declaration,
                                  const clang::SourceManager &sources,
@@ -24,6 +49,28 @@ SymbolReference symbol_reference(const clang::NamedDecl *declaration,
       .kind = declaration->getDeclKindName(),
       .external = !path.has_value(),
   };
+}
+
+std::optional<SymbolReference>
+value_reference(const clang::Expr *expression,
+                const clang::SourceManager &sources,
+                llvm::StringRef repository_root) {
+  const auto *declaration = referenced_named_decl(expression);
+  if (!declaration || llvm::isa<clang::FunctionDecl>(declaration)) {
+    return std::nullopt;
+  }
+  return symbol_reference(declaration, sources, repository_root);
+}
+
+std::optional<SymbolReference>
+callable_reference(const clang::Expr *expression,
+                   const clang::SourceManager &sources,
+                   llvm::StringRef repository_root) {
+  const auto *declaration = referenced_named_decl(expression);
+  if (!llvm::isa_and_nonnull<clang::FunctionDecl>(declaration)) {
+    return std::nullopt;
+  }
+  return symbol_reference(declaration, sources, repository_root);
 }
 
 const clang::FunctionDecl *enclosing_function(clang::ASTContext &context,
@@ -74,27 +121,28 @@ overload_candidates(const clang::Expr *callee,
   return result;
 }
 
-std::vector<std::string> argument_texts(const clang::CallExpr &call,
-                                        const clang::SourceManager &sources,
-                                        const clang::LangOptions &language) {
-  std::vector<std::string> result;
+std::vector<SemanticArgument>
+semantic_arguments(const clang::CallExpr &call,
+                   const clang::SourceManager &sources,
+                   const clang::LangOptions &language,
+                   llvm::StringRef repository_root) {
+  std::vector<SemanticArgument> result;
   result.reserve(call.getNumArgs());
-  for (const auto *argument : call.arguments()) {
-    result.push_back(
-        normalize_space(source_text(sources, language, argument->getSourceRange())));
+  for (const auto *value : call.arguments()) {
+    result.push_back(argument(*value, sources, language, repository_root));
   }
   return result;
 }
 
-std::vector<std::string>
-constructor_argument_texts(const clang::CXXConstructExpr &call,
-                           const clang::SourceManager &sources,
-                           const clang::LangOptions &language) {
-  std::vector<std::string> result;
+std::vector<SemanticArgument>
+semantic_arguments(const clang::CXXConstructExpr &call,
+                   const clang::SourceManager &sources,
+                   const clang::LangOptions &language,
+                   llvm::StringRef repository_root) {
+  std::vector<SemanticArgument> result;
   result.reserve(call.getNumArgs());
-  for (const auto *argument : call.arguments()) {
-    result.push_back(
-        normalize_space(source_text(sources, language, argument->getSourceRange())));
+  for (const auto *value : call.arguments()) {
+    result.push_back(argument(*value, sources, language, repository_root));
   }
   return result;
 }

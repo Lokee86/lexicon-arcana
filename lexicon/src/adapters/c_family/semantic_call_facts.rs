@@ -1,57 +1,50 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-use serde_json::json;
+use crate::FactRecord;
 
-use crate::{EdgeRecord, FactRecord, UnresolvedRecord};
-
-use super::model::{
-    RepositoryModel, SemanticCallForm, SemanticCallObservation, SemanticCallResolution,
-    SemanticRelationshipKind,
+use super::{
+    model::{
+        RepositoryModel, SemanticCallObservation, SemanticCallResolution, SemanticRelationshipKind,
+    },
+    resolution::DeclarationIndex,
+    semantic_call_records::{push_edge, push_unresolved},
+    semantic_pointer_index::SemanticPointerIndex,
 };
 
-pub(super) fn add(model: &RepositoryModel, records: &mut Vec<FactRecord>) {
+pub(super) fn add(
+    model: &RepositoryModel,
+    declarations: &DeclarationIndex<'_>,
+    records: &mut Vec<FactRecord>,
+) {
     let overrides = override_index(model);
+    let pointers = SemanticPointerIndex::build(model, declarations);
     for file in &model.files {
         for observation in &file.semantic_calls {
-            emit(observation, &overrides, records);
+            emit(observation, declarations, &pointers, &overrides, records);
         }
     }
 }
 
 fn emit(
     observation: &SemanticCallObservation,
+    declarations: &DeclarationIndex<'_>,
+    pointers: &SemanticPointerIndex,
     overrides: &BTreeMap<String, Vec<String>>,
     records: &mut Vec<FactRecord>,
 ) {
     match observation.resolution {
         SemanticCallResolution::Resolved if !observation.target_id.is_empty() => {
-            if observation.dispatch == "virtual" {
-                let targets = virtual_targets(&observation.target_id, overrides);
-                for target in &targets {
-                    push_edge(
-                        observation,
-                        target,
-                        "possible-calls",
-                        targets.len(),
-                        records,
-                    );
-                }
-                push_unresolved(observation, "dynamic-target", records);
+            emit_resolved(observation, declarations, overrides, records);
+        }
+        SemanticCallResolution::Resolved => push_unresolved(
+            observation,
+            if observation.external_candidate_count > 0 {
+                "external-target"
             } else {
-                push_edge(observation, &observation.target_id, "calls", 1, records);
-            }
-        }
-        SemanticCallResolution::Resolved => {
-            push_unresolved(
-                observation,
-                if observation.external_candidate_count > 0 {
-                    "external-target"
-                } else {
-                    "missing-target"
-                },
-                records,
-            );
-        }
+                "missing-target"
+            },
+            records,
+        ),
         SemanticCallResolution::Ambiguous => {
             let mut candidates = observation.candidate_ids.clone();
             candidates.sort();
@@ -62,10 +55,25 @@ fn emit(
                     target,
                     "possible-calls",
                     observation.compiler_candidate_count,
+                    None,
                     records,
                 );
             }
             push_unresolved(observation, "ambiguous-target", records);
+        }
+        SemanticCallResolution::Indirect => {
+            let targets = pointers.targets(&observation.callee_value_id);
+            for target in &targets {
+                push_edge(
+                    observation,
+                    target,
+                    "possible-calls",
+                    targets.len(),
+                    Some(&observation.callee_value_id),
+                    records,
+                );
+            }
+            push_unresolved(observation, "dynamic-target", records);
         }
         SemanticCallResolution::Missing => push_unresolved(
             observation,
@@ -76,68 +84,48 @@ fn emit(
             },
             records,
         ),
-        SemanticCallResolution::Dependent | SemanticCallResolution::Indirect => {
+        SemanticCallResolution::Dependent => {
             push_unresolved(observation, "dynamic-target", records);
         }
     }
 }
 
-fn push_edge(
+fn emit_resolved(
     observation: &SemanticCallObservation,
-    target: &str,
-    relation: &str,
-    candidate_count: usize,
+    declarations: &DeclarationIndex<'_>,
+    overrides: &BTreeMap<String, Vec<String>>,
     records: &mut Vec<FactRecord>,
 ) {
-    let mut evidence = vec![
-        "clang".to_owned(),
-        format!("clang-{}", form_name(observation.form)),
-    ];
     if observation.dispatch == "virtual" {
-        evidence.push("clang-virtual-dispatch".into());
+        let targets = virtual_targets(&observation.target_id, overrides);
+        for target in &targets {
+            push_edge(
+                observation,
+                target,
+                "possible-calls",
+                targets.len(),
+                None,
+                records,
+            );
+        }
+        push_unresolved(observation, "dynamic-target", records);
+        return;
     }
-    records.push(FactRecord::Edge(EdgeRecord {
-        attributes: Some(json!({
-            "argument_count": observation.argument_expressions.len(),
-            "candidate_count": candidate_count.max(1),
-            "compiler_candidate_count": observation.compiler_candidate_count,
-            "dispatch": observation.dispatch,
-            "overload_selected": observation.overload_selected,
-            "evidence": evidence,
-            "receiver_type": observation.receiver_type,
-            "receiver_type_id": observation.receiver_type_id,
-            "resolution": if relation == "calls" { "definite" } else { "possible" },
-        })),
-        owner: Some(observation.path.clone()),
-        relation: relation.into(),
-        source: observation.source_id.clone(),
-        span: Some(observation.span.clone()),
-        target: target.into(),
-    }));
-}
 
-fn push_unresolved(
-    observation: &SemanticCallObservation,
-    reason: &str,
-    records: &mut Vec<FactRecord>,
-) {
-    records.push(FactRecord::Unresolved(UnresolvedRecord {
-        attributes: Some(json!({
-            "compiler_candidate_count": observation.compiler_candidate_count,
-            "dispatch": observation.dispatch,
-            "form": form_name(observation.form),
-            "receiver_type": observation.receiver_type,
-        })),
-        candidate_name: (!observation.target_name.is_empty())
-            .then(|| observation.target_name.clone()),
-        candidate_namespace: None,
-        expression: observation.expression.clone(),
-        owner: Some(observation.path.clone()),
-        reason: reason.into(),
-        relation: "calls".into(),
-        source: observation.source_id.clone(),
-        span: Some(observation.span.clone()),
-    }));
+    push_edge(
+        observation,
+        &observation.target_id,
+        "calls",
+        1,
+        None,
+        records,
+    );
+    super::semantic_dataflow_facts::add_passes_to(
+        declarations,
+        observation,
+        &observation.target_id,
+        records,
+    );
 }
 
 fn override_index(model: &RepositoryModel) -> BTreeMap<String, Vec<String>> {
@@ -173,14 +161,4 @@ fn virtual_targets(target: &str, overrides: &BTreeMap<String, Vec<String>>) -> V
         }
     }
     seen.into_iter().collect()
-}
-
-fn form_name(form: SemanticCallForm) -> &'static str {
-    match form {
-        SemanticCallForm::Direct => "direct",
-        SemanticCallForm::Member => "member",
-        SemanticCallForm::Constructor => "constructor",
-        SemanticCallForm::Operator => "operator",
-        SemanticCallForm::Destructor => "destructor",
-    }
 }

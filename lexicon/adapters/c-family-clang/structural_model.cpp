@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "structural_semantics.h"
+#include "structural_value_flow_json.h"
 
 namespace lexicon::clang_frontend {
 namespace {
@@ -74,6 +75,7 @@ llvm::json::Object macro_json(const Macro &value) {
 
 llvm::json::Object file_json(File value) {
   normalize_semantics(value);
+  normalize_value_flow(value);
   std::sort(value.declarations.begin(), value.declarations.end(),
             [](const Declaration &left, const Declaration &right) {
               return std::tie(left.span.start_line, left.span.start_column,
@@ -169,6 +171,8 @@ llvm::json::Object file_json(File value) {
       {"macros", std::move(macros)},
       {"relationships", relationships_json(value)},
       {"calls", calls_json(value)},
+      {"pointer_bindings", pointer_bindings_json(value)},
+      {"accesses", accesses_json(value)},
       {"diagnostics", std::move(diagnostics)},
   };
 }
