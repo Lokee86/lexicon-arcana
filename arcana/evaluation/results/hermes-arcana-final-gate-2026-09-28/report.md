@@ -135,6 +135,43 @@ The accepted build satisfies the memory-refactor completion properties:
   string/ownership architecture remains;
 - persistent repository and graph formats are unchanged.
 
+## Hard-cut cleanup audit
+
+The final Step 18 repository sweep found no retired compact-path architecture
+still reachable.
+
+Explicitly audited and absent from the canonical managed compact path:
+
+- `NodeSignature`;
+- `BTreeMap<LexiconIdentity, NodeSignature>`;
+- `HashMap<NodeKey, LexiconIdentity>`;
+- `HashMap<LexiconIdentity, NodeKey>`;
+- compact `external_ids` relationship-resolution state;
+- `BTreeMap<String, TempStringId>`;
+- a final compact `Vec<String>` representation;
+- `BTreeMap<NodeKey, StringId>` node ownership;
+- `BTreeMap<StringId, Vec<Contribution>>`;
+- `canonical_strings` / flatten-copy helpers;
+- compact fallback builders, dual representations, migration wrappers, aliases,
+  and transitional comments.
+
+Repository-wide searches do still find similarly named structures in the
+separate rich/reference `RepositoryFacts` and legacy object-decoding paths.
+Those are not managed-sync fallbacks: they remain independently used by the
+rich repository APIs and semantic/oracle tests, and the compact production
+loader's boundary test continues to prove it does not call through them.
+
+The rich `StringTableBuilder` may still materialize a `Vec<String>` as input
+to `CompactStringTable`; the accepted managed compact path does not. Its final
+compact table remains blob/offset-backed.
+
+`ARCANA_SYNC_PROFILE` hooks are retained deliberately as benchmark/evaluation
+instrumentation. They do not select an alternate architecture or alter
+persistent output, and they produced the accepted Stage A/B/C/final evidence.
+
+One stale migration-era test name referring to `phase3` was renamed to the
+architecture-neutral compact-oracle name during this cleanup.
+
 ## Gate decision
 
 - formatting/check/full tests: **PASS**

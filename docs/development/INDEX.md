@@ -10,6 +10,7 @@ Development documentation defines current L+A verification/release practice and 
 - [Release workflow](release-workflow.md) — root L+A build, install, packaging, protocol verification, and release artifacts.
 - [Testing and benchmarks](testing-and-benchmarks.md) — component/evaluation procedures and retained report artifacts.
 - [Arcana Lexicon ingestion heap baseline](arcana-lexicon-ingestion-heap-baseline-2026-09-28.md) — frozen pre-refactor heap, allocation, fixture, and artifact-oracle measurements for the bounded-memory ingestion refactor.
+- [Arcana Lexicon ingestion final memory gate](../../arcana/evaluation/results/hermes-arcana-final-gate-2026-09-28/report.md) — completed bounded-memory refactor proof: exact frozen artifacts and **589.25 MiB** process-tree peak RSS against the required **<=600 MiB** gate.
 - [Lexicon-wide performance restoration](lexicon-wide-performance-restoration.md) — active Rust-wide restoration project; Phases 0, 1, 2, 4, 5, 6, 7, and 8 complete, with Phase 3 still pending.
 - [Lexicon-wide pre-port optimization parity matrix](lexicon-wide-optimization-parity-matrix.md) — permanent Phase 5 audit of the mature pre-Rust performance sequence and current ownership/status.
 - [Lexicon Go-path performance restoration](lexicon-performance-restoration.md) — completed Go adapter/helper optimization project retained as historical evidence.

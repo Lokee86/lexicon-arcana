@@ -13,7 +13,7 @@ use crate::repository_store::{CompactRepositoryBuild, write_repository_store};
 const GOLDEN_V2_HEX: &str = "4c584f424a00020001010900000005312e302e30000964656d6f2e6d61696e010d796e616d69632d746172676574000166010228290002676f00046d61696e04032e676f060801bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0101cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc007a020001bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0111111111111111111111111111111111111111111111111111111111111111110308010101000000000122222222222222222222222222222222222222222222222222222222222222220b0701010002010802010202090100010100020000010b0100040005010304000200";
 
 #[test]
-fn v2_snapshot_streams_directly_to_the_phase3_compact_oracle() {
+fn v2_snapshot_streams_directly_to_the_compact_oracle() {
     let temp = TestDirectory::new();
     let root = temp.path.join(".lexicon");
     fs::create_dir_all(root.join("objects")).unwrap();
