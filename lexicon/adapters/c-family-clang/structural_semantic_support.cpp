@@ -4,6 +4,7 @@
 #include <set>
 
 #include "clang/AST/Decl.h"
+#include "clang/AST/DeclCXX.h"
 #include "clang/AST/ParentMapContext.h"
 
 #include "structural_declaration_support.h"
@@ -11,6 +12,29 @@
 
 namespace lexicon::clang_frontend {
 namespace {
+
+bool lambda_call_operator(const clang::FunctionDecl *function) {
+  const clang::FunctionDecl *current = function;
+  for (unsigned depth = 0; current && depth < 8; ++depth) {
+    if (const auto *method = llvm::dyn_cast<clang::CXXMethodDecl>(current)) {
+      if (method->getParent()->isLambda()) {
+        return true;
+      }
+      if (const auto *pattern = method->getInstantiatedFromMemberFunction();
+          pattern && pattern != current) {
+        current = pattern;
+        continue;
+      }
+    }
+    if (const auto *pattern = current->getTemplateInstantiationPattern();
+        pattern && pattern != current) {
+      current = pattern;
+      continue;
+    }
+    break;
+  }
+  return false;
+}
 
 const clang::NamedDecl *referenced_named_decl(const clang::Expr *expression) {
   if (!expression) {
@@ -73,17 +97,23 @@ callable_reference(const clang::Expr *expression,
   return symbol_reference(declaration, sources, repository_root);
 }
 
-const clang::FunctionDecl *enclosing_function(clang::ASTContext &context,
-                                              const clang::Stmt &statement) {
+const clang::FunctionDecl *
+enclosing_function(clang::ASTContext &context, clang::DynTypedNode initial) {
   std::deque<clang::DynTypedNode> queue;
   std::set<const void *> seen;
-  queue.push_back(clang::DynTypedNode::create(statement));
+  queue.push_back(initial);
   while (!queue.empty()) {
     auto current = queue.front();
     queue.pop_front();
     for (const auto &parent : context.getParents(current)) {
       if (const auto *function = parent.get<clang::FunctionDecl>()) {
-        return function;
+        if (!function->isImplicit() && !lambda_call_operator(function)) {
+          return function;
+        }
+        if (seen.insert(function).second) {
+          queue.push_back(parent);
+        }
+        continue;
       }
       if (const auto *stmt = parent.get<clang::Stmt>()) {
         if (seen.insert(stmt).second) {
@@ -99,6 +129,16 @@ const clang::FunctionDecl *enclosing_function(clang::ASTContext &context,
     }
   }
   return nullptr;
+}
+
+const clang::FunctionDecl *enclosing_function(clang::ASTContext &context,
+                                              const clang::Stmt &statement) {
+  return enclosing_function(context, clang::DynTypedNode::create(statement));
+}
+
+const clang::FunctionDecl *enclosing_function(clang::ASTContext &context,
+                                              const clang::Decl &declaration) {
+  return enclosing_function(context, clang::DynTypedNode::create(declaration));
 }
 
 std::vector<SymbolReference>

@@ -156,6 +156,106 @@ fn clang_semantics_materialize_relationships_and_call_policy() {
 }
 
 #[test]
+fn macro_spanned_semantics_resolve_source_identity_across_files() {
+    let root = TestDirectory::new("semantic-cross-file-source");
+    fs::write(
+        root.path.join("caller.cpp"),
+        b"#include \"macro.h\"\nint caller() { return WRAP(); }\n",
+    )
+    .unwrap();
+    fs::write(root.path.join("macro.h"), b"#define WRAP() target\n").unwrap();
+
+    let response: StructuralResponse = serde_json::from_value(json!({
+        "protocol_version": 1,
+        "helper_version": "0.4.0",
+        "clang_version": "clang test",
+        "compilation_database": true,
+        "files": [
+            {
+                "path": "caller.cpp",
+                "languages": ["cpp"],
+                "translation_units": ["caller.cpp"],
+                "declarations": [{
+                    "compiler_id": "caller-usr",
+                    "kind": "function",
+                    "name": "caller",
+                    "qualified_name": "caller",
+                    "signature": "caller()",
+                    "span": span("caller.cpp", 2, 1, 2, 13),
+                    "callable": true,
+                    "definition": true,
+                    "internal": false,
+                    "template": false,
+                    "virtual_member": false,
+                    "function_pointer": false,
+                    "alias": false,
+                    "enum_member": false
+                }]
+            },
+            {
+                "path": "macro.h",
+                "languages": ["cpp"],
+                "translation_units": ["caller.cpp"],
+                "declarations": [{
+                    "compiler_id": "target-usr",
+                    "kind": "variable",
+                    "name": "target",
+                    "qualified_name": "target",
+                    "type_name": "int",
+                    "span": span("macro.h", 1, 16, 1, 22),
+                    "callable": false,
+                    "definition": true,
+                    "internal": false,
+                    "template": false,
+                    "virtual_member": false,
+                    "function_pointer": false,
+                    "alias": false,
+                    "enum_member": false
+                }],
+                "calls": [{
+                    "source_compiler_id": "caller-usr",
+                    "form": "direct",
+                    "resolution": "missing",
+                    "expression": "WRAP",
+                    "candidates": [],
+                    "receiver_type_name": "",
+                    "virtual_dispatch": false,
+                    "macro_expanded": true,
+                    "compiler_candidate_count": 0,
+                    "arguments": [],
+                    "span": span("macro.h", 1, 1, 1, 8)
+                }],
+                "accesses": [{
+                    "source_compiler_id": "caller-usr",
+                    "target": symbol("target-usr", "macro.h", "target", "Var", false),
+                    "relation": "reads",
+                    "expression": "target",
+                    "span": span("macro.h", 1, 16, 1, 22)
+                }]
+            }
+        ]
+    }))
+    .unwrap();
+
+    let model = materialize(&root.path, &response).unwrap();
+    let caller_id = model
+        .files
+        .iter()
+        .find(|file| file.path == "caller.cpp")
+        .unwrap()
+        .declarations[0]
+        .id
+        .clone();
+    let header = model
+        .files
+        .iter()
+        .find(|file| file.path == "macro.h")
+        .unwrap();
+    assert_eq!(header.semantic_calls[0].source_id, caller_id);
+    assert_eq!(header.semantic_accesses[0].source_id, caller_id);
+}
+
+#[test]
 fn resolved_external_clang_target_stays_unresolved_in_lexicon_policy() {
     let root = TestDirectory::new("semantic-external");
     fs::write(

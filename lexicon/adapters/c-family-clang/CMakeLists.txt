@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(lexicon_c_family_clang LANGUAGES CXX)
+project(lexicon_c_family_clang LANGUAGES C CXX)
 
 find_package(LLVM REQUIRED CONFIG)
 find_package(Clang REQUIRED CONFIG)

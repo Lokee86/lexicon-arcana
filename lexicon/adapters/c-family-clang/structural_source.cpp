@@ -2,6 +2,7 @@
 
 #include <cctype>
 #include <filesystem>
+#include <tuple>
 
 #include "clang/Lex/Lexer.h"
 
@@ -43,7 +44,11 @@ std::optional<std::string> source_path(const clang::SourceManager &sources,
                                        clang::SourceLocation location,
                                        llvm::StringRef root) {
   auto spelling = sources.getSpellingLoc(location);
-  return repository_path(sources.getFilename(spelling), root);
+  if (auto path = repository_path(sources.getFilename(spelling), root)) {
+    return path;
+  }
+  auto expansion = sources.getExpansionLoc(location);
+  return repository_path(sources.getFilename(expansion), root);
 }
 
 Span source_span(const clang::SourceManager &sources,
@@ -51,16 +56,40 @@ Span source_span(const clang::SourceManager &sources,
                  clang::SourceRange range, const std::string &path) {
   auto begin = sources.getSpellingLoc(range.getBegin());
   auto end = sources.getSpellingLoc(range.getEnd());
+  if (begin.isInvalid() || end.isInvalid() ||
+      sources.getFileID(begin) != sources.getFileID(end) ||
+      sources.getFileOffset(end) < sources.getFileOffset(begin)) {
+    begin = sources.getExpansionLoc(range.getBegin());
+    end = sources.getExpansionLoc(range.getEnd());
+  }
+
   auto token_end = clang::Lexer::getLocForEndOfToken(end, 0, sources, language);
-  if (token_end.isValid()) {
+  if (token_end.isValid() &&
+      sources.getFileID(token_end) == sources.getFileID(begin) &&
+      sources.getFileOffset(token_end) >= sources.getFileOffset(begin)) {
     end = token_end;
   }
+  auto start_line = sources.getSpellingLineNumber(begin);
+  auto start_column = sources.getSpellingColumnNumber(begin);
+  auto end_line = sources.getSpellingLineNumber(end);
+  auto end_column = sources.getSpellingColumnNumber(end);
+
+  // Some macro-generated declarations have a valid source-written start but
+  // an end location that resolves to no presumed file position. Preserve the
+  // known anchor rather than publishing an invalid zero-coordinate span.
+  if (start_line != 0 && start_column != 0 &&
+      (end_line == 0 || end_column == 0 ||
+       std::tie(end_line, end_column) < std::tie(start_line, start_column))) {
+    end_line = start_line;
+    end_column = start_column;
+  }
+
   return {
       .path = path,
-      .start_line = sources.getSpellingLineNumber(begin),
-      .start_column = sources.getSpellingColumnNumber(begin),
-      .end_line = sources.getSpellingLineNumber(end),
-      .end_column = sources.getSpellingColumnNumber(end),
+      .start_line = start_line,
+      .start_column = start_column,
+      .end_line = end_line,
+      .end_column = end_column,
   };
 }
 

@@ -17,10 +17,18 @@ pub fn analysis(request: &AdapterRequest, model: RepositoryModel) -> Analysis {
     for file in &model.files {
         add_file_records(file, &files, &model.visibility, &mut records);
     }
+    let graph_started = crate::perf::start();
     super::relationship_facts::add(&model, &mut records);
     let declarations = super::resolution::DeclarationIndex::new(&model);
     super::semantic_call_facts::add(&model, &declarations, &mut records);
     super::semantic_dataflow_facts::add_accesses(&model, &mut records);
+    if let Some(started) = graph_started {
+        crate::perf::emit(
+            "c-family.lexicon.graph_extensions",
+            started.elapsed(),
+            &[("records_before_dedup", records.len() as u64)],
+        );
+    }
     records = deduplicate(records);
 
     let incremental = request.mode == AdapterMode::Incremental;

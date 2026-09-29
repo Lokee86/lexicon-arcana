@@ -62,12 +62,13 @@ fn relationship(
     let source_id = local
         .get(&value.source_compiler_id)
         .cloned()
-        .ok_or_else(|| {
-            AdapterError::new(format!(
-                "C-family Clang relationship source {:?} is not materialized in {path}",
-                value.source_compiler_id
-            ))
-        })?;
+        .unwrap_or_else(|| references.resolve_compiler_id(&value.source_compiler_id, path));
+    if source_id.is_empty() {
+        return Err(AdapterError::new(format!(
+            "C-family Clang relationship source {:?} is not materialized",
+            value.source_compiler_id
+        )));
+    }
     Ok(SemanticRelationshipObservation {
         source_id,
         target_id: references.resolve(&value.target, path),
@@ -89,12 +90,13 @@ fn call(
     let source_id = local
         .get(&value.source_compiler_id)
         .cloned()
-        .ok_or_else(|| {
-            AdapterError::new(format!(
-                "C-family Clang call source {:?} is not materialized in {path}",
-                value.source_compiler_id
-            ))
-        })?;
+        .unwrap_or_else(|| references.resolve_compiler_id(&value.source_compiler_id, path));
+    if source_id.is_empty() {
+        return Err(AdapterError::new(format!(
+            "C-family Clang call source {:?} is not materialized",
+            value.source_compiler_id
+        )));
+    }
     let form = match value.form.as_str() {
         "direct" => SemanticCallForm::Direct,
         "member" => SemanticCallForm::Member,

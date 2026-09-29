@@ -2,9 +2,13 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <filesystem>
+#include <limits>
 #include <memory>
+#include <mutex>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -13,6 +17,7 @@
 #include "clang/Tooling/Tooling.h"
 
 #include "structural_frontend.h"
+#include "perf.h"
 #include "structural_model.h"
 
 namespace {
@@ -77,8 +82,21 @@ clang::tooling::CompileCommand synthetic_command(const std::string &root,
       "-fsyntax-only",
       cpp ? "-xc++" : "-xc",
       cpp ? "-std=c++17" : "-std=c11",
-      file.str(),
+      "-I",
+      root,
   };
+  const auto root_path = std::filesystem::path(root);
+  const auto conventional_include = root_path / "include";
+  if (std::filesystem::is_directory(conventional_include)) {
+    command.CommandLine.push_back("-I");
+    command.CommandLine.push_back(conventional_include.string());
+  }
+  const auto parent = root_path.parent_path();
+  if (parent.filename() == "include" || parent.filename() == "inc") {
+    command.CommandLine.push_back("-I");
+    command.CommandLine.push_back(parent.string());
+  }
+  command.CommandLine.push_back(file.str());
   return command;
 }
 
@@ -106,27 +124,89 @@ public:
 
   std::vector<clang::tooling::CompileCommand>
   getCompileCommands(llvm::StringRef file) const override {
-    if (base_) {
-      auto commands = base_->getCompileCommands(file);
-      if (!commands.empty()) {
-        return commands;
-      }
+    auto commands = base_commands(file);
+    if (!commands.empty()) {
+      return commands;
     }
     return {synthetic_command(root_, file, !c_source(file))};
   }
 
   std::vector<std::string> getAllFiles() const override {
+    std::scoped_lock lock(base_mutex_);
     return base_ ? base_->getAllFiles() : std::vector<std::string>{};
   }
 
   bool synthesized(llvm::StringRef file) const {
-    return !base_ || base_->getCompileCommands(file).empty();
+    return base_commands(file).empty();
   }
 
 private:
+  std::vector<clang::tooling::CompileCommand>
+  base_commands(llvm::StringRef file) const {
+    std::scoped_lock lock(base_mutex_);
+    if (!base_) {
+      return {};
+    }
+    auto commands = base_->getCompileCommands(file);
+    if (!commands.empty()) {
+      return commands;
+    }
+
+    std::error_code error;
+    auto relative = std::filesystem::relative(
+        std::filesystem::path(file.str()), std::filesystem::path(root_), error);
+    if (error || relative.empty()) {
+      return {};
+    }
+    const auto normalized = relative.generic_string();
+    if (normalized == ".." || normalized.starts_with("../")) {
+      return {};
+    }
+    commands = base_->getCompileCommands(normalized);
+    if (!commands.empty()) {
+      return commands;
+    }
+
+    const auto requested =
+        std::filesystem::path(file.str()).lexically_normal();
+    std::vector<clang::tooling::CompileCommand> matched;
+    for (const auto &command : base_->getAllCompileCommands()) {
+      auto directory = std::filesystem::path(command.Directory);
+      if (directory.is_relative()) {
+        directory = std::filesystem::path(root_) / directory;
+      }
+      auto command_file = std::filesystem::path(command.Filename);
+      if (command_file.is_relative()) {
+        command_file = directory / command_file;
+      }
+      if (command_file.lexically_normal() == requested) {
+        matched.push_back(command);
+      }
+    }
+    return matched;
+  }
+
   std::string root_;
   const clang::tooling::CompilationDatabase *base_;
+  mutable std::mutex base_mutex_;
 };
+
+std::size_t frontend_jobs(std::size_t file_count) {
+  if (file_count < 2) {
+    return file_count;
+  }
+  if (const char *configured = std::getenv("LEXICON_CLANG_JOBS")) {
+    char *end = nullptr;
+    const auto parsed = std::strtoul(configured, &end, 10);
+    if (end != configured && *end == '\0' && parsed > 0) {
+      return std::min<std::size_t>(parsed, file_count);
+    }
+  }
+  const auto hardware = std::thread::hardware_concurrency();
+  const auto available = hardware == 0 ? std::size_t{4}
+                                       : static_cast<std::size_t>(hardware);
+  return std::min<std::size_t>({std::size_t{8}, available, file_count});
+}
 
 bool validate_request(const llvm::json::Object &request, std::string &root,
                       std::vector<std::string> &files, std::string &error) {
@@ -195,9 +275,43 @@ int run_batch(const std::string &root, CompilationCommands &database,
     }
   }
 
-  clang::tooling::ClangTool tool(database, absolute_files);
-  auto factory = lexicon::clang_frontend::make_frontend_factory(state, root);
-  return tool.run(factory.get());
+  const auto jobs = frontend_jobs(absolute_files.size());
+  if (jobs <= 1) {
+    clang::tooling::ClangTool tool(database, absolute_files);
+    auto factory = lexicon::clang_frontend::make_frontend_factory(state, root);
+    return tool.run(factory.get());
+  }
+
+  std::vector<std::vector<std::string>> chunks(jobs);
+  for (std::size_t index = 0; index < absolute_files.size(); ++index) {
+    chunks[index % jobs].push_back(std::move(absolute_files[index]));
+  }
+
+  std::vector<int> statuses(jobs, 0);
+  std::vector<std::unique_ptr<lexicon::clang_frontend::State>> results(jobs);
+  std::vector<std::thread> workers;
+  workers.reserve(jobs);
+  for (std::size_t index = 0; index < chunks.size(); ++index) {
+    workers.emplace_back([&database, &root, &statuses, &results, index,
+                          files = std::move(chunks[index])]() mutable {
+      auto local = std::make_unique<lexicon::clang_frontend::State>(root);
+      clang::tooling::ClangTool tool(database, files);
+      auto factory =
+          lexicon::clang_frontend::make_frontend_factory(*local, root);
+      statuses[index] = tool.run(factory.get());
+      results[index] = std::move(local);
+    });
+  }
+  for (auto &worker : workers) {
+    worker.join();
+  }
+
+  int status = 0;
+  for (std::size_t index = 0; index < jobs; ++index) {
+    status |= statuses[index];
+    state.merge(std::move(*results[index]));
+  }
+  return status;
 }
 
 } // namespace
@@ -211,8 +325,12 @@ bool emit_structural(const llvm::json::Object &request,
   }
 
   std::string database_error;
+  const auto database_started = lexicon::clang_frontend::PerfClock::now();
   auto base = clang::tooling::CompilationDatabase::autoDetectFromDirectory(
       root, database_error);
+  lexicon::clang_frontend::emit_perf(
+      "c-family.clang.compilation_database",
+      lexicon::clang_frontend::PerfClock::now() - database_started);
   CompilationCommands database(root, base.get());
   lexicon::clang_frontend::State state(root);
 
@@ -222,14 +340,61 @@ bool emit_structural(const llvm::json::Object &request,
     (header_source(file) ? headers : sources).push_back(file);
   }
 
+  lexicon::clang_frontend::emit_perf(
+      "c-family.clang.frontend_plan", std::chrono::nanoseconds(0),
+      {{"source_translation_units",
+        static_cast<std::uint64_t>(sources.size())},
+       {"headers", static_cast<std::uint64_t>(headers.size())},
+       {"jobs", static_cast<std::uint64_t>(frontend_jobs(sources.size()))}});
+  const auto frontend_started = lexicon::clang_frontend::PerfClock::now();
   int status = run_batch(root, database, state, sources);
-  std::vector<std::string> orphan_headers;
-  for (const auto &header : headers) {
-    if (!state.files.contains(header)) {
-      orphan_headers.push_back(header);
+  std::uint64_t orphan_header_batches = 0;
+  std::uint64_t directly_analyzed_headers = 0;
+  while (true) {
+    std::size_t minimum_depth = std::numeric_limits<std::size_t>::max();
+    for (const auto &header : headers) {
+      if (state.files.contains(header)) {
+        continue;
+      }
+      const auto depth =
+          static_cast<std::size_t>(std::count(header.begin(), header.end(), '/'));
+      minimum_depth = std::min(minimum_depth, depth);
     }
+    if (minimum_depth == std::numeric_limits<std::size_t>::max()) {
+      break;
+    }
+
+    std::vector<std::string> orphan_headers;
+    for (const auto &header : headers) {
+      if (state.files.contains(header)) {
+        continue;
+      }
+      const auto depth =
+          static_cast<std::size_t>(std::count(header.begin(), header.end(), '/'));
+      if (depth == minimum_depth) {
+        orphan_headers.push_back(header);
+      }
+    }
+    if (orphan_headers.empty()) {
+      break;
+    }
+    ++orphan_header_batches;
+    directly_analyzed_headers += orphan_headers.size();
+    status |= run_batch(root, database, state, orphan_headers);
   }
-  status |= run_batch(root, database, state, orphan_headers);
+  lexicon::clang_frontend::emit_perf(
+      "c-family.clang.orphan_headers", std::chrono::nanoseconds(0),
+      {{"batches", orphan_header_batches},
+       {"direct_headers", directly_analyzed_headers}});
+  lexicon::clang_frontend::emit_perf(
+      "c-family.clang.frontend_work",
+      lexicon::clang_frontend::PerfClock::now() - frontend_started,
+      {{"translation_units",
+        static_cast<std::uint64_t>(state.translation_units.size())},
+       {"input_files", static_cast<std::uint64_t>(files.size())}});
+  lexicon::clang_frontend::emit_perf(
+      "c-family.clang.semantic_analysis",
+      std::chrono::nanoseconds(state.semantic_analysis_ns));
   if (status != 0) {
     state.add_diagnostic({
         .severity = "error",
@@ -237,7 +402,12 @@ bool emit_structural(const llvm::json::Object &request,
     });
   }
 
+  const auto emission_started = lexicon::clang_frontend::PerfClock::now();
   response = state.response(base != nullptr, clang::getClangFullVersion(),
                             kHelperVersion);
+  lexicon::clang_frontend::emit_perf(
+      "c-family.clang.observation_emission",
+      lexicon::clang_frontend::PerfClock::now() - emission_started,
+      {{"observed_files", static_cast<std::uint64_t>(state.files.size())}});
   return true;
 }

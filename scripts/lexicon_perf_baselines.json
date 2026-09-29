@@ -7,7 +7,7 @@
   },
   "multilang": {
     "c-family": {
-      "sha256": "6F0A4E03F0EC14B803E978D832D8266C359159AA192C0D84C4C8630A34080FFD",
+      "sha256": "C39B6FACB7DD7E1E5C7CCAFBADF06169887C45D2A1E3B5020B4B392D6CE05A26",
       "fact_count": 8,
       "max_wall_ms": 5000
     },

@@ -129,6 +129,7 @@ struct File {
   std::string path;
   std::set<std::string> languages;
   std::set<std::string> translation_units;
+  std::set<std::string> declaration_compiler_ids;
   std::vector<Declaration> declarations;
   std::vector<Include> includes;
   std::vector<Macro> macros;
@@ -153,14 +154,16 @@ struct State {
   File &file(const std::string &path, const std::string &language,
              const std::string &translation_unit);
   void add_diagnostic(Diagnostic diagnostic);
+  void merge(State other);
   llvm::json::Object response(bool compilation_database,
-                              llvm::StringRef clang_version,
+                              std::string clang_version,
                               llvm::StringRef helper_version);
 
   std::string repository_root;
   std::map<std::string, File> files;
   std::vector<TranslationUnit> translation_units;
   std::vector<Diagnostic> diagnostics;
+  std::uint64_t semantic_analysis_ns = 0;
 };
 
 llvm::json::Object span_json(const Span &span);

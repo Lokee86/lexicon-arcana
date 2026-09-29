@@ -11,6 +11,7 @@
 #include "structural_declaration_support.h"
 #include "structural_relationships.h"
 #include "structural_source.h"
+#include "perf.h"
 #include "structural_value_flow.h"
 
 namespace lexicon::clang_frontend {
@@ -42,8 +43,9 @@ public:
 
     auto observation = classify_declaration(*named, *path, context_);
     if (observation) {
-      state_.file(*path, language_, translation_unit_)
-          .declarations.push_back(std::move(*observation));
+      auto &file = state_.file(*path, language_, translation_unit_);
+      file.declaration_compiler_ids.insert(observation->compiler_id);
+      file.declarations.push_back(std::move(*observation));
     }
     return true;
   }
@@ -140,14 +142,21 @@ class VisitorConsumer final : public clang::ASTConsumer {
 public:
   VisitorConsumer(State &state, clang::ASTContext &context, std::string root,
                   std::string translation_unit, std::string language)
-      : visitor_(state, context, std::move(root),
-                 std::move(translation_unit), std::move(language)) {}
+      : state_(state), visitor_(state, context, std::move(root),
+                               std::move(translation_unit),
+                               std::move(language)) {}
 
   void HandleTranslationUnit(clang::ASTContext &context) override {
+    const auto started = PerfClock::now();
     visitor_.TraverseDecl(context.getTranslationUnitDecl());
+    state_.semantic_analysis_ns +=
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+            PerfClock::now() - started)
+            .count();
   }
 
 private:
+  State &state_;
   SemanticVisitor visitor_;
 };
 

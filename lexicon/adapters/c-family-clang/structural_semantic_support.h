@@ -25,6 +25,8 @@ callable_reference(const clang::Expr *expression,
                    llvm::StringRef repository_root);
 const clang::FunctionDecl *enclosing_function(clang::ASTContext &context,
                                               const clang::Stmt &statement);
+const clang::FunctionDecl *enclosing_function(clang::ASTContext &context,
+                                              const clang::Decl &declaration);
 std::vector<SymbolReference>
 overload_candidates(const clang::Expr *callee,
                     const clang::SourceManager &sources,

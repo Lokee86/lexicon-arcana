@@ -8,7 +8,7 @@ namespace lexicon::clang_frontend {
 namespace {
 
 llvm::json::Object symbol_json(const SymbolReference &value) {
-  return {
+  return llvm::json::Object{
       {"compiler_id", value.compiler_id},
       {"path", value.path},
       {"qualified_name", value.qualified_name},
@@ -45,7 +45,7 @@ llvm::json::Array arguments_json(const std::vector<SemanticArgument> &values) {
 }
 
 llvm::json::Object relationship_json(const SemanticRelationship &value) {
-  return {
+  return llvm::json::Object{
       {"kind", value.kind},
       {"source_compiler_id", value.source_compiler_id},
       {"target", symbol_json(value.target)},

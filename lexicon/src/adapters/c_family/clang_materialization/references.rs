@@ -58,7 +58,24 @@ impl ReferenceIndex {
         if reference.external {
             return String::new();
         }
-        let Some(candidates) = self.by_compiler.get(&reference.compiler_id) else {
+        self.resolve_with_path(
+            &reference.compiler_id,
+            source_path,
+            (!reference.path.is_empty()).then_some(reference.path.as_str()),
+        )
+    }
+
+    pub(super) fn resolve_compiler_id(&self, compiler_id: &str, source_path: &str) -> String {
+        self.resolve_with_path(compiler_id, source_path, None)
+    }
+
+    fn resolve_with_path(
+        &self,
+        compiler_id: &str,
+        source_path: &str,
+        reference_path: Option<&str>,
+    ) -> String {
+        let Some(candidates) = self.by_compiler.get(compiler_id) else {
             return String::new();
         };
         if let Some(value) = candidates.iter().find(|value| value.path == source_path) {
@@ -67,8 +84,8 @@ impl ReferenceIndex {
         if let Some(value) = candidates.iter().find(|value| value.definition) {
             return value.id.clone();
         }
-        if !reference.path.is_empty()
-            && let Some(value) = candidates.iter().find(|value| value.path == reference.path)
+        if let Some(reference_path) = reference_path
+            && let Some(value) = candidates.iter().find(|value| value.path == reference_path)
         {
             return value.id.clone();
         }

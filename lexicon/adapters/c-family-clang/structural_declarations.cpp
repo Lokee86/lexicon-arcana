@@ -2,6 +2,7 @@
 
 #include <utility>
 
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/Basic/SourceManager.h"
 

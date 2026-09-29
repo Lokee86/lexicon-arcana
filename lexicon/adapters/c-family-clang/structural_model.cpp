@@ -1,6 +1,7 @@
 #include "structural_model.h"
 
 #include <algorithm>
+#include <iterator>
 #include <tuple>
 #include <utility>
 
@@ -50,7 +51,7 @@ llvm::json::Object declaration_json(const Declaration &value) {
 }
 
 llvm::json::Object include_json(const Include &value) {
-  return {
+  return llvm::json::Object{
       {"target", value.target},
       {"resolved_path", value.resolved_path},
       {"expression", value.expression},
@@ -61,7 +62,7 @@ llvm::json::Object include_json(const Include &value) {
 }
 
 llvm::json::Object macro_json(const Macro &value) {
-  return {
+  return llvm::json::Object{
       {"compiler_id", value.compiler_id},
       {"name", value.name},
       {"replacement", value.replacement},
@@ -162,7 +163,7 @@ llvm::json::Object file_json(File value) {
     diagnostics.emplace_back(diagnostic_json(diagnostic));
   }
 
-  return {
+  return llvm::json::Object{
       {"path", value.path},
       {"languages", strings(value.languages)},
       {"translation_units", strings(value.translation_units)},
@@ -178,7 +179,7 @@ llvm::json::Object file_json(File value) {
 }
 
 llvm::json::Object translation_unit_json(const TranslationUnit &value) {
-  return {
+  return llvm::json::Object{
       {"path", value.path},
       {"language", value.language},
       {"directory", value.directory},
@@ -213,8 +214,40 @@ void State::add_diagnostic(Diagnostic diagnostic) {
   diagnostics.push_back(std::move(diagnostic));
 }
 
+void State::merge(State other) {
+  semantic_analysis_ns += other.semantic_analysis_ns;
+  translation_units.insert(
+      translation_units.end(),
+      std::make_move_iterator(other.translation_units.begin()),
+      std::make_move_iterator(other.translation_units.end()));
+  diagnostics.insert(diagnostics.end(),
+                     std::make_move_iterator(other.diagnostics.begin()),
+                     std::make_move_iterator(other.diagnostics.end()));
+
+  for (auto &[path, source] : other.files) {
+    auto &[_, target] = *files.try_emplace(path, File{.path = path}).first;
+    target.languages.merge(source.languages);
+    target.translation_units.merge(source.translation_units);
+    target.declaration_compiler_ids.merge(source.declaration_compiler_ids);
+
+    auto append = [](auto &destination, auto &values) {
+      destination.insert(destination.end(),
+                         std::make_move_iterator(values.begin()),
+                         std::make_move_iterator(values.end()));
+    };
+    append(target.declarations, source.declarations);
+    append(target.includes, source.includes);
+    append(target.macros, source.macros);
+    append(target.relationships, source.relationships);
+    append(target.calls, source.calls);
+    append(target.pointer_bindings, source.pointer_bindings);
+    append(target.accesses, source.accesses);
+    append(target.diagnostics, source.diagnostics);
+  }
+}
+
 llvm::json::Object State::response(bool compilation_database,
-                                   llvm::StringRef clang_version,
+                                   std::string clang_version,
                                    llvm::StringRef helper_version) {
   std::sort(translation_units.begin(), translation_units.end(),
             [](const TranslationUnit &left, const TranslationUnit &right) {
@@ -240,10 +273,10 @@ llvm::json::Object State::response(bool compilation_database,
     diagnostic_values.emplace_back(diagnostic_json(value));
   }
 
-  return {
+  return llvm::json::Object{
       {"protocol_version", 1},
       {"helper_version", helper_version},
-      {"clang_version", clang_version},
+      {"clang_version", std::move(clang_version)},
       {"compilation_database", compilation_database},
       {"translation_units", std::move(unit_values)},
       {"files", std::move(file_values)},
@@ -252,7 +285,7 @@ llvm::json::Object State::response(bool compilation_database,
 }
 
 llvm::json::Object span_json(const Span &span) {
-  return {
+  return llvm::json::Object{
       {"path", span.path},
       {"start_line", static_cast<std::int64_t>(span.start_line)},
       {"start_column", static_cast<std::int64_t>(span.start_column)},

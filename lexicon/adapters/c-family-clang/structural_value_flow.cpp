@@ -47,15 +47,19 @@ void observe_variable(State &state, clang::ASTContext &context,
   }
 
   auto &sources = context.getSourceManager();
-  if (const auto *source =
-          llvm::dyn_cast<clang::FunctionDecl>(declaration.getDeclContext());
-      source && !source->isImplicit()) {
+  if (const auto *source = enclosing_function(context, declaration)) {
     auto path =
         source_path(sources, declaration.getLocation(), repository_root);
     if (path) {
+      const auto source_id =
+          ensure_callable_declaration(state, context, *source, repository_root,
+                                      translation_unit, language);
+      if (source_id.empty()) {
+        return;
+      }
       state.file(*path, language.str(), translation_unit.str())
           .accesses.push_back({
-              .source_compiler_id = compiler_id(source, sources),
+              .source_compiler_id = source_id,
               .target =
                   symbol_reference(&declaration, sources, repository_root),
               .relation = "writes",

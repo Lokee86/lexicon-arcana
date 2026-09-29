@@ -81,7 +81,7 @@ public:
       clang::SourceLocation hash_location, const clang::Token &,
       llvm::StringRef file_name, bool angled,
       clang::CharSourceRange filename_range, clang::OptionalFileEntryRef file,
-      llvm::StringRef, llvm::StringRef, const clang::Module *, bool,
+      llvm::StringRef, llvm::StringRef, const clang::Module *,
       clang::SrcMgr::CharacteristicKind) override {
     auto path = source_path(sources_, hash_location, root_);
     if (!path) {

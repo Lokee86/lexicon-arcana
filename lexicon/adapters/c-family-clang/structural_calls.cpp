@@ -109,6 +109,13 @@ void observe_call(State &state, clang::ASTContext &context,
     return;
   }
 
+  const auto source_id =
+      ensure_callable_declaration(state, context, *source, repository_root,
+                                  translation_unit, language);
+  if (source_id.empty()) {
+    return;
+  }
+
   const auto *target = call.getDirectCallee();
   auto candidates =
       overload_candidates(call.getCallee(), sources, repository_root);
@@ -122,7 +129,7 @@ void observe_call(State &state, clang::ASTContext &context,
   const auto compiler_count = target ? std::size_t{1} : candidates.size();
 
   state.file(*path, language.str(), translation_unit.str()).calls.push_back({
-      .source_compiler_id = compiler_id(source, sources),
+      .source_compiler_id = source_id,
       .form = form(call, target),
       .resolution = resolution(call, target, candidates),
       .expression = normalize_space(source_text(
@@ -162,8 +169,15 @@ void observe_constructor(State &state, clang::ASTContext &context,
     return;
   }
 
+  const auto source_id =
+      ensure_callable_declaration(state, context, *source, repository_root,
+                                  translation_unit, language);
+  if (source_id.empty()) {
+    return;
+  }
+
   state.file(*path, language.str(), translation_unit.str()).calls.push_back({
-      .source_compiler_id = compiler_id(source, sources),
+      .source_compiler_id = source_id,
       .form = "constructor",
       .resolution = call.isTypeDependent() || call.isValueDependent()
                         ? "dependent"

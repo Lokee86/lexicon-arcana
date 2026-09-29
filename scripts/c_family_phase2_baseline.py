@@ -7,11 +7,13 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import tempfile
 import time
-from collections import Counter, defaultdict
 from pathlib import Path
+
+from c_family_phase2_metrics import summarize_facts
 
 try:
     import psutil
@@ -20,6 +22,8 @@ except ImportError as exc:
 
 ROOT = Path(__file__).resolve().parents[1]
 LEXICON = ROOT / "lexicon"
+PERF = re.compile(r"^\[lexicon-perf\] stage=([^ ]+) elapsed_ms=([0-9.]+)(.*)$")
+
 CASES = (
     ("git", Path("git")),
     ("codebase-memory", Path("codebase-memory-mcp")),
@@ -61,6 +65,34 @@ def revision(path: Path) -> str | None:
     return completed.stdout.strip() if completed.returncode == 0 else None
 
 
+def terminate_tree(process: subprocess.Popen[str], root: psutil.Process) -> None:
+    try:
+        members = [*root.children(recursive=True), root]
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        members = []
+
+    for member in reversed(members):
+        try:
+            member.terminate()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+
+    _, alive = psutil.wait_procs(members, timeout=5)
+    for member in alive:
+        try:
+            member.kill()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+    if alive:
+        psutil.wait_procs(alive, timeout=5)
+
+    try:
+        process.wait(timeout=1)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
+
+
 def sample_tree_rss(process: subprocess.Popen[str], timeout: float) -> tuple[int, bool]:
     root = psutil.Process(process.pid)
     peak = 0
@@ -82,15 +114,42 @@ def sample_tree_rss(process: subprocess.Popen[str], timeout: float) -> tuple[int
                 pass
         peak = max(peak, total)
         if time.perf_counter() - started >= timeout:
-            process.terminate()
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
+            terminate_tree(process, root)
             return peak, True
         time.sleep(0.02)
     return peak, False
+
+
+def parse_perf(stderr: str) -> dict[str, dict[str, float | int | str]]:
+    stages: dict[str, dict[str, float | int | str]] = {}
+    for line in stderr.splitlines():
+        match = PERF.match(line)
+        if not match:
+            continue
+        values: dict[str, float | int | str] = {"elapsed_ms": float(match.group(2))}
+        for field in match.group(3).split():
+            if "=" not in field:
+                continue
+            key, raw = field.split("=", 1)
+            try:
+                values[key] = int(raw)
+            except ValueError:
+                try:
+                    values[key] = float(raw)
+                except ValueError:
+                    values[key] = raw
+        stages[match.group(1)] = values
+    return stages
+
+
+def current_adapter_version() -> str:
+    source = (LEXICON / "src" / "adapters" / "c_family" / "mod.rs").read_text(
+        encoding="utf-8"
+    )
+    match = re.search(r'const ADAPTER_VERSION: &str = "([^"]+)";', source)
+    if not match:
+        raise RuntimeError("unable to locate C-family adapter version")
+    return match.group(1)
 
 
 def run_once(executable: Path, repository: Path, facts: Path, timeout: float) -> dict:
@@ -101,6 +160,7 @@ def run_once(executable: Path, repository: Path, facts: Path, timeout: float) ->
         text=True,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.PIPE,
+        env={**os.environ, "LEXICON_PERF": "1"},
     )
     peak_rss, timed_out = sample_tree_rss(process, timeout)
     return_code = process.wait()
@@ -112,113 +172,9 @@ def run_once(executable: Path, repository: Path, facts: Path, timeout: float) ->
         "completed": not timed_out,
         "wall_ms": wall_ms,
         "peak_process_tree_rss_bytes": peak_rss,
+        "performance_stages": parse_perf(stderr),
     }
 
-
-def span_key(record: dict) -> tuple:
-    span = record.get("span")
-    if not isinstance(span, dict):
-        return ()
-    return (
-        span.get("path"),
-        span.get("start_line"),
-        span.get("start_column"),
-        span.get("end_line"),
-        span.get("end_column"),
-    )
-
-
-def percentile90(values: list[int]) -> int:
-    if not values:
-        return 0
-    ordered = sorted(values)
-    return ordered[(len(ordered) * 9 - 1) // 10]
-
-
-def summarize_facts(repository: Path, facts: Path) -> dict:
-    raw = facts.read_bytes()
-    counts = Counter()
-    relations = Counter()
-    unresolved_reasons = Counter()
-    file_paths: set[str] = set()
-    call_states: dict[tuple, set[str]] = defaultdict(set)
-    possible_targets: dict[tuple, set[str]] = defaultdict(set)
-    macro_calls = 0
-    macro_references = 0
-    max_macro_depth = 0
-
-    for line in raw.splitlines():
-        if not line:
-            continue
-        record = json.loads(line)
-        kind = record.get("record")
-        if kind == "node":
-            counts["nodes"] += 1
-            if record.get("kind") == "file":
-                file_paths.add(record["path"])
-        elif kind == "edge":
-            counts["edges"] += 1
-            relation = record["relation"]
-            relations[relation] += 1
-            if relation in {"calls", "possible-calls"}:
-                key = (record["source"], span_key(record))
-                call_states[key].add(relation)
-                if relation == "possible-calls":
-                    possible_targets[key].add(record["target"])
-            attributes = record.get("attributes") or {}
-            evidence = attributes.get("evidence") or []
-            if relation in {"calls", "possible-calls"} and "macro-mediation" in evidence:
-                macro_calls += 1
-            if relation == "references" and attributes.get("role") == "macro-expansion":
-                macro_references += 1
-            depth = attributes.get("expansion_depth")
-            if isinstance(depth, int):
-                max_macro_depth = max(max_macro_depth, depth)
-        elif kind == "unresolved":
-            counts["unresolved"] += 1
-            unresolved_reasons[record["reason"]] += 1
-            relations[f"unresolved:{record['relation']}"] += 1
-            if record.get("relation") == "calls":
-                call_states[(record["source"], span_key(record))].add("unresolved")
-
-    call_site_counts = Counter()
-    for states in call_states.values():
-        if "calls" in states and "possible-calls" in states:
-            call_site_counts["definite_plus_possible"] += 1
-        elif "calls" in states:
-            call_site_counts["definite_only"] += 1
-        elif "possible-calls" in states:
-            call_site_counts["possible_only"] += 1
-        else:
-            call_site_counts["unresolved_only"] += 1
-
-    source_bytes = 0
-    for relative in file_paths:
-        path = repository / relative.replace("/", os.sep)
-        if path.is_file():
-            source_bytes += path.stat().st_size
-
-    fanouts = [len(targets) for targets in possible_targets.values()]
-    return {
-        "sha256": hashlib.sha256(raw).hexdigest(),
-        "jsonl_bytes": len(raw),
-        "source_files": len(file_paths),
-        "source_bytes": source_bytes,
-        "fact_count": sum(counts.values()),
-        **dict(counts),
-        "relations": dict(sorted(relations.items())),
-        "unresolved_reasons": dict(sorted(unresolved_reasons.items())),
-        "call_sites": {
-            "total": len(call_states),
-            **dict(sorted(call_site_counts.items())),
-            "possible_target_fanout_p90": percentile90(fanouts),
-        },
-        "macro": {
-            "mediated_call_edges": macro_calls,
-            "expansion_reference_edges": macro_references,
-            "max_expansion_depth": max_macro_depth,
-        },
-    }
 
 
 def run_case(executable: Path, repository: Path, timeout: float) -> dict:
@@ -249,18 +205,32 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--executable", type=Path)
     parser.add_argument("--timeout-seconds", type=float, default=600.0)
+    parser.add_argument("--case", action="append", choices=[name for name, _ in CASES])
+    parser.add_argument("--append", action="store_true")
     args = parser.parse_args()
 
     executable = args.executable.resolve() if args.executable else build_adapter_eval()
     corpus_root = args.corpus_root.resolve()
-    result = {
-        "schema": "lexicon.c-family.phase2-baseline.v1",
-        "lexicon_revision": revision(ROOT),
-        "adapter_version": "0.5.0",
-        "cases": {},
-    }
+    current_revision = revision(ROOT)
+    adapter_version = current_adapter_version()
+    if args.append and args.output.is_file():
+        result = json.loads(args.output.read_text(encoding="utf-8"))
+        if result.get("schema") != "lexicon.c-family.phase2-baseline.v1":
+            raise ValueError("cannot append to a different calibration schema")
+        if result.get("adapter_version") != adapter_version:
+            raise ValueError("cannot append calibration results from another adapter version")
+    else:
+        result = {
+            "schema": "lexicon.c-family.phase2-baseline.v1",
+            "lexicon_revision": current_revision,
+            "adapter_version": adapter_version,
+            "cases": {},
+        }
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    selected = set(args.case or [])
     for name, relative in CASES:
+        if selected and name not in selected:
+            continue
         repository = corpus_root / relative
         if not repository.is_dir():
             raise FileNotFoundError(repository)

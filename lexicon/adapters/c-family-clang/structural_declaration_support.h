@@ -35,5 +35,10 @@ bool internal_linkage(const clang::NamedDecl &declaration);
 std::optional<Declaration>
 classify_declaration(clang::NamedDecl &named, const std::string &path,
                      clang::ASTContext &context);
+std::string ensure_callable_declaration(State &state, clang::ASTContext &context,
+                                        const clang::FunctionDecl &function,
+                                        llvm::StringRef repository_root,
+                                        llvm::StringRef translation_unit,
+                                        llvm::StringRef language);
 
 } // namespace lexicon::clang_frontend

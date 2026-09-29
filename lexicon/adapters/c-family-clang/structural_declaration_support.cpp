@@ -1,6 +1,7 @@
 #include "structural_declaration_support.h"
 
 #include <string>
+#include <utility>
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclCXX.h"
@@ -16,14 +17,64 @@ namespace lexicon::clang_frontend {
 
 std::string compiler_id(const clang::Decl *declaration,
                         const clang::SourceManager &sources) {
+  const clang::Decl *identity = declaration;
+  while (identity) {
+    const clang::Decl *pattern = identity;
+    if (const auto *method =
+            llvm::dyn_cast<clang::CXXMethodDecl>(identity)) {
+      if (const auto *instantiated =
+              method->getInstantiatedFromMemberFunction()) {
+        pattern = instantiated;
+      }
+    }
+    if (const auto *function =
+            llvm::dyn_cast<clang::FunctionDecl>(pattern)) {
+      if (const auto *instantiated =
+              function->getTemplateInstantiationPattern()) {
+        pattern = instantiated;
+      }
+    }
+    if (pattern == identity) {
+      break;
+    }
+    identity = pattern;
+  }
+
   llvm::SmallString<128> usr;
-  if (!clang::index::generateUSRForDecl(declaration, usr)) {
+  if (!clang::index::generateUSRForDecl(identity, usr)) {
     return usr.str().str();
   }
-  auto location = sources.getSpellingLoc(declaration->getLocation());
+  auto location = sources.getSpellingLoc(identity->getLocation());
   return "decl:" + sources.getFilename(location).str() + ":" +
          std::to_string(sources.getFileOffset(location)) + ":" +
-         declaration->getDeclKindName();
+         identity->getDeclKindName();
+}
+
+std::string ensure_callable_declaration(
+    State &state, clang::ASTContext &context,
+    const clang::FunctionDecl &function, llvm::StringRef repository_root,
+    llvm::StringRef translation_unit, llvm::StringRef language) {
+  auto &sources = context.getSourceManager();
+  auto id = compiler_id(&function, sources);
+  if (id.empty()) {
+    return {};
+  }
+  auto path = source_path(sources, function.getLocation(), repository_root);
+  if (!path) {
+    return {};
+  }
+  auto &file = state.file(*path, language.str(), translation_unit.str());
+  if (file.declaration_compiler_ids.contains(id)) {
+    return id;
+  }
+  auto observation = classify_declaration(
+      *const_cast<clang::FunctionDecl *>(&function), *path, context);
+  if (!observation || !observation->callable) {
+    return {};
+  }
+  file.declaration_compiler_ids.insert(observation->compiler_id);
+  file.declarations.push_back(std::move(*observation));
+  return id;
 }
 
 std::string context_id(const clang::DeclContext *context,

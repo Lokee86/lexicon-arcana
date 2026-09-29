@@ -7,7 +7,7 @@ namespace lexicon::clang_frontend {
 namespace {
 
 llvm::json::Object symbol_json(const SymbolReference &value) {
-  return {
+  return llvm::json::Object{
       {"compiler_id", value.compiler_id},
       {"path", value.path},
       {"qualified_name", value.qualified_name},

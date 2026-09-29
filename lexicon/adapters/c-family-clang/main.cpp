@@ -11,6 +11,7 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include "structural.h"
+#include "perf.h"
 
 namespace {
 
@@ -93,6 +94,7 @@ int emit_capabilities(const llvm::json::Object &request) {
 } // namespace
 
 int main(int argc, char **argv) {
+  const auto startup_started = lexicon::clang_frontend::PerfClock::now();
   auto options = parse_options(argc, argv);
   if (!options) {
     return fail("invalid C-family Clang helper arguments", 2);
@@ -121,6 +123,9 @@ int main(int argc, char **argv) {
     return fail("C-family Clang request must be an object");
   }
   auto operation = object->getString("operation");
+  lexicon::clang_frontend::emit_perf(
+      "c-family.clang.helper.startup",
+      lexicon::clang_frontend::PerfClock::now() - startup_started);
   if (!operation) {
     return fail("C-family Clang operation is required");
   }

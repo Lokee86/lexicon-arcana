@@ -72,8 +72,14 @@ void emit_access(State &state, clang::ASTContext &context,
   if (!path || !source || source->isImplicit() || !target) {
     return;
   }
+  const auto source_id =
+      ensure_callable_declaration(state, context, *source, repository_root,
+                                  translation_unit, language);
+  if (source_id.empty()) {
+    return;
+  }
   state.file(*path, language.str(), translation_unit.str()).accesses.push_back({
-      .source_compiler_id = compiler_id(source, sources),
+      .source_compiler_id = source_id,
       .target = *target,
       .relation = relation.str(),
       .expression = normalize_space(source_text(
