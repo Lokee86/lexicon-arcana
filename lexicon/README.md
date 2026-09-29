@@ -29,7 +29,7 @@ The adapters are functional semantic analyzers, not merely syntax inventories. P
 
 | Language surface | Implementation | Semantic frontend | Scope |
 | --- | --- | --- | --- |
-| C / C++ | Go | Official Tree-sitter C and C++ grammars | Mixed repositories, headers, declarations, includes, inheritance, calls, and conservative dataflow |
+| C / C++ | Rust + private C++ helper | Clang / LibTooling | Mixed repositories, compilation-database-aware translation units, headers, compiler-bound declarations/relationships/calls, and Rust-owned graph dataflow policy |
 | Go | Go | `go/parser`, `go/types`, packages, SSA, and VTA | Multi-module repositories, typed calls, interfaces, dataflow, dependencies |
 | GDScript | Go | Dedicated parser and bounded type-flow model | Godot projects, inheritance, callbacks, autoloads, local dispatch |
 | LotusScript | Go | Dedicated parser, ODP/DXL extractor, and import-scoped script-library resolver | Classes and `Type` members, visibility, inheritance, typed calls, conservative reads/writes, ODP agents, and unresolved runtime targets |

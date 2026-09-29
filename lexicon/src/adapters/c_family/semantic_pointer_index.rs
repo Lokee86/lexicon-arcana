@@ -1,8 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::{
-    model::{RepositoryModel, SemanticCallResolution},
-    pointer_aliases::is_function_pointer,
+    model::{Declaration, RepositoryModel, SemanticCallResolution},
     resolution::DeclarationIndex,
 };
 
@@ -90,4 +89,12 @@ impl SemanticPointerIndex {
             .map(|values| values.iter().cloned().collect())
             .unwrap_or_default()
     }
+}
+
+fn is_function_pointer(declaration: &Declaration) -> bool {
+    declaration
+        .attributes
+        .get("function_pointer")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false)
 }

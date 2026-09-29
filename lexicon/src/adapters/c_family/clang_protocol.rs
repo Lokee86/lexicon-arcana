@@ -5,6 +5,7 @@ use crate::{SourceSpan, adapters::frontend::ProtocolResponse};
 pub(crate) const PROTOCOL_VERSION: u32 = 1;
 pub(crate) const HELPER_VERSION: &str = include_str!("../../../adapters/c-family-clang/VERSION");
 
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct CapabilitiesRequest {
@@ -13,6 +14,7 @@ pub(crate) struct CapabilitiesRequest {
     pub repository_root: String,
 }
 
+#[cfg(test)]
 impl CapabilitiesRequest {
     pub(crate) fn new(repository_root: String) -> Self {
         Self {
@@ -43,6 +45,7 @@ impl StructuralRequest {
     }
 }
 
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct CapabilitiesResponse {
@@ -55,6 +58,7 @@ pub(crate) struct CapabilitiesResponse {
     pub compilation_database_error: Option<String>,
 }
 
+#[cfg(test)]
 impl ProtocolResponse for CapabilitiesResponse {
     fn protocol_version(&self) -> u32 {
         self.protocol_version

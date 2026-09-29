@@ -14,6 +14,7 @@ import tempfile
 import time
 from pathlib import Path
 
+from build_c_family_clang import build as build_c_family_clang_frontend
 from lexicon_perf_multilang import multilang_gate
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -48,6 +49,17 @@ def build_helper(directory: Path) -> Path:
     helper = directory / f"lexicon-go-semantic{suffix}"
     run(["go", "build", "-o", str(helper), "."], LEXICON / "adapters/go-semantic")
     return helper
+
+
+def build_c_family_helper(directory: Path) -> Path:
+    llvm_dir = Path(os.environ["LLVM_DIR"]) if os.environ.get("LLVM_DIR") else None
+    clang_dir = Path(os.environ["Clang_DIR"]) if os.environ.get("Clang_DIR") else None
+    return build_c_family_clang_frontend(
+        directory / "c-family-clang",
+        llvm_dir,
+        clang_dir,
+        "Release",
+    )
 
 
 def parse_perf(stderr: str) -> dict[str, dict[str, float | int]]:
@@ -166,11 +178,20 @@ def main() -> int:
         with tempfile.TemporaryDirectory(prefix="lexicon-perf-regression-") as raw:
             temp = Path(raw)
             helper = build_helper(temp)
+            clang_helper = (
+                build_c_family_helper(temp)
+                if args.tier in {"quick", "multilang", "all"}
+                else None
+            )
 
             if args.tier in {"quick", "multilang", "all"}:
                 executable = build_example("multilang_perf")
                 result, found = multilang_gate(
-                    ROOT, executable, helper, CONFIG["multilang"]
+                    ROOT,
+                    executable,
+                    helper,
+                    clang_helper,
+                    CONFIG["multilang"],
                 )
                 failures += found
                 summary = ", ".join(f"{name}={row['fact_count']}" for name, row in sorted(result.items()))

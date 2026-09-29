@@ -18,9 +18,9 @@ pub fn analysis(request: &AdapterRequest, model: RepositoryModel) -> Analysis {
         add_file_records(file, &files, &model.visibility, &mut records);
     }
     super::relationship_facts::add(&model, &mut records);
-    super::call_facts::add(&model, &mut records);
+    let declarations = super::resolution::DeclarationIndex::new(&model);
+    super::semantic_call_facts::add(&model, &declarations, &mut records);
     super::semantic_dataflow_facts::add_accesses(&model, &mut records);
-    super::dataflow::add_access_facts(&model, &mut records);
     records = deduplicate(records);
 
     let incremental = request.mode == AdapterMode::Incremental;

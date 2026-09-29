@@ -6,9 +6,9 @@ use std::{
 
 use crate::{AdapterError, adapters::frontend::FrontendRunner};
 
-use super::clang_protocol::{
-    self, CapabilitiesRequest, CapabilitiesResponse, StructuralRequest, StructuralResponse,
-};
+use super::clang_protocol::{self, StructuralRequest, StructuralResponse};
+#[cfg(test)]
+use super::clang_protocol::{CapabilitiesRequest, CapabilitiesResponse};
 
 #[cfg(test)]
 mod tests;
@@ -39,6 +39,7 @@ impl ClangFrontend {
         self.runner.resolve()
     }
 
+    #[cfg(test)]
     pub(crate) fn capabilities(
         &self,
         repository: &Path,
@@ -101,7 +102,7 @@ impl ClangFrontend {
     }
 
     #[cfg(test)]
-    fn with_runner(runner: FrontendRunner) -> Self {
+    pub(crate) fn with_runner(runner: FrontendRunner) -> Self {
         Self { runner }
     }
 }

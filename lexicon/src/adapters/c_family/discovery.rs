@@ -84,10 +84,6 @@ pub fn is_header_path(path: &str) -> bool {
     )
 }
 
-pub fn is_ambiguous_header_path(path: &str) -> bool {
-    matches!(extension(path).as_str(), "h" | "inc")
-}
-
 pub fn extension(path: &str) -> String {
     if Path::new(path)
         .extension()

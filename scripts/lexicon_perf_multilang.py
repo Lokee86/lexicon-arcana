@@ -13,10 +13,14 @@ def multilang_gate(
     root: Path,
     executable: Path,
     helper: Path,
+    clang_helper: Path,
     spec: dict,
 ) -> tuple[dict, list[str]]:
     env = os.environ.copy()
-    env.update(LEXICON_GO_SEMANTIC_HELPER=str(helper))
+    env.update(
+        LEXICON_GO_SEMANTIC_HELPER=str(helper),
+        LEXICON_C_FAMILY_CLANG_HELPER=str(clang_helper),
+    )
     completed = subprocess.run(
         [str(executable)],
         cwd=root,

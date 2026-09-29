@@ -115,14 +115,10 @@ fn materialize_file(
         parse_error,
         declarations,
         includes,
-        inheritance: Vec::new(),
-        calls: Vec::new(),
         semantic_relationships,
         semantic_calls,
         semantic_pointer_bindings,
         semantic_accesses,
-        pointer_bindings: Vec::new(),
-        accesses: Vec::new(),
     })
 }
 
@@ -140,12 +136,7 @@ fn source_language(file: &FileObservation, content: &[u8]) -> String {
         {
             "c".into()
         }
-        _ => super::language::classify_language(
-            &file.path,
-            content,
-            &HashMap::new(),
-            &HashMap::new(),
-        ),
+        _ => fallback_language(&file.path, content),
     }
 }
 
@@ -165,4 +156,53 @@ fn validate_relative(path: &str) -> Result<(), AdapterError> {
         )));
     }
     Ok(())
+}
+
+fn fallback_language(path: &str, content: &[u8]) -> String {
+    let suffix = super::discovery::extension(path);
+    if suffix == "C"
+        || matches!(
+            suffix.as_str(),
+            "cc" | "cp"
+                | "cpp"
+                | "cxx"
+                | "c++"
+                | "hh"
+                | "hpp"
+                | "hxx"
+                | "h++"
+                | "inl"
+                | "ipp"
+                | "tpp"
+        )
+    {
+        return "cpp".into();
+    }
+    if suffix == "c" {
+        return "c".into();
+    }
+
+    let text = String::from_utf8_lossy(content);
+    const CPP_MARKERS: &[&str] = &[
+        "namespace ",
+        "class ",
+        "template<",
+        "template <",
+        "constexpr ",
+        "std::",
+        "public:",
+        "private:",
+        "protected:",
+        " override",
+        " virtual ",
+        "nullptr",
+        "decltype(",
+        "using namespace ",
+        "::",
+    ];
+    if CPP_MARKERS.iter().any(|marker| text.contains(marker)) {
+        "cpp".into()
+    } else {
+        "c".into()
+    }
 }

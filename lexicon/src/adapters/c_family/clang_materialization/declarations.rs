@@ -6,7 +6,6 @@ use crate::node_id;
 
 use super::super::{
     clang_protocol::{DeclarationObservation, FileObservation, MacroObservation},
-    macro_syntax,
     model::Declaration,
 };
 
@@ -27,15 +26,10 @@ pub(super) fn materialize(
     module_id: &str,
     ids: &HashMap<String, String>,
 ) -> Vec<Declaration> {
-    let qualified = file
-        .declarations
-        .iter()
-        .map(|value| (value.compiler_id.clone(), value.qualified_name.clone()))
-        .collect::<HashMap<_, _>>();
     let mut result = file
         .declarations
         .iter()
-        .map(|value| declaration(&file.path, language, module_id, value, ids, &qualified))
+        .map(|value| declaration(&file.path, language, module_id, value, ids))
         .collect::<Vec<_>>();
     result.extend(
         file.macros
@@ -49,7 +43,6 @@ pub(super) fn materialize(
             left.span.start_column,
             &left.kind,
             &left.qualified_name,
-            &left.signature,
         )
             .cmp(&(
                 &right.path,
@@ -57,7 +50,6 @@ pub(super) fn materialize(
                 right.span.start_column,
                 &right.kind,
                 &right.qualified_name,
-                &right.signature,
             ))
     });
     result
@@ -69,7 +61,6 @@ fn declaration(
     module_id: &str,
     value: &DeclarationObservation,
     ids: &HashMap<String, String>,
-    qualified: &HashMap<String, String>,
 ) -> Declaration {
     let mut attributes = Map::new();
     attributes.insert("language".into(), json!(language));
@@ -122,26 +113,9 @@ fn declaration(
             .get(&value.container_compiler_id)
             .cloned()
             .unwrap_or_else(|| module_id.into()),
-        container_qualified: qualified
-            .get(&value.container_compiler_id)
-            .cloned()
-            .unwrap_or_default(),
-        parent_type_id: ids
-            .get(&value.parent_type_compiler_id)
-            .cloned()
-            .unwrap_or_default(),
-        signature: value.signature.clone(),
-        file_language: language.into(),
         span: value.span.clone(),
         attributes,
-        callable: value.callable,
-        definition: value.definition,
         file_local: value.internal,
-        macro_function: false,
-        macro_target: String::new(),
-        macro_parameters: Vec::new(),
-        macro_calls: Vec::new(),
-        callable_shape: None,
     }
 }
 
@@ -151,7 +125,6 @@ fn macro_declaration(
     module_id: &str,
     value: &MacroObservation,
 ) -> Declaration {
-    let target = macro_syntax::direct_target(&value.replacement);
     let mut attributes = Map::from_iter([
         ("language".into(), json!(language)),
         ("macro".into(), json!(true)),
@@ -163,9 +136,6 @@ fn macro_declaration(
     if !value.replacement.is_empty() {
         attributes.insert("replacement".into(), json!(value.replacement));
     }
-    if !target.is_empty() {
-        attributes.insert("target".into(), json!(target));
-    }
     Declaration {
         id: macro_id(path, value),
         kind: "symbol".into(),
@@ -173,20 +143,9 @@ fn macro_declaration(
         qualified_name: value.name.clone(),
         path: path.into(),
         container_id: module_id.into(),
-        container_qualified: String::new(),
-        parent_type_id: String::new(),
-        signature: String::new(),
-        file_language: language.into(),
         span: value.span.clone(),
         attributes,
-        callable: false,
-        definition: true,
         file_local: false,
-        macro_function: value.function_like,
-        macro_target: target,
-        macro_parameters: value.parameters.clone(),
-        macro_calls: Vec::new(),
-        callable_shape: None,
     }
 }
 

@@ -1,10 +1,5 @@
-use super::{
-    model::{IncludeObservation, SourceFile},
-    syntax::{node_text, span},
-};
-use crate::node_id;
+use super::model::{IncludeObservation, SourceFile};
 use std::{collections::HashMap, path::Path};
-use tree_sitter::Node;
 
 #[derive(Debug)]
 pub struct FileIndex<'a> {
@@ -57,38 +52,6 @@ impl<'a> FileIndex<'a> {
             .get(&base_name(&target).to_ascii_lowercase())?;
         (matches.len() == 1).then_some(matches[0])
     }
-}
-
-pub fn extract(file: &mut SourceFile, node: Node<'_>, source: &[u8]) {
-    let Some(path_node) = node.child_by_field_name("path") else {
-        return;
-    };
-    let expression = node_text(path_node, source).to_owned();
-    let target = strip_include_target(&expression);
-    if target.is_empty() {
-        return;
-    }
-    let canonical = format!("{}::include::{target}::{}", file.path, node.start_byte());
-    file.includes.push(IncludeObservation {
-        id: node_id("c-family", "import", &canonical),
-        module_id: node_id("c-family", "module", &file.path),
-        path: file.path.clone(),
-        target,
-        resolved_path: String::new(),
-        expression,
-        system: path_node.kind() == "system_lib_string",
-        span: span(&file.path, node),
-    });
-}
-
-fn strip_include_target(value: &str) -> String {
-    value
-        .trim()
-        .trim_start_matches('<')
-        .trim_end_matches('>')
-        .trim_start_matches('"')
-        .trim_end_matches('"')
-        .replace('\\', "/")
 }
 
 fn lexical_path(value: &str) -> String {

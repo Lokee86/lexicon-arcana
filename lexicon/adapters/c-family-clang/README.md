@@ -1,10 +1,10 @@
 # C-family Clang frontend
 
-This directory owns Lexicon's private C/C++ compiler frontend process.
+This directory owns Lexicon's private C/C++ compiler frontend process. Clang/LibTooling is the sole production C/C++ syntax and compiler-semantic authority.
 
-The helper is a process boundary. Clang/LLVM types do not cross into the Rust adapter; it emits versioned compiler observations while Rust remains responsible for Lexicon identities, fact policy, canonicalization, and storage.
+The helper is a process boundary: Clang/LLVM types do not cross into the Rust adapter. It emits versioned compiler observations while Rust owns repository discovery, canonical Lexicon identities, source ownership, fact policy, graph-specific value flow, deterministic canonicalization, and publication.
 
-Phase 2.5 extends the staged path with compiler-bound arguments, indirect callee values, pointer bindings, reads/writes, and macro-expansion provenance on top of the Phase 2.4 relationship/call observations. It does **not** own production C-family facts yet.
+There is no Tree-sitter C/C++ production path and no Clang-to-Tree-sitter fallback.
 
 ## Requirements
 
@@ -19,6 +19,8 @@ python scripts/build_c_family_clang.py --output build/c-family-clang
 ```
 
 If LLVM/Clang CMake packages are outside the normal CMake prefix path, pass `--llvm-dir` and `--clang-dir`.
+
+Release packaging builds and version-verifies this helper. Installed C-family analysis fails closed when the helper is missing, stale, or cannot execute.
 
 ## Runtime contract
 
@@ -38,3 +40,23 @@ Protocol v1 exposes:
 The structural request receives the repository root and the Rust-discovered C-family source inventory. Compilation-database commands are used when available. Uncovered source files use synthesized Clang commands; headers are normally observed through source translation units, with only orphan headers receiving direct Clang analysis.
 
 The protocol does not contain facts-v1 records or canonical Lexicon IDs.
+
+## Ownership boundary
+
+Clang owns C/C++ parsing, preprocessing/macro expansion, compiler declarations, type/receiver evidence, overload resolution, call binding, inheritance/override evidence, and compiler-bound value references.
+
+Rust owns repository-relative discovery, canonical identities, local include/file ownership, compiler-reference correlation, definite/possible/unresolved policy, fixed-point callback propagation over compiler-bound identities, `passes-to`, `reads`, `writes`, facts-v1 validation, and deterministic output.
+
+Rust does not parse macro replacement text or reconstruct C/C++ compiler semantics after the Phase 2.6 cutover.
+
+## Code map
+
+| Concern | Implementation |
+| --- | --- |
+| Helper entry point and protocol dispatch | `main.cpp`, `structural.cpp`, `structural_action.cpp` |
+| Translation-unit/declaration observations | `structural_frontend.cpp`, `structural_declarations.cpp`, `structural_declaration_support.cpp` |
+| Calls and compiler relationships | `structural_calls.cpp`, `structural_relationships.cpp`, `structural_semantic_support.cpp`, `structural_semantics.cpp` |
+| Pointer/value/access observations | `structural_access_flow.cpp`, `structural_value_flow.cpp`, `structural_value_flow_json.cpp` |
+| Observation model and deterministic JSON | `structural_model.h`, `structural_model.cpp` |
+| Rust production adapter and materialization | `../../src/adapters/c_family/clang_frontend.rs`, `clang_protocol.rs`, `clang_materialization.rs` |
+| Rust graph/fact policy | `../../src/adapters/c_family/semantic_call_facts.rs`, `semantic_pointer_index.rs`, `semantic_dataflow_facts.rs` |

@@ -1,76 +1,58 @@
-//! Native C/C++ adapter foundation.
+//! Native C/C++ adapter backed by the private Clang/LibTooling frontend.
 //!
-//! C and C++ share one repository model and one stable `c-family` identity
-//! namespace. The current native slice owns discovery, language selection,
-//! parsing, repository/declaration extraction, and typed foundation facts.
-//! Cross-file semantic relationships are layered on later.
+//! Clang owns C/C++ syntax and compiler semantics. Rust owns repository
+//! discovery, canonical Lexicon identities, graph policy, fact materialization,
+//! determinism, and publication.
 
-mod call_candidates;
-mod call_facts;
-mod call_references;
-mod callables;
-// Phase 2 stages the private Clang boundary before production cutover.
-#[allow(dead_code)]
 mod clang_frontend;
-#[allow(dead_code)]
 mod clang_materialization;
-#[allow(dead_code)]
 mod clang_protocol;
-mod dataflow;
-mod dataflow_extract;
-mod dataflow_facts;
-mod declaration_helpers;
-mod declaration_records;
-mod declarations;
 mod discovery;
-mod expressions;
 mod facts;
 mod include_facts;
 mod includes;
-mod indirect_calls;
-mod language;
-mod macro_declarations;
-mod macro_expanded_call;
-mod macro_fact_records;
-mod macro_facts;
-mod macro_resolution;
-mod macro_substitution;
-mod macro_syntax;
 mod model;
-#[cfg(test)]
-mod model_tests;
-mod parser;
-mod pointer_aliases;
-mod pointer_bindings;
-mod receiver_resolution;
 mod relationship_facts;
 mod resolution;
-#[cfg(test)]
-mod resolution_tests;
 mod semantic_call_facts;
 mod semantic_call_records;
 mod semantic_dataflow_facts;
 mod semantic_pointer_index;
-mod syntax;
-mod type_declarations;
 mod visibility;
+
 #[cfg(test)]
-mod visibility_tests;
+mod tests;
 
 use std::path::Path;
 
 use crate::{AdapterError, AdapterRequest, Analysis, LanguageAdapter};
 
-pub const ADAPTER_VERSION: &str = "0.5.0";
+pub const ADAPTER_VERSION: &str = "0.6.0";
+
+#[derive(Debug, Clone)]
+pub struct CFamilyAdapter {
+    frontend: clang_frontend::ClangFrontend,
+}
+
+impl CFamilyAdapter {
+    pub(crate) fn new(adapter_root: &Path) -> Self {
+        Self {
+            frontend: clang_frontend::ClangFrontend::discover(adapter_root),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_frontend(frontend: clang_frontend::ClangFrontend) -> Self {
+        Self { frontend }
+    }
+}
 
 pub(crate) fn verify_runtime_helper(adapter_root: &Path) -> Result<(), AdapterError> {
-    clang_frontend::ClangFrontend::discover(adapter_root)
+    CFamilyAdapter::new(adapter_root)
+        .frontend
         .resolve()
         .map(|_| ())
 }
-
-#[derive(Debug, Default)]
-pub struct CFamilyAdapter;
 
 impl LanguageAdapter for CFamilyAdapter {
     fn implementation_version(&self) -> &'static str {
@@ -82,67 +64,68 @@ impl LanguageAdapter for CFamilyAdapter {
             ADAPTER_VERSION,
             &[
                 ("mod.rs", include_bytes!("mod.rs")),
-                ("call_candidates.rs", include_bytes!("call_candidates.rs")),
-                ("call_facts.rs", include_bytes!("call_facts.rs")),
-                ("call_references.rs", include_bytes!("call_references.rs")),
-                ("callables.rs", include_bytes!("callables.rs")),
+                ("clang_frontend.rs", include_bytes!("clang_frontend.rs")),
+                ("clang_protocol.rs", include_bytes!("clang_protocol.rs")),
                 (
-                    "declaration_helpers.rs",
-                    include_bytes!("declaration_helpers.rs"),
+                    "clang_materialization.rs",
+                    include_bytes!("clang_materialization.rs"),
                 ),
                 (
-                    "declaration_records.rs",
-                    include_bytes!("declaration_records.rs"),
+                    "clang_materialization/declarations.rs",
+                    include_bytes!("clang_materialization/declarations.rs"),
                 ),
-                ("declarations.rs", include_bytes!("declarations.rs")),
-                ("dataflow.rs", include_bytes!("dataflow.rs")),
-                ("dataflow_extract.rs", include_bytes!("dataflow_extract.rs")),
-                ("dataflow_facts.rs", include_bytes!("dataflow_facts.rs")),
+                (
+                    "clang_materialization/references.rs",
+                    include_bytes!("clang_materialization/references.rs"),
+                ),
+                (
+                    "clang_materialization/semantics.rs",
+                    include_bytes!("clang_materialization/semantics.rs"),
+                ),
+                (
+                    "clang_materialization/value_flow.rs",
+                    include_bytes!("clang_materialization/value_flow.rs"),
+                ),
                 ("discovery.rs", include_bytes!("discovery.rs")),
-                ("expressions.rs", include_bytes!("expressions.rs")),
                 ("facts.rs", include_bytes!("facts.rs")),
                 ("include_facts.rs", include_bytes!("include_facts.rs")),
                 ("includes.rs", include_bytes!("includes.rs")),
-                ("indirect_calls.rs", include_bytes!("indirect_calls.rs")),
-                ("language.rs", include_bytes!("language.rs")),
-                (
-                    "macro_declarations.rs",
-                    include_bytes!("macro_declarations.rs"),
-                ),
-                (
-                    "macro_expanded_call.rs",
-                    include_bytes!("macro_expanded_call.rs"),
-                ),
-                (
-                    "macro_fact_records.rs",
-                    include_bytes!("macro_fact_records.rs"),
-                ),
-                ("macro_facts.rs", include_bytes!("macro_facts.rs")),
-                ("macro_resolution.rs", include_bytes!("macro_resolution.rs")),
-                (
-                    "macro_substitution.rs",
-                    include_bytes!("macro_substitution.rs"),
-                ),
-                ("macro_syntax.rs", include_bytes!("macro_syntax.rs")),
                 ("model.rs", include_bytes!("model.rs")),
-                ("parser.rs", include_bytes!("parser.rs")),
-                ("pointer_aliases.rs", include_bytes!("pointer_aliases.rs")),
-                ("pointer_bindings.rs", include_bytes!("pointer_bindings.rs")),
-                (
-                    "receiver_resolution.rs",
-                    include_bytes!("receiver_resolution.rs"),
-                ),
                 (
                     "relationship_facts.rs",
                     include_bytes!("relationship_facts.rs"),
                 ),
                 ("resolution.rs", include_bytes!("resolution.rs")),
-                ("syntax.rs", include_bytes!("syntax.rs")),
                 (
-                    "type_declarations.rs",
-                    include_bytes!("type_declarations.rs"),
+                    "semantic_call_facts.rs",
+                    include_bytes!("semantic_call_facts.rs"),
+                ),
+                (
+                    "semantic_call_records.rs",
+                    include_bytes!("semantic_call_records.rs"),
+                ),
+                (
+                    "semantic_dataflow_facts.rs",
+                    include_bytes!("semantic_dataflow_facts.rs"),
+                ),
+                (
+                    "semantic_pointer_index.rs",
+                    include_bytes!("semantic_pointer_index.rs"),
                 ),
                 ("visibility.rs", include_bytes!("visibility.rs")),
+                (
+                    "clang-helper-version",
+                    clang_protocol::HELPER_VERSION.as_bytes(),
+                ),
+                ("../frontend/mod.rs", include_bytes!("../frontend/mod.rs")),
+                (
+                    "../frontend/runner.rs",
+                    include_bytes!("../frontend/runner.rs"),
+                ),
+                (
+                    "../frontend/capture.rs",
+                    include_bytes!("../frontend/capture.rs"),
+                ),
             ],
         )
     }
@@ -167,7 +150,38 @@ impl LanguageAdapter for CFamilyAdapter {
             ));
         }
 
-        let model = parser::parse_repository(&repository)?;
+        let discovery_started = crate::perf::start();
+        let files = discovery::collect_sources(&repository)?;
+        if let Some(started) = discovery_started {
+            crate::perf::emit(
+                "c-family.repository_discovery",
+                started.elapsed(),
+                &[("discovered_files", files.len() as u64)],
+            );
+        }
+
+        let frontend_started = crate::perf::start();
+        let response = self.frontend.structural(&repository, files)?;
+        if let Some(started) = frontend_started {
+            crate::perf::emit(
+                "c-family.frontend.semantic_analysis",
+                started.elapsed(),
+                &[
+                    ("observed_files", response.files.len() as u64),
+                    ("translation_units", response.translation_units.len() as u64),
+                ],
+            );
+        }
+
+        let materialization_started = crate::perf::start();
+        let model = clang_materialization::materialize(&repository, &response)?;
+        if let Some(started) = materialization_started {
+            crate::perf::emit(
+                "c-family.lexicon.materialization",
+                started.elapsed(),
+                &[("files", model.files.len() as u64)],
+            );
+        }
         Ok(facts::analysis(request, model))
     }
 }

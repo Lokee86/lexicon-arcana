@@ -207,7 +207,11 @@ fn materializes_clang_structural_observations_into_lexicon_identities() {
         .find(|value| value.name == "WRAP")
         .unwrap();
     assert_eq!(macro_decl.attributes.get("macro"), Some(&json!(true)));
-    assert_eq!(macro_decl.attributes.get("target"), Some(&json!("target")));
+    assert_eq!(
+        macro_decl.attributes.get("replacement"),
+        Some(&json!("target(x)"))
+    );
+    assert!(!macro_decl.attributes.contains_key("target"));
 
     assert_eq!(file.includes.len(), 1);
     assert_eq!(file.includes[0].resolved_path, "thing.hpp");

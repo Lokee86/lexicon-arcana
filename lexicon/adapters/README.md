@@ -1,8 +1,8 @@
 # Lexicon language adapters
 
-Lexicon is currently migrating adapter ownership into native Rust implementations under `lexicon/src/adapters/`. This `lexicon/adapters/` directory contains the legacy executable implementations, parity oracles, and Go-runtime compatibility assets that remain necessary during that migration.
+Lexicon owns normalized adapter policy in native Rust implementations under `lexicon/src/adapters/`. This `lexicon/adapters/` directory contains private authoritative frontend helpers plus legacy executable/parity assets that remain necessary for languages still in migration.
 
-Both boundaries implement the same language semantics and facts-v1 meaning; they differ in execution mechanics.
+Frontend helpers provide language/compiler evidence; Rust owns Lexicon identities, semantic policy, and facts-v1 materialization.
 
 ## Purpose
 
@@ -33,7 +33,7 @@ Those boundaries keep one language implementation reusable by every Warlock cons
 
 | Folder | Language surface | Implementation | Primary semantic frontend |
 | --- | --- | --- | --- |
-| [c-family/](c-family/README.md) | C and C++ | Go | Official Tree-sitter C and C++ grammars |
+| [c-family-clang/](c-family-clang/README.md) | C and C++ private frontend | C++ | Clang/LibTooling |
 | [go-semantic/](go-semantic/) | Go private semantic helper | Go | Rust-supplied inventory + `go/parser`, `go/types`, packages, SSA, and VTA |
 | [gdscript/](gdscript/README.md) | GDScript | Go | Dedicated parser and bounded type-flow model |
 | [csharp/](csharp/README.md) | C# | C# | Roslyn compiler APIs with optional MSBuild project loading |
@@ -103,7 +103,7 @@ Cross-language record meaning belongs in `spec/`. Shared scan/storage orchestrat
 | Supported language registry | `internal/languages/registry.go` | language registry tests |
 | Adapter discovery, fingerprints, and execution | `internal/adapters/registry.go`, `runner.go`, `runner_packaged.go` | adapter runner/registry tests |
 | Shared facts contract | `spec/facts-v1.md` | object-store contract tests |
-| C/C++ | `adapters/c-family/` | package-local Go tests |
+| C/C++ authoritative frontend | `adapters/c-family-clang/` + `src/adapters/c_family/` | Clang protocol/materialization tests and native Rust C-family tests |
 | Go private semantic helper | `adapters/go-semantic/` | helper Go tests plus native Rust Go-adapter tests |
 | GDScript | `adapters/gdscript/` | package-local Go tests |
 | C# | `adapters/csharp/` | .NET adapter tests |

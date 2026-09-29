@@ -25,7 +25,7 @@ impl AdapterHost {
             adapters: BTreeMap::new(),
             generic: Arc::new(GenericAdapter),
         };
-        host.register("c-family", Arc::new(CFamilyAdapter));
+        host.register("c-family", Arc::new(CFamilyAdapter::new(&root)));
         host.register("python", Arc::new(PythonAdapter));
         host.register("gdscript", Arc::new(GdscriptAdapter));
         host.register("go", Arc::new(GoAdapter::new(&root)));

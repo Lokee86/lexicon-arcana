@@ -83,19 +83,6 @@ impl VisibilityIndex {
             .get(declaration_path)
             .copied()
     }
-
-    #[cfg(test)]
-    pub fn translation_roots(&self, path: &str) -> Vec<&str> {
-        let mut roots = self
-            .translation_roots
-            .get(path)
-            .into_iter()
-            .flatten()
-            .map(String::as_str)
-            .collect::<Vec<_>>();
-        roots.sort_unstable();
-        roots
-    }
 }
 
 fn reachable_include_distances(

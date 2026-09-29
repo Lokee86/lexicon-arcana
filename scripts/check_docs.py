@@ -135,7 +135,7 @@ CODE_MAP_DOCUMENTS = (
     "lexicon/docs/RELEASE_PACKAGING.md",
     "lexicon/docs/SEMANTIC_ACCEPTANCE.md",
     "lexicon/adapters/README.md",
-    "lexicon/adapters/c-family/README.md",
+    "lexicon/adapters/c-family-clang/README.md",
     "lexicon/adapters/csharp/README.md",
     "lexicon/adapters/gdscript/README.md",
     "lexicon/adapters/generic/README.md",
