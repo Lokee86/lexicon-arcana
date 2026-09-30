@@ -13,33 +13,30 @@
 namespace lexicon::clang_frontend {
 
 SymbolReference symbol_reference(const clang::NamedDecl *declaration,
-                                 const clang::SourceManager &sources,
+                                 State &state, clang::ASTContext &context,
                                  llvm::StringRef repository_root);
 std::optional<SymbolReference>
-value_reference(const clang::Expr *expression,
-                const clang::SourceManager &sources,
-                llvm::StringRef repository_root);
+value_reference(const clang::Expr *expression, State &state,
+                clang::ASTContext &context, llvm::StringRef repository_root);
 std::optional<SymbolReference>
-callable_reference(const clang::Expr *expression,
-                   const clang::SourceManager &sources,
+callable_reference(const clang::Expr *expression, State &state,
+                   clang::ASTContext &context,
                    llvm::StringRef repository_root);
 const clang::FunctionDecl *enclosing_function(clang::ASTContext &context,
                                               const clang::Stmt &statement);
 const clang::FunctionDecl *enclosing_function(clang::ASTContext &context,
                                               const clang::Decl &declaration);
 std::vector<SymbolReference>
-overload_candidates(const clang::Expr *callee,
-                    const clang::SourceManager &sources,
+overload_candidates(const clang::Expr *callee, State &state,
+                    clang::ASTContext &context,
                     llvm::StringRef repository_root);
 std::vector<SemanticArgument>
-semantic_arguments(const clang::CallExpr &call,
-                   const clang::SourceManager &sources,
-                   const clang::LangOptions &language,
+semantic_arguments(const clang::CallExpr &call, State &state,
+                   clang::ASTContext &context,
                    llvm::StringRef repository_root);
 std::vector<SemanticArgument>
-semantic_arguments(const clang::CXXConstructExpr &call,
-                   const clang::SourceManager &sources,
-                   const clang::LangOptions &language,
+semantic_arguments(const clang::CXXConstructExpr &call, State &state,
+                   clang::ASTContext &context,
                    llvm::StringRef repository_root);
 
 } // namespace lexicon::clang_frontend

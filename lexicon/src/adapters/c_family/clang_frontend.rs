@@ -13,7 +13,9 @@ use crate::{AdapterError, adapters::frontend::FrontendRunner};
 #[cfg(test)]
 use super::clang_protocol::{CapabilitiesRequest, CapabilitiesResponse};
 use super::{
-    clang_protocol::{self, FileObservation, StructuralRequest, StructuralResponse},
+    clang_protocol::{
+        self, ContextIdentityObservation, FileObservation, StructuralRequest, StructuralResponse,
+    },
     inventory::ScanInventory,
 };
 
@@ -39,6 +41,7 @@ pub(crate) struct StructuralObservationStore {
     root: PathBuf,
     fragments: BTreeMap<String, PathBuf>,
     translation_units: HashSet<String>,
+    context_identities: Vec<ContextIdentityObservation>,
     metadata: Option<StructuralMetadata>,
 }
 
@@ -56,6 +59,7 @@ impl StructuralObservationStore {
                         root,
                         fragments: BTreeMap::new(),
                         translation_units: HashSet::new(),
+                        context_identities: Vec::new(),
                         metadata: None,
                     });
                 }
@@ -90,6 +94,8 @@ impl StructuralObservationStore {
             self.translation_units
                 .insert(format!("{translation_unit:?}"));
         }
+
+        self.context_identities.extend(response.context_identities);
 
         for file in response.files {
             let observation_path = file.path.clone();
@@ -137,12 +143,12 @@ impl StructuralObservationStore {
         self.translation_units.len()
     }
 
-    pub(crate) fn contains_file(&self, path: &str) -> bool {
-        self.fragments.contains_key(path)
-    }
-
     pub(crate) fn file_paths(&self) -> Vec<String> {
         self.fragments.keys().cloned().collect()
+    }
+
+    pub(crate) fn context_identities(&self) -> &[ContextIdentityObservation] {
+        &self.context_identities
     }
 
     pub(crate) fn merged_file(&self, path: &str) -> Result<FileObservation, AdapterError> {
@@ -289,6 +295,9 @@ impl ClangFrontend {
 
         for chunk in sources.chunks(STRUCTURAL_FILES_PER_REQUEST) {
             let (owned_files, context_files) = split_ownership(chunk.to_vec(), &owned);
+            if owned_files.is_empty() {
+                continue;
+            }
             let response = self.run_structural_request(
                 &repository,
                 repository_root.clone(),
@@ -301,17 +310,17 @@ impl ClangFrontend {
             store.append_response(response)?;
         }
 
-        let orphan_headers = headers
-            .into_iter()
-            .filter(|path| !store.contains_file(path))
-            .collect::<Vec<_>>();
-        if !orphan_headers.is_empty() {
-            let (owned_files, context_files) = split_ownership(orphan_headers, &owned);
+        let (owned_headers, context_headers) = split_ownership(headers, &owned);
+        if !owned_headers.is_empty() {
+            let mut header_context = sources;
+            header_context.extend(context_headers);
+            header_context.sort();
+            header_context.dedup();
             let response = self.run_structural_request(
                 &repository,
                 repository_root.clone(),
-                owned_files,
-                context_files,
+                owned_headers,
+                header_context,
                 workers,
                 shards,
                 merge_fan_in,

@@ -21,13 +21,13 @@ void add_pointer_binding(State &state, clang::ASTContext &context,
   }
   auto &sources = context.getSourceManager();
   auto path = source_path(sources, pointer.getLocation(), repository_root);
-  auto target = callable_reference(initializer, sources, repository_root);
-  if (!path || !target) {
+  auto target = callable_reference(initializer, state, context, repository_root);
+  if (!path || !state.owns(*path) || !target) {
     return;
   }
   state.file(*path, language.str(), translation_unit.str())
       .pointer_bindings.push_back({
-          .pointer = symbol_reference(&pointer, sources, repository_root),
+          .pointer = symbol_reference(&pointer, state, context, repository_root),
           .target = *target,
           .expression = normalize_space(
               source_text(sources, context.getLangOpts(), range)),
@@ -50,7 +50,7 @@ void observe_variable(State &state, clang::ASTContext &context,
   if (const auto *source = enclosing_function(context, declaration)) {
     auto path =
         source_path(sources, declaration.getLocation(), repository_root);
-    if (path) {
+    if (path && state.owns(*path)) {
       const auto source_id =
           ensure_callable_declaration(state, context, *source, repository_root,
                                       translation_unit, language);
@@ -61,7 +61,7 @@ void observe_variable(State &state, clang::ASTContext &context,
           .accesses.push_back({
               .source_compiler_id = source_id,
               .target =
-                  symbol_reference(&declaration, sources, repository_root),
+                  symbol_reference(&declaration, state, context, repository_root),
               .relation = "writes",
               .expression = declaration.getNameAsString(),
               .span = source_span(sources, context.getLangOpts(),
@@ -102,11 +102,12 @@ void observe_pointer_assignment(State &state, clang::ASTContext &context,
     return;
   }
   auto &sources = context.getSourceManager();
-  auto pointer = value_reference(assignment.getLHS(), sources, repository_root);
-  auto target =
-      callable_reference(assignment.getRHS(), sources, repository_root);
+  auto pointer =
+      value_reference(assignment.getLHS(), state, context, repository_root);
+  auto target = callable_reference(assignment.getRHS(), state, context,
+                                   repository_root);
   auto path = source_path(sources, assignment.getExprLoc(), repository_root);
-  if (!pointer || !target || !path) {
+  if (!pointer || !target || !path || !state.owns(*path)) {
     return;
   }
   state.file(*path, language.str(), translation_unit.str())

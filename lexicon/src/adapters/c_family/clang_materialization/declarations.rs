@@ -5,7 +5,9 @@ use serde_json::{Map, json};
 use crate::node_id;
 
 use super::super::{
-    clang_protocol::{DeclarationObservation, FileObservation, MacroObservation},
+    clang_protocol::{
+        ContextIdentityObservation, DeclarationObservation, FileObservation, MacroObservation,
+    },
     model::Declaration,
 };
 
@@ -147,6 +149,15 @@ fn macro_declaration(
         attributes,
         file_local: false,
     }
+}
+
+pub(super) fn context_identity_id(value: &ContextIdentityObservation) -> String {
+    let mut canonical = format!("{}::{}::{}", value.path, value.kind, value.qualified_name);
+    if !value.signature.is_empty() {
+        canonical.push_str("::");
+        canonical.push_str(&value.signature);
+    }
+    node_id("c-family", &value.kind, &canonical)
 }
 
 fn declaration_id(path: &str, value: &DeclarationObservation) -> String {

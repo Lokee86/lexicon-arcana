@@ -16,7 +16,7 @@ void observe_inheritance(State &state, clang::ASTContext &context,
   }
   auto &sources = context.getSourceManager();
   auto path = source_path(sources, record.getLocation(), repository_root);
-  if (!path) {
+  if (!path || !state.owns(*path)) {
     return;
   }
   auto source_id = compiler_id(&record, sources);
@@ -25,8 +25,8 @@ void observe_inheritance(State &state, clang::ASTContext &context,
         .relationships.push_back({
             .kind = "extends",
             .source_compiler_id = source_id,
-            .target = symbol_reference(base.getType()->getAsCXXRecordDecl(),
-                                       sources, repository_root),
+            .target = symbol_reference(base.getType()->getAsCXXRecordDecl(), state, context,
+                                       repository_root),
             .expression = normalize_space(source_text(
                 sources, context.getLangOpts(), base.getSourceRange())),
             .span = source_span(sources, context.getLangOpts(),
@@ -45,7 +45,7 @@ void observe_overrides(State &state, clang::ASTContext &context,
   }
   auto &sources = context.getSourceManager();
   auto path = source_path(sources, method.getLocation(), repository_root);
-  if (!path) {
+  if (!path || !state.owns(*path)) {
     return;
   }
   auto source_id = compiler_id(&method, sources);
@@ -54,7 +54,7 @@ void observe_overrides(State &state, clang::ASTContext &context,
         .relationships.push_back({
             .kind = "overrides",
             .source_compiler_id = source_id,
-            .target = symbol_reference(target, sources, repository_root),
+            .target = symbol_reference(target, state, context, repository_root),
             .expression = method.getQualifiedNameAsString(),
             .span = source_span(
                 sources, context.getLangOpts(),

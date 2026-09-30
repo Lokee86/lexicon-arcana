@@ -32,7 +32,7 @@ public:
       return true;
     }
     auto path = source_path(sources_, declaration->getLocation(), root_);
-    if (!path) {
+    if (!path || !state_.owns(*path)) {
       return true;
     }
     auto *named = llvm::dyn_cast<clang::NamedDecl>(declaration);
@@ -51,7 +51,7 @@ public:
   }
 
   bool VisitCXXRecordDecl(clang::CXXRecordDecl *record) {
-    if (record) {
+    if (record && owned(record->getLocation())) {
       observe_inheritance(state_, context_, *record, root_, translation_unit_,
                           language_);
     }
@@ -59,7 +59,7 @@ public:
   }
 
   bool VisitCXXMethodDecl(clang::CXXMethodDecl *method) {
-    if (method) {
+    if (method && owned(method->getLocation())) {
       observe_overrides(state_, context_, *method, root_, translation_unit_,
                         language_);
     }
@@ -67,14 +67,14 @@ public:
   }
 
   bool VisitCallExpr(clang::CallExpr *call) {
-    if (call) {
+    if (call && owned(call->getExprLoc())) {
       observe_call(state_, context_, *call, root_, translation_unit_, language_);
     }
     return true;
   }
 
   bool VisitCXXConstructExpr(clang::CXXConstructExpr *call) {
-    if (call) {
+    if (call && owned(call->getExprLoc())) {
       observe_constructor(state_, context_, *call, root_, translation_unit_,
                           language_);
     }
@@ -82,7 +82,7 @@ public:
   }
 
   bool VisitDeclRefExpr(clang::DeclRefExpr *expression) {
-    if (expression) {
+    if (expression && owned(expression->getExprLoc())) {
       observe_value_access(state_, context_, *expression, root_,
                            translation_unit_, language_);
     }
@@ -90,7 +90,7 @@ public:
   }
 
   bool VisitMemberExpr(clang::MemberExpr *expression) {
-    if (expression) {
+    if (expression && owned(expression->getExprLoc())) {
       observe_value_access(state_, context_, *expression, root_,
                            translation_unit_, language_);
     }
@@ -98,7 +98,7 @@ public:
   }
 
   bool VisitVarDecl(clang::VarDecl *declaration) {
-    if (declaration) {
+    if (declaration && owned(declaration->getLocation())) {
       observe_variable(state_, context_, *declaration, root_,
                        translation_unit_, language_);
     }
@@ -106,7 +106,7 @@ public:
   }
 
   bool VisitFieldDecl(clang::FieldDecl *declaration) {
-    if (declaration) {
+    if (declaration && owned(declaration->getLocation())) {
       observe_pointer_field(state_, context_, *declaration, root_,
                             translation_unit_, language_);
     }
@@ -114,7 +114,7 @@ public:
   }
 
   bool VisitBinaryOperator(clang::BinaryOperator *assignment) {
-    if (assignment) {
+    if (assignment && owned(assignment->getExprLoc())) {
       observe_pointer_assignment(state_, context_, *assignment, root_,
                                  translation_unit_, language_);
     }
@@ -122,7 +122,7 @@ public:
   }
 
   bool VisitDesignatedInitExpr(clang::DesignatedInitExpr *initializer) {
-    if (initializer) {
+    if (initializer && owned(initializer->getExprLoc())) {
       observe_designated_pointer(state_, context_, *initializer, root_,
                                  translation_unit_, language_);
     }
@@ -130,6 +130,14 @@ public:
   }
 
 private:
+  bool owned(clang::SourceLocation location) const {
+    if (location.isInvalid()) {
+      return false;
+    }
+    auto path = source_path(sources_, location, root_);
+    return path && state_.owns(*path);
+  }
+
   State &state_;
   clang::ASTContext &context_;
   clang::SourceManager &sources_;

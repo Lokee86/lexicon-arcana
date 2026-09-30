@@ -1,6 +1,11 @@
 use std::collections::HashMap;
 
-use super::super::clang_protocol::{FileObservation, SymbolReferenceObservation};
+use super::{
+    super::clang_protocol::{
+        ContextIdentityObservation, FileObservation, SymbolReferenceObservation,
+    },
+    declarations,
+};
 
 pub(super) type IdentityMaps = HashMap<String, HashMap<String, String>>;
 
@@ -47,6 +52,26 @@ impl ReferenceIndex {
                     path: file.path.clone(),
                     id: id.clone(),
                     definition: declaration.definition,
+                });
+        }
+    }
+
+    pub(super) fn add_context_identities(&mut self, values: &[ContextIdentityObservation]) {
+        for value in values {
+            if value.compiler_id.is_empty()
+                || value.path.is_empty()
+                || value.kind.is_empty()
+                || value.qualified_name.is_empty()
+            {
+                continue;
+            }
+            self.by_compiler
+                .entry(value.compiler_id.clone())
+                .or_default()
+                .push(ReferenceCandidate {
+                    path: value.path.clone(),
+                    id: declarations::context_identity_id(value),
+                    definition: value.definition,
                 });
         }
     }
@@ -107,5 +132,39 @@ impl ReferenceIndex {
             .first()
             .map(|value| value.id.clone())
             .unwrap_or_default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::adapters::c_family::clang_protocol::{
+        ContextIdentityObservation, SymbolReferenceObservation,
+    };
+
+    #[test]
+    fn context_identity_resolves_to_canonical_declaration_id() {
+        let identity = ContextIdentityObservation {
+            compiler_id: "c:@F@api".into(),
+            path: "api.h".into(),
+            kind: "function".into(),
+            qualified_name: "api".into(),
+            signature: "api()".into(),
+            definition: true,
+        };
+        let expected = declarations::context_identity_id(&identity);
+
+        let mut index = ReferenceIndex::empty();
+        index.add_context_identities(std::slice::from_ref(&identity));
+        index.finalize();
+
+        let reference = SymbolReferenceObservation {
+            compiler_id: identity.compiler_id.clone(),
+            path: identity.path.clone(),
+            qualified_name: identity.qualified_name.clone(),
+            kind: "Function".into(),
+            external: false,
+        };
+        assert_eq!(index.resolve(&reference, "owner.c"), expected);
     }
 }

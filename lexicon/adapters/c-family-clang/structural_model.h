@@ -125,6 +125,15 @@ struct SemanticCall {
   Span span;
 };
 
+struct ContextIdentity {
+  std::string compiler_id;
+  std::string path;
+  std::string kind;
+  std::string qualified_name;
+  std::string signature;
+  bool definition = false;
+};
+
 struct File {
   std::string path;
   std::set<std::string> languages;
@@ -153,6 +162,9 @@ struct State {
 
   File &file(const std::string &path, const std::string &language,
              const std::string &translation_unit);
+  void set_owned_files(const std::vector<std::string> &paths);
+  bool owns(llvm::StringRef path) const;
+  void add_context_identity(ContextIdentity identity);
   void add_diagnostic(Diagnostic diagnostic);
   void merge(State other);
   llvm::json::Object response(bool compilation_database,
@@ -161,6 +173,9 @@ struct State {
 
   std::string repository_root;
   std::map<std::string, File> files;
+  std::set<std::string> active_owned_paths;
+  std::set<std::string> all_owned_paths;
+  std::vector<ContextIdentity> context_identities;
   std::vector<TranslationUnit> translation_units;
   std::vector<Diagnostic> diagnostics;
   std::uint64_t semantic_analysis_ns = 0;

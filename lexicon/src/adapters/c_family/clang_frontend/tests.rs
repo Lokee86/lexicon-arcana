@@ -135,7 +135,7 @@ fn structural_chunks_large_source_sets_and_merges_duplicate_observations() {
 }
 
 #[test]
-fn structural_sends_unobserved_headers_in_one_helper_request() {
+fn structural_sends_owned_headers_with_source_context_in_one_helper_request() {
     let root = TestDirectory::new("structural-header-batch");
     let counter = root.path.join("calls.txt");
     let response = format!(
@@ -148,12 +148,8 @@ fn structural_sends_unobserved_headers_in_one_helper_request() {
         .structural(
             &root.path,
             ScanInventory {
-                owned_files: vec![
-                    "a.h".into(),
-                    "include/b.hpp".into(),
-                    "include/deep/c.hxx".into(),
-                ],
-                context_files: Vec::new(),
+                owned_files: vec!["shared.h".into()],
+                context_files: vec!["b.c".into(), "a.c".into()],
             },
             4,
             16,
@@ -161,7 +157,12 @@ fn structural_sends_unobserved_headers_in_one_helper_request() {
         )
         .unwrap();
 
-    assert_eq!(fs::read_to_string(counter).unwrap().lines().count(), 1);
+    let requests = fs::read_to_string(counter).unwrap();
+    let requests = requests.lines().collect::<Vec<_>>();
+    assert_eq!(requests.len(), 1);
+    let request: serde_json::Value = serde_json::from_str(requests[0]).unwrap();
+    assert_eq!(request["owned_files"], serde_json::json!(["shared.h"]));
+    assert_eq!(request["context_files"], serde_json::json!(["a.c", "b.c"]));
 }
 
 #[test]
@@ -185,7 +186,7 @@ fn counting_frontend(
         fs::write(
             &script,
             format!(
-                "$null = [Console]::In.ReadLine()\nAdd-Content -LiteralPath '{}' -Value 'call'\n[Console]::Out.WriteLine('{}')\n",
+                "$request = [Console]::In.ReadLine()\nAdd-Content -LiteralPath '{}' -Value $request\n[Console]::Out.WriteLine('{}')\n",
                 counter.display().to_string().replace('\'', "''"),
                 response.replace('\'', "''")
             ),
@@ -211,7 +212,7 @@ fn counting_frontend(
         fs::write(
             &script,
             format!(
-                "#!/bin/sh\nIFS= read -r request\nprintf 'call\\n' >> '{}'\nprintf '%s\\n' '{}'\n",
+                "#!/bin/sh\nIFS= read -r request\nprintf '%s\\n' \"$request\" >> '{}'\nprintf '%s\\n' '{}'\n",
                 counter.display().to_string().replace('\'', "'\\''"),
                 response.replace('\'', "'\\''")
             ),

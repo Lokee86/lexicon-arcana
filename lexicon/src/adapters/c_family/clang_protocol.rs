@@ -92,6 +92,8 @@ pub(crate) struct StructuralResponse {
     #[serde(default)]
     pub files: Vec<FileObservation>,
     #[serde(default)]
+    pub context_identities: Vec<ContextIdentityObservation>,
+    #[serde(default)]
     pub diagnostics: Vec<DiagnosticObservation>,
 }
 
@@ -109,6 +111,18 @@ pub(crate) struct TranslationUnitObservation {
     pub directory: String,
     pub arguments: Vec<String>,
     pub synthesized: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ContextIdentityObservation {
+    pub compiler_id: String,
+    pub path: String,
+    pub kind: String,
+    pub qualified_name: String,
+    #[serde(default)]
+    pub signature: String,
+    pub definition: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]

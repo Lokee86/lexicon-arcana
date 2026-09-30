@@ -179,6 +179,17 @@ llvm::json::Object file_json(File value) {
   };
 }
 
+llvm::json::Object context_identity_json(const ContextIdentity &value) {
+  return llvm::json::Object{
+      {"compiler_id", value.compiler_id},
+      {"path", value.path},
+      {"kind", value.kind},
+      {"qualified_name", value.qualified_name},
+      {"signature", value.signature},
+      {"definition", value.definition},
+  };
+}
+
 llvm::json::Object translation_unit_json(const TranslationUnit &value) {
   return llvm::json::Object{
       {"path", value.path},
@@ -206,8 +217,34 @@ File &State::file(const std::string &path, const std::string &language,
   return value;
 }
 
+void State::set_owned_files(const std::vector<std::string> &paths) {
+  active_owned_paths.clear();
+  active_owned_paths.insert(paths.begin(), paths.end());
+  all_owned_paths.insert(paths.begin(), paths.end());
+}
+
+bool State::owns(llvm::StringRef path) const {
+  return active_owned_paths.contains(path.str());
+}
+
+void State::add_context_identity(ContextIdentity identity) {
+  auto existing = std::find_if(
+      context_identities.begin(), context_identities.end(),
+      [&](const ContextIdentity &value) {
+        return value.compiler_id == identity.compiler_id &&
+               value.path == identity.path;
+      });
+  if (existing == context_identities.end()) {
+    context_identities.push_back(std::move(identity));
+    return;
+  }
+  if (!existing->definition && identity.definition) {
+    *existing = std::move(identity);
+  }
+}
+
 void State::add_diagnostic(Diagnostic diagnostic) {
-  if (!diagnostic.path.empty()) {
+  if (!diagnostic.path.empty() && owns(diagnostic.path)) {
     auto &[_, file] =
         *files.try_emplace(diagnostic.path, File{.path = diagnostic.path}).first;
     file.diagnostics.push_back(diagnostic);
@@ -224,6 +261,10 @@ void State::merge(State other) {
   diagnostics.insert(diagnostics.end(),
                      std::make_move_iterator(other.diagnostics.begin()),
                      std::make_move_iterator(other.diagnostics.end()));
+  all_owned_paths.merge(other.all_owned_paths);
+  for (auto &identity : other.context_identities) {
+    add_context_identity(std::move(identity));
+  }
 
   for (auto &[path, source] : other.files) {
     auto &[_, target] = *files.try_emplace(path, File{.path = path}).first;
@@ -261,13 +302,40 @@ llvm::json::Object State::response(bool compilation_database,
                      std::tie(right.path, right.message, right.severity);
             });
 
+  std::sort(context_identities.begin(), context_identities.end(),
+            [](const ContextIdentity &left, const ContextIdentity &right) {
+              return std::tie(left.compiler_id, left.path, left.kind,
+                              left.qualified_name, left.signature,
+                              left.definition) <
+                     std::tie(right.compiler_id, right.path, right.kind,
+                              right.qualified_name, right.signature,
+                              right.definition);
+            });
+  context_identities.erase(
+      std::unique(context_identities.begin(), context_identities.end(),
+                  [](const ContextIdentity &left, const ContextIdentity &right) {
+                    return left.compiler_id == right.compiler_id &&
+                           left.path == right.path &&
+                           left.kind == right.kind &&
+                           left.qualified_name == right.qualified_name &&
+                           left.signature == right.signature &&
+                           left.definition == right.definition;
+                  }),
+      context_identities.end());
+
   llvm::json::Array file_values;
-  for (auto &[_, value] : files) {
-    file_values.emplace_back(file_json(std::move(value)));
+  for (auto &[path, value] : files) {
+    if (all_owned_paths.contains(path)) {
+      file_values.emplace_back(file_json(std::move(value)));
+    }
   }
   llvm::json::Array unit_values;
   for (const auto &value : translation_units) {
     unit_values.emplace_back(translation_unit_json(value));
+  }
+  llvm::json::Array context_identity_values;
+  for (const auto &value : context_identities) {
+    context_identity_values.emplace_back(context_identity_json(value));
   }
   llvm::json::Array diagnostic_values;
   for (const auto &value : diagnostics) {
@@ -281,6 +349,7 @@ llvm::json::Object State::response(bool compilation_database,
       {"compilation_database", compilation_database},
       {"translation_units", std::move(unit_values)},
       {"files", std::move(file_values)},
+      {"context_identities", std::move(context_identity_values)},
       {"diagnostics", std::move(diagnostic_values)},
   };
 }

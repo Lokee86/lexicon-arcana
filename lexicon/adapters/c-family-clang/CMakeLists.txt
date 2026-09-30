@@ -82,3 +82,13 @@ add_test(
     NAME lexicon-c-family-clang-plan
     COMMAND lexicon-c-family-clang-plan-test
 )
+
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(
+    NAME lexicon-c-family-clang-ownership
+    COMMAND
+        ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/structural_ownership_test.py
+        $<TARGET_FILE:lexicon-c-family-clang>
+        ${HELPER_VERSION}
+)

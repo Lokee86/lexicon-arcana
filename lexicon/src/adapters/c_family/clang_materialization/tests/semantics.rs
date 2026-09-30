@@ -2,8 +2,8 @@ use std::fs;
 
 use serde_json::json;
 
-use crate::FactRecord;
 use crate::adapters::c_family::{clang_protocol::StructuralResponse, facts};
+use crate::{FactRecord, node_id};
 
 use super::super::materialize;
 use super::support::{TestDirectory, span};
@@ -254,6 +254,65 @@ fn macro_spanned_semantics_resolve_source_identity_across_files() {
         .unwrap();
     assert_eq!(header.semantic_calls[0].source_id, caller_id);
     assert_eq!(header.semantic_accesses[0].source_id, caller_id);
+}
+
+#[test]
+fn context_identity_resolves_owned_call_without_materializing_context_file() {
+    let root = TestDirectory::new("semantic-context-identity");
+    fs::write(
+        root.path.join("caller.c"),
+        b"int caller(void) { return target(); }\n",
+    )
+    .unwrap();
+
+    let response: StructuralResponse = serde_json::from_value(json!({
+        "protocol_version": 2,
+        "helper_version": "0.5.0",
+        "clang_version": "clang test",
+        "compilation_database": true,
+        "context_identities": [{
+            "compiler_id": "target-usr",
+            "path": "context.h",
+            "kind": "function",
+            "qualified_name": "target",
+            "signature": "target(void)",
+            "definition": false
+        }],
+        "files": [{
+            "path": "caller.c",
+            "languages": ["c"],
+            "translation_units": ["caller.c"],
+            "declarations": [
+                declaration("caller", "function", "caller", "caller", "caller(void)", "int", "", 1)
+            ],
+            "calls": [{
+                "source_compiler_id": "caller",
+                "form": "direct",
+                "resolution": "resolved",
+                "expression": "target",
+                "target": symbol("target-usr", "context.h", "target", "Function", false),
+                "candidates": [],
+                "receiver_type_name": "",
+                "virtual_dispatch": false,
+                "compiler_candidate_count": 1,
+                "arguments": [],
+                "span": span("caller.c", 1, 27, 1, 35)
+            }]
+        }]
+    }))
+    .unwrap();
+
+    let model = materialize(&root.path, &response).unwrap();
+    assert_eq!(model.files.len(), 1);
+    assert_eq!(model.files[0].path, "caller.c");
+    assert_eq!(
+        model.files[0].semantic_calls[0].target_id,
+        node_id(
+            "c-family",
+            "function",
+            "context.h::function::target::target(void)"
+        )
+    );
 }
 
 #[test]

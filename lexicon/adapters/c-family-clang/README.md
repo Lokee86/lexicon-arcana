@@ -37,7 +37,7 @@ Protocol v2 exposes:
 - `capabilities` — linked Clang version and compilation-database visibility;
 - `structural` — translation-unit/build context plus source-language, declaration, include, macro, diagnostic, inheritance/override, call-target, overload, receiver-type, virtual-dispatch, compiler-bound argument/value-flow, pointer-binding, access, and macro-expansion observations.
 
-The structural request receives the repository root, explicit `owned_files` and `context_files` inventories, and Lexicon's `workers`, `shards`, and `merge_fan_in` execution policy. The two ownership inventories must be canonical, disjoint repository-relative paths. Protocol v2 has no legacy `files` field. Compilation-database commands are used when available. Uncovered source files use synthesized Clang commands; headers are normally observed through source translation units, with only orphan headers receiving direct Clang analysis.
+The structural request receives the repository root, explicit `owned_files` and `context_files` inventories, and Lexicon's `workers`, `shards`, and `merge_fan_in` execution policy. The two ownership inventories must be canonical, disjoint repository-relative paths. Protocol v2 has no legacy `files` field. Compilation-database commands are used when available. Owned headers are assigned one deterministic real translation-unit context when possible and use direct synthetic analysis only when no usable real context exists. Context files may be parsed for compiler semantics but cannot emit ordinary file observations.
 
 The protocol does not contain facts-v1 records or canonical Lexicon IDs.
 
@@ -45,7 +45,7 @@ The protocol does not contain facts-v1 records or canonical Lexicon IDs.
 
 Clang owns C/C++ parsing, preprocessing/macro expansion, compiler declarations, type/receiver evidence, overload resolution, call binding, inheritance/override evidence, and compiler-bound value references.
 
-Rust owns repository-relative discovery, canonical identities, local include/file ownership, compiler-reference correlation, definite/possible/unresolved policy, fixed-point callback propagation over compiler-bound identities, `passes-to`, `reads`, `writes`, facts-v1 validation, and deterministic output.
+Rust owns repository-relative discovery, canonical identities, local include/file ownership, compiler-reference correlation, definite/possible/unresolved policy, fixed-point callback propagation over compiler-bound identities, `passes-to`, `reads`, `writes`, facts-v1 validation, and deterministic output. When an owned observation references a declaration in an unchanged context file, the helper emits only the compact compiler/path/kind/qualified-name/signature identity needed for Rust to reproduce the existing canonical declaration ID; the context file itself remains unowned.
 
 Rust does not parse macro replacement text or reconstruct C/C++ compiler semantics after the Phase 2.6 cutover.
 

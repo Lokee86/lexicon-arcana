@@ -149,6 +149,7 @@ int run_task(const std::string &root,
              lexicon::clang_frontend::CompilationCommands &database,
              lexicon::clang_frontend::State &state,
              const lexicon::clang_frontend::AnalysisTask &task) {
+  state.set_owned_files(task.owned_files);
   const auto absolute =
       (std::filesystem::path(root) /
        std::filesystem::path(task.translation_unit))
@@ -168,7 +169,9 @@ int run_task(const std::string &root,
       .arguments = command.CommandLine,
       .synthesized = task.synthesized,
   });
-  state.file(task.translation_unit, language, task.translation_unit);
+  if (state.owns(task.translation_unit)) {
+    state.file(task.translation_unit, language, task.translation_unit);
+  }
 
   clang::tooling::ClangTool tool(database, {absolute});
   auto factory =

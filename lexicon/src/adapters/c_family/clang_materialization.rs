@@ -37,7 +37,9 @@ pub(crate) fn materialize(
         .iter()
         .map(|file| (file.path.clone(), declarations::identity_map(file)))
         .collect::<HashMap<_, _>>();
-    let references = references::ReferenceIndex::new(&files, &ids);
+    let mut references = references::ReferenceIndex::new(&files, &ids);
+    references.add_context_identities(&response.context_identities);
+    references.finalize();
 
     let mut materialized = Vec::with_capacity(files.len());
     for file in files {
@@ -79,6 +81,7 @@ pub(crate) fn materialize_store(
         references.add_file(&file, &file_ids);
         ids.insert(path.clone(), file_ids);
     }
+    references.add_context_identities(store.context_identities());
     references.finalize();
 
     let mut materialized = Vec::with_capacity(paths.len());

@@ -54,7 +54,9 @@ public:
         value.span = source_span(sources, clang::LangOptions(),
                                  clang::SourceRange(info.getLocation()),
                                  *path);
-        state_.file(*path, language_, translation_unit_);
+        if (state_.owns(*path)) {
+          state_.file(*path, language_, translation_unit_);
+        }
       }
     }
     state_.add_diagnostic(std::move(value));
@@ -84,7 +86,7 @@ public:
       llvm::StringRef, llvm::StringRef, const clang::Module *,
       clang::SrcMgr::CharacteristicKind) override {
     auto path = source_path(sources_, hash_location, root_);
-    if (!path) {
+    if (!path || !state_.owns(*path)) {
       return;
     }
     auto spelling = sources_.getSpellingLoc(hash_location);
@@ -112,7 +114,7 @@ public:
       return;
     }
     auto path = source_path(sources_, info->getDefinitionLoc(), root_);
-    if (!path) {
+    if (!path || !state_.owns(*path)) {
       return;
     }
     auto spelling = sources_.getSpellingLoc(info->getDefinitionLoc());
@@ -184,7 +186,9 @@ public:
     auto translation_unit = repository_path(input_file, root_)
                                 .value_or(input_file.str());
     auto language = compiler.getLangOpts().CPlusPlus ? "cpp" : "c";
-    state_.file(translation_unit, language, translation_unit);
+    if (state_.owns(translation_unit)) {
+      state_.file(translation_unit, language, translation_unit);
+    }
     compiler.getDiagnostics().setClient(
         new DiagnosticObserver(state_, root_, language, translation_unit), true);
     compiler.getPreprocessor().addPPCallbacks(

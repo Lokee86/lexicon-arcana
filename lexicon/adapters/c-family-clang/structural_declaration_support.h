@@ -35,6 +35,9 @@ bool internal_linkage(const clang::NamedDecl &declaration);
 std::optional<Declaration>
 classify_declaration(clang::NamedDecl &named, const std::string &path,
                      clang::ASTContext &context);
+void record_context_identity(State &state, clang::ASTContext &context,
+                             const clang::NamedDecl &declaration,
+                             llvm::StringRef repository_root);
 std::string ensure_callable_declaration(State &state, clang::ASTContext &context,
                                         const clang::FunctionDecl &function,
                                         llvm::StringRef repository_root,

@@ -42,13 +42,15 @@ std::string resolution(const clang::CallExpr &call,
 }
 
 std::optional<SymbolReference>
-receiver_type(const clang::CallExpr &call, const clang::SourceManager &sources,
-              llvm::StringRef root, std::string &name) {
+receiver_type(const clang::CallExpr &call, State &state,
+              clang::ASTContext &context, llvm::StringRef root,
+              std::string &name) {
+  auto &sources = context.getSourceManager();
   if (const auto *member = llvm::dyn_cast<clang::CXXMemberCallExpr>(&call)) {
     name = member->getObjectType().getAsString();
     const auto *record = member->getRecordDecl();
     return record ? std::optional<SymbolReference>(
-                        symbol_reference(record, sources, root))
+                        symbol_reference(record, state, context, root))
                   : std::nullopt;
   }
   const auto *operator_call = llvm::dyn_cast<clang::CXXOperatorCallExpr>(&call);
@@ -62,7 +64,7 @@ receiver_type(const clang::CallExpr &call, const clang::SourceManager &sources,
   name = type.getAsString();
   const auto *record = type->getAsCXXRecordDecl();
   return record ? std::optional<SymbolReference>(
-                      symbol_reference(record, sources, root))
+                      symbol_reference(record, state, context, root))
                 : std::nullopt;
 }
 
@@ -105,7 +107,7 @@ void observe_call(State &state, clang::ASTContext &context,
   auto &sources = context.getSourceManager();
   auto path = source_path(sources, call.getExprLoc(), repository_root);
   const auto *source = enclosing_function(context, call);
-  if (!path || !source || source->isImplicit()) {
+  if (!path || !state.owns(*path) || !source || source->isImplicit()) {
     return;
   }
 
@@ -118,14 +120,14 @@ void observe_call(State &state, clang::ASTContext &context,
 
   const auto *target = call.getDirectCallee();
   auto candidates =
-      overload_candidates(call.getCallee(), sources, repository_root);
+      overload_candidates(call.getCallee(), state, context, repository_root);
   auto target_reference =
       target ? std::optional<SymbolReference>(
-                   symbol_reference(target, sources, repository_root))
+                   symbol_reference(target, state, context, repository_root))
              : std::nullopt;
   std::string receiver_name;
   auto receiver =
-      receiver_type(call, sources, repository_root, receiver_name);
+      receiver_type(call, state, context, repository_root, receiver_name);
   const auto compiler_count = target ? std::size_t{1} : candidates.size();
 
   state.file(*path, language.str(), translation_unit.str()).calls.push_back({
@@ -139,15 +141,15 @@ void observe_call(State &state, clang::ASTContext &context,
       .receiver_type = std::move(receiver),
       .callee_value =
           target ? std::nullopt
-                 : value_reference(call.getCallee(), sources, repository_root),
+                 : value_reference(call.getCallee(), state, context,
+                                   repository_root),
       .receiver_type_name = std::move(receiver_name),
       .virtual_dispatch =
           virtual_dispatch(call, target, context.getLangOpts()),
       .overload_selected = overload_selected(call),
       .macro_expanded = call.getExprLoc().isMacroID(),
       .compiler_candidate_count = compiler_count,
-      .arguments = semantic_arguments(call, sources, context.getLangOpts(),
-                                      repository_root),
+      .arguments = semantic_arguments(call, state, context, repository_root),
       .span = source_span(sources, context.getLangOpts(),
                           call.getSourceRange(), *path),
   });
@@ -165,7 +167,8 @@ void observe_constructor(State &state, clang::ASTContext &context,
   auto path = source_path(sources, call.getExprLoc(), repository_root);
   const auto *source = enclosing_function(context, call);
   const auto *target = call.getConstructor();
-  if (!path || !source || source->isImplicit() || !target) {
+  if (!path || !state.owns(*path) || !source || source->isImplicit() ||
+      !target) {
     return;
   }
 
@@ -184,7 +187,7 @@ void observe_constructor(State &state, clang::ASTContext &context,
                         : "resolved",
       .expression = normalize_space(source_text(
           sources, context.getLangOpts(), call.getSourceRange())),
-      .target = symbol_reference(target, sources, repository_root),
+      .target = symbol_reference(target, state, context, repository_root),
       .candidates = {},
       .receiver_type = std::nullopt,
       .callee_value = std::nullopt,
@@ -193,8 +196,7 @@ void observe_constructor(State &state, clang::ASTContext &context,
       .overload_selected = call.hadMultipleCandidates(),
       .macro_expanded = call.getExprLoc().isMacroID(),
       .compiler_candidate_count = 1,
-      .arguments = semantic_arguments(call, sources, context.getLangOpts(),
-                                      repository_root),
+      .arguments = semantic_arguments(call, state, context, repository_root),
       .span = source_span(sources, context.getLangOpts(),
                           call.getSourceRange(), *path),
   });

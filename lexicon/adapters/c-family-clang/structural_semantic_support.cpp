@@ -45,27 +45,32 @@ const clang::NamedDecl *referenced_named_decl(const clang::Expr *expression) {
   return llvm::dyn_cast_or_null<clang::NamedDecl>(declaration);
 }
 
-SemanticArgument argument(const clang::Expr &expression,
-                          const clang::SourceManager &sources,
-                          const clang::LangOptions &language,
+SemanticArgument argument(const clang::Expr &expression, State &state,
+                          clang::ASTContext &context,
                           llvm::StringRef repository_root) {
+  auto &sources = context.getSourceManager();
   return {
-      .expression = normalize_space(
-          source_text(sources, language, expression.getSourceRange())),
-      .value = value_reference(&expression, sources, repository_root),
-      .callable = callable_reference(&expression, sources, repository_root),
+      .expression = normalize_space(source_text(
+          sources, context.getLangOpts(), expression.getSourceRange())),
+      .value = value_reference(&expression, state, context, repository_root),
+      .callable =
+          callable_reference(&expression, state, context, repository_root),
   };
 }
 
 } // namespace
 
 SymbolReference symbol_reference(const clang::NamedDecl *declaration,
-                                 const clang::SourceManager &sources,
+                                 State &state, clang::ASTContext &context,
                                  llvm::StringRef repository_root) {
   if (!declaration) {
     return {};
   }
+  auto &sources = context.getSourceManager();
   auto path = source_path(sources, declaration->getLocation(), repository_root);
+  if (path && !state.owns(*path)) {
+    record_context_identity(state, context, *declaration, repository_root);
+  }
   return {
       .compiler_id = compiler_id(declaration, sources),
       .path = path.value_or(std::string()),
@@ -76,25 +81,25 @@ SymbolReference symbol_reference(const clang::NamedDecl *declaration,
 }
 
 std::optional<SymbolReference>
-value_reference(const clang::Expr *expression,
-                const clang::SourceManager &sources,
+value_reference(const clang::Expr *expression, State &state,
+                clang::ASTContext &context,
                 llvm::StringRef repository_root) {
   const auto *declaration = referenced_named_decl(expression);
   if (!declaration || llvm::isa<clang::FunctionDecl>(declaration)) {
     return std::nullopt;
   }
-  return symbol_reference(declaration, sources, repository_root);
+  return symbol_reference(declaration, state, context, repository_root);
 }
 
 std::optional<SymbolReference>
-callable_reference(const clang::Expr *expression,
-                   const clang::SourceManager &sources,
+callable_reference(const clang::Expr *expression, State &state,
+                   clang::ASTContext &context,
                    llvm::StringRef repository_root) {
   const auto *declaration = referenced_named_decl(expression);
   if (!llvm::isa_and_nonnull<clang::FunctionDecl>(declaration)) {
     return std::nullopt;
   }
-  return symbol_reference(declaration, sources, repository_root);
+  return symbol_reference(declaration, state, context, repository_root);
 }
 
 const clang::FunctionDecl *
@@ -142,8 +147,8 @@ const clang::FunctionDecl *enclosing_function(clang::ASTContext &context,
 }
 
 std::vector<SymbolReference>
-overload_candidates(const clang::Expr *callee,
-                    const clang::SourceManager &sources,
+overload_candidates(const clang::Expr *callee, State &state,
+                    clang::ASTContext &context,
                     llvm::StringRef repository_root) {
   std::vector<SymbolReference> result;
   if (!callee) {
@@ -156,33 +161,31 @@ overload_candidates(const clang::Expr *callee,
   }
   for (auto *declaration : overload->decls()) {
     result.push_back(
-        symbol_reference(declaration, sources, repository_root));
+        symbol_reference(declaration, state, context, repository_root));
   }
   return result;
 }
 
 std::vector<SemanticArgument>
-semantic_arguments(const clang::CallExpr &call,
-                   const clang::SourceManager &sources,
-                   const clang::LangOptions &language,
+semantic_arguments(const clang::CallExpr &call, State &state,
+                   clang::ASTContext &context,
                    llvm::StringRef repository_root) {
   std::vector<SemanticArgument> result;
   result.reserve(call.getNumArgs());
   for (const auto *value : call.arguments()) {
-    result.push_back(argument(*value, sources, language, repository_root));
+    result.push_back(argument(*value, state, context, repository_root));
   }
   return result;
 }
 
 std::vector<SemanticArgument>
-semantic_arguments(const clang::CXXConstructExpr &call,
-                   const clang::SourceManager &sources,
-                   const clang::LangOptions &language,
+semantic_arguments(const clang::CXXConstructExpr &call, State &state,
+                   clang::ASTContext &context,
                    llvm::StringRef repository_root) {
   std::vector<SemanticArgument> result;
   result.reserve(call.getNumArgs());
   for (const auto *value : call.arguments()) {
-    result.push_back(argument(*value, sources, language, repository_root));
+    result.push_back(argument(*value, state, context, repository_root));
   }
   return result;
 }

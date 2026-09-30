@@ -50,6 +50,29 @@ std::string compiler_id(const clang::Decl *declaration,
          identity->getDeclKindName();
 }
 
+void record_context_identity(State &state, clang::ASTContext &context,
+                             const clang::NamedDecl &declaration,
+                             llvm::StringRef repository_root) {
+  auto &sources = context.getSourceManager();
+  auto path = source_path(sources, declaration.getLocation(), repository_root);
+  if (!path || state.owns(*path)) {
+    return;
+  }
+  auto observation = classify_declaration(
+      *const_cast<clang::NamedDecl *>(&declaration), *path, context);
+  if (!observation || observation->compiler_id.empty()) {
+    return;
+  }
+  state.add_context_identity({
+      .compiler_id = observation->compiler_id,
+      .path = *path,
+      .kind = observation->kind,
+      .qualified_name = observation->qualified_name,
+      .signature = observation->signature,
+      .definition = observation->definition,
+  });
+}
+
 std::string ensure_callable_declaration(
     State &state, clang::ASTContext &context,
     const clang::FunctionDecl &function, llvm::StringRef repository_root,
@@ -62,6 +85,10 @@ std::string ensure_callable_declaration(
   auto path = source_path(sources, function.getLocation(), repository_root);
   if (!path) {
     return {};
+  }
+  if (!state.owns(*path)) {
+    record_context_identity(state, context, function, repository_root);
+    return id;
   }
   auto &file = state.file(*path, language.str(), translation_unit.str());
   if (file.declaration_compiler_ids.contains(id)) {

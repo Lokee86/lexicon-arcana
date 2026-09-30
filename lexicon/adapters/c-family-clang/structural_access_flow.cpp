@@ -68,8 +68,10 @@ void emit_access(State &state, clang::ASTContext &context,
   auto &sources = context.getSourceManager();
   auto path = source_path(sources, expression.getExprLoc(), repository_root);
   const auto *source = enclosing_function(context, expression);
-  auto target = value_reference(&expression, sources, repository_root);
-  if (!path || !source || source->isImplicit() || !target) {
+  auto target =
+      value_reference(&expression, state, context, repository_root);
+  if (!path || !state.owns(*path) || !source || source->isImplicit() ||
+      !target) {
     return;
   }
   const auto source_id =
