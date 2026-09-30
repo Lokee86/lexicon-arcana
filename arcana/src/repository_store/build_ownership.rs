@@ -15,7 +15,7 @@ pub(super) fn build_ownership(
     let mut ownership = BTreeMap::<StringId, Vec<Contribution>>::new();
 
     for (index, node) in build.nodes.iter().enumerate() {
-        if let Some(path) = node_owner(build, node)? {
+        if let Some(path) = compact_node_owner(&build.strings, node)? {
             if let Some(previous) = node_owners.insert(node.key, path)
                 && previous != path
             {
@@ -47,8 +47,8 @@ pub(super) fn build_ownership(
     flatten(ownership)
 }
 
-fn node_owner(
-    build: &CompactRepositoryBuild,
+pub(super) fn compact_node_owner(
+    strings: &super::CompactStringTable,
     node: &super::CompactNodeRecord,
 ) -> Result<Option<StringId>, RepositoryStoreWriteError> {
     if let Some(span) = node.span {
@@ -56,7 +56,7 @@ fn node_owner(
     }
     let kind = node_kind_from_code(node.kind_code)
         .ok_or(super::StoreFormatError::InvalidNodeKind(node.kind_code))?;
-    let path = build.strings.get(node.path)?;
+    let path = strings.get(node.path)?;
     if matches!(
         kind,
         NodeKind::Repository | NodeKind::Directory | NodeKind::Module | NodeKind::Namespace

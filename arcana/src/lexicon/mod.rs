@@ -4,7 +4,7 @@ use std::fmt;
 use std::io;
 
 use crate::repository::{FactFileError, RepositoryFacts};
-use crate::repository_store::RepositoryStoreWriteError;
+use crate::repository_store::{RepositoryStoreReadError, RepositoryStoreWriteError};
 
 mod binary;
 mod binary_v2;
@@ -48,7 +48,9 @@ mod tests;
 pub use metadata::{LexiconPathChanges, LexiconSnapshotMetadata};
 pub use snapshot::{current, current_metadata, load, load_metadata};
 #[doc(hidden)]
-pub use snapshot_compact::{CompactLexiconSnapshot, load_compact};
+pub use snapshot_compact::{
+    CompactLexiconDelta, CompactLexiconSnapshot, load_compact, load_compact_delta,
+};
 
 const SNAPSHOT_VERSION: u64 = 1;
 const OBJECT_VERSION: u64 = 1;
@@ -117,6 +119,7 @@ pub enum LexiconSnapshotError {
     Binary(String),
     Facts(FactFileError),
     RepositoryStore(RepositoryStoreWriteError),
+    RepositoryStoreRead(RepositoryStoreReadError),
     InvalidCurrent,
     InvalidId(String),
     InvalidPath {
@@ -144,6 +147,7 @@ impl fmt::Display for LexiconSnapshotError {
             Self::Binary(error) => write!(formatter, "Lexicon binary object is invalid: {error}"),
             Self::Facts(error) => error.fmt(formatter),
             Self::RepositoryStore(error) => error.fmt(formatter),
+            Self::RepositoryStoreRead(error) => error.fmt(formatter),
             Self::InvalidCurrent => formatter.write_str("Lexicon CURRENT is invalid"),
             Self::InvalidId(id) => write!(formatter, "invalid Lexicon snapshot/object ID {id:?}"),
             Self::InvalidPath { field, path } => {
@@ -187,6 +191,7 @@ impl std::error::Error for LexiconSnapshotError {
             Self::Json(error) => Some(error),
             Self::Facts(error) => Some(error),
             Self::RepositoryStore(error) => Some(error),
+            Self::RepositoryStoreRead(error) => Some(error),
             _ => None,
         }
     }
@@ -213,5 +218,11 @@ impl From<FactFileError> for LexiconSnapshotError {
 impl From<RepositoryStoreWriteError> for LexiconSnapshotError {
     fn from(error: RepositoryStoreWriteError) -> Self {
         Self::RepositoryStore(error)
+    }
+}
+
+impl From<RepositoryStoreReadError> for LexiconSnapshotError {
+    fn from(error: RepositoryStoreReadError) -> Self {
+        Self::RepositoryStoreRead(error)
     }
 }

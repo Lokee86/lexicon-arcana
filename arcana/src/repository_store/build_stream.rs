@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use crate::repository::{ContentId, NodeKey};
 
-use super::build::CompactRepositoryBuild;
-use super::build_stream_finish::finish_stream_build;
+use super::build::{CompactRepositoryBuild, CompactRepositoryDelta};
+use super::build_stream_finish::{finish_stream_build, finish_stream_delta};
 use super::{RepositoryStoreWriteError, Sha256Identity};
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -162,6 +162,10 @@ impl CompactRepositoryAssembler {
 
     pub(crate) fn finish(self) -> Result<CompactRepositoryBuild, RepositoryStoreWriteError> {
         finish_stream_build(self)
+    }
+
+    pub(crate) fn finish_delta(self) -> Result<CompactRepositoryDelta, RepositoryStoreWriteError> {
+        finish_stream_delta(self)
     }
 }
 

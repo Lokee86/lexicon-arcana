@@ -5,7 +5,8 @@ use crate::repository::{NodeKey, repository_artifact_checksum};
 use super::format::{RepositoryHeader, SectionKind};
 use super::writer_test_support::{cleanup, sample_facts, temp_path};
 use super::{
-    RepositoryStore, RepositoryStoreFile, RepositoryStoreReadError, write_repository_store,
+    RepositoryStore, RepositoryStoreFile, RepositoryStoreReadError, Sha256Identity,
+    write_repository_store,
 };
 
 #[test]
@@ -49,6 +50,35 @@ fn file_reader_rejects_section_corruption_during_streaming_validation() {
             SectionKind::Nodes
         ))
     ));
+
+    cleanup(&[&path]);
+}
+
+#[test]
+fn file_reader_validates_node_key_and_full_external_identity() {
+    let path = temp_path("reader-file-identity");
+    write_repository_store(&path, &sample_facts()).unwrap();
+
+    let expected = Sha256Identity::parse(&format!("sha256:{}", "ab".repeat(32))).unwrap();
+    let wrong = Sha256Identity::parse(&format!("sha256:{}", "cd".repeat(32))).unwrap();
+    let mut file = RepositoryStoreFile::open(&path).unwrap();
+
+    assert!(file.contains_node_key(NodeKey::from_u64(3)).unwrap());
+    assert!(!file.contains_node_key(NodeKey::from_u64(99)).unwrap());
+    assert!(
+        file.contains_node_identity(NodeKey::from_u64(3), expected)
+            .unwrap()
+    );
+    assert!(
+        !file
+            .contains_node_identity(NodeKey::from_u64(3), wrong)
+            .unwrap()
+    );
+    assert!(
+        !file
+            .contains_node_identity(NodeKey::from_u64(4), expected)
+            .unwrap()
+    );
 
     cleanup(&[&path]);
 }

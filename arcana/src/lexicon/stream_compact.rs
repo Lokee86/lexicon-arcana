@@ -7,7 +7,10 @@ use super::object::{NodeReference, RecordCounts};
 use super::stream_compact_convert::{compact_span, node_kind, relation_code, unresolved_reason};
 use super::stream_compact_node::{NodeSignature, optional_intern, signature};
 use crate::repository::{NodeKey, normalize_repository_path};
-use crate::repository_store::{CompactRepositoryAssembler, CompactRepositoryBuild, Sha256Identity};
+use crate::repository_store::{
+    CompactRepositoryAssembler, CompactRepositoryBuild, CompactRepositoryDelta,
+    RepositoryStoreFile, Sha256Identity,
+};
 
 pub(super) type CompatibilityCounts = BTreeMap<String, usize>;
 
@@ -121,10 +124,32 @@ impl CompactPass {
         self.keys.shrink_to_fit();
     }
 
+    pub(super) fn finish_delta_node_pass(&mut self) {
+        self.nodes.clear();
+    }
+
     pub(super) fn ingest_edge(&mut self, record: EdgeRef<'_>) -> Result<(), LexiconSnapshotError> {
         validate_owner(record.owner)?;
         let source = self.resolve(record.source)?;
         let target = self.resolve(record.target)?;
+        let Some(relation_code) = relation_code(record.relation, "edge", &mut self.compatibility)
+        else {
+            return Ok(());
+        };
+        let span = compact_span(&mut self.assembler, record.span)?;
+        self.assembler
+            .push_edge(source, target, relation_code, span);
+        Ok(())
+    }
+
+    pub(super) fn ingest_edge_with_base(
+        &mut self,
+        record: EdgeRef<'_>,
+        base: &mut RepositoryStoreFile,
+    ) -> Result<(), LexiconSnapshotError> {
+        validate_owner(record.owner)?;
+        let source = self.resolve_with_base(record.source, base)?;
+        let target = self.resolve_with_base(record.target, base)?;
         let Some(relation_code) = relation_code(record.relation, "edge", &mut self.compatibility)
         else {
             return Ok(());
@@ -141,6 +166,39 @@ impl CompactPass {
     ) -> Result<(), LexiconSnapshotError> {
         validate_owner(record.owner)?;
         let source = self.resolve(record.source)?;
+        let Some(relation_code) =
+            relation_code(record.relation, "unresolved", &mut self.compatibility)
+        else {
+            return Ok(());
+        };
+        let (reason_code, unknown) = unresolved_reason(record.reason, &mut self.compatibility)?;
+        let expression = self.assembler.intern(record.expression)?;
+        let candidate_namespace = optional_intern(&mut self.assembler, record.candidate_namespace)?;
+        let candidate_name = optional_intern(&mut self.assembler, record.candidate_name)?;
+        let unknown_reason = unknown
+            .then(|| self.assembler.intern(record.reason))
+            .transpose()?;
+        let span = compact_span(&mut self.assembler, record.span)?;
+        self.assembler.push_unresolved(
+            source,
+            relation_code,
+            reason_code,
+            expression,
+            candidate_namespace,
+            candidate_name,
+            unknown_reason,
+            span,
+        );
+        Ok(())
+    }
+
+    pub(super) fn ingest_unresolved_with_base(
+        &mut self,
+        record: UnresolvedRef<'_>,
+        base: &mut RepositoryStoreFile,
+    ) -> Result<(), LexiconSnapshotError> {
+        validate_owner(record.owner)?;
+        let source = self.resolve_with_base(record.source, base)?;
         let Some(relation_code) =
             relation_code(record.relation, "unresolved", &mut self.compatibility)
         else {
@@ -184,6 +242,23 @@ impl CompactPass {
         Ok((assembler.finish()?, warnings))
     }
 
+    pub(super) fn finish_delta(
+        self,
+    ) -> Result<(CompactRepositoryDelta, Vec<String>), LexiconSnapshotError> {
+        let Self {
+            assembler,
+            compatibility,
+            external_ids,
+            ..
+        } = self;
+        drop(external_ids);
+        let warnings = compatibility
+            .into_iter()
+            .map(|(message, count)| format!("{message} ({count} record(s))"))
+            .collect();
+        Ok((assembler.finish_delta()?, warnings))
+    }
+
     fn resolve(&self, reference: NodeReference) -> Result<NodeKey, LexiconSnapshotError> {
         match reference {
             NodeReference::Key(key) => Ok(key),
@@ -192,6 +267,34 @@ impl CompactPass {
                 .get(&identity)
                 .copied()
                 .ok_or(LexiconSnapshotError::Malformed("unknown relationship node")),
+        }
+    }
+
+    fn resolve_with_base(
+        &self,
+        reference: NodeReference,
+        base: &mut RepositoryStoreFile,
+    ) -> Result<NodeKey, LexiconSnapshotError> {
+        match reference {
+            NodeReference::Key(key) => {
+                if self.keys.contains_key(&key) || base.contains_node_key(key)? {
+                    Ok(key)
+                } else {
+                    Err(LexiconSnapshotError::Malformed("unknown relationship node"))
+                }
+            }
+            NodeReference::Identity(identity) => {
+                if let Some(key) = self.external_ids.get(&identity).copied() {
+                    return Ok(key);
+                }
+                let key = identity.node_key();
+                let external = Sha256Identity(identity.digest());
+                if base.contains_node_identity(key, external)? {
+                    Ok(key)
+                } else {
+                    Err(LexiconSnapshotError::Malformed("unknown relationship node"))
+                }
+            }
         }
     }
 }

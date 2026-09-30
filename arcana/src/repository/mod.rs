@@ -60,7 +60,7 @@ pub use incremental::{
 #[doc(hidden)]
 pub use incremental_store::{
     CompactIncrementalUpdate, VerifiedCompactSnapshotUpdatePlan,
-    plan_verified_compact_snapshot_update_from_store,
+    plan_verified_compact_snapshot_update_from_store, verify_compact_delta_node_set_from_store,
 };
 pub use incremental_store::{VerifiedSnapshotUpdatePlan, plan_verified_snapshot_update_from_store};
 pub use model::{ContentId, EdgeFact, NodeFact, NodeKey, NodeKind, RelationKind, SourceSpan};

@@ -1,10 +1,10 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::repository::{NodeKey, NodeKind, RepositoryFacts};
 use crate::synthetic::NodeId;
 
 use super::build_indexes::{sorted_dense_ids, sorted_kind_index};
-use super::build_ownership::build_ownership;
+use super::build_ownership::{build_ownership, compact_node_owner};
 use super::canonical::Contribution;
 use super::{
     CompactEdgeRecord, CompactNodeRecord, CompactStringTable, CompactUnresolvedRecord,
@@ -37,6 +37,69 @@ pub struct CompactRepositoryBuild {
     pub(crate) name_index: Vec<NodeId>,
     pub(crate) path_index: Vec<NodeId>,
     pub(crate) kind_index: Vec<CompactKindIndexRecord>,
+}
+
+/// Canonical compact records for a selected repository path set.
+#[derive(Debug, Eq, PartialEq)]
+#[doc(hidden)]
+pub struct CompactRepositoryDelta {
+    pub(crate) strings: CompactStringTable,
+    pub(crate) nodes: Vec<CompactNodeRecord>,
+    pub(crate) edges: Vec<CompactEdgeRecord>,
+    pub(crate) unresolved: Vec<CompactUnresolvedRecord>,
+    owned_nodes: BTreeMap<StringId, Vec<NodeKey>>,
+}
+
+impl CompactRepositoryDelta {
+    pub(super) fn from_canonical_records(
+        strings: CompactStringTable,
+        nodes: Vec<CompactNodeRecord>,
+        edges: Vec<CompactEdgeRecord>,
+        unresolved: Vec<CompactUnresolvedRecord>,
+    ) -> Result<Self, RepositoryStoreWriteError> {
+        let mut owned_nodes = BTreeMap::<StringId, Vec<NodeKey>>::new();
+        for node in &nodes {
+            if let Some(path) = compact_node_owner(&strings, node)? {
+                owned_nodes.entry(path).or_default().push(node.key);
+            }
+        }
+        for keys in owned_nodes.values_mut() {
+            keys.sort_unstable();
+            keys.dedup();
+        }
+        Ok(Self {
+            strings,
+            nodes,
+            edges,
+            unresolved,
+            owned_nodes,
+        })
+    }
+
+    pub fn node_count(&self) -> usize {
+        self.nodes.len()
+    }
+
+    pub fn edge_count(&self) -> usize {
+        self.edges.len()
+    }
+
+    pub fn unresolved_count(&self) -> usize {
+        self.unresolved.len()
+    }
+
+    pub fn owned_node_keys(&self, paths: &[String]) -> Vec<NodeKey> {
+        let mut keys = BTreeSet::new();
+        for path in paths {
+            let Ok(path_id) = self.strings.id(path) else {
+                continue;
+            };
+            if let Some(owned) = self.owned_nodes.get(&path_id) {
+                keys.extend(owned.iter().copied());
+            }
+        }
+        keys.into_iter().collect()
+    }
 }
 
 impl CompactRepositoryBuild {

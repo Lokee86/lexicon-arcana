@@ -1,6 +1,8 @@
 use std::collections::BTreeSet;
 
-use crate::repository_store::{CompactRepositoryBuild, RepositoryStoreFile};
+use crate::repository_store::{
+    CompactRepositoryBuild, CompactRepositoryDelta, RepositoryStoreFile,
+};
 use crate::snapshot::OverlayChanges;
 use crate::synthetic::GraphDataset;
 
@@ -74,6 +76,18 @@ pub fn plan_verified_snapshot_update_from_store(
         changes,
         changed_file_count: changed_paths.len(),
     })
+}
+
+#[doc(hidden)]
+pub fn verify_compact_delta_node_set_from_store(
+    base_store: &mut RepositoryStoreFile,
+    delta: &CompactRepositoryDelta,
+    changed_paths: &[String],
+) -> Result<(), IncrementalError> {
+    let changed_paths = normalized_paths(changed_paths)?;
+    let base_changed = base_store.owned_node_keys(&changed_paths)?;
+    let current_changed = delta.owned_node_keys(&changed_paths);
+    verify_node_set(&base_changed, &current_changed)
 }
 
 #[doc(hidden)]

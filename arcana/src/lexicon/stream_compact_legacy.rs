@@ -3,6 +3,7 @@ use super::binary_v2_reader::SpanRef;
 use super::binary_v2_stream::{EdgeRef, NodeRef, UnresolvedRef};
 use super::object::{EdgeRecord, NodeRecord, SpanRecord, UnresolvedRecord};
 use super::stream_compact::CompactPass;
+use crate::repository_store::RepositoryStoreFile;
 
 pub(super) fn ingest_node(
     pass: &mut CompactPass,
@@ -36,6 +37,24 @@ pub(super) fn ingest_edge(
     })
 }
 
+pub(super) fn ingest_edge_with_base(
+    pass: &mut CompactPass,
+    record: EdgeRecord,
+    base: &mut RepositoryStoreFile,
+) -> Result<(), LexiconSnapshotError> {
+    let span = record.span.as_ref().map(span_ref);
+    pass.ingest_edge_with_base(
+        EdgeRef {
+            owner: record.owner.as_deref(),
+            relation: &record.relation,
+            source: record.source,
+            span,
+            target: record.target,
+        },
+        base,
+    )
+}
+
 pub(super) fn ingest_unresolved(
     pass: &mut CompactPass,
     record: UnresolvedRecord,
@@ -51,6 +70,27 @@ pub(super) fn ingest_unresolved(
         source: record.source,
         span,
     })
+}
+
+pub(super) fn ingest_unresolved_with_base(
+    pass: &mut CompactPass,
+    record: UnresolvedRecord,
+    base: &mut RepositoryStoreFile,
+) -> Result<(), LexiconSnapshotError> {
+    let span = record.span.as_ref().map(span_ref);
+    pass.ingest_unresolved_with_base(
+        UnresolvedRef {
+            candidate_name: record.candidate_name.as_deref(),
+            candidate_namespace: record.candidate_namespace.as_deref(),
+            expression: &record.expression,
+            owner: record.owner.as_deref(),
+            reason: &record.reason,
+            relation: &record.relation,
+            source: record.source,
+            span,
+        },
+        base,
+    )
 }
 
 fn span_ref(span: &SpanRecord) -> SpanRef<'_> {

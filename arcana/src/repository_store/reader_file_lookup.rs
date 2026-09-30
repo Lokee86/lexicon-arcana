@@ -4,15 +4,52 @@ use crate::repository::NodeKey;
 
 use super::format::{
     CONTRIBUTION_KIND_OFFSET, CONTRIBUTION_RECORD_INDEX_OFFSET, CONTRIBUTION_RECORD_LEN,
-    FILE_OWNERSHIP_RECORD_LEN, NODE_KEY_OFFSET, NODE_RECORD_LEN,
+    FILE_OWNERSHIP_RECORD_LEN, FormatError, NODE_KEY_OFFSET, NODE_RECORD_LEN,
     OWNERSHIP_CONTRIBUTION_COUNT_OFFSET, OWNERSHIP_CONTRIBUTION_START_OFFSET,
     OWNERSHIP_PATH_ID_OFFSET, STRING_ENTRY_LENGTH_OFFSET, STRING_ENTRY_OFFSET_OFFSET,
     STRING_INDEX_RECORD_LEN, SectionKind,
 };
 use super::record_io::{get_u32, get_u64};
-use super::{RepositoryStoreFile, RepositoryStoreReadError, StoreFormatError, StringId};
+use super::{
+    CompactNodeRecord, RepositoryStoreFile, RepositoryStoreReadError, Sha256Identity,
+    StoreFormatError, StringId,
+};
 
 impl RepositoryStoreFile {
+    pub fn contains_node_key(&mut self, key: NodeKey) -> Result<bool, RepositoryStoreReadError> {
+        Ok(self.find_node_record(key)?.is_some())
+    }
+
+    pub fn contains_node_identity(
+        &mut self,
+        key: NodeKey,
+        identity: Sha256Identity,
+    ) -> Result<bool, RepositoryStoreReadError> {
+        Ok(self
+            .find_node_record(key)?
+            .is_some_and(|record| record.external_identity == Some(identity)))
+    }
+
+    fn find_node_record(
+        &mut self,
+        key: NodeKey,
+    ) -> Result<Option<CompactNodeRecord>, RepositoryStoreReadError> {
+        let count = self.header.section(SectionKind::Nodes).record_count;
+        let mut low = 0_u64;
+        let mut high = count;
+        while low < high {
+            let mid = low + (high - low) / 2;
+            let node_id = u32::try_from(mid).map_err(|_| FormatError::TooManyNodes)?;
+            let record = self.node_record(node_id)?;
+            match record.key.cmp(&key) {
+                std::cmp::Ordering::Less => low = mid + 1,
+                std::cmp::Ordering::Greater => high = mid,
+                std::cmp::Ordering::Equal => return Ok(Some(record)),
+            }
+        }
+        Ok(None)
+    }
+
     pub(super) fn find_ownership(
         &mut self,
         path: &str,
@@ -121,6 +158,24 @@ impl RepositoryStoreFile {
         let mut bytes = [0_u8; FILE_OWNERSHIP_RECORD_LEN as usize];
         self.read_exact_at(offset, &mut bytes)?;
         Ok(bytes)
+    }
+
+    fn node_record(&mut self, node_id: u32) -> Result<CompactNodeRecord, RepositoryStoreReadError> {
+        let descriptor = self.header.section(SectionKind::Nodes);
+        if u64::from(node_id) >= descriptor.record_count {
+            return Err(RepositoryStoreReadError::InvalidNodeId(node_id));
+        }
+        let offset = descriptor
+            .offset
+            .checked_add(
+                u64::from(node_id)
+                    .checked_mul(NODE_RECORD_LEN)
+                    .ok_or(RepositoryStoreReadError::InvalidNodeId(node_id))?,
+            )
+            .ok_or(RepositoryStoreReadError::InvalidNodeId(node_id))?;
+        let mut bytes = [0_u8; NODE_RECORD_LEN as usize];
+        self.read_exact_at(offset, &mut bytes)?;
+        CompactNodeRecord::decode(&bytes).map_err(Into::into)
     }
 
     pub(super) fn node_key(&mut self, node_id: u32) -> Result<NodeKey, RepositoryStoreReadError> {

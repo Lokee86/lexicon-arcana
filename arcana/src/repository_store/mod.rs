@@ -39,7 +39,7 @@ mod writer_sections;
 mod writer_sink;
 
 #[doc(hidden)]
-pub use build::CompactRepositoryBuild;
+pub use build::{CompactRepositoryBuild, CompactRepositoryDelta};
 #[allow(unused_imports)]
 pub(crate) use build_stream::{CompactRepositoryAssembler, TempSpan, TempStringId};
 pub use edge_record::CompactEdgeRecord;
