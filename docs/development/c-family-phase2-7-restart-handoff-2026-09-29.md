@@ -47,7 +47,7 @@ Catch2 calibration exposed and closed two additional correctness defects:
 - external compiler-observed function-pointer fields such as `sigaction.sa_handler` are not repository-owned pointer nodes;
 - duplicate header call observations must merge contextual metadata deterministically rather than use arrival-order last-wins semantics.
 
-The focused C-family unit surface is now **22/22** green. The generic frontend runner is **5/5** green, including preservation of first-frame semantics on the new spooled response path.
+The focused C-family unit surface is now **23/23** green. The generic frontend runner is **5/5** green, including preservation of first-frame semantics on the new spooled response path.
 
 ## Current Git gate
 

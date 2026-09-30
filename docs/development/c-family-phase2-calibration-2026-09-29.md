@@ -62,7 +62,7 @@ For Makefile projects, `scripts/c_family_make_compdb.py` extracts compiler invoc
 
 ## Current focused verification
 
-The current C-family unit surface passes **22/22** tests, including cross-file macro-source identity, checkout-path relocation determinism, full/incremental record equivalence, external function-pointer handling, and deterministic duplicate call-edge merging. The generic frontend-runner surface passes **5/5** tests, including preservation of first-frame protocol semantics on the spooled response path. Host-side formatting and `git diff --check` are green.
+The current C-family unit surface passes **23/23** tests, including cross-file macro-source identity, checkout-path relocation determinism, full/incremental record equivalence, external function-pointer handling, and deterministic duplicate call-edge merging. The generic frontend-runner surface passes **5/5** tests, including preservation of first-frame protocol semantics on the spooled response path. Host-side formatting and `git diff --check` are green.
 
 A clean Clang 18 rebuild also passes two native end-to-end source-identity regressions:
 
@@ -310,7 +310,7 @@ The final gate records each case's semantic summary, deterministic hash, cold/wa
 
 The non-corpus Phase 2.7 gates are also exercised:
 
-- C-family focused unit surface: **22/22**;
+- C-family focused unit surface: **23/23**;
 - shared frontend runner / Go adapter regression surface: **38/38** Go tests plus **5/5** generic frontend-runner tests;
 - Doctor integration: **7/7**;
 - scan engine full/no-op/incremental transaction coverage: **2/2**;
