@@ -54,6 +54,7 @@ Rust does not parse macro replacement text or reconstruct C/C++ compiler semanti
 | Concern | Implementation |
 | --- | --- |
 | Helper entry point and protocol dispatch | `main.cpp`, `structural.cpp`, `structural_action.cpp` |
+| Deterministic compiler-context planning | `structural_plan.h`, `structural_plan.cpp` |
 | Translation-unit/declaration observations | `structural_frontend.cpp`, `structural_declarations.cpp`, `structural_declaration_support.cpp` |
 | Calls and compiler relationships | `structural_calls.cpp`, `structural_relationships.cpp`, `structural_semantic_support.cpp`, `structural_semantics.cpp` |
 | Pointer/value/access observations | `structural_access_flow.cpp`, `structural_value_flow.cpp`, `structural_value_flow_json.cpp` |

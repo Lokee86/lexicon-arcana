@@ -1,12 +1,9 @@
 #include "structural.h"
 
 #include <algorithm>
-#include <cctype>
 #include <cstdlib>
 #include <filesystem>
-#include <limits>
 #include <memory>
-#include <mutex>
 #include <string>
 #include <thread>
 #include <utility>
@@ -20,175 +17,9 @@
 #include "perf.h"
 #include "protocol.h"
 #include "structural_model.h"
+#include "structural_plan.h"
 
 namespace {
-
-std::string extension(llvm::StringRef file) {
-  auto value = std::filesystem::path(file.str()).extension().string();
-  if (value == ".C") {
-    return "C";
-  }
-  std::transform(value.begin(), value.end(), value.begin(),
-                 [](unsigned char ch) { return std::tolower(ch); });
-  if (!value.empty() && value.front() == '.') {
-    value.erase(value.begin());
-  }
-  return value;
-}
-
-bool c_source(llvm::StringRef file) { return extension(file) == "c"; }
-
-bool header_source(llvm::StringRef file) {
-  const auto value = extension(file);
-  return value == "h" || value == "h++" || value == "hh" ||
-         value == "hpp" || value == "hxx" || value == "inc" ||
-         value == "inl" || value == "ipp" || value == "tpp";
-}
-
-std::string language_for(llvm::StringRef file,
-                         const std::vector<std::string> &arguments) {
-  std::string joined;
-  for (const auto &argument : arguments) {
-    if (!joined.empty()) {
-      joined.push_back(' ');
-    }
-    joined += argument;
-  }
-  std::transform(joined.begin(), joined.end(), joined.begin(),
-                 [](unsigned char value) { return std::tolower(value); });
-  if (joined.find("-x c++") != std::string::npos ||
-      joined.find("-xc++") != std::string::npos ||
-      joined.find("clang++") != std::string::npos ||
-      joined.find("g++") != std::string::npos) {
-    return "cpp";
-  }
-  if (joined.find("-x c ") != std::string::npos ||
-      joined.find("-xc ") != std::string::npos ||
-      joined.ends_with("-x c") || joined.ends_with("-xc")) {
-    return "c";
-  }
-  return c_source(file) ? "c" : "cpp";
-}
-
-clang::tooling::CompileCommand synthetic_command(const std::string &root,
-                                                 llvm::StringRef file,
-                                                 bool cpp) {
-  clang::tooling::CompileCommand command;
-  command.Directory = root;
-  command.Filename = file.str();
-  command.CommandLine = {
-      "clang",
-      "-fsyntax-only",
-      cpp ? "-xc++" : "-xc",
-      cpp ? "-std=c++17" : "-std=c11",
-      "-I",
-      root,
-  };
-  const auto root_path = std::filesystem::path(root);
-  const auto conventional_include = root_path / "include";
-  if (std::filesystem::is_directory(conventional_include)) {
-    command.CommandLine.push_back("-I");
-    command.CommandLine.push_back(conventional_include.string());
-  }
-  const auto parent = root_path.parent_path();
-  if (parent.filename() == "include" || parent.filename() == "inc") {
-    command.CommandLine.push_back("-I");
-    command.CommandLine.push_back(parent.string());
-  }
-  command.CommandLine.push_back(file.str());
-  return command;
-}
-
-bool canonical_relative(llvm::StringRef value) {
-  if (value.empty() || value.contains('\\')) {
-    return false;
-  }
-  std::filesystem::path path(value.str());
-  if (path.is_absolute()) {
-    return false;
-  }
-  for (const auto &part : path) {
-    if (part == "..") {
-      return false;
-    }
-  }
-  return path.lexically_normal().generic_string() == value;
-}
-
-class CompilationCommands final : public clang::tooling::CompilationDatabase {
-public:
-  CompilationCommands(std::string root,
-                      const clang::tooling::CompilationDatabase *base)
-      : root_(std::move(root)), base_(base) {}
-
-  std::vector<clang::tooling::CompileCommand>
-  getCompileCommands(llvm::StringRef file) const override {
-    auto commands = base_commands(file);
-    if (!commands.empty()) {
-      return commands;
-    }
-    return {synthetic_command(root_, file, !c_source(file))};
-  }
-
-  std::vector<std::string> getAllFiles() const override {
-    std::scoped_lock lock(base_mutex_);
-    return base_ ? base_->getAllFiles() : std::vector<std::string>{};
-  }
-
-  bool synthesized(llvm::StringRef file) const {
-    return base_commands(file).empty();
-  }
-
-private:
-  std::vector<clang::tooling::CompileCommand>
-  base_commands(llvm::StringRef file) const {
-    std::scoped_lock lock(base_mutex_);
-    if (!base_) {
-      return {};
-    }
-    auto commands = base_->getCompileCommands(file);
-    if (!commands.empty()) {
-      return commands;
-    }
-
-    std::error_code error;
-    auto relative = std::filesystem::relative(
-        std::filesystem::path(file.str()), std::filesystem::path(root_), error);
-    if (error || relative.empty()) {
-      return {};
-    }
-    const auto normalized = relative.generic_string();
-    if (normalized == ".." || normalized.starts_with("../")) {
-      return {};
-    }
-    commands = base_->getCompileCommands(normalized);
-    if (!commands.empty()) {
-      return commands;
-    }
-
-    const auto requested =
-        std::filesystem::path(file.str()).lexically_normal();
-    std::vector<clang::tooling::CompileCommand> matched;
-    for (const auto &command : base_->getAllCompileCommands()) {
-      auto directory = std::filesystem::path(command.Directory);
-      if (directory.is_relative()) {
-        directory = std::filesystem::path(root_) / directory;
-      }
-      auto command_file = std::filesystem::path(command.Filename);
-      if (command_file.is_relative()) {
-        command_file = directory / command_file;
-      }
-      if (command_file.lexically_normal() == requested) {
-        matched.push_back(command);
-      }
-    }
-    return matched;
-  }
-
-  std::string root_;
-  const clang::tooling::CompilationDatabase *base_;
-  mutable std::mutex base_mutex_;
-};
 
 std::size_t frontend_jobs(std::size_t file_count) {
   if (file_count < 2) {
@@ -207,6 +38,22 @@ std::size_t frontend_jobs(std::size_t file_count) {
   return std::min<std::size_t>({std::size_t{8}, available, file_count});
 }
 
+bool canonical_relative(llvm::StringRef value) {
+  if (value.empty() || value.contains('\\')) {
+    return false;
+  }
+  std::filesystem::path path(value.str());
+  if (path.is_absolute()) {
+    return false;
+  }
+  for (const auto &part : path) {
+    if (part == "..") {
+      return false;
+    }
+  }
+  return path.lexically_normal().generic_string() == value;
+}
+
 struct StructuralInput {
   std::string root;
   std::vector<std::string> owned_files;
@@ -214,14 +61,6 @@ struct StructuralInput {
   std::size_t workers = 0;
   std::size_t shards = 0;
   std::size_t merge_fan_in = 0;
-
-  std::vector<std::string> analysis_files() const {
-    auto files = owned_files;
-    files.insert(files.end(), context_files.begin(), context_files.end());
-    std::sort(files.begin(), files.end());
-    files.erase(std::unique(files.begin(), files.end()), files.end());
-    return files;
-  }
 };
 
 bool read_inventory(const llvm::json::Object &request, llvm::StringRef field,
@@ -306,42 +145,58 @@ bool validate_request(const llvm::json::Object &request, StructuralInput &input,
   return true;
 }
 
-int run_batch(const std::string &root, CompilationCommands &database,
-              lexicon::clang_frontend::State &state,
-              const std::vector<std::string> &files) {
-  if (files.empty()) {
+int run_task(const std::string &root,
+             lexicon::clang_frontend::CompilationCommands &database,
+             lexicon::clang_frontend::State &state,
+             const lexicon::clang_frontend::AnalysisTask &task) {
+  const auto absolute =
+      (std::filesystem::path(root) /
+       std::filesystem::path(task.translation_unit))
+          .string();
+  auto commands = database.getCompileCommands(absolute);
+  if (commands.empty()) {
+    return 1;
+  }
+  const auto &command = commands.front();
+  const auto language =
+      lexicon::clang_frontend::language_for(task.translation_unit,
+                                            command.CommandLine);
+  state.translation_units.push_back({
+      .path = task.translation_unit,
+      .language = language,
+      .directory = command.Directory,
+      .arguments = command.CommandLine,
+      .synthesized = task.synthesized,
+  });
+  state.file(task.translation_unit, language, task.translation_unit);
+
+  clang::tooling::ClangTool tool(database, {absolute});
+  auto factory =
+      lexicon::clang_frontend::make_frontend_factory(state, root);
+  return tool.run(factory.get());
+}
+
+int run_tasks(
+    const std::string &root,
+    lexicon::clang_frontend::CompilationCommands &database,
+    lexicon::clang_frontend::State &state,
+    const std::vector<lexicon::clang_frontend::AnalysisTask> &tasks) {
+  if (tasks.empty()) {
     return 0;
   }
 
-  std::vector<std::string> absolute_files;
-  absolute_files.reserve(files.size());
-  for (const auto &file : files) {
-    const auto absolute =
-        (std::filesystem::path(root) / std::filesystem::path(file)).string();
-    absolute_files.push_back(absolute);
-    for (const auto &command : database.getCompileCommands(absolute)) {
-      const auto language = language_for(file, command.CommandLine);
-      state.translation_units.push_back({
-          .path = file,
-          .language = language,
-          .directory = command.Directory,
-          .arguments = command.CommandLine,
-          .synthesized = database.synthesized(absolute),
-      });
-      state.file(file, language, file);
-    }
-  }
-
-  const auto jobs = frontend_jobs(absolute_files.size());
+  const auto jobs = frontend_jobs(tasks.size());
   if (jobs <= 1) {
-    clang::tooling::ClangTool tool(database, absolute_files);
-    auto factory = lexicon::clang_frontend::make_frontend_factory(state, root);
-    return tool.run(factory.get());
+    int status = 0;
+    for (const auto &task : tasks) {
+      status |= run_task(root, database, state, task);
+    }
+    return status;
   }
 
-  std::vector<std::vector<std::string>> chunks(jobs);
-  for (std::size_t index = 0; index < absolute_files.size(); ++index) {
-    chunks[index % jobs].push_back(std::move(absolute_files[index]));
+  std::vector<std::vector<lexicon::clang_frontend::AnalysisTask>> chunks(jobs);
+  for (std::size_t index = 0; index < tasks.size(); ++index) {
+    chunks[index % jobs].push_back(tasks[index]);
   }
 
   std::vector<int> statuses(jobs, 0);
@@ -350,12 +205,11 @@ int run_batch(const std::string &root, CompilationCommands &database,
   workers.reserve(jobs);
   for (std::size_t index = 0; index < chunks.size(); ++index) {
     workers.emplace_back([&database, &root, &statuses, &results, index,
-                          files = std::move(chunks[index])]() mutable {
+                          tasks = std::move(chunks[index])]() mutable {
       auto local = std::make_unique<lexicon::clang_frontend::State>(root);
-      clang::tooling::ClangTool tool(database, files);
-      auto factory =
-          lexicon::clang_frontend::make_frontend_factory(*local, root);
-      statuses[index] = tool.run(factory.get());
+      for (const auto &task : tasks) {
+        statuses[index] |= run_task(root, database, *local, task);
+      }
       results[index] = std::move(local);
     });
   }
@@ -380,7 +234,6 @@ bool emit_structural(const llvm::json::Object &request,
     return false;
   }
   const auto &root = input.root;
-  const auto files = input.analysis_files();
 
   std::string database_error;
   const auto database_started = lexicon::clang_frontend::PerfClock::now();
@@ -389,67 +242,37 @@ bool emit_structural(const llvm::json::Object &request,
   lexicon::clang_frontend::emit_perf(
       "c-family.clang.compilation_database",
       lexicon::clang_frontend::PerfClock::now() - database_started);
-  CompilationCommands database(root, base.get());
+  lexicon::clang_frontend::CompilationCommands database(root, base.get());
   lexicon::clang_frontend::State state(root);
 
-  std::vector<std::string> sources;
-  std::vector<std::string> headers;
-  for (const auto &file : files) {
-    (header_source(file) ? headers : sources).push_back(file);
-  }
+  const auto planning_started = lexicon::clang_frontend::PerfClock::now();
+  const auto plan = lexicon::clang_frontend::build_task_plan(
+      root, database, input.owned_files, input.context_files);
+  lexicon::clang_frontend::emit_perf(
+      "c-family.clang.context_planning",
+      lexicon::clang_frontend::PerfClock::now() - planning_started,
+      {{"owned_files", static_cast<std::uint64_t>(input.owned_files.size())},
+       {"context_files", static_cast<std::uint64_t>(input.context_files.size())},
+       {"semantic_tasks", static_cast<std::uint64_t>(plan.tasks.size())},
+       {"dependency_scans",
+        static_cast<std::uint64_t>(plan.dependency_scan_attempts)},
+       {"dependency_scan_failures",
+        static_cast<std::uint64_t>(plan.dependency_scan_failures)},
+       {"synthetic_header_tasks",
+        static_cast<std::uint64_t>(plan.synthetic_header_tasks)}});
 
   lexicon::clang_frontend::emit_perf(
       "c-family.clang.frontend_plan", std::chrono::nanoseconds(0),
-      {{"source_translation_units",
-        static_cast<std::uint64_t>(sources.size())},
-       {"headers", static_cast<std::uint64_t>(headers.size())},
-       {"jobs", static_cast<std::uint64_t>(frontend_jobs(sources.size()))}});
+      {{"semantic_tasks", static_cast<std::uint64_t>(plan.tasks.size())},
+       {"jobs", static_cast<std::uint64_t>(frontend_jobs(plan.tasks.size()))}});
   const auto frontend_started = lexicon::clang_frontend::PerfClock::now();
-  int status = run_batch(root, database, state, sources);
-  std::uint64_t orphan_header_batches = 0;
-  std::uint64_t directly_analyzed_headers = 0;
-  while (true) {
-    std::size_t minimum_depth = std::numeric_limits<std::size_t>::max();
-    for (const auto &header : headers) {
-      if (state.files.contains(header)) {
-        continue;
-      }
-      const auto depth =
-          static_cast<std::size_t>(std::count(header.begin(), header.end(), '/'));
-      minimum_depth = std::min(minimum_depth, depth);
-    }
-    if (minimum_depth == std::numeric_limits<std::size_t>::max()) {
-      break;
-    }
-
-    std::vector<std::string> orphan_headers;
-    for (const auto &header : headers) {
-      if (state.files.contains(header)) {
-        continue;
-      }
-      const auto depth =
-          static_cast<std::size_t>(std::count(header.begin(), header.end(), '/'));
-      if (depth == minimum_depth) {
-        orphan_headers.push_back(header);
-      }
-    }
-    if (orphan_headers.empty()) {
-      break;
-    }
-    ++orphan_header_batches;
-    directly_analyzed_headers += orphan_headers.size();
-    status |= run_batch(root, database, state, orphan_headers);
-  }
-  lexicon::clang_frontend::emit_perf(
-      "c-family.clang.orphan_headers", std::chrono::nanoseconds(0),
-      {{"batches", orphan_header_batches},
-       {"direct_headers", directly_analyzed_headers}});
+  int status = run_tasks(root, database, state, plan.tasks);
   lexicon::clang_frontend::emit_perf(
       "c-family.clang.frontend_work",
       lexicon::clang_frontend::PerfClock::now() - frontend_started,
       {{"translation_units",
         static_cast<std::uint64_t>(state.translation_units.size())},
-       {"input_files", static_cast<std::uint64_t>(files.size())}});
+       {"semantic_tasks", static_cast<std::uint64_t>(plan.tasks.size())}});
   lexicon::clang_frontend::emit_perf(
       "c-family.clang.semantic_analysis",
       std::chrono::nanoseconds(state.semantic_analysis_ns));

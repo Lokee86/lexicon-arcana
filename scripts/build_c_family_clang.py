@@ -31,6 +31,13 @@ def cmake() -> str:
     return found
 
 
+def ctest() -> str:
+    found = shutil.which("ctest")
+    if not found:
+        raise FileNotFoundError("ctest executable not found on PATH")
+    return found
+
+
 def run(command: list[str], cwd: Path) -> None:
     print("+", " ".join(command), flush=True)
     subprocess.run(command, cwd=cwd, check=True)
@@ -60,6 +67,17 @@ def build(
         configure.append(f"-DClang_DIR={clang_dir.resolve()}")
     run(configure, ROOT)
     run([cmake(), "--build", str(build_dir), "--config", config], ROOT)
+    run(
+        [
+            ctest(),
+            "--test-dir",
+            str(build_dir),
+            "--output-on-failure",
+            "-C",
+            config,
+        ],
+        ROOT,
+    )
 
     candidates = [
         build_dir / executable_name("lexicon-c-family-clang"),

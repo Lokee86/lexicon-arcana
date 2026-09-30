@@ -22,6 +22,7 @@ add_executable(
     structural_declarations.cpp
     structural_frontend.cpp
     structural_model.cpp
+    structural_plan.cpp
     structural_relationships.cpp
     structural_semantic_support.cpp
     structural_semantics.cpp
@@ -47,9 +48,37 @@ target_link_libraries(
     PRIVATE
     clangAST
     clangBasic
+    clangDependencyScanning
     clangFrontend
     clangIndex
     clangLex
     clangTooling
     ${LEXICON_LLVM_LIBS}
+)
+
+enable_testing()
+
+add_executable(
+    lexicon-c-family-clang-plan-test
+    structural_plan_test.cpp
+    structural_plan.cpp
+)
+target_compile_features(lexicon-c-family-clang-plan-test PRIVATE cxx_std_20)
+target_include_directories(
+    lexicon-c-family-clang-plan-test
+    SYSTEM PRIVATE
+    ${LLVM_INCLUDE_DIRS}
+    ${CLANG_INCLUDE_DIRS}
+)
+target_link_libraries(
+    lexicon-c-family-clang-plan-test
+    PRIVATE
+    clangBasic
+    clangDependencyScanning
+    clangTooling
+    ${LEXICON_LLVM_LIBS}
+)
+add_test(
+    NAME lexicon-c-family-clang-plan
+    COMMAND lexicon-c-family-clang-plan-test
 )
