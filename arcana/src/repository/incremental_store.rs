@@ -7,6 +7,7 @@ use crate::snapshot::OverlayChanges;
 use crate::synthetic::GraphDataset;
 
 use super::incremental_diff::{edge_difference, key_difference};
+use super::incremental_local::compact_edge_changes_from_normalized_store;
 use super::{
     CompiledRepositoryGraph, FactOwnershipError, IncrementalError, IncrementalUpdate, NodeKey,
     RepositoryFacts, compile_compact_repository_graph, compile_repository_graph, node_owner,
@@ -95,16 +96,20 @@ pub fn plan_verified_compact_snapshot_update_from_store(
     base_store: &mut RepositoryStoreFile,
     current: &CompactRepositoryBuild,
     changed_paths: &[String],
-    packed_base: &GraphDataset,
+    base_node_count: u32,
 ) -> Result<VerifiedCompactSnapshotUpdatePlan, IncrementalError> {
     let changed_paths = normalized_paths(changed_paths)?;
-    let base_changed = base_store.owned_node_keys(&changed_paths)?;
     let current_changed = current.owned_node_keys(&changed_paths);
-    verify_node_set(&base_changed, &current_changed)?;
+    let current_edges = current.owned_edges(&changed_paths);
+    let changes = compact_edge_changes_from_normalized_store(
+        base_store,
+        &current_changed,
+        &current_edges,
+        &changed_paths,
+    )?;
 
     let graph = compile_compact_repository_graph(current)?;
-    verify_base_node_count(packed_base, &graph)?;
-    let changes = edge_difference(&packed_base.edges, &graph.dataset.edges);
+    verify_node_count(base_node_count, &graph)?;
     Ok(VerifiedCompactSnapshotUpdatePlan {
         graph,
         changes,
@@ -124,12 +129,19 @@ fn verify_base_node_count(
     packed_base: &GraphDataset,
     graph: &CompiledRepositoryGraph,
 ) -> Result<(), IncrementalError> {
-    if packed_base.node_count == graph.dataset.node_count {
+    verify_node_count(packed_base.node_count, graph)
+}
+
+fn verify_node_count(
+    base_node_count: u32,
+    graph: &CompiledRepositoryGraph,
+) -> Result<(), IncrementalError> {
+    if base_node_count == graph.dataset.node_count {
         Ok(())
     } else {
         Err(IncrementalError::BaseNodeCountMismatch {
             expected: graph.dataset.node_count,
-            actual: packed_base.node_count,
+            actual: base_node_count,
         })
     }
 }

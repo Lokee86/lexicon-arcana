@@ -242,16 +242,7 @@ fn write_incremental_snapshot(
             return rebuild_loaded_snapshot(output, current_snapshot, reason);
         }
     };
-    let packed_base = match previous_arcana.materialize_base_dataset() {
-        Ok(dataset) => dataset,
-        Err(_) => {
-            return rebuild_loaded_snapshot(
-                output,
-                current_snapshot,
-                RebuildReason::PreviousGenerationInvalid,
-            );
-        }
-    };
+    let base_node_count = previous_arcana.manifest().node_count;
     let mut base_store = match previous_arcana.open_incremental_store() {
         Ok(store) => store,
         Err(error) => {
@@ -264,7 +255,7 @@ fn write_incremental_snapshot(
         &mut base_store,
         &current_snapshot.repository,
         &plan.changed_paths,
-        &packed_base,
+        base_node_count,
     ) {
         Ok(plan) => plan,
         Err(IncrementalError::NodeSetChanged { .. }) => {
@@ -295,7 +286,6 @@ fn write_incremental_snapshot(
     let current_id = current_snapshot.metadata.id().to_owned();
     let compatibility_warnings = current_snapshot.compatibility_warnings.clone();
     drop(base_store);
-    drop(packed_base);
     drop(previous_arcana);
     let update = update_plan.finish(current_snapshot.repository);
     write_compact_update(output, &base_graph_path, update, "lexicon", &current_id)?;

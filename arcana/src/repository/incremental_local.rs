@@ -14,19 +14,36 @@ pub fn plan_compact_delta_edge_changes_from_store(
     delta: &CompactRepositoryDelta,
     changed_paths: &[String],
 ) -> Result<OverlayChanges, IncrementalError> {
-    let changed_paths = changed_paths
+    let changed_paths = normalized_paths(changed_paths)?;
+    let current_changed = delta.owned_node_keys(&changed_paths);
+    compact_edge_changes_from_normalized_store(
+        base_store,
+        &current_changed,
+        delta.edges(),
+        &changed_paths,
+    )
+}
+
+pub(crate) fn compact_edge_changes_from_normalized_store(
+    base_store: &mut RepositoryStoreFile,
+    current_changed: &[NodeKey],
+    current_edges: &[CompactEdgeRecord],
+    changed_paths: &[String],
+) -> Result<OverlayChanges, IncrementalError> {
+    let base_changed = base_store.owned_node_keys(changed_paths)?;
+    verify_node_set(&base_changed, current_changed)?;
+
+    let base_facts = base_store.owned_facts(changed_paths)?;
+    let base_edges = compile_fact_edges(base_store, &base_facts.edges)?;
+    let current_edges = compile_compact_edges(base_store, current_edges)?;
+    Ok(edge_difference(&base_edges, &current_edges))
+}
+
+fn normalized_paths(paths: &[String]) -> Result<Vec<String>, FactOwnershipError> {
+    paths
         .iter()
         .map(|path| normalize_repository_path(path).map_err(FactOwnershipError::InvalidPath))
-        .collect::<Result<Vec<_>, _>>()?;
-
-    let base_changed = base_store.owned_node_keys(&changed_paths)?;
-    let current_changed = delta.owned_node_keys(&changed_paths);
-    verify_node_set(&base_changed, &current_changed)?;
-
-    let base_facts = base_store.owned_facts(&changed_paths)?;
-    let base_edges = compile_fact_edges(base_store, &base_facts.edges)?;
-    let current_edges = compile_compact_edges(base_store, delta.edges())?;
-    Ok(edge_difference(&base_edges, &current_edges))
+        .collect()
 }
 
 fn verify_node_set(base: &[NodeKey], current: &[NodeKey]) -> Result<(), IncrementalError> {

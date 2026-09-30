@@ -201,28 +201,51 @@ impl CompactRepositoryBuild {
 
     pub fn owned_node_keys(&self, paths: &[String]) -> Vec<NodeKey> {
         let mut keys = BTreeSet::new();
-        for path in paths {
-            let Ok(path_id) = self.strings.id(path) else {
-                continue;
-            };
-            let Ok(owner_index) = self
-                .ownership
-                .binary_search_by_key(&path_id, |record| record.path)
-            else {
-                continue;
-            };
-            let owner = self.ownership[owner_index];
-            let start = owner.contribution_start as usize;
-            let end = start + owner.contribution_count as usize;
-            for contribution in &self.contributions[start..end] {
-                if contribution.kind == super::canonical::ContributionKind::Node
-                    && let Some(node) = self.nodes.get(contribution.record_index as usize)
-                {
-                    keys.insert(node.key);
-                }
+        for contribution in self.owned_contributions(paths) {
+            if contribution.kind == super::canonical::ContributionKind::Node
+                && let Some(node) = self.nodes.get(contribution.record_index as usize)
+            {
+                keys.insert(node.key);
             }
         }
         keys.into_iter().collect()
+    }
+
+    pub(crate) fn owned_edges(&self, paths: &[String]) -> Vec<CompactEdgeRecord> {
+        let mut indexes = BTreeSet::new();
+        for contribution in self.owned_contributions(paths) {
+            if contribution.kind == super::canonical::ContributionKind::Edge {
+                indexes.insert(contribution.record_index);
+            }
+        }
+        indexes
+            .into_iter()
+            .filter_map(|index| self.edges.get(index as usize).copied())
+            .collect()
+    }
+
+    fn owned_contributions<'a>(
+        &'a self,
+        paths: &'a [String],
+    ) -> impl Iterator<Item = Contribution> + 'a {
+        paths
+            .iter()
+            .flat_map(|path| {
+                let Ok(path_id) = self.strings.id(path) else {
+                    return &[][..];
+                };
+                let Ok(owner_index) = self
+                    .ownership
+                    .binary_search_by_key(&path_id, |record| record.path)
+                else {
+                    return &[][..];
+                };
+                let owner = self.ownership[owner_index];
+                let start = owner.contribution_start as usize;
+                let end = start + owner.contribution_count as usize;
+                &self.contributions[start..end]
+            })
+            .copied()
     }
 }
 

@@ -16,6 +16,10 @@ fn managed_sync_has_no_rich_repository_facts_path() {
     assert!(source.contains("load_compact("));
     assert!(source.contains("write_compiled_compact_owned("));
     assert!(source.contains("plan_verified_compact_snapshot_update_from_store("));
+    assert!(
+        !source.contains("materialize_base_dataset("),
+        "managed sync must keep the packed graph as the base without materializing it"
+    );
 
     let planner_start = source.find("pub(super) fn plan_snapshot(").unwrap();
     let planner_end = source.find("pub(super) fn build_snapshot(").unwrap();
