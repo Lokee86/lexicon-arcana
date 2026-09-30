@@ -52,7 +52,7 @@ The first native Clang 18 build exposed several issues that synthetic protocol f
 - macro-derived declaration ranges can have a valid source-written start while Clang supplies no usable end position. The helper now preserves the valid anchor and collapses only that invalid end to the start instead of publishing a zero-coordinate span. The fmt corpus exposed exactly two such fields in `test/gtest-extra.h`.
 - compiler-observed function-pointer assignments can target fields declared outside the repository (for example `sigaction.sa_handler`). Those observations are valid compiler evidence but cannot become repository-owned pointer nodes, so Rust excludes external pointer bindings from the repository pointer index instead of treating them as missing materialization.
 - whole-repository compiler responses can exceed hundreds of MiB. The frontend runner now spools bounded helper stdout to a temporary file, waits for the helper to exit and release Clang memory, then streams JSON decoding from disk. This avoids retaining the helper's AST/Sema working set and the full serialized frame in memory at the same time; the hard response ceiling remains bounded at 1 GiB.
-- Git then exposed a second capacity issue before serialization: one helper process retained repository-wide Clang observations across hundreds of translation units. Codebase Memory reproduced the same failure on the first **128-file** source batch, so production batching is now capped at **16 source files per helper process**. At the default eight-worker ceiling that bounds each helper to at most two source translation units per native worker. Each helper exits before the next batch, exact duplicate observations are merged in Rust, and still-unobserved headers are sent once to the native helper so its existing shallowest-orphan-header policy remains authoritative.
+- Git then exposed a second capacity issue before serialization: one helper process retained repository-wide Clang observations across hundreds of translation units. Codebase Memory reproduced the same failure on the first **128-file** source batch, so production batching is now capped at **16 source files per helper process**. At the default eight-worker ceiling that bounds each helper to at most two source translation units per native worker. Each helper exits before the next batch. Rust spools each returned per-file observation fragment to temporary JSONL, then builds cross-file identity/reference indexes and materializes files from the spool instead of retaining every helper response in memory. Still-unobserved headers are sent once to the native helper so its existing shallowest-orphan-header policy remains authoritative.
 
 The calibration path also now records stage metrics and supports bounded parallel translation-unit execution. The default frontend worker ceiling is eight and can be overridden with `LEXICON_CLANG_JOBS`.
 
@@ -217,24 +217,24 @@ After deterministic duplicate call-edge metadata merging, the final canonical SH
 
 ### nlohmann/json performance profile
 
-The final cold run is **21.896 s** versus **1.170 s** before; the final warm run is **22.506 s** versus **0.613 s**. Peak process-tree RSS is **552.4 MB** cold and **553.6 MB** warm, versus about **63.2 MB** and **61.6 MB** before.
+The final resumable cold run is **24.265 s** versus **1.170 s** before; the final warm run is **22.108 s** versus **0.613 s**. Peak process-tree RSS is **553.1 MB** cold and **553.8 MB** warm, versus about **63.2 MB** and **61.6 MB** before.
 
 | Stage | Time |
 |---|---:|
-| repository discovery | 0.002 s |
-| helper startup | 0.006 s |
+| repository discovery | 0.005 s |
+| helper startup | 0.011 s |
 | compilation database load | 0.003 s |
-| Clang frontend work | 16.673 s wall |
-| aggregate semantic visitor CPU | 40.789 s |
-| observation emission | 0.363 s |
-| helper IPC total | 21.625 s |
-| response decode | 4.251 s |
-| Rust materialization | 0.042 s |
+| Clang frontend work | 17.849 s wall |
+| aggregate semantic visitor CPU | 43.766 s |
+| observation emission | 0.371 s |
+| helper IPC total | 23.940 s |
+| response decode | 5.342 s |
+| Rust materialization | 0.045 s |
 | Lexicon graph extensions | 0.015 s |
 | canonicalization | 0.003 s |
-| facts-v1 validation | 0.012 s |
+| facts-v1 validation | 0.016 s |
 
-Orphan-header batching is material here: the earlier diagnostic profile took **135.606 s** in frontend work, while the final single-helper orphan-header run takes **16.673 s**. A transient Rust-side header-depth fanout experiment raised cold wall to about **68 s** without changing semantic counts; it was removed so header batching remains owned by the native helper. Rust graph construction remains negligible relative to compiler frontend work.
+Orphan-header batching is material here: the earlier diagnostic profile took **135.606 s** in frontend work, while the final resumable cold run takes **17.849 s**. A transient Rust-side header-depth fanout experiment raised cold wall to about **68 s** without changing semantic counts; it was removed so header batching remains owned by the native helper. Rust graph construction remains negligible relative to compiler frontend work.
 
 ## Catch2 final gate
 

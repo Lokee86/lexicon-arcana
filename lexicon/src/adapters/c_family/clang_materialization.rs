@@ -9,9 +9,11 @@ mod semantics;
 mod tests;
 mod value_flow;
 
+#[cfg(test)]
+use super::clang_protocol::StructuralResponse;
 use super::{
     clang_frontend::StructuralObservationStore,
-    clang_protocol::{FileObservation, StructuralResponse},
+    clang_protocol::FileObservation,
     includes::FileIndex,
     model::{RepositoryModel, SourceFile},
     visibility::VisibilityIndex,

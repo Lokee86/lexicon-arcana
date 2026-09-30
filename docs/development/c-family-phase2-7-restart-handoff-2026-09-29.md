@@ -59,7 +59,7 @@ The frontend path has therefore been changed to:
 - preserve the existing first newline-delimited JSON frame contract;
 - wait for the helper to exit and release Clang AST/Sema memory before Rust JSON decode/materialization;
 - retain a hard **1 GiB** response ceiling;
-- bound helper-process lifetime by sending **source files only** in deterministic **16-file** batches and merging exact duplicate observations in Rust. Each source helper exits before the next batch, releasing all Clang state. Still-unobserved headers are then sent together in one helper request so the native helper retains ownership of its existing shallowest-orphan-header policy.
+- bound helper-process lifetime by sending **source files only** in deterministic **16-file** batches. Each source helper exits before the next batch, releasing all Clang state. Rust writes returned per-file observation fragments to a temporary JSONL spool and merges/materializes them file-by-file, so batched responses do not simply accumulate in Rust memory. Still-unobserved headers are then sent together in one helper request so the native helper retains ownership of its existing shallowest-orphan-header policy.
 
 The latest real-build-context Git attempt reached Clang frontend execution but the single helper exited before emitting a response frame. Codebase Memory then reproduced the same failure on the first **128-file** source helper request. These attempts are evidence of helper-lifetime memory pressure, not semantic mismatches and not response-ceiling failures. The production source batch is therefore **16 files** (two source TUs per native worker at the default eight-worker ceiling).
 
