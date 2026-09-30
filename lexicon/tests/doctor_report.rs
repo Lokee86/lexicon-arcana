@@ -78,6 +78,25 @@ fn doctor_reports_missing_native_go_helper() {
 }
 
 #[test]
+fn doctor_reports_missing_typescript_runtime_entrypoint() {
+    let fixture = DoctorFixture::new("doctor-typescript-helper-missing", &["typescript"]);
+
+    let report = doctor(&fixture.repository).unwrap();
+    assert!(failed(&report, "runtime helper: typescript"));
+    let error = report
+        .checks
+        .iter()
+        .find(|check| check.label == "runtime helper: typescript")
+        .and_then(|check| check.error.as_deref())
+        .unwrap();
+    assert!(
+        error.contains("TypeScript adapter entrypoint not found"),
+        "{error}"
+    );
+    assert!(error.contains("LEXICON_TYPESCRIPT_ADAPTER"), "{error}");
+}
+
+#[test]
 fn doctor_checks_adapter_directories_without_runtime_requirements() {
     let fixture = DoctorFixture::new("doctor-native-adapters", &["java", "kotlin", "csharp"]);
     for language in ["java", "kotlin", "csharp"] {

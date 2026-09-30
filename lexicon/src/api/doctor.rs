@@ -131,6 +131,13 @@ fn inspect_languages(
                 }
                 continue;
             }
+            if language == "typescript" {
+                match crate::adapters::typescript::verify_runtime_helper(root) {
+                    Ok(()) => report.pass("runtime helper: typescript"),
+                    Err(error) => report.fail("runtime helper: typescript", error),
+                }
+                continue;
+            }
             let directory = root.join(&language);
             if directory.is_dir() {
                 report.pass(format!("adapter directory: {language}"));
