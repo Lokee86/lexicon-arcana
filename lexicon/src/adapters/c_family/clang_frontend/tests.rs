@@ -55,7 +55,7 @@ fn structural_chunks_large_source_sets_and_merges_duplicate_observations() {
         clang_protocol::HELPER_VERSION
     );
     let frontend = ClangFrontend::with_runner(counting_frontend(&root.path, &counter, &response));
-    let files = (0..129).map(|index| format!("file{index:03}.c")).collect();
+    let files = (0..17).map(|index| format!("file{index:03}.c")).collect();
 
     let structural = frontend.structural(&root.path, files).unwrap();
 

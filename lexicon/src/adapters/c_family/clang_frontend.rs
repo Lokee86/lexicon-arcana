@@ -17,7 +17,7 @@ mod tests;
 const HELPER_DIRECTORY: &str = "c-family-clang";
 const HELPER_EXECUTABLE: &str = "lexicon-c-family-clang";
 const HELPER_ENVIRONMENT: &str = "LEXICON_C_FAMILY_CLANG_HELPER";
-const STRUCTURAL_FILES_PER_REQUEST: usize = 128;
+const STRUCTURAL_FILES_PER_REQUEST: usize = 16;
 
 #[derive(Debug, Clone)]
 pub(crate) struct ClangFrontend {
