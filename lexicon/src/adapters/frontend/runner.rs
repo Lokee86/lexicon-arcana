@@ -2,14 +2,14 @@ use std::{
     collections::BTreeMap,
     ffi::OsString,
     fs::{File, OpenOptions, remove_file},
-    io::{BufRead, BufReader, Seek, SeekFrom, Write},
+    io::{BufRead, BufReader, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::atomic::{AtomicU64, Ordering},
     time::Instant,
 };
 
-use serde::{Serialize, de::DeserializeOwned};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 use crate::adapters::AdapterError;
 
@@ -22,6 +22,23 @@ static RESPONSE_FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 pub(crate) trait ProtocolResponse {
     fn protocol_version(&self) -> u32;
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct FrontendFrameHeader {
+    pub protocol_version: u32,
+    pub kind: String,
+    #[serde(default)]
+    pub path: Option<String>,
+    pub bytes: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct FrontendStreamMetrics {
+    pub request_bytes: u64,
+    pub response_bytes: u64,
+    pub frames: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -200,6 +217,218 @@ impl FrontendRunner {
             );
         }
         Ok(response)
+    }
+
+    pub(crate) fn run_framed<Request, F>(
+        &self,
+        current_dir: &Path,
+        arguments: &[OsString],
+        environment: &BTreeMap<OsString, OsString>,
+        expected_protocol: u32,
+        request: &Request,
+        mut on_frame: F,
+    ) -> Result<FrontendStreamMetrics, AdapterError>
+    where
+        Request: Serialize,
+        F: FnMut(FrontendFrameHeader, &mut dyn Read) -> Result<(), AdapterError>,
+    {
+        let request = serde_json::to_vec(request)
+            .map_err(|error| AdapterError::new(format!("encode frontend request: {error}")))?;
+        let request_bytes = request.len() as u64;
+        let profile = crate::perf::enabled() && self.metric_namespace.is_some();
+        let ipc_started = profile.then(Instant::now);
+        let program = self.resolve()?;
+        let mut child = Command::new(&program)
+            .args(&self.prefix_args)
+            .args(arguments)
+            .envs(environment)
+            .current_dir(current_dir)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|error| {
+                AdapterError::new(format!(
+                    "start semantic frontend {}: {error}",
+                    program.display()
+                ))
+            })?;
+        let stderr_thread = capture_stderr(child.stderr.take().expect("stderr was piped"));
+
+        let mut stdin = child.stdin.take().expect("stdin was piped");
+        let write_result = stdin
+            .write_all(&request)
+            .and_then(|_| stdin.write_all(b"\n"));
+        drop(stdin);
+        if let Err(error) = write_result {
+            return Err(terminate(
+                &mut child,
+                stderr_thread,
+                format!("write semantic frontend request: {error}"),
+            ));
+        }
+
+        let stdout = child.stdout.take().expect("stdout was piped");
+        let mut reader = BufReader::new(stdout);
+        let mut response_bytes = 0_u64;
+        let mut frames = 0_u64;
+        loop {
+            let mut header_line = String::new();
+            let read = match reader.read_line(&mut header_line) {
+                Ok(value) => value,
+                Err(error) => {
+                    drop(reader);
+                    return Err(terminate(
+                        &mut child,
+                        stderr_thread,
+                        format!("read semantic frontend frame header: {error}"),
+                    ));
+                }
+            };
+            if read == 0 {
+                break;
+            }
+            response_bytes = response_bytes.saturating_add(read as u64);
+            if response_bytes > MAX_RESPONSE_BYTES {
+                drop(reader);
+                return Err(terminate(
+                    &mut child,
+                    stderr_thread,
+                    format!(
+                        "semantic frontend framed response exceeded {MAX_RESPONSE_BYTES}-byte limit"
+                    ),
+                ));
+            }
+            let header: FrontendFrameHeader = match serde_json::from_str(header_line.trim_end()) {
+                Ok(value) => value,
+                Err(error) => {
+                    drop(reader);
+                    return Err(terminate(
+                        &mut child,
+                        stderr_thread,
+                        format!("decode semantic frontend frame header: {error}"),
+                    ));
+                }
+            };
+            if header.protocol_version != expected_protocol {
+                drop(reader);
+                return Err(terminate(
+                    &mut child,
+                    stderr_thread,
+                    format!(
+                        "semantic frontend protocol mismatch: got {}, expected {}",
+                        header.protocol_version, expected_protocol
+                    ),
+                ));
+            }
+            if header.bytes == 0 || header.bytes > MAX_RESPONSE_BYTES {
+                drop(reader);
+                return Err(terminate(
+                    &mut child,
+                    stderr_thread,
+                    format!(
+                        "semantic frontend frame payload is empty or too large: {} bytes",
+                        header.bytes
+                    ),
+                ));
+            }
+            if response_bytes
+                .saturating_add(header.bytes)
+                .saturating_add(1)
+                > MAX_RESPONSE_BYTES
+            {
+                drop(reader);
+                return Err(terminate(
+                    &mut child,
+                    stderr_thread,
+                    format!(
+                        "semantic frontend framed response exceeded {MAX_RESPONSE_BYTES}-byte limit"
+                    ),
+                ));
+            }
+
+            let payload_bytes = header.bytes;
+            let mut payload = reader.by_ref().take(payload_bytes);
+            if let Err(error) = on_frame(header, &mut payload) {
+                drop(payload);
+                drop(reader);
+                return Err(terminate(
+                    &mut child,
+                    stderr_thread,
+                    format!("consume semantic frontend frame: {error}"),
+                ));
+            }
+            if payload.limit() != 0 {
+                drop(payload);
+                drop(reader);
+                return Err(terminate(
+                    &mut child,
+                    stderr_thread,
+                    "semantic frontend frame consumer did not consume the complete payload".into(),
+                ));
+            }
+            drop(payload);
+
+            let mut separator = [0_u8; 1];
+            if let Err(error) = reader.read_exact(&mut separator) {
+                drop(reader);
+                return Err(terminate(
+                    &mut child,
+                    stderr_thread,
+                    format!("read semantic frontend frame separator: {error}"),
+                ));
+            }
+            if separator[0] != b'\n' {
+                drop(reader);
+                return Err(terminate(
+                    &mut child,
+                    stderr_thread,
+                    "semantic frontend frame payload is not newline terminated".into(),
+                ));
+            }
+            response_bytes += payload_bytes + 1;
+            frames += 1;
+        }
+        drop(reader);
+
+        let status = child
+            .wait()
+            .map_err(|error| AdapterError::new(format!("wait for semantic frontend: {error}")))?;
+        let stderr = stderr_thread.join().unwrap_or_default();
+        if !status.success() {
+            return Err(AdapterError::new(format!(
+                "semantic frontend exited with {status}{}",
+                stderr_suffix(&stderr)
+            )));
+        }
+        if frames == 0 {
+            return Err(AdapterError::new(format!(
+                "semantic frontend returned no frames{}",
+                stderr_suffix(&stderr)
+            )));
+        }
+
+        if let (Some(namespace), Some(ipc_started)) =
+            (self.metric_namespace.as_deref(), ipc_started)
+        {
+            replay_stderr(&stderr);
+            let ipc_stage = format!("{namespace}.helper.framed_ipc");
+            crate::perf::emit(
+                &ipc_stage,
+                ipc_started.elapsed(),
+                &[
+                    ("helper_request_bytes", request_bytes),
+                    ("helper_response_bytes", response_bytes),
+                    ("helper_response_frames", frames),
+                ],
+            );
+        }
+
+        Ok(FrontendStreamMetrics {
+            request_bytes,
+            response_bytes,
+            frames,
+        })
     }
 
     pub(crate) fn resolve(&self) -> Result<PathBuf, AdapterError> {

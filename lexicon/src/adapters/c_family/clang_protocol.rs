@@ -86,6 +86,22 @@ impl ProtocolResponse for CapabilitiesResponse {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub(crate) struct StructuralMetadataFrame {
+    pub protocol_version: u32,
+    pub helper_version: String,
+    pub clang_version: String,
+    pub compilation_database: bool,
+    #[serde(default)]
+    pub translation_units: Vec<TranslationUnitObservation>,
+    #[serde(default)]
+    pub context_identities: Vec<ContextIdentityObservation>,
+    #[serde(default)]
+    pub diagnostics: Vec<DiagnosticObservation>,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct StructuralResponse {
     pub protocol_version: u32,
     pub helper_version: String,
@@ -101,6 +117,7 @@ pub(crate) struct StructuralResponse {
     pub diagnostics: Vec<DiagnosticObservation>,
 }
 
+#[cfg(test)]
 impl ProtocolResponse for StructuralResponse {
     fn protocol_version(&self) -> u32 {
         self.protocol_version

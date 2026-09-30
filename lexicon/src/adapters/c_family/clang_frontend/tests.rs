@@ -62,10 +62,10 @@ fn structural_request_normalizes_zero_execution_policy() {
 fn structural_uses_versioned_private_frontend_contract() {
     let root = TestDirectory::new("structural");
     fs::write(root.path.join("main.c"), b"int main(void) { return 0; }\n").unwrap();
-    let response = format!(
+    let response = framed_structural_response(&format!(
         r#"{{"protocol_version":2,"helper_version":"{}","clang_version":"clang test","compilation_database":false,"translation_units":[{{"path":"main.c","language":"c","directory":".","arguments":["clang","-xc","main.c"],"synthesized":true}}],"files":[{{"path":"main.c","languages":["c"],"translation_units":["main.c"]}}],"diagnostics":[]}}"#,
         clang_protocol::HELPER_VERSION
-    );
+    ));
     let frontend = ClangFrontend::with_runner(scripted_frontend(&root.path, &response));
     let structural = frontend
         .structural(
@@ -79,7 +79,7 @@ fn structural_uses_versioned_private_frontend_contract() {
             4,
         )
         .unwrap();
-    let file = structural.merged_file("main.c").unwrap();
+    let file = structural.file("main.c").unwrap();
 
     assert_eq!(structural.file_count(), 1);
     assert_eq!(structural.translation_unit_count(), 1);
@@ -92,10 +92,10 @@ fn structural_uses_versioned_private_frontend_contract() {
 fn structural_sends_entire_inventory_in_one_helper_request() {
     let root = TestDirectory::new("structural-single-request");
     let counter = root.path.join("calls.txt");
-    let response = format!(
+    let response = framed_structural_response(&format!(
         r#"{{"protocol_version":2,"helper_version":"{}","clang_version":"clang test","compilation_database":false,"translation_units":[],"files":[],"diagnostics":[]}}"#,
         clang_protocol::HELPER_VERSION
-    );
+    ));
     let frontend = ClangFrontend::with_runner(counting_frontend(&root.path, &counter, &response));
     let owned_files = (0..17)
         .map(|index| format!("owned{index:03}.c"))
@@ -132,10 +132,10 @@ fn structural_sends_entire_inventory_in_one_helper_request() {
 fn structural_sends_owned_headers_with_source_context_in_one_helper_request() {
     let root = TestDirectory::new("structural-header-batch");
     let counter = root.path.join("calls.txt");
-    let response = format!(
+    let response = framed_structural_response(&format!(
         r#"{{"protocol_version":2,"helper_version":"{}","clang_version":"clang test","compilation_database":false,"translation_units":[],"files":[],"diagnostics":[]}}"#,
         clang_protocol::HELPER_VERSION
-    );
+    ));
     let frontend = ClangFrontend::with_runner(counting_frontend(&root.path, &counter, &response));
 
     frontend
@@ -169,20 +169,55 @@ fn capabilities_rejects_helper_version_mismatch() {
     assert!(error.contains("helper version mismatch"), "{error}");
 }
 
+fn framed_structural_response(response: &str) -> String {
+    let mut value: serde_json::Value = serde_json::from_str(response).unwrap();
+    let object = value.as_object_mut().unwrap();
+    let files = object
+        .remove("files")
+        .unwrap_or_else(|| serde_json::json!([]));
+    let metadata = serde_json::to_vec(&value).unwrap();
+    let mut output = format!(
+        "{{\"protocol_version\":2,\"kind\":\"metadata\",\"bytes\":{}}}\n",
+        metadata.len()
+    )
+    .into_bytes();
+    output.extend_from_slice(&metadata);
+    output.push(b'\n');
+
+    for file in files.as_array().unwrap() {
+        let payload = serde_json::to_vec(file).unwrap();
+        let path = file["path"].as_str().unwrap();
+        let header = serde_json::json!({
+            "protocol_version": 2,
+            "kind": "file",
+            "path": path,
+            "bytes": payload.len(),
+        });
+        output.extend_from_slice(serde_json::to_string(&header).unwrap().as_bytes());
+        output.push(b'\n');
+        output.extend_from_slice(&payload);
+        output.push(b'\n');
+    }
+    String::from_utf8(output).unwrap()
+}
+
 fn counting_frontend(
     root: &std::path::Path,
     counter: &std::path::Path,
     response: &str,
 ) -> FrontendRunner {
+    let response_path = root.join("clang-counting-response.txt");
+    fs::write(&response_path, response.as_bytes()).unwrap();
+
     #[cfg(windows)]
     {
         let script = root.join("clang-counting-frontend.ps1");
         fs::write(
             &script,
             format!(
-                "$request = [Console]::In.ReadLine()\nAdd-Content -LiteralPath '{}' -Value $request\n[Console]::Out.WriteLine('{}')\n",
+                "$request = [Console]::In.ReadLine()\nAdd-Content -LiteralPath '{}' -Value $request\n[Console]::Out.Write([IO.File]::ReadAllText('{}'))\n",
                 counter.display().to_string().replace('\'', "''"),
-                response.replace('\'', "''")
+                response_path.display().to_string().replace('\'', "''")
             ),
         )
         .unwrap();
@@ -206,9 +241,9 @@ fn counting_frontend(
         fs::write(
             &script,
             format!(
-                "#!/bin/sh\nIFS= read -r request\nprintf '%s\\n' \"$request\" >> '{}'\nprintf '%s\\n' '{}'\n",
+                "#!/bin/sh\nIFS= read -r request\nprintf '%s\\n' \"$request\" >> '{}'\ncat '{}'\n",
                 counter.display().to_string().replace('\'', "'\\''"),
-                response.replace('\'', "'\\''")
+                response_path.display().to_string().replace('\'', "'\\''")
             ),
         )
         .unwrap();
@@ -217,14 +252,17 @@ fn counting_frontend(
 }
 
 fn scripted_frontend(root: &std::path::Path, response: &str) -> FrontendRunner {
+    let response_path = root.join("clang-frontend-response.txt");
+    fs::write(&response_path, response.as_bytes()).unwrap();
+
     #[cfg(windows)]
     {
         let script = root.join("clang-frontend.ps1");
         fs::write(
             &script,
             format!(
-                "$null = [Console]::In.ReadLine()\n[Console]::Out.WriteLine('{}')\n",
-                response.replace('\'', "''")
+                "$null = [Console]::In.ReadLine()\n[Console]::Out.Write([IO.File]::ReadAllText('{}'))\n",
+                response_path.display().to_string().replace('\'', "''")
             ),
         )
         .unwrap();
@@ -248,8 +286,8 @@ fn scripted_frontend(root: &std::path::Path, response: &str) -> FrontendRunner {
         fs::write(
             &script,
             format!(
-                "#!/bin/sh\nIFS= read -r request\nprintf '%s\\n' '{}'\n",
-                response.replace('\'', "'\\''")
+                "#!/bin/sh\nIFS= read -r request\ncat '{}'\n",
+                response_path.display().to_string().replace('\'', "'\\''")
             ),
         )
         .unwrap();

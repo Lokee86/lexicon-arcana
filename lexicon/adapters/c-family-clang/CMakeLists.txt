@@ -28,6 +28,7 @@ add_executable(
     structural_semantic_support.cpp
     structural_semantics.cpp
     structural_source.cpp
+    structural_transport.cpp
     structural_value_flow.cpp
     structural_value_flow_json.cpp
 )
@@ -56,6 +57,10 @@ target_link_libraries(
     clangTooling
     ${LEXICON_LLVM_LIBS}
 )
+
+if(WIN32)
+    target_link_libraries(lexicon-c-family-clang PRIVATE Psapi)
+endif()
 
 enable_testing()
 

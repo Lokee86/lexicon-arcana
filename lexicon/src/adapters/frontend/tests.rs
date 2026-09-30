@@ -50,6 +50,51 @@ fn frontend_uses_only_the_first_response_frame() {
 }
 
 #[test]
+fn frontend_streams_multiple_framed_payloads() {
+    let root = TempDirectory::new("framed");
+    let metadata = r#"{"helper_version":"test"}"#;
+    let file = r#"{"path":"src/main.c"}"#;
+    let response = format!(
+        "{}{}",
+        framed(1, "metadata", None, metadata),
+        framed(1, "file", Some("src/main.c"), file)
+    );
+    let runner = scripted_frontend(&root.path, &response, "", 0);
+    let mut seen = Vec::new();
+
+    let metrics = runner
+        .run_framed(
+            Path::new("."),
+            &[],
+            &Default::default(),
+            1,
+            &TestRequest {
+                protocol_version: 1,
+            },
+            |header, payload| {
+                let mut body = String::new();
+                payload
+                    .read_to_string(&mut body)
+                    .map_err(|error| crate::AdapterError::new(error.to_string()))?;
+                seen.push((header.kind, header.path, body));
+                Ok(())
+            },
+        )
+        .unwrap();
+
+    assert_eq!(
+        seen,
+        vec![
+            ("metadata".into(), None, metadata.into()),
+            ("file".into(), Some("src/main.c".into()), file.into()),
+        ]
+    );
+    assert_eq!(metrics.frames, 2);
+    assert_eq!(metrics.response_bytes, response.len() as u64);
+    assert!(metrics.request_bytes > 0);
+}
+
+#[test]
 fn frontend_protocol_mismatch_is_rejected() {
     let root = TempDirectory::new("protocol");
     let runner = scripted_frontend(&root.path, r#"{"protocol_version":2}"#, "", 0);
@@ -99,15 +144,29 @@ fn run(
     )
 }
 
+fn framed(protocol: u32, kind: &str, path: Option<&str>, payload: &str) -> String {
+    let mut header = serde_json::json!({
+        "protocol_version": protocol,
+        "kind": kind,
+        "bytes": payload.len(),
+    });
+    if let Some(path) = path {
+        header["path"] = serde_json::Value::String(path.into());
+    }
+    format!("{}\n{}\n", serde_json::to_string(&header).unwrap(), payload)
+}
+
 fn scripted_frontend(root: &Path, stdout: &str, stderr: &str, exit_code: i32) -> FrontendRunner {
+    let stdout_path = root.join("frontend-stdout.txt");
+    fs::write(&stdout_path, stdout.as_bytes()).unwrap();
     #[cfg(windows)]
     {
         let script = root.join("frontend.ps1");
         fs::write(
             &script,
             format!(
-                "$null = [Console]::In.ReadLine()\n[Console]::Out.WriteLine('{}')\n[Console]::Error.WriteLine('{}')\nexit {}\n",
-                stdout.replace("'", "''"),
+                "$null = [Console]::In.ReadLine()\n[Console]::Out.Write([IO.File]::ReadAllText('{}'))\n[Console]::Error.WriteLine('{}')\nexit {}\n",
+                stdout_path.display().to_string().replace("'", "''"),
                 stderr.replace("'", "''"),
                 exit_code
             ),
@@ -134,8 +193,8 @@ fn scripted_frontend(root: &Path, stdout: &str, stderr: &str, exit_code: i32) ->
         fs::write(
             &script,
             format!(
-                "#!/bin/sh\nIFS= read -r request\nprintf '%s\\n' '{}'\nprintf '%s\\n' '{}' >&2\nexit {}\n",
-                stdout.replace("'", "'\\''"),
+                "#!/bin/sh\nIFS= read -r request\ncat '{}'\nprintf '%s\\n' '{}' >&2\nexit {}\n",
+                stdout_path.display().to_string().replace("'", "'\\''"),
                 stderr.replace("'", "'\\''"),
                 exit_code
             ),

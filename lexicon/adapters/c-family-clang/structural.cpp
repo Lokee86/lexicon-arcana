@@ -15,6 +15,7 @@
 #include "structural_execution.h"
 #include "structural_model.h"
 #include "structural_plan.h"
+#include "structural_transport.h"
 
 namespace {
 
@@ -129,7 +130,7 @@ bool validate_request(const llvm::json::Object &request, StructuralInput &input,
 } // namespace
 
 bool emit_structural(const llvm::json::Object &request,
-                     llvm::json::Object &response, std::string &error) {
+                     llvm::raw_ostream &output, std::string &error) {
   StructuralInput input;
   if (!validate_request(request, input, error)) {
     return false;
@@ -196,12 +197,18 @@ bool emit_structural(const llvm::json::Object &request,
   }
 
   const auto emission_started = lexicon::clang_frontend::PerfClock::now();
-  response =
-      state.response(base != nullptr, clang::getClangFullVersion(),
-                     lexicon::clang_frontend::kHelperVersion);
+  lexicon::clang_frontend::TransportSummary transport;
+  if (!lexicon::clang_frontend::emit_structural_frames(
+          state, base != nullptr, clang::getClangFullVersion(),
+          lexicon::clang_frontend::kHelperVersion, output, transport, error)) {
+    return false;
+  }
   lexicon::clang_frontend::emit_perf(
       "c-family.clang.observation_emission",
       lexicon::clang_frontend::PerfClock::now() - emission_started,
-      {{"observed_files", static_cast<std::uint64_t>(state.files.size())}});
+      {{"observed_files", transport.file_frames},
+       {"transport_frames", transport.frames},
+       {"transport_bytes", transport.bytes},
+       {"peak_rss_bytes", lexicon::clang_frontend::peak_rss_bytes()}});
   return true;
 }

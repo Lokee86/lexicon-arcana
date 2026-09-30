@@ -7,6 +7,13 @@
 #include <string_view>
 #include <utility>
 
+#if defined(_WIN32)
+#include <windows.h>
+#include <psapi.h>
+#else
+#include <sys/resource.h>
+#endif
+
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -19,6 +26,27 @@ inline bool perf_enabled() {
   return value != nullptr && value[0] != '\0' &&
          std::string_view(value) != "0" && std::string_view(value) != "false" &&
          std::string_view(value) != "off" && std::string_view(value) != "no";
+}
+
+inline std::uint64_t peak_rss_bytes() {
+#if defined(_WIN32)
+  PROCESS_MEMORY_COUNTERS counters {};
+  counters.cb = sizeof(counters);
+  if (!GetProcessMemoryInfo(GetCurrentProcess(), &counters, sizeof(counters))) {
+    return 0;
+  }
+  return static_cast<std::uint64_t>(counters.PeakWorkingSetSize);
+#else
+  struct rusage usage {};
+  if (getrusage(RUSAGE_SELF, &usage) != 0) {
+    return 0;
+  }
+#if defined(__APPLE__)
+  return static_cast<std::uint64_t>(usage.ru_maxrss);
+#else
+  return static_cast<std::uint64_t>(usage.ru_maxrss) * 1024ULL;
+#endif
+#endif
 }
 
 inline void emit_perf(

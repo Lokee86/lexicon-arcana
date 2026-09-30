@@ -3,6 +3,7 @@
 #include <string>
 
 #include "llvm/Support/JSON.h"
+#include "llvm/Support/raw_ostream.h"
 
 bool emit_structural(const llvm::json::Object &request,
-                     llvm::json::Object &response, std::string &error);
+                     llvm::raw_ostream &output, std::string &error);

@@ -11,7 +11,7 @@ use crate::{
 
 use super::{CFamilyAdapter, clang_frontend::ClangFrontend};
 
-const STRUCTURAL_RESPONSE: &str = r#"{"protocol_version":2,"helper_version":"0.5.0","clang_version":"clang test","compilation_database":false,"translation_units":[{"path":"main.c","language":"c","directory":".","arguments":["clang","-xc","main.c"],"synthesized":true}],"files":[{"path":"main.c","languages":["c"],"translation_units":["main.c"],"declarations":[{"compiler_id":"main","kind":"function","name":"main","qualified_name":"main","signature":"int main()","span":{"path":"main.c","start_line":1,"start_column":1,"end_line":1,"end_column":9},"callable":true,"definition":true,"internal":false,"template":false,"virtual_member":false,"function_pointer":false,"alias":false,"enum_member":false,"parameter_count":0}]}],"diagnostics":[]}"#;
+const STRUCTURAL_RESPONSE: &str = r#"{"protocol_version":2,"helper_version":"0.6.0","clang_version":"clang test","compilation_database":false,"translation_units":[{"path":"main.c","language":"c","directory":".","arguments":["clang","-xc","main.c"],"synthesized":true}],"files":[{"path":"main.c","languages":["c"],"translation_units":["main.c"],"declarations":[{"compiler_id":"main","kind":"function","name":"main","qualified_name":"main","signature":"int main()","span":{"path":"main.c","start_line":1,"start_column":1,"end_line":1,"end_column":9},"callable":true,"definition":true,"internal":false,"template":false,"virtual_member":false,"function_pointer":false,"alias":false,"enum_member":false,"parameter_count":0}]}],"diagnostics":[]}"#;
 
 #[test]
 fn production_adapter_routes_through_clang_frontend() {
@@ -111,15 +111,49 @@ fn c_family_full_and_incremental_records_are_equivalent() {
     assert_eq!(incremental.header.shared_complete, Some(false));
 }
 
+fn framed_structural_response(response: &str) -> String {
+    let mut value: serde_json::Value = serde_json::from_str(response).unwrap();
+    let object = value.as_object_mut().unwrap();
+    let files = object
+        .remove("files")
+        .unwrap_or_else(|| serde_json::json!([]));
+    let metadata = serde_json::to_vec(&value).unwrap();
+    let mut output = format!(
+        "{{\"protocol_version\":2,\"kind\":\"metadata\",\"bytes\":{}}}\n",
+        metadata.len()
+    )
+    .into_bytes();
+    output.extend_from_slice(&metadata);
+    output.push(b'\n');
+    for file in files.as_array().unwrap() {
+        let payload = serde_json::to_vec(file).unwrap();
+        let header = serde_json::json!({
+            "protocol_version": 2,
+            "kind": "file",
+            "path": file["path"].as_str().unwrap(),
+            "bytes": payload.len(),
+        });
+        output.extend_from_slice(serde_json::to_string(&header).unwrap().as_bytes());
+        output.push(b'\n');
+        output.extend_from_slice(&payload);
+        output.push(b'\n');
+    }
+    String::from_utf8(output).unwrap()
+}
+
 fn scripted_frontend(root: &std::path::Path, response: &str) -> FrontendRunner {
+    let response = framed_structural_response(response);
+    let response_path = root.join("clang-production-response.txt");
+    fs::write(&response_path, response.as_bytes()).unwrap();
+
     #[cfg(windows)]
     {
         let script = root.join("clang-production.ps1");
         fs::write(
             &script,
             format!(
-                "$null = [Console]::In.ReadLine()\n[Console]::Out.WriteLine('{}')\n",
-                response.replace('\'', "''")
+                "$null = [Console]::In.ReadLine()\n[Console]::Out.Write([IO.File]::ReadAllText('{}'))\n",
+                response_path.display().to_string().replace('\'', "''")
             ),
         )
         .unwrap();
@@ -143,8 +177,8 @@ fn scripted_frontend(root: &std::path::Path, response: &str) -> FrontendRunner {
         fs::write(
             &script,
             format!(
-                "#!/bin/sh\nIFS= read -r request\nprintf '%s\\n' '{}'\n",
-                response.replace('\'', "'\\''")
+                "#!/bin/sh\nIFS= read -r request\ncat '{}'\n",
+                response_path.display().to_string().replace('\'', "'\\''")
             ),
         )
         .unwrap();

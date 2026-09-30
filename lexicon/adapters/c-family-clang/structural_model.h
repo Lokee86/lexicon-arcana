@@ -167,9 +167,9 @@ struct State {
   void add_context_identity(ContextIdentity identity);
   void add_diagnostic(Diagnostic diagnostic);
   void merge(State other);
-  llvm::json::Object response(bool compilation_database,
-                              std::string clang_version,
-                              llvm::StringRef helper_version);
+  llvm::json::Object metadata_response(bool compilation_database,
+                                       std::string clang_version,
+                                       llvm::StringRef helper_version);
 
   std::string repository_root;
   std::map<std::string, File> files;
@@ -181,6 +181,7 @@ struct State {
   std::uint64_t semantic_analysis_ns = 0;
 };
 
+llvm::json::Object file_json(File value);
 llvm::json::Object span_json(const Span &span);
 llvm::json::Object diagnostic_json(const Diagnostic &diagnostic);
 

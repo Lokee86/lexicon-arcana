@@ -75,7 +75,7 @@ llvm::json::Object macro_json(const Macro &value) {
   };
 }
 
-llvm::json::Object file_json(File value) {
+llvm::json::Object file_json_impl(File value) {
   normalize_semantics(value);
   normalize_value_flow(value);
   std::sort(value.declarations.begin(), value.declarations.end(),
@@ -202,6 +202,10 @@ llvm::json::Object translation_unit_json(const TranslationUnit &value) {
 
 } // namespace
 
+llvm::json::Object file_json(File value) {
+  return file_json_impl(std::move(value));
+}
+
 State::State(std::string repository_root)
     : repository_root(std::move(repository_root)) {}
 
@@ -288,9 +292,9 @@ void State::merge(State other) {
   }
 }
 
-llvm::json::Object State::response(bool compilation_database,
-                                   std::string clang_version,
-                                   llvm::StringRef helper_version) {
+llvm::json::Object State::metadata_response(bool compilation_database,
+                                            std::string clang_version,
+                                            llvm::StringRef helper_version) {
   std::sort(translation_units.begin(), translation_units.end(),
             [](const TranslationUnit &left, const TranslationUnit &right) {
               return std::tie(left.path, left.directory, left.arguments) <
@@ -323,12 +327,6 @@ llvm::json::Object State::response(bool compilation_database,
                   }),
       context_identities.end());
 
-  llvm::json::Array file_values;
-  for (auto &[path, value] : files) {
-    if (all_owned_paths.contains(path)) {
-      file_values.emplace_back(file_json(std::move(value)));
-    }
-  }
   llvm::json::Array unit_values;
   for (const auto &value : translation_units) {
     unit_values.emplace_back(translation_unit_json(value));
@@ -348,7 +346,6 @@ llvm::json::Object State::response(bool compilation_database,
       {"clang_version", std::move(clang_version)},
       {"compilation_database", compilation_database},
       {"translation_units", std::move(unit_values)},
-      {"files", std::move(file_values)},
       {"context_identities", std::move(context_identity_values)},
       {"diagnostics", std::move(diagnostic_values)},
   };

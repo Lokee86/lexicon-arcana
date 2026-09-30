@@ -9,20 +9,51 @@ import sys
 import tempfile
 
 
+def decode_framed_response(stdout: bytes) -> dict:
+    offset = 0
+    metadata = None
+    files = []
+    while offset < len(stdout):
+        header_end = stdout.find(b"\n", offset)
+        if header_end < 0:
+            raise RuntimeError("framed response header is not newline terminated")
+        header = json.loads(stdout[offset:header_end].decode("utf-8"))
+        offset = header_end + 1
+        payload_bytes = int(header["bytes"])
+        payload_end = offset + payload_bytes
+        if payload_end >= len(stdout) or stdout[payload_end : payload_end + 1] != b"\n":
+            raise RuntimeError("framed response payload is truncated")
+        payload = json.loads(stdout[offset:payload_end].decode("utf-8"))
+        offset = payload_end + 1
+        if header["kind"] == "metadata":
+            if metadata is not None:
+                raise RuntimeError("duplicate metadata frame")
+            metadata = payload
+        elif header["kind"] == "file":
+            if payload.get("path") != header.get("path"):
+                raise RuntimeError("file frame header/payload path mismatch")
+            files.append(payload)
+        else:
+            raise RuntimeError(f"unexpected frame kind: {header['kind']!r}")
+    if metadata is None:
+        raise RuntimeError("framed response omitted metadata")
+    return {**metadata, "files": files}
+
+
 def run(helper: pathlib.Path, version: str, root: pathlib.Path, request: dict) -> dict:
     completed = subprocess.run(
         [str(helper), "--protocol-version", "2", "--helper-version", version],
-        input=json.dumps(request),
-        text=True,
+        input=(json.dumps(request) + "\n").encode("utf-8"),
         capture_output=True,
         cwd=root,
     )
     if completed.returncode != 0:
         raise RuntimeError(
-            f"helper failed ({completed.returncode}): {completed.stderr}\n{completed.stdout}"
+            f"helper failed ({completed.returncode}): "
+            f"{completed.stderr.decode('utf-8', errors='replace')}\n"
+            f"{completed.stdout.decode('utf-8', errors='replace')}"
         )
-    return json.loads(completed.stdout)
-
+    return decode_framed_response(completed.stdout)
 
 
 def run_with_perf(
@@ -37,18 +68,18 @@ def run_with_perf(
     environment["LEXICON_CLANG_JOBS"] = str(legacy_jobs)
     completed = subprocess.run(
         [str(helper), "--protocol-version", "2", "--helper-version", version],
-        input=json.dumps(request),
-        text=True,
+        input=(json.dumps(request) + "\n").encode("utf-8"),
         capture_output=True,
         cwd=root,
         env=environment,
     )
+    stderr = completed.stderr.decode("utf-8", errors="replace")
     if completed.returncode != 0:
         raise RuntimeError(
-            f"helper failed ({completed.returncode}): {completed.stderr}\n{completed.stdout}"
+            f"helper failed ({completed.returncode}): {stderr}\n"
+            f"{completed.stdout.decode('utf-8', errors='replace')}"
         )
-    return json.loads(completed.stdout), completed.stderr
-
+    return decode_framed_response(completed.stdout), stderr
 
 def compile_database(root: pathlib.Path, files: list[str]) -> None:
     entries = [
@@ -211,6 +242,26 @@ def execution_policy_is_fact_stable(helper: pathlib.Path, version: str) -> None:
                     "helper did not report requested Lexicon execution policy: "
                     f"{expected_policy!r} not found in {stderr!r}"
                 )
+            emission = next(
+                (
+                    line
+                    for line in stderr.splitlines()
+                    if "stage=c-family.clang.observation_emission" in line
+                ),
+                None,
+            )
+            if emission is None:
+                raise RuntimeError("missing observation-emission perf metrics")
+            counters = {
+                token.split("=", 1)[0]: token.split("=", 1)[1]
+                for token in emission.split()
+                if "=" in token
+            }
+            for counter in ("transport_frames", "transport_bytes", "peak_rss_bytes"):
+                if int(counters.get(counter, "0")) <= 0:
+                    raise RuntimeError(
+                        f"missing or zero {counter} in emission metrics: {emission!r}"
+                    )
             canonical.append(
                 json.dumps(
                     response,

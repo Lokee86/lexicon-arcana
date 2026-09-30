@@ -76,7 +76,7 @@ pub(crate) fn materialize_store(
     let mut references = references::ReferenceIndex::empty();
 
     for path in &paths {
-        let file = store.merged_file(path)?;
+        let file = store.file(path)?;
         let file_ids = declarations::identity_map(&file);
         references.add_file(&file, &file_ids);
         ids.insert(path.clone(), file_ids);
@@ -86,7 +86,7 @@ pub(crate) fn materialize_store(
 
     let mut materialized = Vec::with_capacity(paths.len());
     for path in &paths {
-        let file = store.merged_file(path)?;
+        let file = store.file(path)?;
         let local_ids = ids.get(path).expect("C-family Clang local identity map");
         materialized.push(materialize_file(
             &root,

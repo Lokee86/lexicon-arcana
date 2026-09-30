@@ -132,13 +132,10 @@ int main(int argc, char **argv) {
     return emit_capabilities(*object);
   }
   if (*operation == "structural") {
-    llvm::json::Object response;
     std::string error;
-    if (!emit_structural(*object, response, error)) {
+    if (!emit_structural(*object, llvm::outs(), error)) {
       return fail(error);
     }
-    llvm::outs() << llvm::formatv("{0}\n",
-                                  llvm::json::Value(std::move(response)));
     return 0;
   }
   return fail("unsupported C-family Clang operation");
