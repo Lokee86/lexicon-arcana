@@ -1,5 +1,4 @@
 use std::{
-    collections::HashSet,
     ffi::OsString,
     fs,
     path::PathBuf,
@@ -8,7 +7,7 @@ use std::{
 
 use crate::adapters::frontend::FrontendRunner;
 
-use super::{ClangFrontend, STRUCTURAL_FILES_PER_REQUEST, ScanInventory, clang_protocol};
+use super::{ClangFrontend, ScanInventory, clang_protocol};
 
 #[test]
 fn capabilities_uses_versioned_private_frontend_contract() {
@@ -25,18 +24,6 @@ fn capabilities_uses_versioned_private_frontend_contract() {
     assert_eq!(capabilities.clang_version, "clang test");
     assert!(capabilities.compilation_database);
     assert_eq!(capabilities.capabilities, ["ast", "compile-database"]);
-}
-
-#[test]
-fn structural_request_preserves_owned_and_context_classes() {
-    let owned = HashSet::from(["src/owned.c".to_owned()]);
-    let (owned_files, context_files) = super::split_ownership(
-        vec!["include/context.h".into(), "src/owned.c".into()],
-        &owned,
-    );
-
-    assert_eq!(owned_files, ["src/owned.c".to_owned()]);
-    assert_eq!(context_files, ["include/context.h".to_owned()]);
 }
 
 #[test]
@@ -102,36 +89,43 @@ fn structural_uses_versioned_private_frontend_contract() {
 }
 
 #[test]
-fn structural_chunks_large_source_sets_and_merges_duplicate_observations() {
-    let root = TestDirectory::new("structural-chunks");
-    fs::write(root.path.join("main.c"), b"int main(void) { return 0; }\n").unwrap();
+fn structural_sends_entire_inventory_in_one_helper_request() {
+    let root = TestDirectory::new("structural-single-request");
     let counter = root.path.join("calls.txt");
     let response = format!(
-        r#"{{"protocol_version":2,"helper_version":"{}","clang_version":"clang test","compilation_database":false,"translation_units":[{{"path":"main.c","language":"c","directory":".","arguments":["clang","-xc","main.c"],"synthesized":true}}],"files":[{{"path":"main.c","languages":["c"],"translation_units":["main.c"]}}],"diagnostics":[]}}"#,
+        r#"{{"protocol_version":2,"helper_version":"{}","clang_version":"clang test","compilation_database":false,"translation_units":[],"files":[],"diagnostics":[]}}"#,
         clang_protocol::HELPER_VERSION
     );
     let frontend = ClangFrontend::with_runner(counting_frontend(&root.path, &counter, &response));
-    let files = (0..=STRUCTURAL_FILES_PER_REQUEST)
-        .map(|index| format!("file{index:03}.c"))
-        .collect();
+    let owned_files = (0..17)
+        .map(|index| format!("owned{index:03}.c"))
+        .collect::<Vec<_>>();
+    let context_files = (0..11)
+        .map(|index| format!("context{index:03}.h"))
+        .collect::<Vec<_>>();
 
-    let structural = frontend
+    frontend
         .structural(
             &root.path,
             ScanInventory {
-                owned_files: files,
-                context_files: Vec::new(),
+                owned_files: owned_files.clone(),
+                context_files: context_files.clone(),
             },
-            4,
-            16,
-            4,
+            3,
+            7,
+            5,
         )
         .unwrap();
 
-    assert_eq!(fs::read_to_string(counter).unwrap().lines().count(), 2);
-    assert_eq!(structural.file_count(), 1);
-    assert_eq!(structural.translation_unit_count(), 1);
-    assert_eq!(structural.merged_file("main.c").unwrap().path, "main.c");
+    let requests = fs::read_to_string(counter).unwrap();
+    let requests = requests.lines().collect::<Vec<_>>();
+    assert_eq!(requests.len(), 1);
+    let request: serde_json::Value = serde_json::from_str(requests[0]).unwrap();
+    assert_eq!(request["owned_files"], serde_json::json!(owned_files));
+    assert_eq!(request["context_files"], serde_json::json!(context_files));
+    assert_eq!(request["workers"], 3);
+    assert_eq!(request["shards"], 7);
+    assert_eq!(request["merge_fan_in"], 5);
 }
 
 #[test]

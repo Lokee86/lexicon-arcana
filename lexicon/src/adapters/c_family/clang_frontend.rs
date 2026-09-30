@@ -25,7 +25,6 @@ mod tests;
 const HELPER_DIRECTORY: &str = "c-family-clang";
 const HELPER_EXECUTABLE: &str = "lexicon-c-family-clang";
 const HELPER_ENVIRONMENT: &str = "LEXICON_C_FAMILY_CLANG_HELPER";
-const STRUCTURAL_FILES_PER_REQUEST: usize = 8;
 static OBSERVATION_STORE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -268,66 +267,17 @@ impl ClangFrontend {
             .to_str()
             .map(str::to_owned)
             .ok_or_else(|| AdapterError::new("repository path is not valid UTF-8"))?;
-        let owned = inventory
-            .owned_files
-            .iter()
-            .cloned()
-            .collect::<HashSet<_>>();
-        let files = inventory.analysis_files();
 
         let mut store = StructuralObservationStore::create()?;
-        if files.is_empty() {
-            store.append_response(self.run_structural_request(
-                &repository,
-                repository_root,
-                Vec::new(),
-                Vec::new(),
-                workers,
-                shards,
-                merge_fan_in,
-            )?)?;
-            return Ok(store);
-        }
-
-        let (sources, headers): (Vec<_>, Vec<_>) = files
-            .into_iter()
-            .partition(|path| !super::discovery::is_header_path(path));
-
-        for chunk in sources.chunks(STRUCTURAL_FILES_PER_REQUEST) {
-            let (owned_files, context_files) = split_ownership(chunk.to_vec(), &owned);
-            if owned_files.is_empty() {
-                continue;
-            }
-            let response = self.run_structural_request(
-                &repository,
-                repository_root.clone(),
-                owned_files,
-                context_files,
-                workers,
-                shards,
-                merge_fan_in,
-            )?;
-            store.append_response(response)?;
-        }
-
-        let (owned_headers, context_headers) = split_ownership(headers, &owned);
-        if !owned_headers.is_empty() {
-            let mut header_context = sources;
-            header_context.extend(context_headers);
-            header_context.sort();
-            header_context.dedup();
-            let response = self.run_structural_request(
-                &repository,
-                repository_root.clone(),
-                owned_headers,
-                header_context,
-                workers,
-                shards,
-                merge_fan_in,
-            )?;
-            store.append_response(response)?;
-        }
-
+        store.append_response(self.run_structural_request(
+            &repository,
+            repository_root,
+            inventory.owned_files,
+            inventory.context_files,
+            workers,
+            shards,
+            merge_fan_in,
+        )?)?;
         Ok(store)
     }
 
@@ -363,10 +313,6 @@ impl ClangFrontend {
     pub(crate) fn with_runner(runner: FrontendRunner) -> Self {
         Self { runner }
     }
-}
-
-fn split_ownership(files: Vec<String>, owned: &HashSet<String>) -> (Vec<String>, Vec<String>) {
-    files.into_iter().partition(|path| owned.contains(path))
 }
 
 fn dedup_exact<T: Debug>(values: &mut Vec<T>) {

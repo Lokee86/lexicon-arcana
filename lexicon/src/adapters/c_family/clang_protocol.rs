@@ -41,12 +41,16 @@ pub(crate) struct StructuralRequest {
 impl StructuralRequest {
     pub(crate) fn new(
         repository_root: String,
-        owned_files: Vec<String>,
-        context_files: Vec<String>,
+        mut owned_files: Vec<String>,
+        mut context_files: Vec<String>,
         workers: usize,
         shards: usize,
         merge_fan_in: usize,
     ) -> Self {
+        owned_files.sort();
+        owned_files.dedup();
+        context_files.sort();
+        context_files.dedup();
         Self {
             protocol_version: PROTOCOL_VERSION,
             operation: "structural",

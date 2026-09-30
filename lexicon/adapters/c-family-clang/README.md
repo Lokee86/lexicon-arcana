@@ -37,7 +37,7 @@ Protocol v2 exposes:
 - `capabilities` — linked Clang version and compilation-database visibility;
 - `structural` — translation-unit/build context plus source-language, declaration, include, macro, diagnostic, inheritance/override, call-target, overload, receiver-type, virtual-dispatch, compiler-bound argument/value-flow, pointer-binding, access, and macro-expansion observations.
 
-The structural request receives the repository root, explicit `owned_files` and `context_files` inventories, and Lexicon's `workers`, `shards`, and `merge_fan_in` execution policy. The two ownership inventories must be canonical, disjoint repository-relative paths. Protocol v2 has no legacy `files` field. Compilation-database commands are used when available. Owned headers are assigned one deterministic real translation-unit context when possible and use direct synthetic analysis only when no usable real context exists. Context files may be parsed for compiler semantics but cannot emit ordinary file observations.
+The structural request receives the repository root, explicit `owned_files` and `context_files` inventories, and Lexicon's `workers`, `shards`, and `merge_fan_in` execution policy. The helper deterministically partitions semantic tasks into logical shards, runs no more than the requested worker count concurrently, and performs bounded deterministic reduction using `merge_fan_in`; there is no C-family-specific environment-variable scheduler. The two ownership inventories must be canonical, disjoint repository-relative paths. Protocol v2 has no legacy `files` field. Compilation-database commands are used when available. Owned headers are assigned one deterministic real translation-unit context when possible and use direct synthetic analysis only when no usable real context exists. Context files may be parsed for compiler semantics but cannot emit ordinary file observations.
 
 The protocol does not contain facts-v1 records or canonical Lexicon IDs.
 
@@ -55,6 +55,7 @@ Rust does not parse macro replacement text or reconstruct C/C++ compiler semanti
 | --- | --- |
 | Helper entry point and protocol dispatch | `main.cpp`, `structural.cpp`, `structural_action.cpp` |
 | Deterministic compiler-context planning | `structural_plan.h`, `structural_plan.cpp` |
+| Lexicon-owned execution policy and bounded reduction | `structural_execution.h`, `structural_execution.cpp` |
 | Translation-unit/declaration observations | `structural_frontend.cpp`, `structural_declarations.cpp`, `structural_declaration_support.cpp` |
 | Calls and compiler relationships | `structural_calls.cpp`, `structural_relationships.cpp`, `structural_semantic_support.cpp`, `structural_semantics.cpp` |
 | Pointer/value/access observations | `structural_access_flow.cpp`, `structural_value_flow.cpp`, `structural_value_flow_json.cpp` |

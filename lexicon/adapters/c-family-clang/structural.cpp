@@ -1,11 +1,8 @@
 #include "structural.h"
 
 #include <algorithm>
-#include <cstdlib>
 #include <filesystem>
-#include <memory>
 #include <string>
-#include <thread>
 #include <utility>
 #include <vector>
 
@@ -13,30 +10,13 @@
 #include "clang/Tooling/CompilationDatabase.h"
 #include "clang/Tooling/Tooling.h"
 
-#include "structural_frontend.h"
 #include "perf.h"
 #include "protocol.h"
+#include "structural_execution.h"
 #include "structural_model.h"
 #include "structural_plan.h"
 
 namespace {
-
-std::size_t frontend_jobs(std::size_t file_count) {
-  if (file_count < 2) {
-    return file_count;
-  }
-  if (const char *configured = std::getenv("LEXICON_CLANG_JOBS")) {
-    char *end = nullptr;
-    const auto parsed = std::strtoul(configured, &end, 10);
-    if (end != configured && *end == '\0' && parsed > 0) {
-      return std::min<std::size_t>(parsed, file_count);
-    }
-  }
-  const auto hardware = std::thread::hardware_concurrency();
-  const auto available = hardware == 0 ? std::size_t{4}
-                                       : static_cast<std::size_t>(hardware);
-  return std::min<std::size_t>({std::size_t{8}, available, file_count});
-}
 
 bool canonical_relative(llvm::StringRef value) {
   if (value.empty() || value.contains('\\')) {
@@ -145,88 +125,6 @@ bool validate_request(const llvm::json::Object &request, StructuralInput &input,
   return true;
 }
 
-int run_task(const std::string &root,
-             lexicon::clang_frontend::CompilationCommands &database,
-             lexicon::clang_frontend::State &state,
-             const lexicon::clang_frontend::AnalysisTask &task) {
-  state.set_owned_files(task.owned_files);
-  const auto absolute =
-      (std::filesystem::path(root) /
-       std::filesystem::path(task.translation_unit))
-          .string();
-  auto commands = database.getCompileCommands(absolute);
-  if (commands.empty()) {
-    return 1;
-  }
-  const auto &command = commands.front();
-  const auto language =
-      lexicon::clang_frontend::language_for(task.translation_unit,
-                                            command.CommandLine);
-  state.translation_units.push_back({
-      .path = task.translation_unit,
-      .language = language,
-      .directory = command.Directory,
-      .arguments = command.CommandLine,
-      .synthesized = task.synthesized,
-  });
-  if (state.owns(task.translation_unit)) {
-    state.file(task.translation_unit, language, task.translation_unit);
-  }
-
-  clang::tooling::ClangTool tool(database, {absolute});
-  auto factory =
-      lexicon::clang_frontend::make_frontend_factory(state, root);
-  return tool.run(factory.get());
-}
-
-int run_tasks(
-    const std::string &root,
-    lexicon::clang_frontend::CompilationCommands &database,
-    lexicon::clang_frontend::State &state,
-    const std::vector<lexicon::clang_frontend::AnalysisTask> &tasks) {
-  if (tasks.empty()) {
-    return 0;
-  }
-
-  const auto jobs = frontend_jobs(tasks.size());
-  if (jobs <= 1) {
-    int status = 0;
-    for (const auto &task : tasks) {
-      status |= run_task(root, database, state, task);
-    }
-    return status;
-  }
-
-  std::vector<std::vector<lexicon::clang_frontend::AnalysisTask>> chunks(jobs);
-  for (std::size_t index = 0; index < tasks.size(); ++index) {
-    chunks[index % jobs].push_back(tasks[index]);
-  }
-
-  std::vector<int> statuses(jobs, 0);
-  std::vector<std::unique_ptr<lexicon::clang_frontend::State>> results(jobs);
-  std::vector<std::thread> workers;
-  workers.reserve(jobs);
-  for (std::size_t index = 0; index < chunks.size(); ++index) {
-    workers.emplace_back([&database, &root, &statuses, &results, index,
-                          tasks = std::move(chunks[index])]() mutable {
-      auto local = std::make_unique<lexicon::clang_frontend::State>(root);
-      for (const auto &task : tasks) {
-        statuses[index] |= run_task(root, database, *local, task);
-      }
-      results[index] = std::move(local);
-    });
-  }
-  for (auto &worker : workers) {
-    worker.join();
-  }
-
-  int status = 0;
-  for (std::size_t index = 0; index < jobs; ++index) {
-    status |= statuses[index];
-    state.merge(std::move(*results[index]));
-  }
-  return status;
-}
 
 } // namespace
 
@@ -264,12 +162,23 @@ bool emit_structural(const llvm::json::Object &request,
        {"synthetic_header_tasks",
         static_cast<std::uint64_t>(plan.synthetic_header_tasks)}});
 
+  lexicon::clang_frontend::ExecutionSummary execution;
+  const auto frontend_started = lexicon::clang_frontend::PerfClock::now();
+  int status = lexicon::clang_frontend::execute_task_plan(
+      root, database, state, plan.tasks,
+      {
+          .workers = input.workers,
+          .shards = input.shards,
+          .merge_fan_in = input.merge_fan_in,
+      },
+      execution);
   lexicon::clang_frontend::emit_perf(
       "c-family.clang.frontend_plan", std::chrono::nanoseconds(0),
       {{"semantic_tasks", static_cast<std::uint64_t>(plan.tasks.size())},
-       {"jobs", static_cast<std::uint64_t>(frontend_jobs(plan.tasks.size()))}});
-  const auto frontend_started = lexicon::clang_frontend::PerfClock::now();
-  int status = run_tasks(root, database, state, plan.tasks);
+       {"logical_shards",
+        static_cast<std::uint64_t>(execution.logical_shards)},
+       {"worker_limit", static_cast<std::uint64_t>(execution.worker_limit)},
+       {"merge_fan_in", static_cast<std::uint64_t>(input.merge_fan_in)}});
   lexicon::clang_frontend::emit_perf(
       "c-family.clang.frontend_work",
       lexicon::clang_frontend::PerfClock::now() - frontend_started,

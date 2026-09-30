@@ -20,6 +20,7 @@ add_executable(
     structural_calls.cpp
     structural_declaration_support.cpp
     structural_declarations.cpp
+    structural_execution.cpp
     structural_frontend.cpp
     structural_model.cpp
     structural_plan.cpp
