@@ -217,24 +217,24 @@ After deterministic duplicate call-edge metadata merging, the final canonical SH
 
 ### nlohmann/json performance profile
 
-The final resumable cold run is **24.265 s** versus **1.170 s** before; the final warm run is **22.108 s** versus **0.613 s**. Peak process-tree RSS is **553.1 MB** cold and **553.8 MB** warm, versus about **63.2 MB** and **61.6 MB** before.
+The final spool-backed cold run is **37.853 s** versus **1.170 s** before; the final warm run is **34.710 s** versus **0.613 s**. Peak process-tree RSS is **552.6 MB** cold and **553.9 MB** warm, versus about **63.2 MB** and **61.6 MB** before.
 
 | Stage | Time |
 |---|---:|
-| repository discovery | 0.005 s |
-| helper startup | 0.011 s |
-| compilation database load | 0.003 s |
-| Clang frontend work | 17.849 s wall |
-| aggregate semantic visitor CPU | 43.766 s |
-| observation emission | 0.371 s |
-| helper IPC total | 23.940 s |
-| response decode | 5.342 s |
-| Rust materialization | 0.045 s |
-| Lexicon graph extensions | 0.015 s |
-| canonicalization | 0.003 s |
-| facts-v1 validation | 0.016 s |
+| repository discovery | 0.003 s |
+| helper startup | 0.010 s |
+| compilation database load | 0.004 s |
+| Clang frontend work | 23.480 s wall |
+| aggregate semantic visitor CPU | 54.992 s |
+| observation emission | 1.028 s |
+| helper IPC total | 34.981 s |
+| response decode | 9.768 s |
+| Rust materialization | 0.263 s |
+| Lexicon graph extensions | 0.017 s |
+| canonicalization | 0.004 s |
+| facts-v1 validation | 0.026 s |
 
-Orphan-header batching is material here: the earlier diagnostic profile took **135.606 s** in frontend work, while the final resumable cold run takes **17.849 s**. A transient Rust-side header-depth fanout experiment raised cold wall to about **68 s** without changing semantic counts; it was removed so header batching remains owned by the native helper. Rust graph construction remains negligible relative to compiler frontend work.
+Orphan-header batching is material here: the earlier diagnostic profile took **135.606 s** in frontend work, while the final spool-backed cold run takes **23.480 s**. Disk-backed observation spooling adds decode/materialization overhead but preserves the exact semantic summary and deterministic hash while bounding Rust-side peak memory. A transient Rust-side header-depth fanout experiment raised cold wall to about **68 s** without changing semantic counts; it was removed so header batching remains owned by the native helper.
 
 ## Catch2 final gate
 

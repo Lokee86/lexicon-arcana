@@ -63,7 +63,7 @@ The frontend path has therefore been changed to:
 
 The latest real-build-context Git attempt reached Clang frontend execution but the single helper exited before emitting a response frame. Codebase Memory then reproduced the same failure on the first **128-file** source helper request. These attempts are evidence of helper-lifetime memory pressure, not semantic mismatches and not response-ceiling failures. The production source batch is therefore **16 files** (two source TUs per native worker at the default eight-worker ceiling).
 
-The replacement production path sends source files through deterministic **16-file helper requests** and merges responses in Rust. The nlohmann/json regression canary completed deterministically with the same semantic counts and **21.896 s / 22.506 s** cold/warm wall after restoring native orphan-header ownership. Codebase Memory is the current large-source batching gate because its 623-file frozen corpus crosses the new helper boundary while remaining smaller than Git.
+The replacement production path sends source files through deterministic **16-file helper requests** and spools returned per-file observations to disk. The spool-backed nlohmann/json canary completed deterministically with the same semantic counts and hash at **37.853 s / 34.710 s** cold/warm wall. Codebase Memory is the current large-source batching gate because its 623-file frozen corpus crosses the new helper boundary while remaining smaller than Git.
 
 Git/CBM final runs use raw WSL Docker rather than the Workspace Docker scheduler because the latter repeatedly cancelled long jobs when unrelated Docker work took the shared target slot.
 
