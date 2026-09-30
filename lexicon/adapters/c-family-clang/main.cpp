@@ -12,11 +12,10 @@
 
 #include "structural.h"
 #include "perf.h"
+#include "protocol.h"
 
 namespace {
 
-constexpr int kProtocolVersion = 1;
-constexpr const char *kHelperVersion = LEXICON_CLANG_HELPER_VERSION;
 
 struct Options {
   int protocol_version = 0;
@@ -50,7 +49,7 @@ int emit_capabilities(const llvm::json::Object &request) {
   auto protocol = request.getInteger("protocol_version");
   auto operation = request.getString("operation");
   auto repository_root = request.getString("repository_root");
-  if (!protocol || *protocol != kProtocolVersion) {
+  if (!protocol || *protocol != lexicon::clang_frontend::kProtocolVersion) {
     return fail("unsupported C-family Clang protocol version");
   }
   if (!operation || *operation != "capabilities") {
@@ -77,8 +76,8 @@ int emit_capabilities(const llvm::json::Object &request) {
   capabilities.emplace_back("source-manager");
 
   llvm::json::Object response{
-      {"protocol_version", kProtocolVersion},
-      {"helper_version", kHelperVersion},
+      {"protocol_version", lexicon::clang_frontend::kProtocolVersion},
+      {"helper_version", lexicon::clang_frontend::kHelperVersion},
       {"clang_version", clang::getClangFullVersion()},
       {"capabilities", std::move(capabilities)},
       {"compilation_database", database != nullptr},
@@ -100,13 +99,13 @@ int main(int argc, char **argv) {
     return fail("invalid C-family Clang helper arguments", 2);
   }
   if (options->show_version) {
-    llvm::outs() << "lexicon-c-family-clang " << kHelperVersion << "\n";
+    llvm::outs() << "lexicon-c-family-clang " << lexicon::clang_frontend::kHelperVersion << "\n";
     return 0;
   }
-  if (options->protocol_version != kProtocolVersion) {
+  if (options->protocol_version != lexicon::clang_frontend::kProtocolVersion) {
     return fail("unsupported C-family Clang protocol version", 2);
   }
-  if (options->helper_version != kHelperVersion) {
+  if (options->helper_version != lexicon::clang_frontend::kHelperVersion) {
     return fail("C-family Clang helper version mismatch", 2);
   }
 

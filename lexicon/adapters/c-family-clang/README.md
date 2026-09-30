@@ -32,12 +32,12 @@ The helper accepts:
 
 It reads one JSON request line from stdin and writes one JSON response line to stdout.
 
-Protocol v1 exposes:
+Protocol v2 exposes:
 
 - `capabilities` — linked Clang version and compilation-database visibility;
 - `structural` — translation-unit/build context plus source-language, declaration, include, macro, diagnostic, inheritance/override, call-target, overload, receiver-type, virtual-dispatch, compiler-bound argument/value-flow, pointer-binding, access, and macro-expansion observations.
 
-The structural request receives the repository root and the Rust-discovered C-family source inventory. Compilation-database commands are used when available. Uncovered source files use synthesized Clang commands; headers are normally observed through source translation units, with only orphan headers receiving direct Clang analysis.
+The structural request receives the repository root, explicit `owned_files` and `context_files` inventories, and Lexicon's `workers`, `shards`, and `merge_fan_in` execution policy. The two ownership inventories must be canonical, disjoint repository-relative paths. Protocol v2 has no legacy `files` field. Compilation-database commands are used when available. Uncovered source files use synthesized Clang commands; headers are normally observed through source translation units, with only orphan headers receiving direct Clang analysis.
 
 The protocol does not contain facts-v1 records or canonical Lexicon IDs.
 

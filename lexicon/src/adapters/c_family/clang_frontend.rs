@@ -10,9 +10,12 @@ use std::{
 
 use crate::{AdapterError, adapters::frontend::FrontendRunner};
 
-use super::clang_protocol::{self, FileObservation, StructuralRequest, StructuralResponse};
 #[cfg(test)]
 use super::clang_protocol::{CapabilitiesRequest, CapabilitiesResponse};
+use super::{
+    clang_protocol::{self, FileObservation, StructuralRequest, StructuralResponse},
+    inventory::ScanInventory,
+};
 
 #[cfg(test)]
 mod tests;
@@ -239,7 +242,10 @@ impl ClangFrontend {
     pub(crate) fn structural(
         &self,
         repository: &Path,
-        files: Vec<String>,
+        inventory: ScanInventory,
+        workers: usize,
+        shards: usize,
+        merge_fan_in: usize,
     ) -> Result<StructuralObservationStore, AdapterError> {
         let repository = repository.canonicalize().map_err(|error| {
             AdapterError::new(format!(
@@ -256,16 +262,23 @@ impl ClangFrontend {
             .to_str()
             .map(str::to_owned)
             .ok_or_else(|| AdapterError::new("repository path is not valid UTF-8"))?;
-        let mut files = files;
-        files.sort();
-        files.dedup();
+        let owned = inventory
+            .owned_files
+            .iter()
+            .cloned()
+            .collect::<HashSet<_>>();
+        let files = inventory.analysis_files();
 
         let mut store = StructuralObservationStore::create()?;
         if files.is_empty() {
             store.append_response(self.run_structural_request(
                 &repository,
                 repository_root,
-                files,
+                Vec::new(),
+                Vec::new(),
+                workers,
+                shards,
+                merge_fan_in,
             )?)?;
             return Ok(store);
         }
@@ -275,8 +288,16 @@ impl ClangFrontend {
             .partition(|path| !super::discovery::is_header_path(path));
 
         for chunk in sources.chunks(STRUCTURAL_FILES_PER_REQUEST) {
-            let response =
-                self.run_structural_request(&repository, repository_root.clone(), chunk.to_vec())?;
+            let (owned_files, context_files) = split_ownership(chunk.to_vec(), &owned);
+            let response = self.run_structural_request(
+                &repository,
+                repository_root.clone(),
+                owned_files,
+                context_files,
+                workers,
+                shards,
+                merge_fan_in,
+            )?;
             store.append_response(response)?;
         }
 
@@ -285,8 +306,16 @@ impl ClangFrontend {
             .filter(|path| !store.contains_file(path))
             .collect::<Vec<_>>();
         if !orphan_headers.is_empty() {
-            let response =
-                self.run_structural_request(&repository, repository_root.clone(), orphan_headers)?;
+            let (owned_files, context_files) = split_ownership(orphan_headers, &owned);
+            let response = self.run_structural_request(
+                &repository,
+                repository_root.clone(),
+                owned_files,
+                context_files,
+                workers,
+                shards,
+                merge_fan_in,
+            )?;
             store.append_response(response)?;
         }
 
@@ -297,14 +326,25 @@ impl ClangFrontend {
         &self,
         repository: &Path,
         repository_root: String,
-        files: Vec<String>,
+        owned_files: Vec<String>,
+        context_files: Vec<String>,
+        workers: usize,
+        shards: usize,
+        merge_fan_in: usize,
     ) -> Result<StructuralResponse, AdapterError> {
         let response: StructuralResponse = self.runner.run_json(
             repository,
             &helper_arguments(),
             &helper_environment(),
             clang_protocol::PROTOCOL_VERSION,
-            &StructuralRequest::new(repository_root, files),
+            &StructuralRequest::new(
+                repository_root,
+                owned_files,
+                context_files,
+                workers,
+                shards,
+                merge_fan_in,
+            ),
         )?;
         verify_helper_version(&response.helper_version)?;
         Ok(response)
@@ -314,6 +354,10 @@ impl ClangFrontend {
     pub(crate) fn with_runner(runner: FrontendRunner) -> Self {
         Self { runner }
     }
+}
+
+fn split_ownership(files: Vec<String>, owned: &HashSet<String>) -> (Vec<String>, Vec<String>) {
+    files.into_iter().partition(|path| owned.contains(path))
 }
 
 fn dedup_exact<T: Debug>(values: &mut Vec<T>) {

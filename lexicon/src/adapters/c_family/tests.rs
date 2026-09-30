@@ -11,7 +11,7 @@ use crate::{
 
 use super::{CFamilyAdapter, clang_frontend::ClangFrontend};
 
-const STRUCTURAL_RESPONSE: &str = r#"{"protocol_version":1,"helper_version":"0.4.0","clang_version":"clang test","compilation_database":false,"translation_units":[{"path":"main.c","language":"c","directory":".","arguments":["clang","-xc","main.c"],"synthesized":true}],"files":[{"path":"main.c","languages":["c"],"translation_units":["main.c"],"declarations":[{"compiler_id":"main","kind":"function","name":"main","qualified_name":"main","signature":"int main()","span":{"path":"main.c","start_line":1,"start_column":1,"end_line":1,"end_column":9},"callable":true,"definition":true,"internal":false,"template":false,"virtual_member":false,"function_pointer":false,"alias":false,"enum_member":false,"parameter_count":0}]}],"diagnostics":[]}"#;
+const STRUCTURAL_RESPONSE: &str = r#"{"protocol_version":2,"helper_version":"0.5.0","clang_version":"clang test","compilation_database":false,"translation_units":[{"path":"main.c","language":"c","directory":".","arguments":["clang","-xc","main.c"],"synthesized":true}],"files":[{"path":"main.c","languages":["c"],"translation_units":["main.c"],"declarations":[{"compiler_id":"main","kind":"function","name":"main","qualified_name":"main","signature":"int main()","span":{"path":"main.c","start_line":1,"start_column":1,"end_line":1,"end_column":9},"callable":true,"definition":true,"internal":false,"template":false,"virtual_member":false,"function_pointer":false,"alias":false,"enum_member":false,"parameter_count":0}]}],"diagnostics":[]}"#;
 
 #[test]
 fn production_adapter_routes_through_clang_frontend() {

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{SourceSpan, adapters::frontend::ProtocolResponse};
 
-pub(crate) const PROTOCOL_VERSION: u32 = 1;
+pub(crate) const PROTOCOL_VERSION: u32 = 2;
 pub(crate) const HELPER_VERSION: &str = include_str!("../../../adapters/c-family-clang/VERSION");
 
 #[cfg(test)]
@@ -31,16 +31,31 @@ pub(crate) struct StructuralRequest {
     pub protocol_version: u32,
     pub operation: &'static str,
     pub repository_root: String,
-    pub files: Vec<String>,
+    pub owned_files: Vec<String>,
+    pub context_files: Vec<String>,
+    pub workers: usize,
+    pub shards: usize,
+    pub merge_fan_in: usize,
 }
 
 impl StructuralRequest {
-    pub(crate) fn new(repository_root: String, files: Vec<String>) -> Self {
+    pub(crate) fn new(
+        repository_root: String,
+        owned_files: Vec<String>,
+        context_files: Vec<String>,
+        workers: usize,
+        shards: usize,
+        merge_fan_in: usize,
+    ) -> Self {
         Self {
             protocol_version: PROTOCOL_VERSION,
             operation: "structural",
             repository_root,
-            files,
+            owned_files,
+            context_files,
+            workers: workers.max(1),
+            shards: shards.max(1),
+            merge_fan_in: merge_fan_in.max(2),
         }
     }
 }

@@ -18,8 +18,8 @@ fn clang_semantics_materialize_relationships_and_call_policy() {
     .unwrap();
 
     let response: StructuralResponse = serde_json::from_value(json!({
-        "protocol_version": 1,
-        "helper_version": "0.4.0",
+        "protocol_version": 2,
+        "helper_version": "0.5.0",
         "clang_version": "clang test",
         "compilation_database": true,
         "files": [{
@@ -167,8 +167,8 @@ fn macro_spanned_semantics_resolve_source_identity_across_files() {
     fs::write(root.path.join("macro.h"), b"#define WRAP() target\n").unwrap();
 
     let response: StructuralResponse = serde_json::from_value(json!({
-        "protocol_version": 1,
-        "helper_version": "0.4.0",
+        "protocol_version": 2,
+        "helper_version": "0.5.0",
         "clang_version": "clang test",
         "compilation_database": true,
         "files": [
@@ -265,8 +265,8 @@ fn resolved_external_clang_target_stays_unresolved_in_lexicon_policy() {
     )
     .unwrap();
     let response: StructuralResponse = serde_json::from_value(json!({
-        "protocol_version": 1,
-        "helper_version": "0.4.0",
+        "protocol_version": 2,
+        "helper_version": "0.5.0",
         "clang_version": "clang test",
         "compilation_database": true,
         "files": [{
@@ -319,8 +319,8 @@ fn clang_entity_prefers_repository_definition_when_callsite_has_no_same_file_red
     .unwrap();
 
     let response: StructuralResponse = serde_json::from_value(json!({
-        "protocol_version": 1,
-        "helper_version": "0.4.0",
+        "protocol_version": 2,
+        "helper_version": "0.5.0",
         "clang_version": "clang test",
         "compilation_database": true,
         "files": [

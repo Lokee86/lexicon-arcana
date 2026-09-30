@@ -20,8 +20,8 @@ fn clang_bound_values_drive_accesses_and_passes_to() {
     .unwrap();
 
     let response: StructuralResponse = serde_json::from_value(json!({
-        "protocol_version": 1,
-        "helper_version": "0.4.0",
+        "protocol_version": 2,
+        "helper_version": "0.5.0",
         "clang_version": "clang test",
         "compilation_database": true,
         "files": [{

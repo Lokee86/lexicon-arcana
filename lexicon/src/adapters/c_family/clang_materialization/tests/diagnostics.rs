@@ -12,8 +12,8 @@ fn compiler_diagnostics_mark_structural_file_parse_error() {
     let root = TestDirectory::new("diagnostic");
     fs::write(root.path.join("bad.c"), b"int broken(;\n").unwrap();
     let response: StructuralResponse = serde_json::from_value(json!({
-        "protocol_version": 1,
-        "helper_version": "0.2.0",
+        "protocol_version": 2,
+        "helper_version": "0.5.0",
         "clang_version": "clang test",
         "compilation_database": false,
         "files": [{
@@ -38,8 +38,8 @@ fn compiler_diagnostics_mark_structural_file_parse_error() {
 fn rejects_noncanonical_observation_paths() {
     let root = TestDirectory::new("path");
     let response: StructuralResponse = serde_json::from_value(json!({
-        "protocol_version": 1,
-        "helper_version": "0.2.0",
+        "protocol_version": 2,
+        "helper_version": "0.5.0",
         "clang_version": "clang test",
         "compilation_database": false,
         "files": [{"path": "../escape.c", "languages": ["c"]}]

@@ -18,11 +18,10 @@
 
 #include "structural_frontend.h"
 #include "perf.h"
+#include "protocol.h"
 #include "structural_model.h"
 
 namespace {
-
-constexpr const char *kHelperVersion = LEXICON_CLANG_HELPER_VERSION;
 
 std::string extension(llvm::StringRef file) {
   auto value = std::filesystem::path(file.str()).extension().string();
@@ -208,13 +207,65 @@ std::size_t frontend_jobs(std::size_t file_count) {
   return std::min<std::size_t>({std::size_t{8}, available, file_count});
 }
 
-bool validate_request(const llvm::json::Object &request, std::string &root,
-                      std::vector<std::string> &files, std::string &error) {
+struct StructuralInput {
+  std::string root;
+  std::vector<std::string> owned_files;
+  std::vector<std::string> context_files;
+  std::size_t workers = 0;
+  std::size_t shards = 0;
+  std::size_t merge_fan_in = 0;
+
+  std::vector<std::string> analysis_files() const {
+    auto files = owned_files;
+    files.insert(files.end(), context_files.begin(), context_files.end());
+    std::sort(files.begin(), files.end());
+    files.erase(std::unique(files.begin(), files.end()), files.end());
+    return files;
+  }
+};
+
+bool read_inventory(const llvm::json::Object &request, llvm::StringRef field,
+                    std::vector<std::string> &files, std::string &error) {
+  const auto *input = request.getArray(field);
+  if (!input) {
+    error = field.str() + " is required";
+    return false;
+  }
+  for (const auto &entry : *input) {
+    auto value = entry.getAsString();
+    if (!value || !canonical_relative(*value)) {
+      error = field.str() + " must use canonical repository-relative paths";
+      return false;
+    }
+    files.push_back(value->str());
+  }
+  std::sort(files.begin(), files.end());
+  files.erase(std::unique(files.begin(), files.end()), files.end());
+  return true;
+}
+
+bool read_execution_value(const llvm::json::Object &request,
+                          llvm::StringRef field, std::size_t minimum,
+                          std::size_t &value, std::string &error) {
+  const auto parsed = request.getInteger(field);
+  if (!parsed || *parsed < static_cast<std::int64_t>(minimum)) {
+    error = field.str() + " must be at least " + std::to_string(minimum);
+    return false;
+  }
+  value = static_cast<std::size_t>(*parsed);
+  return true;
+}
+
+bool validate_request(const llvm::json::Object &request, StructuralInput &input,
+                      std::string &error) {
   auto protocol = request.getInteger("protocol_version");
   auto operation = request.getString("operation");
   auto repository_root = request.getString("repository_root");
-  const auto *input_files = request.getArray("files");
-  if (!protocol || *protocol != 1) {
+  if (request.get("files")) {
+    error = "legacy files field is unsupported";
+    return false;
+  }
+  if (!protocol || *protocol != lexicon::clang_frontend::kProtocolVersion) {
     error = "unsupported C-family Clang protocol version";
     return false;
   }
@@ -226,26 +277,32 @@ bool validate_request(const llvm::json::Object &request, std::string &root,
     error = "repository_root is required";
     return false;
   }
+
   std::filesystem::path root_path(repository_root->str());
   if (!root_path.is_absolute()) {
     error = "repository_root must be absolute";
     return false;
   }
-  if (!input_files) {
-    error = "files is required";
+  input.root = root_path.lexically_normal().string();
+
+  if (!read_inventory(request, "owned_files", input.owned_files, error) ||
+      !read_inventory(request, "context_files", input.context_files, error)) {
     return false;
   }
-  root = root_path.lexically_normal().string();
-  for (const auto &entry : *input_files) {
-    auto value = entry.getAsString();
-    if (!value || !canonical_relative(*value)) {
-      error = "files must use canonical repository-relative paths";
+  for (const auto &path : input.context_files) {
+    if (std::binary_search(input.owned_files.begin(), input.owned_files.end(),
+                           path)) {
+      error = "owned_files and context_files must be disjoint";
       return false;
     }
-    files.push_back(value->str());
   }
-  std::sort(files.begin(), files.end());
-  files.erase(std::unique(files.begin(), files.end()), files.end());
+
+  if (!read_execution_value(request, "workers", 1, input.workers, error) ||
+      !read_execution_value(request, "shards", 1, input.shards, error) ||
+      !read_execution_value(request, "merge_fan_in", 2, input.merge_fan_in,
+                            error)) {
+    return false;
+  }
   return true;
 }
 
@@ -318,11 +375,12 @@ int run_batch(const std::string &root, CompilationCommands &database,
 
 bool emit_structural(const llvm::json::Object &request,
                      llvm::json::Object &response, std::string &error) {
-  std::string root;
-  std::vector<std::string> files;
-  if (!validate_request(request, root, files, error)) {
+  StructuralInput input;
+  if (!validate_request(request, input, error)) {
     return false;
   }
+  const auto &root = input.root;
+  const auto files = input.analysis_files();
 
   std::string database_error;
   const auto database_started = lexicon::clang_frontend::PerfClock::now();
@@ -403,8 +461,9 @@ bool emit_structural(const llvm::json::Object &request,
   }
 
   const auto emission_started = lexicon::clang_frontend::PerfClock::now();
-  response = state.response(base != nullptr, clang::getClangFullVersion(),
-                            kHelperVersion);
+  response =
+      state.response(base != nullptr, clang::getClangFullVersion(),
+                     lexicon::clang_frontend::kHelperVersion);
   lexicon::clang_frontend::emit_perf(
       "c-family.clang.observation_emission",
       lexicon::clang_frontend::PerfClock::now() - emission_started,

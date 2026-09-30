@@ -23,8 +23,8 @@ fn clang_pointer_and_callback_flow_drive_indirect_calls() {
     .unwrap();
 
     let response: StructuralResponse = serde_json::from_value(json!({
-        "protocol_version": 1,
-        "helper_version": "0.4.0",
+        "protocol_version": 2,
+        "helper_version": "0.5.0",
         "clang_version": "clang test",
         "compilation_database": true,
         "files": [{
@@ -145,8 +145,8 @@ fn clang_external_pointer_binding_does_not_require_repository_materialization() 
     fs::write(root.path.join("signal.c"), b"void callback(void){}\n").unwrap();
 
     let response: StructuralResponse = serde_json::from_value(json!({
-        "protocol_version": 1,
-        "helper_version": "0.4.0",
+        "protocol_version": 2,
+        "helper_version": "0.5.0",
         "clang_version": "clang test",
         "compilation_database": true,
         "files": [{

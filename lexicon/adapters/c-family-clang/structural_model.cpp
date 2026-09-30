@@ -5,6 +5,7 @@
 #include <tuple>
 #include <utility>
 
+#include "protocol.h"
 #include "structural_semantics.h"
 #include "structural_value_flow_json.h"
 
@@ -274,7 +275,7 @@ llvm::json::Object State::response(bool compilation_database,
   }
 
   return llvm::json::Object{
-      {"protocol_version", 1},
+      {"protocol_version", kProtocolVersion},
       {"helper_version", helper_version},
       {"clang_version", std::move(clang_version)},
       {"compilation_database", compilation_database},

@@ -169,11 +169,13 @@ impl LanguageAdapter for CFamilyAdapter {
         }
 
         let frontend_started = crate::perf::start();
-        // Protocol v1 still receives the complete analysis scope. The owned/context
-        // distinction is now explicit in Rust and will become a wire invariant in 2.7R.2.
-        let observations = self
-            .frontend
-            .structural(&repository, inventory.analysis_files())?;
+        let observations = self.frontend.structural(
+            &repository,
+            inventory,
+            request.workers,
+            request.shards,
+            request.merge_fan_in,
+        )?;
         if let Some(started) = frontend_started {
             crate::perf::emit(
                 "c-family.frontend.semantic_analysis",
