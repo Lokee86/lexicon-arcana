@@ -8,7 +8,7 @@ Parent index: [Development Documentation](INDEX.md)
 
 **Starting checkpoint:** `610f840` — `Cut C-family production over to Clang`
 
-**Status:** calibration in progress; evidence below is durable and the remaining pinned-corpus matrix is appended as each case completes.
+**Status:** blocked on Phase 2.7R performance architecture repair; existing semantic evidence remains durable, but final large-corpus calibration is paused.
 
 ## Purpose
 
@@ -21,6 +21,18 @@ The gate requires:
 - semantic-delta adjudication rather than byte parity;
 - frontend, IPC, Rust materialization, graph-extension, canonicalization, wall-time, and process-tree RSS evidence;
 - no unexplained material performance regression.
+
+## Phase 2.7R performance-architecture block
+
+Phase 2.7 is blocked on the C-family frontend ownership architecture. The latest Codebase Memory run exceeded the **600 s** gate and remained incomplete after **200 translation units**. Before timeout the helper had already produced about **489 MB** of response data, peak process-tree RSS reached about **6.9 GB**, Clang frontend work consumed about **307.5 s**, and Rust response decoding consumed about **167.1 s**.
+
+The same regression is visible on smaller corpora: fmt increased from about **5.2 s** to **140.1 s**, nlohmann/json from about **1.17 s** to **37.9 s**, and Catch2 from about **3.64 s** to **150.7 s**.
+
+This is no longer treated as acceptable compiler-semantic overhead. The blocked architecture allows a requested translation unit to expand ordinary observation ownership to repository files encountered as compiler context, causing repeated shared-header extraction, late Rust reduction, and oversized response transport.
+
+Phase 2.7R restores the ownership invariant: **Lexicon selects owned files; Clang may consume additional files as context, but context does not grant output ownership.**
+
+Do not run the larger final corpus gate, including Git, until Codebase Memory passes the repaired architecture.
 
 ## Reproducible native toolchain
 

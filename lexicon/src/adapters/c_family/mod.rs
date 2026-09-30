@@ -12,6 +12,7 @@ mod fact_dedup;
 mod facts;
 mod include_facts;
 mod includes;
+mod inventory;
 mod model;
 mod relationship_facts;
 mod resolution;
@@ -27,6 +28,8 @@ mod tests;
 use std::path::Path;
 
 use crate::{AdapterError, AdapterRequest, Analysis, LanguageAdapter};
+
+use inventory::ScanInventory;
 
 pub const ADAPTER_VERSION: &str = "0.6.0";
 
@@ -92,6 +95,7 @@ impl LanguageAdapter for CFamilyAdapter {
                 ("facts.rs", include_bytes!("facts.rs")),
                 ("include_facts.rs", include_bytes!("include_facts.rs")),
                 ("includes.rs", include_bytes!("includes.rs")),
+                ("inventory.rs", include_bytes!("inventory.rs")),
                 ("model.rs", include_bytes!("model.rs")),
                 (
                     "relationship_facts.rs",
@@ -154,16 +158,22 @@ impl LanguageAdapter for CFamilyAdapter {
 
         let discovery_started = crate::perf::start();
         let files = discovery::collect_sources(&repository)?;
+        let discovered_file_count = files.len();
+        let inventory = ScanInventory::from_discovered(request, files);
         if let Some(started) = discovery_started {
             crate::perf::emit(
                 "c-family.repository_discovery",
                 started.elapsed(),
-                &[("discovered_files", files.len() as u64)],
+                &[("discovered_files", discovered_file_count as u64)],
             );
         }
 
         let frontend_started = crate::perf::start();
-        let observations = self.frontend.structural(&repository, files)?;
+        // Protocol v1 still receives the complete analysis scope. The owned/context
+        // distinction is now explicit in Rust and will become a wire invariant in 2.7R.2.
+        let observations = self
+            .frontend
+            .structural(&repository, inventory.analysis_files())?;
         if let Some(started) = frontend_started {
             crate::perf::emit(
                 "c-family.frontend.semantic_analysis",

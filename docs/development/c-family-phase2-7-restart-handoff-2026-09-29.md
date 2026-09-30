@@ -87,13 +87,9 @@ The Python runner also aggregates repeated `[lexicon-perf]` stages across multip
 
 ## Remaining Phase 2.7 work
 
-At this checkpoint only the two large final corpus gates remain:
+The previous plan to finish Codebase Memory and then Git directly is superseded by Phase 2.7R. Codebase Memory exceeded the 600-second gate while incomplete after 200 translation units, with about 489 MB of helper response data, about 6.9 GB peak process-tree RSS, about 307.5 s of frontend work, and about 167.1 s of Rust response decoding.
 
-1. finish Codebase Memory `97ce23f9827177fff3858831156e9795c6832b18`;
-2. finish Git `9a0c4701dcd5725c4184599322b52933ff5005ca`;
-3. compare both against the Phase 2.1 oracle and append their semantic/performance adjudication;
-4. run final formatting/diff/focused acceptance;
-5. mark Phase 2.7 complete and only then proceed to Phase 2.8.
+The repair sequence must land before calibration resumes. Do not run Git or any larger final corpus gate until Codebase Memory passes the repaired ownership architecture. Phase 2.7 remains blocked until Phase 2.7R is complete, the corpus matrix is rerun in increasing size, and final semantic/performance adjudication is recorded.
 
 ## Environment notes
 
