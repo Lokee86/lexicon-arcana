@@ -194,26 +194,46 @@ def run_once(executable: Path, repository: Path, facts: Path, timeout: float) ->
 
 
 
-def run_case(executable: Path, repository: Path, timeout: float) -> dict:
-    with tempfile.TemporaryDirectory(prefix="c-family-phase2-") as raw:
-        temporary = Path(raw)
-        cold_facts = temporary / "cold.jsonl"
-        warm_facts = temporary / "warm.jsonl"
-
+def run_cold_case(executable: Path, repository: Path, timeout: float) -> dict:
+    with tempfile.TemporaryDirectory(prefix="c-family-phase2-cold-") as raw:
+        cold_facts = Path(raw) / "cold.jsonl"
         cold = run_once(executable, repository, cold_facts, timeout)
-        if not cold["completed"]:
-            return {"cold": cold, "warm": None, "facts": None}
+        facts_summary = (
+            summarize_facts(repository, cold_facts) if cold["completed"] else None
+        )
+        return {"cold": cold, "warm": None, "facts": facts_summary}
 
-        facts_summary = summarize_facts(repository, cold_facts)
+
+def run_warm_case(
+    executable: Path,
+    repository: Path,
+    timeout: float,
+    expected_sha256: str,
+) -> dict:
+    with tempfile.TemporaryDirectory(prefix="c-family-phase2-warm-") as raw:
+        warm_facts = Path(raw) / "warm.jsonl"
         warm = run_once(executable, repository, warm_facts, timeout)
         if warm["completed"]:
             warm_hash = hashlib.sha256(warm_facts.read_bytes()).hexdigest()
-            if warm_hash != facts_summary["sha256"]:
+            if warm_hash != expected_sha256:
                 raise RuntimeError(
                     f"non-deterministic C-family facts for {repository}: "
-                    f"{facts_summary['sha256']} != {warm_hash}"
+                    f"{expected_sha256} != {warm_hash}"
                 )
-        return {"cold": cold, "warm": warm, "facts": facts_summary}
+        return warm
+
+
+def run_case(executable: Path, repository: Path, timeout: float) -> dict:
+    result = run_cold_case(executable, repository, timeout)
+    if not result["cold"]["completed"]:
+        return result
+    result["warm"] = run_warm_case(
+        executable,
+        repository,
+        timeout,
+        result["facts"]["sha256"],
+    )
+    return result
 
 
 def main() -> int:
@@ -224,6 +244,9 @@ def main() -> int:
     parser.add_argument("--timeout-seconds", type=float, default=600.0)
     parser.add_argument("--case", action="append", choices=[name for name, _ in CASES])
     parser.add_argument("--append", action="store_true")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--cold-only", action="store_true")
+    mode.add_argument("--warm-only", action="store_true")
     args = parser.parse_args()
 
     executable = args.executable.resolve() if args.executable else build_adapter_eval()
@@ -252,11 +275,39 @@ def main() -> int:
         if not repository.is_dir():
             raise FileNotFoundError(repository)
         print(f"[c-family-phase2] {name}: {repository}", flush=True)
-        result["cases"][name] = {
+
+        metadata = {
             "repository": str(repository),
             "repository_revision": revision(repository),
-            **run_case(executable, repository, args.timeout_seconds),
         }
+        if args.warm_only:
+            existing = result["cases"].get(name)
+            if not existing or not existing.get("facts"):
+                raise ValueError(
+                    f"warm-only run for {name} requires an existing completed cold result"
+                )
+            warm = run_warm_case(
+                executable,
+                repository,
+                args.timeout_seconds,
+                existing["facts"]["sha256"],
+            )
+            result["cases"][name] = {
+                **existing,
+                **metadata,
+                "warm": warm,
+            }
+        elif args.cold_only:
+            result["cases"][name] = {
+                **metadata,
+                **run_cold_case(executable, repository, args.timeout_seconds),
+            }
+        else:
+            result["cases"][name] = {
+                **metadata,
+                **run_case(executable, repository, args.timeout_seconds),
+            }
+
         args.output.write_text(
             json.dumps(result, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",

@@ -3,6 +3,7 @@ set -eu
 
 case_name="$1"
 source_root="$2"
+run_mode="${3:-full}"
 work_root="/work/corpus"
 repo_name="$(basename "$source_root")"
 case_root="$work_root/$repo_name"
@@ -53,10 +54,27 @@ case "$case_name" in
     ;;
 esac
 
+case "$run_mode" in
+  full)
+    run_args=""
+    ;;
+  cold)
+    run_args="--cold-only"
+    ;;
+  warm)
+    run_args="--warm-only"
+    ;;
+  *)
+    echo "unsupported Phase 2.7 run mode: $run_mode" >&2
+    exit 2
+    ;;
+esac
+
 python3 /repo/scripts/c_family_phase2_baseline.py \
   --corpus-root "$work_root" \
   --output /out/final-matrix.json \
   --executable /out/adapter_eval \
   --timeout-seconds 600 \
   --append \
-  --case "$case_name"
+  --case "$case_name" \
+  $run_args

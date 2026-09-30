@@ -60,6 +60,15 @@ Final corpus gates run from writable container-local snapshots of the pinned rep
 
 For Makefile projects, `scripts/c_family_make_compdb.py` extracts compiler invocations from a forced dry run. It handles both ordinary one-source compile rules and Git-style shell presentation wrappers such as `echo ...; clang ...`. The resulting build-context inventories contain **566** Git commands and **167** Codebase Memory commands. CMake produces **39** LevelDB, **2** fmt library, and **107** Catch2 commands; discovered source/header files without an entry continue through the production synthetic-command policy.
 
+## Resumable final-gate execution
+
+Large corpus gates can be split at the cold/warm boundary without losing accepted evidence. The final-case wrapper supports `cold` and `warm` modes in addition to the original full run:
+
+- cold-only immediately persists cold wall/RSS/stage metrics plus the canonical fact summary;
+- warm-only requires that stored cold summary and verifies the new warm SHA-256 against it before updating the matrix.
+
+Because source batching launches multiple helper processes, calibration parsing now aggregates repeated performance-stage records across helper invocations. Elapsed times and additive counters are summed; `jobs` remains the maximum observed native concurrency. This prevents a batched corpus from reporting only the final helper process as its frontend cost.
+
 ## Current focused verification
 
 The current C-family unit surface passes **23/23** tests, including cross-file macro-source identity, checkout-path relocation determinism, full/incremental record equivalence, external function-pointer handling, and deterministic duplicate call-edge merging. The generic frontend-runner surface passes **5/5** tests, including preservation of first-frame protocol semantics on the spooled response path. Host-side formatting and `git diff --check` are green.

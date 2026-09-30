@@ -75,6 +75,16 @@ using the pinned Clang 18 image, clean helper, eight native frontend workers per
 
 Do not treat earlier scheduler cancellations as corpus failures.
 
+## Resumable final-gate harness
+
+Large final gates no longer need to complete cold and warm passes in one process. `scripts/c_family_phase2_final_case.sh` accepts an optional third mode:
+
+- `cold`: run only the cold pass and immediately persist its timing plus fact summary into `/out/final-matrix.json`;
+- `warm`: rerun only the warm pass and verify its SHA-256 against the stored cold fact hash;
+- omitted / `full`: preserve the original cold+warm behaviour.
+
+The Python runner also aggregates repeated `[lexicon-perf]` stages across multiple helper invocations so batched-source timing evidence reflects total frontend work rather than only the final helper process.
+
 ## Remaining Phase 2.7 work
 
 At this checkpoint only the two large final corpus gates remain:
