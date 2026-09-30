@@ -1,18 +1,16 @@
-use std::collections::BTreeSet;
-
 use crate::repository::NodeKey;
 
 use super::format::{
     CONTRIBUTION_KIND_OFFSET, CONTRIBUTION_RECORD_INDEX_OFFSET, CONTRIBUTION_RECORD_LEN,
-    FILE_OWNERSHIP_RECORD_LEN, FormatError, NODE_KEY_OFFSET, NODE_RECORD_LEN,
+    EDGE_RECORD_LEN, FILE_OWNERSHIP_RECORD_LEN, FormatError, NODE_KEY_OFFSET, NODE_RECORD_LEN,
     OWNERSHIP_CONTRIBUTION_COUNT_OFFSET, OWNERSHIP_CONTRIBUTION_START_OFFSET,
     OWNERSHIP_PATH_ID_OFFSET, STRING_ENTRY_LENGTH_OFFSET, STRING_ENTRY_OFFSET_OFFSET,
-    STRING_INDEX_RECORD_LEN, SectionKind,
+    STRING_INDEX_RECORD_LEN, SectionKind, UNRESOLVED_RECORD_LEN,
 };
 use super::record_io::{get_u32, get_u64};
 use super::{
-    CompactNodeRecord, RepositoryStoreFile, RepositoryStoreReadError, Sha256Identity,
-    StoreFormatError, StringId,
+    CompactEdgeRecord, CompactNodeRecord, CompactUnresolvedRecord, ContributionKindView,
+    RepositoryStoreFile, RepositoryStoreReadError, Sha256Identity, StoreFormatError, StringId,
 };
 
 impl RepositoryStoreFile {
@@ -70,10 +68,10 @@ impl RepositoryStoreFile {
         Ok(None)
     }
 
-    pub(super) fn collect_owned_nodes(
+    pub(super) fn for_each_owned_contribution(
         &mut self,
         index: u64,
-        node_ids: &mut BTreeSet<u32>,
+        mut visit: impl FnMut(ContributionKindView, u64) -> Result<(), RepositoryStoreReadError>,
     ) -> Result<(), RepositoryStoreReadError> {
         let record = self.ownership_record(index)?;
         let start = get_u64(&record, OWNERSHIP_CONTRIBUTION_START_OFFSET);
@@ -103,22 +101,23 @@ impl RepositoryStoreFile {
             self.read_exact_at(offset, &mut bytes)?;
 
             let record_index = get_u64(&bytes, CONTRIBUTION_RECORD_INDEX_OFFSET);
-            let kind = bytes[CONTRIBUTION_KIND_OFFSET];
-            let limit = match kind {
-                1 => self.header.section(SectionKind::Nodes).record_count,
-                2 => self.header.section(SectionKind::Edges).record_count,
-                3 => self.header.section(SectionKind::Unresolved).record_count,
+            let kind = match bytes[CONTRIBUTION_KIND_OFFSET] {
+                1 => ContributionKindView::Node,
+                2 => ContributionKindView::Edge,
+                3 => ContributionKindView::Unresolved,
                 _ => return Err(RepositoryStoreReadError::InvalidOwnership),
+            };
+            let limit = match kind {
+                ContributionKindView::Node => self.header.section(SectionKind::Nodes).record_count,
+                ContributionKindView::Edge => self.header.section(SectionKind::Edges).record_count,
+                ContributionKindView::Unresolved => {
+                    self.header.section(SectionKind::Unresolved).record_count
+                }
             };
             if record_index >= limit {
                 return Err(RepositoryStoreReadError::InvalidOwnership);
             }
-            if kind == 1 {
-                node_ids.insert(
-                    u32::try_from(record_index)
-                        .map_err(|_| RepositoryStoreReadError::InvalidOwnership)?,
-                );
-            }
+            visit(kind, record_index)?;
         }
         Ok(())
     }
@@ -160,7 +159,10 @@ impl RepositoryStoreFile {
         Ok(bytes)
     }
 
-    fn node_record(&mut self, node_id: u32) -> Result<CompactNodeRecord, RepositoryStoreReadError> {
+    pub(super) fn node_record(
+        &mut self,
+        node_id: u32,
+    ) -> Result<CompactNodeRecord, RepositoryStoreReadError> {
         let descriptor = self.header.section(SectionKind::Nodes);
         if u64::from(node_id) >= descriptor.record_count {
             return Err(RepositoryStoreReadError::InvalidNodeId(node_id));
@@ -176,6 +178,48 @@ impl RepositoryStoreFile {
         let mut bytes = [0_u8; NODE_RECORD_LEN as usize];
         self.read_exact_at(offset, &mut bytes)?;
         CompactNodeRecord::decode(&bytes).map_err(Into::into)
+    }
+
+    pub(super) fn edge_record(
+        &mut self,
+        index: u64,
+    ) -> Result<CompactEdgeRecord, RepositoryStoreReadError> {
+        let descriptor = self.header.section(SectionKind::Edges);
+        if index >= descriptor.record_count {
+            return Err(RepositoryStoreReadError::InvalidOwnership);
+        }
+        let offset = descriptor
+            .offset
+            .checked_add(
+                index
+                    .checked_mul(EDGE_RECORD_LEN)
+                    .ok_or(RepositoryStoreReadError::InvalidOwnership)?,
+            )
+            .ok_or(RepositoryStoreReadError::InvalidOwnership)?;
+        let mut bytes = [0_u8; EDGE_RECORD_LEN as usize];
+        self.read_exact_at(offset, &mut bytes)?;
+        CompactEdgeRecord::decode(&bytes).map_err(Into::into)
+    }
+
+    pub(super) fn unresolved_record(
+        &mut self,
+        index: u64,
+    ) -> Result<CompactUnresolvedRecord, RepositoryStoreReadError> {
+        let descriptor = self.header.section(SectionKind::Unresolved);
+        if index >= descriptor.record_count {
+            return Err(RepositoryStoreReadError::InvalidOwnership);
+        }
+        let offset = descriptor
+            .offset
+            .checked_add(
+                index
+                    .checked_mul(UNRESOLVED_RECORD_LEN)
+                    .ok_or(RepositoryStoreReadError::InvalidOwnership)?,
+            )
+            .ok_or(RepositoryStoreReadError::InvalidOwnership)?;
+        let mut bytes = [0_u8; UNRESOLVED_RECORD_LEN as usize];
+        self.read_exact_at(offset, &mut bytes)?;
+        CompactUnresolvedRecord::decode(&bytes).map_err(Into::into)
     }
 
     pub(super) fn node_key(&mut self, node_id: u32) -> Result<NodeKey, RepositoryStoreReadError> {
@@ -197,7 +241,7 @@ impl RepositoryStoreFile {
         Ok(NodeKey::from_u64(u64::from_le_bytes(bytes)))
     }
 
-    fn string(&mut self, id: StringId) -> Result<String, RepositoryStoreReadError> {
+    pub(super) fn string(&mut self, id: StringId) -> Result<String, RepositoryStoreReadError> {
         let descriptor = self.header.section(SectionKind::Strings);
         if id == StringId::ABSENT {
             return Err(StoreFormatError::AbsentString.into());

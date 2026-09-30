@@ -20,6 +20,7 @@ mod reader;
 mod reader_error;
 mod reader_file;
 mod reader_file_lookup;
+mod reader_file_materialize;
 mod reader_file_validation;
 mod reader_incremental;
 mod reader_materialize;

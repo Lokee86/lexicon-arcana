@@ -36,6 +36,45 @@ fn file_reader_matches_incremental_owned_node_lookup_without_retaining_store_byt
 }
 
 #[test]
+fn file_reader_matches_incremental_owned_facts_for_all_contribution_kinds() {
+    let path = temp_path("reader-file-owned-facts");
+    write_repository_store(&path, &sample_facts()).unwrap();
+
+    let memory = RepositoryStore::open(&path).unwrap();
+    let expected = memory
+        .owned_facts(&[
+            r"src\a.rs".to_owned(),
+            "src/a.rs".to_owned(),
+            "missing.rs".to_owned(),
+        ])
+        .unwrap()
+        .canonicalized();
+
+    let mut file = RepositoryStoreFile::open(&path).unwrap();
+    let actual = file
+        .owned_facts(&[
+            "src/a.rs".to_owned(),
+            r"src\a.rs".to_owned(),
+            "missing.rs".to_owned(),
+        ])
+        .unwrap()
+        .canonicalized();
+
+    assert_eq!(actual, expected);
+    assert_eq!(actual.nodes.len(), 3);
+    assert_eq!(actual.edges.len(), 3);
+    assert_eq!(actual.unresolved.len(), 2);
+    assert!(actual.nodes.iter().all(|node| node.path == "src/a.rs"));
+
+    let missing = file.owned_facts(&["missing.rs".to_owned()]).unwrap();
+    assert!(missing.nodes.is_empty());
+    assert!(missing.edges.is_empty());
+    assert!(missing.unresolved.is_empty());
+
+    cleanup(&[&path]);
+}
+
+#[test]
 fn file_reader_rejects_section_corruption_during_streaming_validation() {
     let path = temp_path("reader-file-corrupt");
     write_repository_store(&path, &sample_facts()).unwrap();
