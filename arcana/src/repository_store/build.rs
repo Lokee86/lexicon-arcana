@@ -84,6 +84,10 @@ impl CompactRepositoryDelta {
         self.edges.len()
     }
 
+    pub(crate) fn edges(&self) -> &[CompactEdgeRecord] {
+        &self.edges
+    }
+
     pub fn unresolved_count(&self) -> usize {
         self.unresolved.len()
     }

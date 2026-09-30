@@ -12,6 +12,11 @@ mod fact_file_tests;
 mod graph_compile;
 mod incremental;
 mod incremental_diff;
+mod incremental_local;
+#[cfg(test)]
+mod incremental_local_test_support;
+#[cfg(test)]
+mod incremental_local_tests;
 mod incremental_store;
 #[cfg(test)]
 mod incremental_store_tests;
@@ -57,6 +62,8 @@ pub use graph_compile::{CompiledRepositoryGraph, compile_repository_graph};
 pub use incremental::{
     IncrementalError, IncrementalUpdate, plan_file_update, plan_file_update_from_verified_base,
 };
+#[doc(hidden)]
+pub use incremental_local::plan_compact_delta_edge_changes_from_store;
 #[doc(hidden)]
 pub use incremental_store::{
     CompactIncrementalUpdate, VerifiedCompactSnapshotUpdatePlan,

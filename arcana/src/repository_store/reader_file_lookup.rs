@@ -1,4 +1,5 @@
 use crate::repository::NodeKey;
+use crate::synthetic::NodeId;
 
 use super::format::{
     CONTRIBUTION_KIND_OFFSET, CONTRIBUTION_RECORD_INDEX_OFFSET, CONTRIBUTION_RECORD_LEN,
@@ -18,6 +19,10 @@ impl RepositoryStoreFile {
         Ok(self.find_node_record(key)?.is_some())
     }
 
+    pub fn node_id(&mut self, key: NodeKey) -> Result<Option<NodeId>, RepositoryStoreReadError> {
+        Ok(self.find_node_record(key)?.map(|(node_id, _)| node_id))
+    }
+
     pub fn contains_node_identity(
         &mut self,
         key: NodeKey,
@@ -25,13 +30,13 @@ impl RepositoryStoreFile {
     ) -> Result<bool, RepositoryStoreReadError> {
         Ok(self
             .find_node_record(key)?
-            .is_some_and(|record| record.external_identity == Some(identity)))
+            .is_some_and(|(_, record)| record.external_identity == Some(identity)))
     }
 
     fn find_node_record(
         &mut self,
         key: NodeKey,
-    ) -> Result<Option<CompactNodeRecord>, RepositoryStoreReadError> {
+    ) -> Result<Option<(NodeId, CompactNodeRecord)>, RepositoryStoreReadError> {
         let count = self.header.section(SectionKind::Nodes).record_count;
         let mut low = 0_u64;
         let mut high = count;
@@ -42,7 +47,7 @@ impl RepositoryStoreFile {
             match record.key.cmp(&key) {
                 std::cmp::Ordering::Less => low = mid + 1,
                 std::cmp::Ordering::Greater => high = mid,
-                std::cmp::Ordering::Equal => return Ok(Some(record)),
+                std::cmp::Ordering::Equal => return Ok(Some((NodeId(node_id), record))),
             }
         }
         Ok(None)

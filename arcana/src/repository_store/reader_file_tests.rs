@@ -1,6 +1,7 @@
 use std::fs;
 
 use crate::repository::{NodeKey, repository_artifact_checksum};
+use crate::synthetic::NodeId;
 
 use super::format::{RepositoryHeader, SectionKind};
 use super::writer_test_support::{cleanup, sample_facts, temp_path};
@@ -103,6 +104,8 @@ fn file_reader_validates_node_key_and_full_external_identity() {
     let mut file = RepositoryStoreFile::open(&path).unwrap();
 
     assert!(file.contains_node_key(NodeKey::from_u64(3)).unwrap());
+    assert_eq!(file.node_id(NodeKey::from_u64(3)).unwrap(), Some(NodeId(2)));
+    assert_eq!(file.node_id(NodeKey::from_u64(99)).unwrap(), None);
     assert!(!file.contains_node_key(NodeKey::from_u64(99)).unwrap());
     assert!(
         file.contains_node_identity(NodeKey::from_u64(3), expected)
