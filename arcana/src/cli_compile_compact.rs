@@ -1,9 +1,7 @@
 use std::path::Path;
 use std::time::Instant;
 
-use arcana::repository::{
-    CompiledRepositoryGraph, compile_compact_repository_graph, repository_artifact_file_checksum,
-};
+use arcana::repository::{compile_compact_repository_graph, repository_artifact_file_checksum};
 use arcana::repository_store::{
     CompactRepositoryBuild, RepositoryStoreWrite, write_repository_store_compact,
 };
@@ -50,26 +48,6 @@ pub(crate) fn write_compiled_compact_owned(
         graph.dataset.node_count,
         graph.dataset.edges.len(),
         unresolved_count,
-    )
-}
-
-pub(crate) fn write_repository_metadata_graph_compact_owned(
-    output: &Path,
-    repository: CompactRepositoryBuild,
-    graph: &CompiledRepositoryGraph,
-    adapter_name: &str,
-    adapter_version: &str,
-) -> Result<(), CliCommandError> {
-    let (store_checksum, store_write) = write_store(output, &repository)?;
-    let repository_id = repository.repository_identity(store_checksum);
-    publish_graph_with_identity(
-        output,
-        graph,
-        repository_id,
-        store_checksum,
-        adapter_name,
-        adapter_version,
-        store_write,
     )
 }
 

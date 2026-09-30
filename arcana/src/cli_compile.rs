@@ -6,7 +6,8 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use arcana::repository::{
     CompiledRepositoryGraph, PublishRepositorySnapshot, RepositoryArtifactChecksums,
     RepositoryFacts, compile_repository_graph, publish_graph_repository_snapshot_with_identity,
-    repository_artifact_file_checksum, repository_identity_for_facts,
+    publish_incremental_graph_repository_snapshot_with_identity, repository_artifact_file_checksum,
+    repository_identity_for_facts,
 };
 use arcana::repository_store::{RepositoryStoreWrite, write_repository_store};
 use arcana::snapshot::publish_snapshot;
@@ -82,6 +83,26 @@ pub(crate) fn write_graph(output: &Path, dataset: &GraphDataset) -> Result<(), C
         "graph.arcana",
         None,
         timestamp()?,
+    )?;
+    Ok(())
+}
+
+pub(crate) fn publish_incremental_graph_with_identity(
+    output: &Path,
+    repository_id: u64,
+    store_checksum: u64,
+    adapter_name: &str,
+    adapter_version: &str,
+    store_write: RepositoryStoreWrite,
+) -> Result<(), CliCommandError> {
+    publish_incremental_graph_repository_snapshot_with_identity(
+        output.join("repository.manifest"),
+        publish_request(adapter_name, adapter_version)?,
+        repository_id,
+        RepositoryArtifactChecksums {
+            repository_store: store_checksum,
+        },
+        store_write,
     )?;
     Ok(())
 }

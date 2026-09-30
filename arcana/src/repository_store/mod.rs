@@ -30,6 +30,16 @@ mod reader_records;
 mod reader_unresolved;
 mod reader_validation;
 mod record_io;
+mod rewrite;
+mod rewrite_indexes;
+mod rewrite_io;
+mod rewrite_output;
+mod rewrite_ownership;
+mod rewrite_ownership_contributions;
+mod rewrite_record_remap;
+mod rewrite_records;
+mod rewrite_sort;
+mod rewrite_strings;
 mod span;
 mod string_view;
 mod strings;
@@ -53,6 +63,8 @@ pub use reader_file::RepositoryStoreFile;
 pub use reader_ownership::{ContributionKindView, OwnershipContributionView, OwnershipView};
 pub use reader_records::{EdgeRecordView, NodeRecordView, SourceSpanView};
 pub use reader_unresolved::UnresolvedRecordView;
+#[doc(hidden)]
+pub use rewrite::{RepositoryStoreRewrite, rewrite_repository_store};
 pub use span::CompactSpan;
 pub use string_view::StringTableView;
 pub(crate) use strings::StringIdLookup;
@@ -69,6 +81,10 @@ mod reader_file_bench;
 mod reader_file_tests;
 #[cfg(test)]
 mod reader_tests;
+#[cfg(test)]
+mod rewrite_test_support;
+#[cfg(test)]
+mod rewrite_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

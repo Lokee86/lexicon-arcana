@@ -2,8 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use arcana::repository::{
-    CompactIncrementalUpdate, IncrementalUpdate, RepositoryFacts, RepositorySnapshot,
-    plan_file_update,
+    IncrementalUpdate, RepositoryFacts, RepositorySnapshot, plan_file_update,
 };
 use arcana::snapshot::{publish_snapshot, write_overlay};
 use arcana::storage::PackedGraph;
@@ -11,7 +10,6 @@ use arcana::storage::PackedGraph;
 use crate::cli::UpdateFactsCommand;
 use crate::cli_commands::CliCommandError;
 use crate::cli_compile::{timestamp, write_repository_metadata_graph_owned};
-use crate::cli_compile_compact::write_repository_metadata_graph_compact_owned;
 
 pub fn run_update_facts(command: &UpdateFactsCommand) -> Result<String, CliCommandError> {
     if command.output.try_exists()? {
@@ -61,26 +59,7 @@ pub(crate) fn write_update(
     Ok(summary)
 }
 
-pub(crate) fn write_compact_update(
-    output: &Path,
-    base_graph_path: &Path,
-    update: CompactIncrementalUpdate,
-    adapter_name: &str,
-    adapter_version: &str,
-) -> Result<String, CliCommandError> {
-    let changed_file_count = update.changed_file_count();
-    let summary = write_graph_update(output, base_graph_path, &update.changes, changed_file_count)?;
-    write_repository_metadata_graph_compact_owned(
-        output,
-        update.repository,
-        &update.graph,
-        adapter_name,
-        adapter_version,
-    )?;
-    Ok(summary)
-}
-
-fn write_graph_update(
+pub(crate) fn write_graph_update(
     output: &Path,
     base_graph_path: &Path,
     changes: &arcana::snapshot::OverlayChanges,

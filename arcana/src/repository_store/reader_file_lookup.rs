@@ -1,4 +1,6 @@
-use crate::repository::NodeKey;
+use std::path::Path;
+
+use crate::repository::{NodeKey, NodeKind};
 use crate::synthetic::NodeId;
 
 use super::format::{
@@ -33,7 +35,7 @@ impl RepositoryStoreFile {
             .is_some_and(|(_, record)| record.external_identity == Some(identity)))
     }
 
-    fn find_node_record(
+    pub(super) fn find_node_record(
         &mut self,
         key: NodeKey,
     ) -> Result<Option<(NodeId, CompactNodeRecord)>, RepositoryStoreReadError> {
@@ -127,7 +129,7 @@ impl RepositoryStoreFile {
         Ok(())
     }
 
-    fn contribution_count(&self) -> Result<u64, RepositoryStoreReadError> {
+    pub(super) fn contribution_count(&self) -> Result<u64, RepositoryStoreReadError> {
         let descriptor = self.header.section(SectionKind::Ownership);
         let fixed = descriptor
             .record_count
@@ -143,7 +145,7 @@ impl RepositoryStoreFile {
         Ok(tail / CONTRIBUTION_RECORD_LEN)
     }
 
-    fn ownership_record(
+    pub(super) fn ownership_record(
         &mut self,
         index: u64,
     ) -> Result<[u8; FILE_OWNERSHIP_RECORD_LEN as usize], RepositoryStoreReadError> {
@@ -225,6 +227,30 @@ impl RepositoryStoreFile {
         let mut bytes = [0_u8; UNRESOLVED_RECORD_LEN as usize];
         self.read_exact_at(offset, &mut bytes)?;
         CompactUnresolvedRecord::decode(&bytes).map_err(Into::into)
+    }
+
+    pub(crate) fn node_owner_path(
+        &mut self,
+        key: NodeKey,
+    ) -> Result<Option<String>, RepositoryStoreReadError> {
+        let Some((_, record)) = self.find_node_record(key)? else {
+            return Ok(None);
+        };
+        if let Some(span) = record.span {
+            return self.string(span.path).map(Some);
+        }
+        let kind = super::format::node_kind_from_code(record.kind_code)
+            .ok_or(StoreFormatError::InvalidNodeKind(record.kind_code))?;
+        let path = self.string(record.path)?;
+        if matches!(
+            kind,
+            NodeKind::Repository | NodeKind::Directory | NodeKind::Module | NodeKind::Namespace
+        ) || Path::new(&path).extension().is_none()
+        {
+            Ok(None)
+        } else {
+            Ok(Some(path))
+        }
     }
 
     pub(super) fn node_key(&mut self, node_id: u32) -> Result<NodeKey, RepositoryStoreReadError> {

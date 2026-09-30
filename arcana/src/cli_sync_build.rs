@@ -3,14 +3,19 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use arcana::lexicon::{CompactLexiconSnapshot, LexiconSnapshotMetadata, load_compact};
+use arcana::lexicon::{
+    CompactLexiconSnapshot, LexiconSnapshotMetadata, load_compact, load_compact_delta,
+};
 use arcana::repository::{
     IncrementalError, RepositorySnapshot, RepositorySnapshotError, RepositoryUpdateBase,
-    plan_verified_compact_snapshot_update_from_store,
+    plan_compact_delta_edge_changes_from_store, repository_artifact_file_checksum,
 };
+use arcana::repository_store::rewrite_repository_store;
 
+use crate::cli_commands::CliCommandError;
+use crate::cli_compile::{REPOSITORY_STORE_FILE, publish_incremental_graph_with_identity};
 use crate::cli_compile_compact::write_compiled_compact_owned;
-use crate::cli_update::write_compact_update;
+use crate::cli_update::write_graph_update;
 
 use super::cli_sync::{SyncError, snapshot_directory};
 
@@ -32,7 +37,6 @@ pub(super) enum RebuildReason {
     UnsupportedPreviousManifestVersion(u64),
     PreviousGenerationInvalid,
     ChangedNodeSet,
-    BaseNodeCountMismatch,
 }
 
 impl RebuildReason {
@@ -54,7 +58,6 @@ impl RebuildReason {
             }
             Self::PreviousGenerationInvalid => "previous-generation-invalid".to_owned(),
             Self::ChangedNodeSet => "changed-node-set".to_owned(),
-            Self::BaseNodeCountMismatch => "base-node-count-mismatch".to_owned(),
         }
     }
 }
@@ -233,62 +236,68 @@ fn write_incremental_snapshot(
     current: &LexiconSnapshotMetadata,
     plan: IncrementalPlan,
 ) -> Result<SnapshotWrite, SyncError> {
-    // Phase 3 replaces this full current-snapshot load with changed-object ingestion.
-    let current_snapshot = load_compact(lexicon_root, current.id())?;
     let previous_arcana = match RepositoryUpdateBase::open(&plan.previous_manifest) {
         Ok(snapshot) => snapshot,
         Err(error) => {
             let reason = classify_repository_error(error, false)?;
-            return rebuild_loaded_snapshot(output, current_snapshot, reason);
+            return rebuild_snapshot(lexicon_root, output, current, reason);
         }
     };
-    let base_node_count = previous_arcana.manifest().node_count;
+    let base_graph_path = previous_arcana.base_graph_path();
     let mut base_store = match previous_arcana.open_incremental_store() {
         Ok(store) => store,
         Err(error) => {
             let reason = classify_repository_error(error, false)?;
-            return rebuild_loaded_snapshot(output, current_snapshot, reason);
+            return rebuild_snapshot(lexicon_root, output, current, reason);
         }
     };
 
-    let update_plan = match plan_verified_compact_snapshot_update_from_store(
+    let delta = load_compact_delta(lexicon_root, current, &plan.changed_paths, &mut base_store)?;
+    let changes = match plan_compact_delta_edge_changes_from_store(
         &mut base_store,
-        &current_snapshot.repository,
+        &delta.repository,
         &plan.changed_paths,
-        base_node_count,
     ) {
-        Ok(plan) => plan,
+        Ok(changes) => changes,
         Err(IncrementalError::NodeSetChanged { .. }) => {
-            return rebuild_loaded_snapshot(
-                output,
-                current_snapshot,
-                RebuildReason::ChangedNodeSet,
-            );
-        }
-        Err(IncrementalError::BaseNodeCountMismatch { .. }) => {
-            return rebuild_loaded_snapshot(
-                output,
-                current_snapshot,
-                RebuildReason::BaseNodeCountMismatch,
-            );
+            return rebuild_snapshot(lexicon_root, output, current, RebuildReason::ChangedNodeSet);
         }
         Err(IncrementalError::Store(error)) if !has_unexpected_io(&error) => {
-            return rebuild_loaded_snapshot(
+            return rebuild_snapshot(
+                lexicon_root,
                 output,
-                current_snapshot,
+                current,
                 RebuildReason::PreviousGenerationInvalid,
             );
         }
         Err(error) => return Err(error.into()),
     };
 
-    let base_graph_path = previous_arcana.base_graph_path();
-    let current_id = current_snapshot.metadata.id().to_owned();
-    let compatibility_warnings = current_snapshot.compatibility_warnings.clone();
+    let rewrite = rewrite_repository_store(
+        output.join(REPOSITORY_STORE_FILE),
+        &mut base_store,
+        &plan.changed_paths,
+        &delta.repository,
+    )
+    .map_err(CliCommandError::from)?;
+    let store_checksum = repository_artifact_file_checksum(output.join(REPOSITORY_STORE_FILE))?;
+    let repository_id = rewrite.repository_identity(store_checksum);
+    let current_id = delta.metadata.id().to_owned();
+    let compatibility_warnings = delta.compatibility_warnings;
+    let changed_file_count = plan.changed_paths.len();
     drop(base_store);
     drop(previous_arcana);
-    let update = update_plan.finish(current_snapshot.repository);
-    write_compact_update(output, &base_graph_path, update, "lexicon", &current_id)?;
+
+    write_graph_update(output, &base_graph_path, &changes, changed_file_count)?;
+    publish_incremental_graph_with_identity(
+        output,
+        repository_id,
+        store_checksum,
+        "lexicon",
+        &current_id,
+        rewrite.write,
+    )?;
+
     Ok(SnapshotWrite {
         mode: "overlay",
         reason: None,

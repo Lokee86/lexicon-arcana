@@ -1,17 +1,13 @@
 use std::collections::BTreeSet;
 
-use crate::repository_store::{
-    CompactRepositoryBuild, CompactRepositoryDelta, RepositoryStoreFile,
-};
+use crate::repository_store::{CompactRepositoryDelta, RepositoryStoreFile};
 use crate::snapshot::OverlayChanges;
 use crate::synthetic::GraphDataset;
 
 use super::incremental_diff::{edge_difference, key_difference};
-use super::incremental_local::compact_edge_changes_from_normalized_store;
 use super::{
     CompiledRepositoryGraph, FactOwnershipError, IncrementalError, IncrementalUpdate, NodeKey,
-    RepositoryFacts, compile_compact_repository_graph, compile_repository_graph, node_owner,
-    normalize_repository_path,
+    RepositoryFacts, compile_repository_graph, node_owner, normalize_repository_path,
 };
 
 pub struct VerifiedSnapshotUpdatePlan {
@@ -23,38 +19,6 @@ pub struct VerifiedSnapshotUpdatePlan {
 impl VerifiedSnapshotUpdatePlan {
     pub fn finish(self, facts: RepositoryFacts) -> IncrementalUpdate {
         IncrementalUpdate::new(facts, self.graph, self.changes, self.changed_file_count)
-    }
-}
-
-#[doc(hidden)]
-pub struct VerifiedCompactSnapshotUpdatePlan {
-    graph: CompiledRepositoryGraph,
-    changes: OverlayChanges,
-    changed_file_count: usize,
-}
-
-#[doc(hidden)]
-pub struct CompactIncrementalUpdate {
-    pub repository: CompactRepositoryBuild,
-    pub graph: CompiledRepositoryGraph,
-    pub changes: OverlayChanges,
-    changed_file_count: usize,
-}
-
-impl CompactIncrementalUpdate {
-    pub const fn changed_file_count(&self) -> usize {
-        self.changed_file_count
-    }
-}
-
-impl VerifiedCompactSnapshotUpdatePlan {
-    pub fn finish(self, repository: CompactRepositoryBuild) -> CompactIncrementalUpdate {
-        CompactIncrementalUpdate {
-            repository,
-            graph: self.graph,
-            changes: self.changes,
-            changed_file_count: self.changed_file_count,
-        }
     }
 }
 
@@ -91,32 +55,6 @@ pub fn verify_compact_delta_node_set_from_store(
     verify_node_set(&base_changed, &current_changed)
 }
 
-#[doc(hidden)]
-pub fn plan_verified_compact_snapshot_update_from_store(
-    base_store: &mut RepositoryStoreFile,
-    current: &CompactRepositoryBuild,
-    changed_paths: &[String],
-    base_node_count: u32,
-) -> Result<VerifiedCompactSnapshotUpdatePlan, IncrementalError> {
-    let changed_paths = normalized_paths(changed_paths)?;
-    let current_changed = current.owned_node_keys(&changed_paths);
-    let current_edges = current.owned_edges(&changed_paths);
-    let changes = compact_edge_changes_from_normalized_store(
-        base_store,
-        &current_changed,
-        &current_edges,
-        &changed_paths,
-    )?;
-
-    let graph = compile_compact_repository_graph(current)?;
-    verify_node_count(base_node_count, &graph)?;
-    Ok(VerifiedCompactSnapshotUpdatePlan {
-        graph,
-        changes,
-        changed_file_count: changed_paths.len(),
-    })
-}
-
 fn verify_node_set(base: &[NodeKey], current: &[NodeKey]) -> Result<(), IncrementalError> {
     if base == current {
         return Ok(());
@@ -129,19 +67,12 @@ fn verify_base_node_count(
     packed_base: &GraphDataset,
     graph: &CompiledRepositoryGraph,
 ) -> Result<(), IncrementalError> {
-    verify_node_count(packed_base.node_count, graph)
-}
-
-fn verify_node_count(
-    base_node_count: u32,
-    graph: &CompiledRepositoryGraph,
-) -> Result<(), IncrementalError> {
-    if base_node_count == graph.dataset.node_count {
+    if packed_base.node_count == graph.dataset.node_count {
         Ok(())
     } else {
         Err(IncrementalError::BaseNodeCountMismatch {
             expected: graph.dataset.node_count,
-            actual: base_node_count,
+            actual: packed_base.node_count,
         })
     }
 }

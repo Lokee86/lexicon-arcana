@@ -88,6 +88,18 @@ impl CompactRepositoryDelta {
         &self.edges
     }
 
+    pub(crate) fn nodes(&self) -> &[CompactNodeRecord] {
+        &self.nodes
+    }
+
+    pub(crate) fn unresolved(&self) -> &[CompactUnresolvedRecord] {
+        &self.unresolved
+    }
+
+    pub(crate) fn strings(&self) -> &CompactStringTable {
+        &self.strings
+    }
+
     pub fn unresolved_count(&self) -> usize {
         self.unresolved.len()
     }
@@ -209,19 +221,6 @@ impl CompactRepositoryBuild {
             }
         }
         keys.into_iter().collect()
-    }
-
-    pub(crate) fn owned_edges(&self, paths: &[String]) -> Vec<CompactEdgeRecord> {
-        let mut indexes = BTreeSet::new();
-        for contribution in self.owned_contributions(paths) {
-            if contribution.kind == super::canonical::ContributionKind::Edge {
-                indexes.insert(contribution.record_index);
-            }
-        }
-        indexes
-            .into_iter()
-            .filter_map(|index| self.edges.get(index as usize).copied())
-            .collect()
     }
 
     fn owned_contributions<'a>(

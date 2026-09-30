@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::repository::{NodeKey, RepositoryFacts, normalize_repository_path};
 
@@ -11,16 +11,19 @@ use super::{ContributionKindView, RepositoryStoreReadError};
 pub struct RepositoryStoreFile {
     pub(super) file: File,
     pub(super) header: RepositoryHeader,
+    path: PathBuf,
     artifact_checksum: u64,
 }
 
 impl RepositoryStoreFile {
     pub fn open(path: impl AsRef<Path>) -> Result<Self, RepositoryStoreReadError> {
+        let path = path.as_ref();
         let (file, header, artifact_checksum) =
-            super::reader_file_validation::open_validated(path.as_ref())?;
+            super::reader_file_validation::open_validated(path)?;
         Ok(Self {
             file,
             header,
+            path: path.to_path_buf(),
             artifact_checksum,
         })
     }
@@ -31,6 +34,10 @@ impl RepositoryStoreFile {
 
     pub const fn artifact_checksum(&self) -> u64 {
         self.artifact_checksum
+    }
+
+    pub(super) fn path(&self) -> &Path {
+        &self.path
     }
 
     pub fn owned_node_keys(
