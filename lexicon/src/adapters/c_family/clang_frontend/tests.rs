@@ -7,7 +7,7 @@ use std::{
 
 use crate::adapters::frontend::FrontendRunner;
 
-use super::{ClangFrontend, clang_protocol};
+use super::{ClangFrontend, STRUCTURAL_FILES_PER_REQUEST, clang_protocol};
 
 #[test]
 fn capabilities_uses_versioned_private_frontend_contract() {
@@ -57,7 +57,9 @@ fn structural_chunks_large_source_sets_and_merges_duplicate_observations() {
         clang_protocol::HELPER_VERSION
     );
     let frontend = ClangFrontend::with_runner(counting_frontend(&root.path, &counter, &response));
-    let files = (0..17).map(|index| format!("file{index:03}.c")).collect();
+    let files = (0..=STRUCTURAL_FILES_PER_REQUEST)
+        .map(|index| format!("file{index:03}.c"))
+        .collect();
 
     let structural = frontend.structural(&root.path, files).unwrap();
 
