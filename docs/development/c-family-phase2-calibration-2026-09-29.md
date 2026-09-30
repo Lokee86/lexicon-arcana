@@ -184,7 +184,7 @@ Cold wall time is **140.118 s** versus **5.178 s** before; warm wall is **104.92
 
 Pinned revision: `55f93686c01528224f448c19128836e7df245f72`.
 
-The production adapter now completes the pinned header-only corpus after the lambda-source identity repair. Orphan-header batching reduced 46 requested headers to six direct synthesized translation units.
+The production adapter completes the pinned header-only corpus after the lambda-source identity repair. The native helper retains ownership of orphan-header batching and reduces 46 requested headers to six direct synthesized translation units.
 
 | Metric | Phase 2.1 Tree-sitter | Phase 2.7 Clang | Delta |
 |---|---:|---:|---:|
@@ -204,28 +204,28 @@ The call-site count increases even though edge counts fall. The old resolver exp
 
 Legacy macro-reference reconstruction is again absent; **181** call edges carry `clang-macro-expansion` provenance instead.
 
-The final deterministic canonical SHA-256 is `29c1214e0ebe01b22ff6938e48e71b7b90b3bc427da79c066f2718ccb501f0c2`.
+After deterministic duplicate call-edge metadata merging, the final canonical SHA-256 is `0ff450801eaface23d060f0ae042f93b772c5526cde92914a75fa5bc297cdfab`. The semantic summary is unchanged from the prior accepted run; the hash change is confined to canonical call-edge metadata selection.
 
 ### nlohmann/json performance profile
 
-The final cold run is **22.990 s** versus **1.170 s** before; the final warm run is **18.043 s** versus **0.613 s**. Peak process-tree RSS is **570.7 MB** cold and **568.6 MB** warm, versus about **63.2 MB** and **61.6 MB** before.
+The final cold run is **21.896 s** versus **1.170 s** before; the final warm run is **22.506 s** versus **0.613 s**. Peak process-tree RSS is **552.4 MB** cold and **553.6 MB** warm, versus about **63.2 MB** and **61.6 MB** before.
 
 | Stage | Time |
 |---|---:|
-| repository discovery | 0.012 s |
-| helper startup | 0.025 s |
-| compilation database load | 0.002 s |
-| Clang frontend work | 21.260 s wall |
-| aggregate semantic visitor CPU | 50.611 s |
-| observation emission | 0.675 s |
-| helper IPC total | 22.538 s |
-| response decode | 0.069 s |
-| Rust materialization | 0.060 s |
-| Lexicon graph extensions | 0.017 s |
-| canonicalization | 0.005 s |
-| facts-v1 validation | 0.023 s |
+| repository discovery | 0.002 s |
+| helper startup | 0.006 s |
+| compilation database load | 0.003 s |
+| Clang frontend work | 16.673 s wall |
+| aggregate semantic visitor CPU | 40.789 s |
+| observation emission | 0.363 s |
+| helper IPC total | 21.625 s |
+| response decode | 4.251 s |
+| Rust materialization | 0.042 s |
+| Lexicon graph extensions | 0.015 s |
+| canonicalization | 0.003 s |
+| facts-v1 validation | 0.012 s |
 
-Orphan-header batching is material here: the earlier diagnostic profile took **135.606 s** in frontend work, while the final batched run takes **21.260 s**. Rust graph construction remains negligible relative to compiler frontend work.
+Orphan-header batching is material here: the earlier diagnostic profile took **135.606 s** in frontend work, while the final single-helper orphan-header run takes **16.673 s**. A transient Rust-side header-depth fanout experiment raised cold wall to about **68 s** without changing semantic counts; it was removed so header batching remains owned by the native helper. Rust graph construction remains negligible relative to compiler frontend work.
 
 ## Catch2 final gate
 

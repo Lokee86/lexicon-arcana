@@ -65,6 +65,30 @@ fn structural_chunks_large_source_sets_and_merges_duplicate_observations() {
 }
 
 #[test]
+fn structural_sends_unobserved_headers_in_one_helper_request() {
+    let root = TestDirectory::new("structural-header-batch");
+    let counter = root.path.join("calls.txt");
+    let response = format!(
+        r#"{{"protocol_version":1,"helper_version":"{}","clang_version":"clang test","compilation_database":false,"translation_units":[],"files":[],"diagnostics":[]}}"#,
+        clang_protocol::HELPER_VERSION
+    );
+    let frontend = ClangFrontend::with_runner(counting_frontend(&root.path, &counter, &response));
+
+    frontend
+        .structural(
+            &root.path,
+            vec![
+                "a.h".into(),
+                "include/b.hpp".into(),
+                "include/deep/c.hxx".into(),
+            ],
+        )
+        .unwrap();
+
+    assert_eq!(fs::read_to_string(counter).unwrap().lines().count(), 1);
+}
+
+#[test]
 fn capabilities_rejects_helper_version_mismatch() {
     let root = TestDirectory::new("version-mismatch");
     let response = r#"{"protocol_version":1,"helper_version":"stale","clang_version":"clang test","capabilities":[],"compilation_database":false}"#;

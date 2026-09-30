@@ -112,39 +112,24 @@ impl ClangFrontend {
             )?;
         }
 
-        loop {
-            let observed = response
-                .as_ref()
-                .map(|value| {
-                    value
-                        .files
-                        .iter()
-                        .map(|file| file.path.clone())
-                        .collect::<HashSet<_>>()
-                })
-                .unwrap_or_default();
-            let minimum_depth = headers
-                .iter()
-                .filter(|path| !observed.contains(path.as_str()))
-                .map(|path| path.matches('/').count())
-                .min();
-            let Some(minimum_depth) = minimum_depth else {
-                break;
-            };
-            let orphan_chunk = headers
-                .iter()
-                .filter(|path| {
-                    !observed.contains(path.as_str()) && path.matches('/').count() == minimum_depth
-                })
-                .take(STRUCTURAL_FILES_PER_REQUEST)
-                .cloned()
-                .collect::<Vec<_>>();
-            if orphan_chunk.is_empty() {
-                break;
-            }
+        let observed = response
+            .as_ref()
+            .map(|value| {
+                value
+                    .files
+                    .iter()
+                    .map(|file| file.path.clone())
+                    .collect::<HashSet<_>>()
+            })
+            .unwrap_or_default();
+        let orphan_headers = headers
+            .into_iter()
+            .filter(|path| !observed.contains(path.as_str()))
+            .collect::<Vec<_>>();
+        if !orphan_headers.is_empty() {
             merge_response(
                 &mut response,
-                self.run_structural_request(&repository, repository_root.clone(), orphan_chunk)?,
+                self.run_structural_request(&repository, repository_root.clone(), orphan_headers)?,
             )?;
         }
 
