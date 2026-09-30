@@ -17,7 +17,7 @@ classify_declaration(clang::NamedDecl &named, const std::string &path,
   Declaration value;
   value.compiler_id = compiler_id(&named, sources);
   value.name = named.getNameAsString();
-  value.qualified_name = named.getQualifiedNameAsString();
+  value.qualified_name = qualified_name(named);
   value.container_compiler_id =
       context_id(named.getLexicalDeclContext(), sources);
   value.parent_type_compiler_id =
@@ -36,7 +36,7 @@ classify_declaration(clang::NamedDecl &named, const std::string &path,
       value.parent_type_compiler_id =
           parent_type_id(function->getLexicalDeclContext(), sources);
       value.qualified_name =
-          function->getQualifiedNameAsString() + "::" + value.name;
+          qualified_name(*function) + "::" + value.name;
       for (unsigned index = 0; index < function->getNumParams(); ++index) {
         if (function->getParamDecl(index) == parameter) {
           value.parameter_index = index;
@@ -91,7 +91,7 @@ classify_declaration(clang::NamedDecl &named, const std::string &path,
       if (auto *function =
               llvm::dyn_cast<clang::FunctionDecl>(variable->getDeclContext())) {
         value.qualified_name =
-            function->getQualifiedNameAsString() + "::" + value.name;
+            qualified_name(*function) + "::" + value.name;
       }
     }
   } else if (llvm::isa<clang::EnumConstantDecl>(&named)) {

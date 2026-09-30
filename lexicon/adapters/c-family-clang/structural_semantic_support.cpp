@@ -9,6 +9,8 @@
 
 #include "structural_declaration_support.h"
 #include "structural_source.h"
+#include "structural_hot_path.h"
+#include "perf.h"
 
 namespace lexicon::clang_frontend {
 namespace {
@@ -74,7 +76,7 @@ SymbolReference symbol_reference(const clang::NamedDecl *declaration,
   return {
       .compiler_id = compiler_id(declaration, sources),
       .path = path.value_or(std::string()),
-      .qualified_name = declaration->getQualifiedNameAsString(),
+      .qualified_name = qualified_name(*declaration),
       .kind = declaration->getDeclKindName(),
       .external = !path.has_value(),
   };
@@ -104,16 +106,22 @@ callable_reference(const clang::Expr *expression, State &state,
 
 const clang::FunctionDecl *
 enclosing_function(clang::ASTContext &context, clang::DynTypedNode initial) {
+  const auto started = hot_path_profiling() ? PerfClock::now() : PerfClock::time_point{};
+  std::uint64_t steps = 0;
   std::deque<clang::DynTypedNode> queue;
   std::set<const void *> seen;
   queue.push_back(initial);
-  while (!queue.empty()) {
+  const clang::FunctionDecl *result = nullptr;
+  while (!queue.empty() && !result) {
     auto current = queue.front();
     queue.pop_front();
-    for (const auto &parent : context.getParents(current)) {
+    const auto parents = context.getParents(current);
+    steps += parents.size();
+    for (const auto &parent : parents) {
       if (const auto *function = parent.get<clang::FunctionDecl>()) {
         if (!function->isImplicit() && !lambda_call_operator(function)) {
-          return function;
+          result = function;
+          break;
         }
         if (seen.insert(function).second) {
           queue.push_back(parent);
@@ -133,7 +141,14 @@ enclosing_function(clang::ASTContext &context, clang::DynTypedNode initial) {
       }
     }
   }
-  return nullptr;
+  const auto elapsed_ns = hot_path_profiling()
+                              ? static_cast<std::uint64_t>(
+                                    std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                        PerfClock::now() - started)
+                                        .count())
+                              : 0;
+  record_parent_chain(steps, elapsed_ns);
+  return result;
 }
 
 const clang::FunctionDecl *enclosing_function(clang::ASTContext &context,

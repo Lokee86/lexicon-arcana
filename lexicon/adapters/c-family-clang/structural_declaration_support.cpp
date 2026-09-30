@@ -12,6 +12,8 @@
 #include "llvm/Support/SHA256.h"
 
 #include "structural_source.h"
+#include "structural_hot_path.h"
+#include "perf.h"
 
 namespace lexicon::clang_frontend {
 
@@ -40,14 +42,29 @@ std::string compiler_id(const clang::Decl *declaration,
     identity = pattern;
   }
 
-  llvm::SmallString<128> usr;
-  if (!clang::index::generateUSRForDecl(identity, usr)) {
-    return usr.str().str();
+  if (auto cached = cached_compiler_id(identity)) {
+    return *cached;
   }
-  auto location = sources.getSpellingLoc(identity->getLocation());
-  return "decl:" + sources.getFilename(location).str() + ":" +
-         std::to_string(sources.getFileOffset(location)) + ":" +
-         identity->getDeclKindName();
+
+  const auto started = hot_path_profiling() ? PerfClock::now() : PerfClock::time_point{};
+  llvm::SmallString<128> usr;
+  std::string result;
+  if (!clang::index::generateUSRForDecl(identity, usr)) {
+    result = usr.str().str();
+  } else {
+    auto location = sources.getSpellingLoc(identity->getLocation());
+    result = "decl:" + sources.getFilename(location).str() + ":" +
+             std::to_string(sources.getFileOffset(location)) + ":" +
+             identity->getDeclKindName();
+  }
+  const auto elapsed_ns = hot_path_profiling()
+                              ? static_cast<std::uint64_t>(
+                                    std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                        PerfClock::now() - started)
+                                        .count())
+                              : 0;
+  store_compiler_id(identity, result, elapsed_ns);
+  return result;
 }
 
 void record_context_identity(State &state, clang::ASTContext &context,
@@ -106,27 +123,50 @@ std::string ensure_callable_declaration(
 
 std::string context_id(const clang::DeclContext *context,
                        const clang::SourceManager &sources) {
+  const auto started = hot_path_profiling() ? PerfClock::now() : PerfClock::time_point{};
+  std::uint64_t steps = 0;
+  std::string result;
   for (auto *current = context; current && !current->isTranslationUnit();
        current = current->getParent()) {
+    ++steps;
     auto *declaration = clang::Decl::castFromDeclContext(current);
-    auto value = compiler_id(declaration, sources);
-    if (!value.empty()) {
-      return value;
+    result = compiler_id(declaration, sources);
+    if (!result.empty()) {
+      break;
     }
   }
-  return {};
+  const auto elapsed_ns = hot_path_profiling()
+                              ? static_cast<std::uint64_t>(
+                                    std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                        PerfClock::now() - started)
+                                        .count())
+                              : 0;
+  record_parent_chain(steps, elapsed_ns);
+  return result;
 }
 
 std::string parent_type_id(const clang::DeclContext *context,
                            const clang::SourceManager &sources) {
+  const auto started = hot_path_profiling() ? PerfClock::now() : PerfClock::time_point{};
+  std::uint64_t steps = 0;
+  std::string result;
   for (auto *current = context; current && !current->isTranslationUnit();
        current = current->getParent()) {
+    ++steps;
     auto *declaration = clang::Decl::castFromDeclContext(current);
     if (llvm::isa<clang::RecordDecl>(declaration)) {
-      return compiler_id(declaration, sources);
+      result = compiler_id(declaration, sources);
+      break;
     }
   }
-  return {};
+  const auto elapsed_ns = hot_path_profiling()
+                              ? static_cast<std::uint64_t>(
+                                    std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                        PerfClock::now() - started)
+                                        .count())
+                              : 0;
+  record_parent_chain(steps, elapsed_ns);
+  return result;
 }
 
 bool function_pointer(clang::QualType type) {
@@ -217,20 +257,40 @@ std::string anonymous_name(llvm::StringRef tag, llvm::StringRef source) {
   return "(anonymous " + tag.str() + " " + suffix + ")";
 }
 
+std::string qualified_name(const clang::NamedDecl &declaration) {
+  if (auto cached = cached_qualified_name(&declaration)) {
+    return *cached;
+  }
+  auto result = declaration.getQualifiedNameAsString();
+  store_qualified_name(&declaration, result);
+  return result;
+}
+
 std::string context_qualified_name(const clang::DeclContext *context) {
+  const auto started = hot_path_profiling() ? PerfClock::now() : PerfClock::time_point{};
+  std::uint64_t steps = 0;
+  std::string result;
   for (auto *current = context; current && !current->isTranslationUnit();
        current = current->getParent()) {
+    ++steps;
     auto *named = llvm::dyn_cast<clang::NamedDecl>(
         clang::Decl::castFromDeclContext(current));
     if (!named) {
       continue;
     }
-    auto qualified = named->getQualifiedNameAsString();
-    if (!qualified.empty()) {
-      return qualified;
+    result = qualified_name(*named);
+    if (!result.empty()) {
+      break;
     }
   }
-  return {};
+  const auto elapsed_ns = hot_path_profiling()
+                              ? static_cast<std::uint64_t>(
+                                    std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                        PerfClock::now() - started)
+                                        .count())
+                              : 0;
+  record_parent_chain(steps, elapsed_ns);
+  return result;
 }
 
 bool internal_linkage(const clang::NamedDecl &declaration) {

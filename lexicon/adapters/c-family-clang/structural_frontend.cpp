@@ -12,6 +12,7 @@
 #include "structural_relationships.h"
 #include "structural_source.h"
 #include "perf.h"
+#include "structural_hot_path.h"
 #include "structural_value_flow.h"
 
 namespace lexicon::clang_frontend {
@@ -24,7 +25,9 @@ public:
                   std::string translation_unit, std::string language)
       : state_(state), context_(context), sources_(context.getSourceManager()),
         root_(std::move(root)), translation_unit_(std::move(translation_unit)),
-        language_(std::move(language)) {}
+        language_(std::move(language)) {
+    reset_hot_path_context(perf_enabled());
+  }
 
   bool VisitDecl(clang::Decl *declaration) {
     if (!declaration || declaration->isImplicit() ||
@@ -161,6 +164,22 @@ public:
         std::chrono::duration_cast<std::chrono::nanoseconds>(
             PerfClock::now() - started)
             .count();
+
+    const auto metrics = hot_path_metrics();
+    emit_perf(
+        "c-family.clang.hot_path", std::chrono::nanoseconds(0),
+        {{"repository_path_cache_hits", metrics.repository_path_hits},
+         {"repository_path_cache_misses", metrics.repository_path_misses},
+         {"compiler_id_cache_hits", metrics.compiler_id_hits},
+         {"compiler_id_cache_misses", metrics.compiler_id_misses},
+         {"compiler_id_ns", metrics.compiler_id_ns},
+         {"qualified_name_cache_hits", metrics.qualified_name_hits},
+         {"qualified_name_cache_misses", metrics.qualified_name_misses},
+         {"source_text_cache_hits", metrics.source_text_hits},
+         {"source_text_cache_misses", metrics.source_text_misses},
+         {"parent_chain_queries", metrics.parent_chain_queries},
+         {"parent_chain_steps", metrics.parent_chain_steps},
+         {"parent_chain_ns", metrics.parent_chain_ns}});
   }
 
 private:

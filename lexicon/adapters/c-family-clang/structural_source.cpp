@@ -3,16 +3,17 @@
 #include <cctype>
 #include <filesystem>
 #include <tuple>
+#include <unordered_map>
 
 #include "clang/Lex/Lexer.h"
 
-namespace lexicon::clang_frontend {
+#include "structural_hot_path.h"
 
-std::optional<std::string> repository_path(llvm::StringRef value,
-                                           llvm::StringRef root) {
-  if (value.empty() || value.starts_with("<")) {
-    return std::nullopt;
-  }
+namespace lexicon::clang_frontend {
+namespace {
+
+std::optional<std::string> resolve_repository_path(llvm::StringRef value,
+                                                   llvm::StringRef root) {
   std::error_code error;
   auto path = std::filesystem::path(value.str());
   if (path.is_relative()) {
@@ -38,6 +39,36 @@ std::optional<std::string> repository_path(llvm::StringRef value,
     return std::nullopt;
   }
   return text;
+}
+
+} // namespace
+
+std::optional<std::string> repository_path(llvm::StringRef value,
+                                           llvm::StringRef root) {
+  if (value.empty() || value.starts_with("<")) {
+    return std::nullopt;
+  }
+
+  // Source attribution is on the AST hot path. Clang repeatedly reports the
+  // same physical files for declarations, references, calls, and PP events;
+  // resolving those paths through the filesystem for every node dominates
+  // large translation units. Cache per worker thread while preserving the
+  // canonical/symlink-aware first resolution.
+  thread_local std::unordered_map<std::string, std::optional<std::string>> cache;
+  std::string key;
+  key.reserve(root.size() + value.size() + 1);
+  key.append(root.data(), root.size());
+  key.push_back('\0');
+  key.append(value.data(), value.size());
+
+  if (const auto found = cache.find(key); found != cache.end()) {
+    record_repository_path_cache(true);
+    return found->second;
+  }
+  record_repository_path_cache(false);
+  auto resolved = resolve_repository_path(value, root);
+  cache.emplace(std::move(key), resolved);
+  return resolved;
 }
 
 std::optional<std::string> source_path(const clang::SourceManager &sources,
@@ -99,10 +130,19 @@ std::string source_text(const clang::SourceManager &sources,
   if (range.isInvalid()) {
     return {};
   }
+  const auto begin = static_cast<std::uint64_t>(range.getBegin().getRawEncoding());
+  const auto end = static_cast<std::uint64_t>(range.getEnd().getRawEncoding());
+  const auto key = (begin << 32) | end;
+  if (auto cached = cached_source_text(key)) {
+    return *cached;
+  }
+
   bool invalid = false;
   auto value = clang::Lexer::getSourceText(
       clang::CharSourceRange::getTokenRange(range), sources, language, &invalid);
-  return invalid ? std::string() : value.str();
+  auto text = invalid ? std::string() : value.str();
+  store_source_text(key, text);
+  return text;
 }
 
 std::string normalize_space(llvm::StringRef value) {

@@ -262,6 +262,40 @@ def execution_policy_is_fact_stable(helper: pathlib.Path, version: str) -> None:
                     raise RuntimeError(
                         f"missing or zero {counter} in emission metrics: {emission!r}"
                     )
+            hot_path_lines = [
+                line
+                for line in stderr.splitlines()
+                if "stage=c-family.clang.hot_path" in line
+            ]
+            if not hot_path_lines:
+                raise RuntimeError("missing C-family hot-path profile metrics")
+            hot_totals: dict[str, int] = {}
+            for line in hot_path_lines:
+                for token in line.split():
+                    if "=" not in token:
+                        continue
+                    key, value = token.split("=", 1)
+                    if key in {"stage", "elapsed_ms"}:
+                        continue
+                    try:
+                        hot_totals[key] = hot_totals.get(key, 0) + int(value)
+                    except ValueError:
+                        pass
+            for counter in (
+                "repository_path_cache_hits",
+                "repository_path_cache_misses",
+                "compiler_id_cache_hits",
+                "compiler_id_cache_misses",
+                "compiler_id_ns",
+                "parent_chain_queries",
+                "parent_chain_steps",
+                "parent_chain_ns",
+            ):
+                if hot_totals.get(counter, 0) <= 0:
+                    raise RuntimeError(
+                        f"missing or zero {counter} in hot-path metrics: "
+                        f"{hot_path_lines!r}"
+                    )
             canonical.append(
                 json.dumps(
                     response,

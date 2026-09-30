@@ -22,6 +22,7 @@ add_executable(
     structural_declarations.cpp
     structural_execution.cpp
     structural_frontend.cpp
+    structural_hot_path.cpp
     structural_model.cpp
     structural_plan.cpp
     structural_relationships.cpp

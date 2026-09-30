@@ -30,6 +30,7 @@ std::string printed_type(clang::QualType type, const clang::ASTContext &context)
 std::string function_signature(const clang::FunctionDecl &function,
                                const clang::ASTContext &context);
 std::string anonymous_name(llvm::StringRef tag, llvm::StringRef source);
+std::string qualified_name(const clang::NamedDecl &declaration);
 std::string context_qualified_name(const clang::DeclContext *context);
 bool internal_linkage(const clang::NamedDecl &declaration);
 std::optional<Declaration>

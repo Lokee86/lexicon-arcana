@@ -55,7 +55,7 @@ void observe_overrides(State &state, clang::ASTContext &context,
             .kind = "overrides",
             .source_compiler_id = source_id,
             .target = symbol_reference(target, state, context, repository_root),
-            .expression = method.getQualifiedNameAsString(),
+            .expression = qualified_name(method),
             .span = source_span(
                 sources, context.getLangOpts(),
                 clang::SourceRange(method.getLocation()), *path),
