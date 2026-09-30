@@ -2,7 +2,10 @@ use std::{
     collections::{BTreeMap, HashSet},
     ffi::OsString,
     fmt::Debug,
+    fs::{self, File, OpenOptions},
+    io::{BufReader, Write},
     path::{Path, PathBuf},
+    sync::atomic::{AtomicU64, Ordering},
 };
 
 use crate::{AdapterError, adapters::frontend::FrontendRunner};
@@ -18,6 +21,167 @@ const HELPER_DIRECTORY: &str = "c-family-clang";
 const HELPER_EXECUTABLE: &str = "lexicon-c-family-clang";
 const HELPER_ENVIRONMENT: &str = "LEXICON_C_FAMILY_CLANG_HELPER";
 const STRUCTURAL_FILES_PER_REQUEST: usize = 16;
+static OBSERVATION_STORE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct StructuralMetadata {
+    protocol_version: u32,
+    helper_version: String,
+    clang_version: String,
+    compilation_database: bool,
+}
+
+#[derive(Debug)]
+pub(crate) struct StructuralObservationStore {
+    root: PathBuf,
+    fragments: BTreeMap<String, PathBuf>,
+    translation_units: HashSet<String>,
+    metadata: Option<StructuralMetadata>,
+}
+
+impl StructuralObservationStore {
+    fn create() -> Result<Self, AdapterError> {
+        loop {
+            let sequence = OBSERVATION_STORE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+            let root = std::env::temp_dir().join(format!(
+                "lexicon-c-family-observations-{}-{sequence}",
+                std::process::id()
+            ));
+            match fs::create_dir(&root) {
+                Ok(()) => {
+                    return Ok(Self {
+                        root,
+                        fragments: BTreeMap::new(),
+                        translation_units: HashSet::new(),
+                        metadata: None,
+                    });
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(error) => {
+                    return Err(AdapterError::new(format!(
+                        "create C-family observation spool: {error}"
+                    )));
+                }
+            }
+        }
+    }
+
+    fn append_response(&mut self, response: StructuralResponse) -> Result<(), AdapterError> {
+        let metadata = StructuralMetadata {
+            protocol_version: response.protocol_version,
+            helper_version: response.helper_version,
+            clang_version: response.clang_version,
+            compilation_database: response.compilation_database,
+        };
+        if let Some(current) = &self.metadata {
+            if current != &metadata {
+                return Err(AdapterError::new(
+                    "inconsistent C-family Clang metadata across structural response chunks",
+                ));
+            }
+        } else {
+            self.metadata = Some(metadata);
+        }
+
+        for translation_unit in response.translation_units {
+            self.translation_units
+                .insert(format!("{translation_unit:?}"));
+        }
+
+        for file in response.files {
+            let observation_path = file.path.clone();
+            let fragment_path = if let Some(path) = self.fragments.get(&observation_path) {
+                path.clone()
+            } else {
+                let path = self
+                    .root
+                    .join(format!("file-{:06}.jsonl", self.fragments.len()));
+                self.fragments
+                    .insert(observation_path.clone(), path.clone());
+                path
+            };
+            let mut output = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&fragment_path)
+                .map_err(|error| {
+                    AdapterError::new(format!(
+                        "open C-family observation spool {}: {error}",
+                        fragment_path.display()
+                    ))
+                })?;
+            serde_json::to_writer(&mut output, &file).map_err(|error| {
+                AdapterError::new(format!(
+                    "write C-family observation spool {}: {error}",
+                    fragment_path.display()
+                ))
+            })?;
+            output.write_all(b"\n").map_err(|error| {
+                AdapterError::new(format!(
+                    "finish C-family observation spool {}: {error}",
+                    fragment_path.display()
+                ))
+            })?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn file_count(&self) -> usize {
+        self.fragments.len()
+    }
+
+    pub(crate) fn translation_unit_count(&self) -> usize {
+        self.translation_units.len()
+    }
+
+    pub(crate) fn contains_file(&self, path: &str) -> bool {
+        self.fragments.contains_key(path)
+    }
+
+    pub(crate) fn file_paths(&self) -> Vec<String> {
+        self.fragments.keys().cloned().collect()
+    }
+
+    pub(crate) fn merged_file(&self, path: &str) -> Result<FileObservation, AdapterError> {
+        let fragment_path = self.fragments.get(path).ok_or_else(|| {
+            AdapterError::new(format!("missing C-family observation spool for {path:?}"))
+        })?;
+        let input = File::open(fragment_path).map_err(|error| {
+            AdapterError::new(format!(
+                "read C-family observation spool {}: {error}",
+                fragment_path.display()
+            ))
+        })?;
+        let mut merged: Option<FileObservation> = None;
+        for value in serde_json::Deserializer::from_reader(BufReader::new(input))
+            .into_iter::<FileObservation>()
+        {
+            let value = value.map_err(|error| {
+                AdapterError::new(format!(
+                    "decode C-family observation spool {}: {error}",
+                    fragment_path.display()
+                ))
+            })?;
+            if let Some(current) = merged.as_mut() {
+                merge_file(current, value);
+            } else {
+                merged = Some(value);
+            }
+        }
+        merged.ok_or_else(|| {
+            AdapterError::new(format!(
+                "C-family observation spool {} is empty",
+                fragment_path.display()
+            ))
+        })
+    }
+}
+
+impl Drop for StructuralObservationStore {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.root);
+    }
+}
 
 #[derive(Debug, Clone)]
 pub(crate) struct ClangFrontend {
@@ -76,7 +240,7 @@ impl ClangFrontend {
         &self,
         repository: &Path,
         files: Vec<String>,
-    ) -> Result<StructuralResponse, AdapterError> {
+    ) -> Result<StructuralObservationStore, AdapterError> {
         let repository = repository.canonicalize().map_err(|error| {
             AdapterError::new(format!(
                 "cannot resolve C-family repository {}: {error}",
@@ -96,44 +260,37 @@ impl ClangFrontend {
         files.sort();
         files.dedup();
 
+        let mut store = StructuralObservationStore::create()?;
         if files.is_empty() {
-            return self.run_structural_request(&repository, repository_root, files);
+            store.append_response(self.run_structural_request(
+                &repository,
+                repository_root,
+                files,
+            )?)?;
+            return Ok(store);
         }
 
         let (sources, headers): (Vec<_>, Vec<_>) = files
             .into_iter()
             .partition(|path| !super::discovery::is_header_path(path));
 
-        let mut response: Option<StructuralResponse> = None;
         for chunk in sources.chunks(STRUCTURAL_FILES_PER_REQUEST) {
-            merge_response(
-                &mut response,
-                self.run_structural_request(&repository, repository_root.clone(), chunk.to_vec())?,
-            )?;
+            let response =
+                self.run_structural_request(&repository, repository_root.clone(), chunk.to_vec())?;
+            store.append_response(response)?;
         }
 
-        let observed = response
-            .as_ref()
-            .map(|value| {
-                value
-                    .files
-                    .iter()
-                    .map(|file| file.path.clone())
-                    .collect::<HashSet<_>>()
-            })
-            .unwrap_or_default();
         let orphan_headers = headers
             .into_iter()
-            .filter(|path| !observed.contains(path.as_str()))
+            .filter(|path| !store.contains_file(path))
             .collect::<Vec<_>>();
         if !orphan_headers.is_empty() {
-            merge_response(
-                &mut response,
-                self.run_structural_request(&repository, repository_root.clone(), orphan_headers)?,
-            )?;
+            let response =
+                self.run_structural_request(&repository, repository_root.clone(), orphan_headers)?;
+            store.append_response(response)?;
         }
 
-        response.ok_or_else(|| AdapterError::new("C-family Clang frontend returned no response"))
+        Ok(store)
     }
 
     fn run_structural_request(
@@ -157,51 +314,6 @@ impl ClangFrontend {
     pub(crate) fn with_runner(runner: FrontendRunner) -> Self {
         Self { runner }
     }
-}
-
-fn merge_response(
-    target: &mut Option<StructuralResponse>,
-    mut incoming: StructuralResponse,
-) -> Result<(), AdapterError> {
-    let Some(current) = target.as_mut() else {
-        *target = Some(incoming);
-        return Ok(());
-    };
-    if current.protocol_version != incoming.protocol_version
-        || current.helper_version != incoming.helper_version
-        || current.clang_version != incoming.clang_version
-        || current.compilation_database != incoming.compilation_database
-    {
-        return Err(AdapterError::new(
-            "inconsistent C-family Clang metadata across structural response chunks",
-        ));
-    }
-
-    current
-        .translation_units
-        .append(&mut incoming.translation_units);
-    dedup_exact(&mut current.translation_units);
-    current.diagnostics.append(&mut incoming.diagnostics);
-    dedup_exact(&mut current.diagnostics);
-
-    let mut indexes = current
-        .files
-        .iter()
-        .enumerate()
-        .map(|(index, file)| (file.path.clone(), index))
-        .collect::<BTreeMap<_, _>>();
-    for file in incoming.files {
-        if let Some(index) = indexes.get(&file.path).copied() {
-            merge_file(&mut current.files[index], file);
-        } else {
-            indexes.insert(file.path.clone(), current.files.len());
-            current.files.push(file);
-        }
-    }
-    current
-        .files
-        .sort_by(|left, right| left.path.cmp(&right.path));
-    Ok(())
 }
 
 fn dedup_exact<T: Debug>(values: &mut Vec<T>) {

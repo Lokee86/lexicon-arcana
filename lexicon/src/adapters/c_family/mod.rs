@@ -163,20 +163,23 @@ impl LanguageAdapter for CFamilyAdapter {
         }
 
         let frontend_started = crate::perf::start();
-        let response = self.frontend.structural(&repository, files)?;
+        let observations = self.frontend.structural(&repository, files)?;
         if let Some(started) = frontend_started {
             crate::perf::emit(
                 "c-family.frontend.semantic_analysis",
                 started.elapsed(),
                 &[
-                    ("observed_files", response.files.len() as u64),
-                    ("translation_units", response.translation_units.len() as u64),
+                    ("observed_files", observations.file_count() as u64),
+                    (
+                        "translation_units",
+                        observations.translation_unit_count() as u64,
+                    ),
                 ],
             );
         }
 
         let materialization_started = crate::perf::start();
-        let model = clang_materialization::materialize(&repository, &response)?;
+        let model = clang_materialization::materialize_store(&repository, &observations)?;
         if let Some(started) = materialization_started {
             crate::perf::emit(
                 "c-family.lexicon.materialization",

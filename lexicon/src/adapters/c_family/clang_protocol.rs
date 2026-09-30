@@ -96,7 +96,7 @@ pub(crate) struct TranslationUnitObservation {
     pub synthesized: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct FileObservation {
     pub path: String,
@@ -122,7 +122,7 @@ pub(crate) struct FileObservation {
     pub diagnostics: Vec<DiagnosticObservation>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct DeclarationObservation {
     pub compiler_id: String,
@@ -156,7 +156,7 @@ pub(crate) struct DeclarationObservation {
     pub parameter_count: Option<usize>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct IncludeObservation {
     pub target: String,
@@ -168,7 +168,7 @@ pub(crate) struct IncludeObservation {
     pub span: SourceSpan,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct MacroObservation {
     pub compiler_id: String,
@@ -182,7 +182,7 @@ pub(crate) struct MacroObservation {
     pub span: SourceSpan,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct SymbolReferenceObservation {
     pub compiler_id: String,
@@ -195,7 +195,7 @@ pub(crate) struct SymbolReferenceObservation {
     pub external: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct SemanticRelationshipObservation {
     pub kind: String,
@@ -206,7 +206,7 @@ pub(crate) struct SemanticRelationshipObservation {
     pub span: SourceSpan,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct SemanticArgumentObservation {
     pub expression: String,
@@ -216,7 +216,7 @@ pub(crate) struct SemanticArgumentObservation {
     pub callable: Option<SymbolReferenceObservation>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct SemanticPointerBindingObservation {
     pub pointer: SymbolReferenceObservation,
@@ -226,7 +226,7 @@ pub(crate) struct SemanticPointerBindingObservation {
     pub span: SourceSpan,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct SemanticAccessObservation {
     pub source_compiler_id: String,
@@ -237,7 +237,7 @@ pub(crate) struct SemanticAccessObservation {
     pub span: SourceSpan,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct SemanticCallObservation {
     pub source_compiler_id: String,
@@ -265,7 +265,7 @@ pub(crate) struct SemanticCallObservation {
     pub span: SourceSpan,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct DiagnosticObservation {
     pub severity: String,

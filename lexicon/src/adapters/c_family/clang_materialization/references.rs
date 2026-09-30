@@ -17,27 +17,42 @@ struct ReferenceCandidate {
 }
 
 impl ReferenceIndex {
+    #[cfg(test)]
     pub(super) fn new(files: &[&FileObservation], ids: &IdentityMaps) -> Self {
-        let mut by_compiler = HashMap::<String, Vec<ReferenceCandidate>>::new();
+        let mut index = Self::empty();
         for file in files {
-            let Some(file_ids) = ids.get(&file.path) else {
-                continue;
-            };
-            for declaration in &file.declarations {
-                let Some(id) = file_ids.get(&declaration.compiler_id) else {
-                    continue;
-                };
-                by_compiler
-                    .entry(declaration.compiler_id.clone())
-                    .or_default()
-                    .push(ReferenceCandidate {
-                        path: file.path.clone(),
-                        id: id.clone(),
-                        definition: declaration.definition,
-                    });
+            if let Some(file_ids) = ids.get(&file.path) {
+                index.add_file(file, file_ids);
             }
         }
-        for values in by_compiler.values_mut() {
+        index.finalize();
+        index
+    }
+
+    pub(super) fn empty() -> Self {
+        Self {
+            by_compiler: HashMap::new(),
+        }
+    }
+
+    pub(super) fn add_file(&mut self, file: &FileObservation, file_ids: &HashMap<String, String>) {
+        for declaration in &file.declarations {
+            let Some(id) = file_ids.get(&declaration.compiler_id) else {
+                continue;
+            };
+            self.by_compiler
+                .entry(declaration.compiler_id.clone())
+                .or_default()
+                .push(ReferenceCandidate {
+                    path: file.path.clone(),
+                    id: id.clone(),
+                    definition: declaration.definition,
+                });
+        }
+    }
+
+    pub(super) fn finalize(&mut self) {
+        for values in self.by_compiler.values_mut() {
             values.sort_by(|left, right| {
                 (!left.definition, left.path.as_str(), left.id.as_str()).cmp(&(
                     !right.definition,
@@ -47,7 +62,6 @@ impl ReferenceIndex {
             });
             values.dedup_by(|left, right| left.id == right.id);
         }
-        Self { by_compiler }
     }
 
     pub(super) fn resolve(

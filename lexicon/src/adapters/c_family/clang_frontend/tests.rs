@@ -38,11 +38,13 @@ fn structural_uses_versioned_private_frontend_contract() {
     let structural = frontend
         .structural(&root.path, vec!["main.c".into()])
         .unwrap();
+    let file = structural.merged_file("main.c").unwrap();
 
-    assert_eq!(structural.files.len(), 1);
-    assert_eq!(structural.files[0].path, "main.c");
-    assert_eq!(structural.translation_units[0].language, "c");
-    assert!(structural.translation_units[0].synthesized);
+    assert_eq!(structural.file_count(), 1);
+    assert_eq!(structural.translation_unit_count(), 1);
+    assert_eq!(file.path, "main.c");
+    assert_eq!(file.languages, ["c"]);
+    assert_eq!(file.translation_units, ["main.c"]);
 }
 
 #[test]
@@ -60,8 +62,9 @@ fn structural_chunks_large_source_sets_and_merges_duplicate_observations() {
     let structural = frontend.structural(&root.path, files).unwrap();
 
     assert_eq!(fs::read_to_string(counter).unwrap().lines().count(), 2);
-    assert_eq!(structural.files.len(), 1);
-    assert_eq!(structural.translation_units.len(), 1);
+    assert_eq!(structural.file_count(), 1);
+    assert_eq!(structural.translation_unit_count(), 1);
+    assert_eq!(structural.merged_file("main.c").unwrap().path, "main.c");
 }
 
 #[test]

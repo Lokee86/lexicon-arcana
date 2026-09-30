@@ -10,12 +10,14 @@ mod tests;
 mod value_flow;
 
 use super::{
+    clang_frontend::StructuralObservationStore,
     clang_protocol::{FileObservation, StructuralResponse},
     includes::FileIndex,
     model::{RepositoryModel, SourceFile},
     visibility::VisibilityIndex,
 };
 
+#[cfg(test)]
 pub(crate) fn materialize(
     root: &Path,
     response: &StructuralResponse,
@@ -42,6 +44,54 @@ pub(crate) fn materialize(
             .expect("C-family Clang local identity map");
         materialized.push(materialize_file(&root, file, local_ids, &ids, &references)?);
     }
+    let index = FileIndex::new(&materialized);
+    let visibility = VisibilityIndex::new(&materialized, &index);
+    Ok(RepositoryModel {
+        repository: root
+            .file_name()
+            .and_then(|value| value.to_str())
+            .unwrap_or("repository")
+            .into(),
+        files: materialized,
+        visibility,
+    })
+}
+
+pub(crate) fn materialize_store(
+    root: &Path,
+    store: &StructuralObservationStore,
+) -> Result<RepositoryModel, AdapterError> {
+    let root = root.canonicalize().map_err(|error| {
+        AdapterError::new(format!(
+            "resolve C-family repository {}: {error}",
+            root.display()
+        ))
+    })?;
+    let paths = store.file_paths();
+    let mut ids = references::IdentityMaps::new();
+    let mut references = references::ReferenceIndex::empty();
+
+    for path in &paths {
+        let file = store.merged_file(path)?;
+        let file_ids = declarations::identity_map(&file);
+        references.add_file(&file, &file_ids);
+        ids.insert(path.clone(), file_ids);
+    }
+    references.finalize();
+
+    let mut materialized = Vec::with_capacity(paths.len());
+    for path in &paths {
+        let file = store.merged_file(path)?;
+        let local_ids = ids.get(path).expect("C-family Clang local identity map");
+        materialized.push(materialize_file(
+            &root,
+            &file,
+            local_ids,
+            &ids,
+            &references,
+        )?);
+    }
+
     let index = FileIndex::new(&materialized);
     let visibility = VisibilityIndex::new(&materialized, &index);
     Ok(RepositoryModel {
