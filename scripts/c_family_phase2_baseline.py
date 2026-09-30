@@ -138,7 +138,24 @@ def parse_perf(stderr: str) -> dict[str, dict[str, float | int | str]]:
                     values[key] = float(raw)
                 except ValueError:
                     values[key] = raw
-        stages[match.group(1)] = values
+
+        stage = match.group(1)
+        existing = stages.get(stage)
+        if existing is None:
+            stages[stage] = values
+            continue
+
+        for key, value in values.items():
+            previous = existing.get(key)
+            if isinstance(previous, (int, float)) and isinstance(value, (int, float)):
+                if key == "jobs":
+                    existing[key] = max(previous, value)
+                else:
+                    existing[key] = previous + value
+            elif previous is None:
+                existing[key] = value
+            elif previous != value:
+                existing[key] = value
     return stages
 
 
