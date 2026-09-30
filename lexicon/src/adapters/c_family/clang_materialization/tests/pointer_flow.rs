@@ -138,3 +138,41 @@ fn clang_pointer_and_callback_flow_drive_indirect_calls() {
             >= 2
     );
 }
+
+#[test]
+fn clang_external_pointer_binding_does_not_require_repository_materialization() {
+    let root = TestDirectory::new("semantic-external-pointer-flow");
+    fs::write(root.path.join("signal.c"), b"void callback(void){}\n").unwrap();
+
+    let response: StructuralResponse = serde_json::from_value(json!({
+        "protocol_version": 1,
+        "helper_version": "0.4.0",
+        "clang_version": "clang test",
+        "compilation_database": true,
+        "files": [{
+            "path": "signal.c",
+            "languages": ["c"],
+            "translation_units": ["signal.c"],
+            "declarations": [
+                function("signal.c", "callback", "callback", 0, 1)
+            ],
+            "pointer_bindings": [{
+                "pointer": symbol(
+                    "external-sa-handler",
+                    "",
+                    "sigaction::(anonymous union)::sa_handler",
+                    "Field",
+                    true
+                ),
+                "target": symbol("callback", "signal.c", "callback", "Function", false),
+                "expression": "action.sa_handler = callback",
+                "span": span("signal.c", 1, 1, 1, 30)
+            }]
+        }]
+    }))
+    .unwrap();
+
+    let model = materialize(&root.path, &response).unwrap();
+
+    assert!(model.files[0].semantic_pointer_bindings.is_empty());
+}

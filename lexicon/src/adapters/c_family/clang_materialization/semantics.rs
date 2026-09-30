@@ -145,6 +145,12 @@ fn call(
         .as_ref()
         .map(|target| references.resolve(target, path))
         .unwrap_or_default();
+    let receiver_type_name = value
+        .receiver_type
+        .as_ref()
+        .filter(|target| !target.qualified_name.is_empty())
+        .map(|target| target.qualified_name.clone())
+        .unwrap_or_else(|| value.receiver_type_name.clone());
     let callee_value_id = value
         .callee_value
         .as_ref()
@@ -176,7 +182,7 @@ fn call(
         compiler_candidate_count: value.compiler_candidate_count,
         external_candidate_count,
         receiver_type_id,
-        receiver_type: value.receiver_type_name.clone(),
+        receiver_type: receiver_type_name,
         callee_value_id,
         arguments: value
             .arguments

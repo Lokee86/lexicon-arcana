@@ -1,9 +1,11 @@
 use std::{
     collections::BTreeMap,
     ffi::OsString,
-    io::{BufRead, BufReader, Read, Write},
+    fs::{File, OpenOptions, remove_file},
+    io::{BufRead, BufReader, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
+    sync::atomic::{AtomicU64, Ordering},
     time::Instant,
 };
 
@@ -13,8 +15,10 @@ use crate::adapters::AdapterError;
 
 use super::capture::{capture_stderr, replay_stderr, stderr_suffix, terminate};
 
-// Keep frontend IPC bounded while allowing measured multi-module repository responses.
-const MAX_RESPONSE_BYTES: u64 = 128 * 1024 * 1024;
+// Keep frontend IPC bounded while allowing measured whole-repository compiler responses.
+// Large compiler frontends are spooled to disk so helper memory is released before decode.
+const MAX_RESPONSE_BYTES: u64 = 1024 * 1024 * 1024;
+static RESPONSE_FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 pub(crate) trait ProtocolResponse {
     fn protocol_version(&self) -> u32;
@@ -84,6 +88,7 @@ impl FrontendRunner {
         let profile = crate::perf::enabled() && self.metric_namespace.is_some();
         let ipc_started = profile.then(Instant::now);
         let program = self.resolve()?;
+        let mut response_frame = ResponseFrameFile::create()?;
         let mut child = Command::new(&program)
             .args(&self.prefix_args)
             .args(arguments)
@@ -116,52 +121,27 @@ impl FrontendRunner {
 
         let stdout = child.stdout.take().expect("stdout was piped");
         let mut reader = BufReader::new(stdout);
-        let mut frame = Vec::new();
-        let read_result = reader
-            .by_ref()
-            .take(MAX_RESPONSE_BYTES + 1)
-            .read_until(b'\n', &mut frame);
-        if let Err(error) = read_result {
-            return Err(terminate(
-                &mut child,
-                stderr_thread,
-                format!("read semantic frontend response: {error}"),
-            ));
-        }
-        if frame.is_empty() || frame.len() as u64 > MAX_RESPONSE_BYTES {
-            return Err(terminate(
-                &mut child,
-                stderr_thread,
-                "semantic frontend response frame is empty or too large".into(),
-            ));
-        }
-        while matches!(frame.last(), Some(b'\n' | b'\r')) {
-            frame.pop();
-        }
-
-        let response_bytes = frame.len() as u64;
-        let decode_started = profile.then(Instant::now);
-        let response: Response = match serde_json::from_slice(&frame) {
-            Ok(response) => response,
+        let response_bytes = match spool_response_frame(&mut reader, &mut response_frame.file) {
+            Ok(bytes) => bytes,
             Err(error) => {
+                drop(reader);
                 return Err(terminate(
                     &mut child,
                     stderr_thread,
-                    format!("decode semantic frontend response: {error}"),
+                    format!("read semantic frontend response: {error}"),
                 ));
             }
         };
-        let version = response.protocol_version();
-        if version != expected_protocol {
+        if response_bytes == 0 || response_bytes > MAX_RESPONSE_BYTES {
+            drop(reader);
             return Err(terminate(
                 &mut child,
                 stderr_thread,
                 format!(
-                    "semantic frontend protocol mismatch: got {version}, expected {expected_protocol}"
+                    "semantic frontend response frame is empty or too large: read {response_bytes} bytes with a {MAX_RESPONSE_BYTES}-byte limit"
                 ),
             ));
         }
-        let decode_elapsed = decode_started.map(|started| started.elapsed());
 
         drop(reader);
         let status = child
@@ -174,6 +154,29 @@ impl FrontendRunner {
                 stderr_suffix(&stderr)
             )));
         }
+
+        response_frame
+            .file
+            .seek(SeekFrom::Start(0))
+            .map_err(|error| {
+                AdapterError::new(format!("rewind semantic frontend response: {error}"))
+            })?;
+        let decode_started = profile.then(Instant::now);
+        let response: Response =
+            serde_json::from_reader(&mut response_frame.file).map_err(|error| {
+                AdapterError::new(format!(
+                    "decode semantic frontend response: {error}{}",
+                    stderr_suffix(&stderr)
+                ))
+            })?;
+        let version = response.protocol_version();
+        if version != expected_protocol {
+            return Err(AdapterError::new(format!(
+                "semantic frontend protocol mismatch: got {version}, expected {expected_protocol}{}",
+                stderr_suffix(&stderr)
+            )));
+        }
+        let decode_elapsed = decode_started.map(|started| started.elapsed());
         if let (Some(namespace), Some(ipc_started), Some(decode_elapsed)) = (
             self.metric_namespace.as_deref(),
             ipc_started,
@@ -220,6 +223,66 @@ impl FrontendRunner {
                     "semantic frontend executable not found; install the packaged frontend{override_hint}; checked {checked}"
                 ))
             })
+    }
+}
+
+fn spool_response_frame<R: BufRead>(reader: &mut R, output: &mut File) -> std::io::Result<u64> {
+    let mut written = 0_u64;
+    loop {
+        let available = reader.fill_buf()?;
+        if available.is_empty() {
+            break;
+        }
+
+        let newline = available.iter().position(|byte| *byte == b'\n');
+        let frame_bytes = newline.map_or(available.len(), |index| index + 1);
+        let remaining = (MAX_RESPONSE_BYTES + 1).saturating_sub(written) as usize;
+        let copy_bytes = frame_bytes.min(remaining);
+        output.write_all(&available[..copy_bytes])?;
+        reader.consume(copy_bytes);
+        written += copy_bytes as u64;
+
+        if newline.is_some() || copy_bytes < frame_bytes || written > MAX_RESPONSE_BYTES {
+            break;
+        }
+    }
+    Ok(written)
+}
+
+struct ResponseFrameFile {
+    file: File,
+    path: PathBuf,
+}
+
+impl ResponseFrameFile {
+    fn create() -> Result<Self, AdapterError> {
+        loop {
+            let sequence = RESPONSE_FILE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+            let path = std::env::temp_dir().join(format!(
+                "lexicon-frontend-response-{}-{sequence}.json",
+                std::process::id()
+            ));
+            match OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create_new(true)
+                .open(&path)
+            {
+                Ok(file) => return Ok(Self { file, path }),
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(error) => {
+                    return Err(AdapterError::new(format!(
+                        "create semantic frontend response spool: {error}"
+                    )));
+                }
+            }
+        }
+    }
+}
+
+impl Drop for ResponseFrameFile {
+    fn drop(&mut self) {
+        let _ = remove_file(&self.path);
     }
 }
 

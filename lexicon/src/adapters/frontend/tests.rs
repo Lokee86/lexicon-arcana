@@ -37,6 +37,19 @@ fn malformed_frontend_response_is_rejected() {
 }
 
 #[test]
+fn frontend_uses_only_the_first_response_frame() {
+    let root = TempDirectory::new("first-frame");
+    let runner = scripted_frontend(
+        &root.path,
+        "{\"protocol_version\":1}\ntrailing-output",
+        "",
+        0,
+    );
+    let response = run(&runner, 1).unwrap();
+    assert_eq!(response.protocol_version, 1);
+}
+
+#[test]
 fn frontend_protocol_mismatch_is_rejected() {
     let root = TempDirectory::new("protocol");
     let runner = scripted_frontend(&root.path, r#"{"protocol_version":2}"#, "", 0);

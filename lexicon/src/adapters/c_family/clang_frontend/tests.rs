@@ -46,6 +46,25 @@ fn structural_uses_versioned_private_frontend_contract() {
 }
 
 #[test]
+fn structural_chunks_large_source_sets_and_merges_duplicate_observations() {
+    let root = TestDirectory::new("structural-chunks");
+    fs::write(root.path.join("main.c"), b"int main(void) { return 0; }\n").unwrap();
+    let counter = root.path.join("calls.txt");
+    let response = format!(
+        r#"{{"protocol_version":1,"helper_version":"{}","clang_version":"clang test","compilation_database":false,"translation_units":[{{"path":"main.c","language":"c","directory":".","arguments":["clang","-xc","main.c"],"synthesized":true}}],"files":[{{"path":"main.c","languages":["c"],"translation_units":["main.c"]}}],"diagnostics":[]}}"#,
+        clang_protocol::HELPER_VERSION
+    );
+    let frontend = ClangFrontend::with_runner(counting_frontend(&root.path, &counter, &response));
+    let files = (0..129).map(|index| format!("file{index:03}.c")).collect();
+
+    let structural = frontend.structural(&root.path, files).unwrap();
+
+    assert_eq!(fs::read_to_string(counter).unwrap().lines().count(), 2);
+    assert_eq!(structural.files.len(), 1);
+    assert_eq!(structural.translation_units.len(), 1);
+}
+
+#[test]
 fn capabilities_rejects_helper_version_mismatch() {
     let root = TestDirectory::new("version-mismatch");
     let response = r#"{"protocol_version":1,"helper_version":"stale","clang_version":"clang test","capabilities":[],"compilation_database":false}"#;
@@ -53,6 +72,53 @@ fn capabilities_rejects_helper_version_mismatch() {
     let error = frontend.capabilities(&root.path).unwrap_err().to_string();
 
     assert!(error.contains("helper version mismatch"), "{error}");
+}
+
+fn counting_frontend(
+    root: &std::path::Path,
+    counter: &std::path::Path,
+    response: &str,
+) -> FrontendRunner {
+    #[cfg(windows)]
+    {
+        let script = root.join("clang-counting-frontend.ps1");
+        fs::write(
+            &script,
+            format!(
+                "$null = [Console]::In.ReadLine()\nAdd-Content -LiteralPath '{}' -Value 'call'\n[Console]::Out.WriteLine('{}')\n",
+                counter.display().to_string().replace('\'', "''"),
+                response.replace('\'', "''")
+            ),
+        )
+        .unwrap();
+        let program = PathBuf::from(std::env::var_os("SystemRoot").unwrap())
+            .join("System32")
+            .join("WindowsPowerShell")
+            .join("v1.0")
+            .join("powershell.exe");
+        return FrontendRunner::explicit(
+            program,
+            vec![
+                OsString::from("-NoProfile"),
+                OsString::from("-File"),
+                script.into_os_string(),
+            ],
+        );
+    }
+    #[cfg(not(windows))]
+    {
+        let script = root.join("clang-counting-frontend.sh");
+        fs::write(
+            &script,
+            format!(
+                "#!/bin/sh\nIFS= read -r request\nprintf 'call\\n' >> '{}'\nprintf '%s\\n' '{}'\n",
+                counter.display().to_string().replace('\'', "'\\''"),
+                response.replace('\'', "'\\''")
+            ),
+        )
+        .unwrap();
+        FrontendRunner::explicit(PathBuf::from("/bin/sh"), vec![script.into_os_string()])
+    }
 }
 
 fn scripted_frontend(root: &std::path::Path, response: &str) -> FrontendRunner {

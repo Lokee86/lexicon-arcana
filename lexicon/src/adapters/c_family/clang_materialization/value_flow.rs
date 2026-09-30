@@ -27,6 +27,7 @@ pub(super) fn materialize(
     let bindings = file
         .pointer_bindings
         .iter()
+        .filter(|value| !value.pointer.external)
         .map(|value| pointer_binding(&file.path, value, references))
         .collect::<Result<Vec<_>, _>>()?;
     let accesses = file

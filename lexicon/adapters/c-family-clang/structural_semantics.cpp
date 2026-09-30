@@ -113,6 +113,9 @@ void normalize_semantics(File &file) {
       file.relationships.end());
 
   for (auto &call : file.calls) {
+    if (call.receiver_type && !call.receiver_type->qualified_name.empty()) {
+      call.receiver_type_name = call.receiver_type->qualified_name;
+    }
     std::sort(call.candidates.begin(), call.candidates.end(),
               [](const SymbolReference &left, const SymbolReference &right) {
                 return std::tie(left.compiler_id, left.path,
@@ -132,10 +135,32 @@ void normalize_semantics(File &file) {
 
   std::sort(file.calls.begin(), file.calls.end(),
             [](const SemanticCall &left, const SemanticCall &right) {
-              return std::tuple(left.span.start_line, left.span.start_column,
-                                left.form, left.expression, target_key(left)) <
-                     std::tuple(right.span.start_line, right.span.start_column,
-                                right.form, right.expression, target_key(right));
+              const auto left_key =
+                  std::tuple(left.span.start_line, left.span.start_column,
+                             left.span.end_line, left.span.end_column,
+                             left.source_compiler_id, left.form, left.expression,
+                             target_key(left));
+              const auto right_key =
+                  std::tuple(right.span.start_line, right.span.start_column,
+                             right.span.end_line, right.span.end_column,
+                             right.source_compiler_id, right.form,
+                             right.expression, target_key(right));
+              if (left_key != right_key) {
+                return left_key < right_key;
+              }
+              if (left.overload_selected != right.overload_selected) {
+                return left.overload_selected > right.overload_selected;
+              }
+              if (left.compiler_candidate_count !=
+                  right.compiler_candidate_count) {
+                return left.compiler_candidate_count >
+                       right.compiler_candidate_count;
+              }
+              if (left.macro_expanded != right.macro_expanded) {
+                return left.macro_expanded > right.macro_expanded;
+              }
+              return std::tie(left.resolution, left.receiver_type_name) <
+                     std::tie(right.resolution, right.receiver_type_name);
             });
   file.calls.erase(
       std::unique(file.calls.begin(), file.calls.end(),

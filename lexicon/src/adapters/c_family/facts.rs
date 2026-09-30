@@ -29,7 +29,7 @@ pub fn analysis(request: &AdapterRequest, model: RepositoryModel) -> Analysis {
             &[("records_before_dedup", records.len() as u64)],
         );
     }
-    records = deduplicate(records);
+    records = super::fact_dedup::deduplicate(records);
 
     let incremental = request.mode == AdapterMode::Incremental;
     Analysis::new(
@@ -156,42 +156,6 @@ fn add_declarations(
             span: Some(declaration.span.clone()),
         }));
     }
-}
-
-fn deduplicate(records: Vec<FactRecord>) -> Vec<FactRecord> {
-    let mut unique = BTreeMap::<String, FactRecord>::new();
-    for record in records {
-        let key = match &record {
-            FactRecord::Node(node) => format!("node\0{}", node.id),
-            FactRecord::Edge(edge) => format!(
-                "edge\0{}\0{}\0{}\0{}",
-                edge.source,
-                edge.target,
-                edge.relation,
-                span_key(edge.span.as_ref())
-            ),
-            FactRecord::Unresolved(value) => format!(
-                "unresolved\0{}\0{}\0{}\0{}\0{}",
-                value.source,
-                value.relation,
-                value.expression,
-                value.reason,
-                span_key(value.span.as_ref())
-            ),
-        };
-        unique.insert(key, record);
-    }
-    unique.into_values().collect()
-}
-
-fn span_key(span: Option<&crate::SourceSpan>) -> String {
-    span.map(|span| {
-        format!(
-            "{}\0{:08}\0{:08}\0{:08}\0{:08}",
-            span.path, span.start_line, span.start_column, span.end_line, span.end_column
-        )
-    })
-    .unwrap_or_default()
 }
 
 fn normalized(paths: &[String]) -> Vec<String> {

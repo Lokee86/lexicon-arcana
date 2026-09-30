@@ -8,6 +8,7 @@ mod clang_frontend;
 mod clang_materialization;
 mod clang_protocol;
 mod discovery;
+mod fact_dedup;
 mod facts;
 mod include_facts;
 mod includes;
@@ -87,6 +88,7 @@ impl LanguageAdapter for CFamilyAdapter {
                     include_bytes!("clang_materialization/value_flow.rs"),
                 ),
                 ("discovery.rs", include_bytes!("discovery.rs")),
+                ("fact_dedup.rs", include_bytes!("fact_dedup.rs")),
                 ("facts.rs", include_bytes!("facts.rs")),
                 ("include_facts.rs", include_bytes!("include_facts.rs")),
                 ("includes.rs", include_bytes!("includes.rs")),

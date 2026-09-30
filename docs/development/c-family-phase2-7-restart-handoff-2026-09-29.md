@@ -35,46 +35,65 @@ Important completed work in this checkpoint:
 
 ## Completed corpus evidence
 
-The report currently contains durable evidence for:
+The durable calibration report now contains final deterministic cold/warm evidence for:
 
-- LevelDB diagnostic calibration and stage profile;
-- fmt final cold/warm gate with deterministic canonical facts;
-- nlohmann/json semantic calibration and stage profile;
-- Git synthetic/no-build-context timeout evidence.
+- LevelDB;
+- fmt;
+- Catch2;
+- nlohmann/json.
 
-The report also records the current non-corpus acceptance gates, including the focused C-family tests, doctor/scan workflow checks, helper packaging, relocation determinism, and multi-language baseline verification.
+Catch2 calibration exposed and closed two additional correctness defects:
 
-## Exact interrupted operation
+- external compiler-observed function-pointer fields such as `sigaction.sa_handler` are not repository-owned pointer nodes;
+- duplicate header call observations must merge contextual metadata deterministically rather than use arrival-order last-wins semantics.
 
-A final Git corpus gate was running through:
+The focused C-family unit surface is now **22/22** green. The generic frontend runner is **5/5** green, including preservation of first-frame semantics on the new spooled response path.
+
+## Current Git gate
+
+Git's real build-context gate exposed a protocol-capacity issue rather than a semantic failure. The helper response exceeds the previous 128 MiB and 512 MiB in-memory response ceilings.
+
+The frontend path has therefore been changed to:
+
+- spool a bounded response frame to a temporary file;
+- preserve the existing first newline-delimited JSON frame contract;
+- wait for the helper to exit and release Clang AST/Sema memory before Rust JSON decode/materialization;
+- retain a hard **1 GiB** response ceiling;
+- bound helper-process lifetime by sending source files in deterministic **128-file** batches, merging exact duplicate observations in Rust, then analyzing only still-unobserved requested headers in shallowest-depth order. Each helper exits before the next batch, releasing all Clang state.
+
+The latest real-build-context Git attempt reached Clang frontend execution but the single helper exited before emitting a response frame. That attempt is evidence of helper-lifetime memory pressure, not a semantic mismatch and not a response-ceiling failure.
+
+The replacement production path now sends source files through deterministic **128-file helper requests** and merges responses in Rust. A short nlohmann/json canonical-hash canary is the immediate gate before retrying Git.
+
+Git/CBM final runs use raw WSL Docker rather than the Workspace Docker scheduler because the latter repeatedly cancelled long jobs when unrelated Docker work took the shared target slot.
+
+Exact final-gate command shape:
 
 `scripts/c_family_phase2_final_case.sh git /corpus/git`
 
-using the pinned Clang 18 container, clean native helper, eight frontend workers, and a writable snapshot of the pinned Git checkout.
+using the pinned Clang 18 image, clean helper, eight native frontend workers per helper process, and `C:\!bin\tmp\phase27\adapter_eval`.
 
-That job was explicitly cancelled for the user-requested restart. Do **not** treat it as a failed gate.
+Do not treat earlier scheduler cancellations as corpus failures.
 
 ## Remaining Phase 2.7 work
 
-Resume the final cold/warm matrix from the existing runner. The remaining cases listed in the calibration report are authoritative; at checkpoint time they include Git, Codebase Memory, LevelDB final deterministic rerun, Catch2, and nlohmann/json final deterministic rerun.
+At this checkpoint only the two large final corpus gates remain:
 
-For each remaining case:
-
-1. run the pinned corpus revision through `scripts/c_family_phase2_final_case.sh`;
-2. preserve cold/warm wall time, process-tree RSS, stage metrics, and canonical SHA-256;
-3. compare against the Phase 2.1 frozen oracle with the Phase 2 comparator;
-4. adjudicate semantic deltas against the authoritative-Clang ownership rules rather than restoring Tree-sitter guesses;
-5. append the evidence to the calibration report;
-6. rerun focused/full acceptance checks;
-7. only then mark Phase 2.7 complete and proceed to Phase 2.8 deletion work.
+1. finish Git `9a0c4701dcd5725c4184599322b52933ff5005ca`;
+2. run Codebase Memory `97ce23f9827177fff3858831156e9795c6832b18`;
+3. compare both against the Phase 2.1 oracle and append their semantic/performance adjudication;
+4. run final formatting/diff/focused acceptance;
+5. mark Phase 2.7 complete and only then proceed to Phase 2.8.
 
 ## Environment notes
 
-Native calibration requires the WSL Docker target and the pinned `lexicon-cfamily-phase27:clang18` image. The host Windows installation does not provide LLVM/Clang development packages.
+Native calibration requires the WSL Docker engine and pinned `lexicon-cfamily-phase27:clang18` image. The host Windows installation does not provide LLVM/Clang development packages.
 
-Transient WSL/Docker wrapper hangs were observed around Windows bind-mount handoff. The reliable pattern is to keep build products and fact streams on Linux/container-local storage and persist only compact summaries/evidence to the Windows worktree.
+For long calibration runs, invoke Docker through raw `wsl.exe docker ...` from outside the repo worktree. The structured Workspace Docker target has a shared scheduler slot and repeatedly cancelled valid long-running corpus jobs when unrelated Docker jobs started.
 
-Do not spend turns polling long Clang jobs. Use the 600-second per-case cap as the performance result when a case reaches it.
+Keep large build products, response spools, and fact streams Linux/container-local where practical. Persist compact summaries/evidence to the Windows side.
+
+Do not spend turns polling long Clang jobs. The calibration runner retains the 600-second per-run performance cap.
 
 ## Checkpoint policy
 

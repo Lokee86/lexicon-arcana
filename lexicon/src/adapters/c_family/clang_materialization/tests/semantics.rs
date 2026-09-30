@@ -88,7 +88,7 @@ fn clang_semantics_materialize_relationships_and_call_policy() {
                     "target": symbol("base-value", "semantic.cpp", "Base::value", "CXXMethod", false),
                     "candidates": [],
                     "receiver_type": symbol("base", "semantic.cpp", "Base", "CXXRecord", false),
-                    "receiver_type_name": "Base",
+                    "receiver_type_name": "unqualified-base",
                     "virtual_dispatch": true,
                     "compiler_candidate_count": 1,
                     "arguments": [],
@@ -103,6 +103,7 @@ fn clang_semantics_materialize_relationships_and_call_policy() {
     let file = &model.files[0];
     assert_eq!(file.semantic_relationships.len(), 2);
     assert_eq!(file.semantic_calls.len(), 3);
+    assert_eq!(file.semantic_calls[2].receiver_type, "Base");
 
     let ids = file
         .declarations
