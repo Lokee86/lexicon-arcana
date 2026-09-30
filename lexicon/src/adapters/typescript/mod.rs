@@ -124,10 +124,13 @@ impl LanguageAdapter for TypeScriptAdapter {
         let stdout = String::from_utf8(output.stdout).map_err(|error| {
             AdapterError::new(format!("TypeScript adapter output is not UTF-8: {error}"))
         })?;
-        Analysis::parse(&stdout).map_err(|error| {
-            AdapterError::new(format!("decode TypeScript adapter output: {error}"))
-        })
+        decode_output(&stdout)
     }
+}
+
+fn decode_output(stdout: &str) -> Result<Analysis, AdapterError> {
+    Analysis::parse_unvalidated(stdout)
+        .map_err(|error| AdapterError::new(format!("decode TypeScript adapter output: {error}")))
 }
 
 fn normalize_path(path: &str) -> String {
