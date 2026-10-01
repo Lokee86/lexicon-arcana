@@ -1,0 +1,36 @@
+﻿{
+    "gate":  "Stage B",
+    "branch":  "perf/arcana-heap-refactor",
+    "commit":  "ff256a0b90cf94baf095fc893b81a57b72f1c451",
+    "lexicon_snapshot":  "sha256:ee46a8a475c443f908e0eff6db9efca62e3871fe1f541e62251ebd9f5ed2c621",
+    "rescan_performed":  false,
+    "release_binary":  true,
+    "mode":  "rebuild",
+    "exit_code":  0,
+    "wall_seconds":  68.629325,
+    "peak_process_tree_rss_bytes":  727298048,
+    "peak_process_tree_rss_mib":  693.61,
+    "rss_sampling_interval_ms":  20,
+    "rss_samples":  1920,
+    "child_process_observed":  false,
+    "stage_b_limit_mib":  650,
+    "stage_b_memory_gate_pass":  false,
+    "counts":  {
+                   "nodes":  1125126,
+                   "visible_edges":  2367423,
+                   "unresolved":  699349
+               },
+    "artifacts":  {
+                      "repository.arcana":  {
+                                                "size_bytes":  489778032,
+                                                "sha256":  "10cb311318a28703e3c9a510cae1b177e24f123c2d604ffafc194c3e55de0281",
+                                                "oracle_byte_identical":  true
+                                            },
+                      "graph.arcana":  {
+                                           "size_bytes":  46411248,
+                                           "sha256":  "ee64b0367905d5e39c64d75c1269b429fc3791b5a6287cce0576e32f22e8fd5d",
+                                           "oracle_byte_identical":  true
+                                       }
+                  },
+    "profile_stderr":  "arcana sync profile: phase=compact-node-pass elapsed_ms=45733.681\narcana sync profile: phase=compact-relation-pass elapsed_ms=12981.327\narcana sync profile: phase=compact-build-finish elapsed_ms=3609.609\narcana sync profile: phase=compact-store-write elapsed_ms=2189.400\narcana sync profile: phase=compact-store-checksum elapsed_ms=553.308\narcana sync profile: phase=compact-graph-compile elapsed_ms=1347.399 nodes=1125126 edges=2367423 unresolved=699349"
+}

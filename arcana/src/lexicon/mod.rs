@@ -32,6 +32,8 @@ mod stream_compact_convert;
 mod stream_compact_legacy;
 #[allow(dead_code)]
 mod stream_compact_node;
+#[cfg(test)]
+mod stream_compact_node_tests;
 mod stream_records;
 
 #[cfg(test)]

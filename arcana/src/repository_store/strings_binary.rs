@@ -3,28 +3,26 @@ use crate::repository_store::format::{ABSENT_STRING_ID, STRING_INDEX_RECORD_LEN}
 
 impl CompactStringTable {
     pub fn encode(&self) -> Result<Vec<u8>, StoreFormatError> {
-        let index_len = self
-            .strings
-            .len()
+        let count = self.len();
+        let (blob, offsets) = self.parts();
+        let index_len = count
             .checked_mul(STRING_INDEX_RECORD_LEN as usize)
             .ok_or(StoreFormatError::SizeOverflow)?;
-        let blob_len = self.strings.iter().try_fold(0usize, |size, value| {
-            size.checked_add(value.len())
-                .ok_or(StoreFormatError::SizeOverflow)
-        })?;
         let mut bytes = vec![0_u8; index_len];
-        bytes.reserve(blob_len);
-        let mut blob_offset = 0_u64;
-        for (index, value) in self.strings.iter().enumerate() {
+        bytes.reserve(blob.len());
+
+        for index in 0..count {
             let base = index * STRING_INDEX_RECORD_LEN as usize;
-            put_u64(&mut bytes, base, blob_offset);
-            let len = u32::try_from(value.len()).map_err(|_| StoreFormatError::StringTooLong)?;
+            let start = offsets[index];
+            let end = offsets[index + 1];
+            let len = end
+                .checked_sub(start)
+                .ok_or(StoreFormatError::MalformedStringTable)?;
+            let len = u32::try_from(len).map_err(|_| StoreFormatError::StringTooLong)?;
+            put_u64(&mut bytes, base, start);
             put_u32(&mut bytes, base + 8, len);
-            bytes.extend_from_slice(value.as_bytes());
-            blob_offset = blob_offset
-                .checked_add(u64::from(len))
-                .ok_or(StoreFormatError::SizeOverflow)?;
         }
+        bytes.extend_from_slice(blob);
         Ok(bytes)
     }
 
@@ -41,8 +39,11 @@ impl CompactStringTable {
         }
 
         let blob = &bytes[index_len..];
-        let mut strings = Vec::with_capacity(count);
+        let mut offsets = Vec::with_capacity(count + 1);
+        offsets.push(0);
         let mut expected_offset = 0usize;
+        let mut previous: Option<&str> = None;
+
         for index in 0..count {
             let base = index * STRING_INDEX_RECORD_LEN as usize;
             let offset = usize::try_from(get_u64(bytes, base))
@@ -57,19 +58,18 @@ impl CompactStringTable {
                 .ok_or(StoreFormatError::MalformedStringTable)?;
             let value = std::str::from_utf8(&blob[offset..end])
                 .map_err(|_| StoreFormatError::InvalidUtf8)?;
-            if strings
-                .last()
-                .is_some_and(|last: &String| last.as_str() >= value)
-            {
+            if previous.is_some_and(|previous| previous >= value) {
                 return Err(StoreFormatError::NonCanonicalStrings);
             }
-            strings.push(value.to_owned());
+            previous = Some(value);
             expected_offset = end;
+            offsets.push(u64::try_from(end).map_err(|_| StoreFormatError::SizeOverflow)?);
         }
         if expected_offset != blob.len() {
             return Err(StoreFormatError::MalformedStringTable);
         }
-        Ok(Self { strings })
+
+        Self::from_blob_parts(blob.to_vec(), offsets)
     }
 }
 

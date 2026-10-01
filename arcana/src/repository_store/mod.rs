@@ -10,6 +10,8 @@ mod build_ownership;
 mod build_stream;
 #[allow(dead_code)]
 mod build_stream_finish;
+#[allow(dead_code)]
+mod build_stream_nodes;
 mod canonical;
 mod edge_record;
 mod error;
@@ -30,6 +32,7 @@ mod reader_unresolved;
 mod reader_validation;
 mod record_io;
 mod span;
+mod string_arena;
 mod string_view;
 mod strings;
 mod unresolved_record;
@@ -41,7 +44,8 @@ mod writer_sink;
 #[doc(hidden)]
 pub use build::CompactRepositoryBuild;
 #[allow(unused_imports)]
-pub(crate) use build_stream::{CompactRepositoryAssembler, TempSpan, TempStringId};
+pub(crate) use build_stream::{CompactRepositoryAssembler, TempSpan};
+pub(crate) use build_stream_nodes::StagedNodeError;
 pub use edge_record::CompactEdgeRecord;
 pub use error::StoreFormatError;
 pub use identity::Sha256Identity;
@@ -53,6 +57,7 @@ pub use reader_ownership::{ContributionKindView, OwnershipContributionView, Owne
 pub use reader_records::{EdgeRecordView, NodeRecordView, SourceSpanView};
 pub use reader_unresolved::UnresolvedRecordView;
 pub use span::CompactSpan;
+pub(crate) use string_arena::TempStringId;
 pub use string_view::StringTableView;
 pub(crate) use strings::StringIdLookup;
 pub use strings::{CompactStringTable, StringId, StringTableBuilder};
