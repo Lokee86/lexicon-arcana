@@ -18,6 +18,7 @@ Development documentation defines current L+A verification/release practice and 
 - [Lexicon incremental scan Phase 4](lexicon-incremental-phase4-2026-10-01.md) — hard-cut production dependency loader, isolated one-time legacy migration, full-path bounded-work assertions and fixture scaling.
 - [Lexicon incremental scan Phase 5](lexicon-incremental-phase5-2026-10-01.md) — original blocked pinned-Hermes acceptance and diagnostic oracle.
 - [Lexicon incremental scan Phase 5 repairs](lexicon-incremental-phase5-repairs-2026-10-01.md) — shared-fact delta correctness, indexed Python source locations, completed pinned-subset profiles; full acceptance remains open.
+- [Lexicon Phase 5 cold index and interstack optimisation](lexicon-phase5-cold-partitions-interstack-2026-10-01.md) — paired pinned-subset cold measurements, bounded parallel immutable partition writes, interstack detector profile, and remaining full acceptance gates.
 - [Lexicon-wide performance restoration](lexicon-wide-performance-restoration.md) — active Rust-wide restoration project; Phases 0, 1, 2, 4, 5, 6, 7, and 8 complete, with Phase 3 still pending.
 - [Lexicon-wide pre-port optimization parity matrix](lexicon-wide-optimization-parity-matrix.md) — permanent Phase 5 audit of the mature pre-Rust performance sequence and current ownership/status.
 - [Lexicon Go-path performance restoration](lexicon-performance-restoration.md) — completed Go adapter/helper optimization project retained as historical evidence.

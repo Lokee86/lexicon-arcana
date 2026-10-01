@@ -35,10 +35,14 @@ static REGISTRATION: LazyLock<Regex> = LazyLock::new(|| {
 impl Resolver<'_> {
     pub(crate) fn detect_message_producers(&mut self, file: &SourceFile) {
         for (index, line) in file.lines.iter().enumerate() {
+            let tokens = message_assignment_tokens(line);
+            if tokens.is_empty() {
+                continue;
+            }
             let Some(owner) = self.index.owner_at(&file.path, (index + 1) as u64) else {
                 continue;
             };
-            for token in message_assignment_tokens(line) {
+            for token in tokens {
                 let Some(value) = self.resolve_message_value(&token) else {
                     continue;
                 };
@@ -74,9 +78,6 @@ impl Resolver<'_> {
             {
                 packet_dispatch_until = Some(index + 120);
             }
-            let Some(owner) = self.index.owner_at(&file.path, (index + 1) as u64) else {
-                continue;
-            };
             let mut tokens = Vec::new();
             if packet_dispatch_until.is_some_and(|until| index <= until) {
                 if let Some(capture) = SWITCH_CASE.captures(line) {
@@ -89,7 +90,12 @@ impl Resolver<'_> {
             if let Some(capture) = REGISTRATION.captures(line) {
                 tokens.push(capture[1].to_owned());
             }
-
+            if tokens.is_empty() {
+                continue;
+            }
+            let Some(owner) = self.index.owner_at(&file.path, (index + 1) as u64) else {
+                continue;
+            };
             for token in tokens {
                 let Some(value) = self.resolve_message_value(&token) else {
                     continue;

@@ -116,7 +116,7 @@ impl Store {
     }
 }
 
-pub(super) fn write_shards<T: serde::Serialize>(
+pub(super) fn write_shards<T: serde::Serialize + Sync>(
     store: &Store,
     values: BTreeMap<String, T>,
 ) -> Result<BTreeMap<u8, String>, StorageError> {
@@ -127,8 +127,58 @@ pub(super) fn write_shards<T: serde::Serialize>(
             .or_default()
             .insert(key, value);
     }
-    partitions
-        .into_iter()
-        .map(|(part, data)| store.write_index_object(&data).map(|id| (part, id)))
-        .collect()
+    // These are independent immutable CAS objects. Bound parallel writes
+    // reduce per-object durability latency without changing any partition
+    // bytes, identifiers, or the single snapshot publication boundary.
+    let started = crate::perf::start();
+    let partitions = partitions.into_iter().collect::<Vec<_>>();
+    let workers = std::thread::available_parallelism()
+        .map(usize::from)
+        .unwrap_or(1)
+        .min(8)
+        .min(partitions.len())
+        .max(1);
+    let ids = if workers == 1 {
+        partitions
+            .into_iter()
+            .map(|(part, data)| store.write_index_object(&data).map(|id| (part, id)))
+            .collect::<Result<Vec<_>, _>>()?
+    } else {
+        let per_worker = partitions.len().div_ceil(workers);
+        std::thread::scope(|scope| {
+            let handles = partitions
+                .chunks(per_worker)
+                .map(|slice| {
+                    scope.spawn(move || {
+                        slice
+                            .iter()
+                            .map(|(part, data)| {
+                                store.write_index_object(data).map(|id| (*part, id))
+                            })
+                            .collect::<Result<Vec<_>, StorageError>>()
+                    })
+                })
+                .collect::<Vec<_>>();
+            let mut result = Vec::with_capacity(partitions.len());
+            for handle in handles {
+                result.extend(handle.join().map_err(|_| {
+                    StorageError::Materialization(
+                        "immutable dependency-index writer panicked".into(),
+                    )
+                })??);
+            }
+            Ok::<_, StorageError>(result)
+        })?
+    };
+    if let Some(started) = started {
+        crate::perf::emit(
+            "scan.dependency_index_shards",
+            started.elapsed(),
+            &[
+                ("partitions", ids.len() as u64),
+                ("workers", workers as u64),
+            ],
+        );
+    }
+    Ok(ids.into_iter().collect())
 }

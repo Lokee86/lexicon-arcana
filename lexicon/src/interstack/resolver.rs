@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
+use std::time::Duration;
 
 use serde_json::{Map, Value};
 
@@ -111,23 +112,84 @@ pub fn resolve(
     };
 
     let detection_started = crate::perf::start();
+    let phase = crate::perf::start();
     for file in &files {
         resolver.collect_constants(file);
     }
+    if let Some(phase) = phase {
+        crate::perf::emit(
+            "interstack.constants",
+            phase.elapsed(),
+            &[("files", files.len() as u64)],
+        );
+    }
+    let phase = crate::perf::start();
     for file in &files {
         resolver.detect_http_consumers(file);
         resolver.detect_message_consumers(file);
     }
+    if let Some(phase) = phase {
+        crate::perf::emit(
+            "interstack.consumers",
+            phase.elapsed(),
+            &[("files", files.len() as u64)],
+        );
+    }
+    let phase = crate::perf::start();
     for file in &files {
         resolver.collect_http_path_providers(file);
     }
+    if let Some(phase) = phase {
+        crate::perf::emit(
+            "interstack.http_providers",
+            phase.elapsed(),
+            &[("files", files.len() as u64)],
+        );
+    }
+    let mut stages = [Duration::ZERO; 6];
     for file in &files {
+        let started = crate::perf::start();
         resolver.detect_http_producers(file);
+        if let Some(started) = started {
+            stages[0] += started.elapsed();
+        }
+        let started = crate::perf::start();
         resolver.detect_message_producers(file);
+        if let Some(started) = started {
+            stages[1] += started.elapsed();
+        }
+        let started = crate::perf::start();
         resolver.detect_config_reads(file);
+        if let Some(started) = started {
+            stages[2] += started.elapsed();
+        }
+        let started = crate::perf::start();
         resolver.detect_boundary_config(file);
+        if let Some(started) = started {
+            stages[3] += started.elapsed();
+        }
+        let started = crate::perf::start();
         resolver.detect_process_contracts(file);
+        if let Some(started) = started {
+            stages[4] += started.elapsed();
+        }
+        let started = crate::perf::start();
         resolver.detect_state_contracts(file);
+        if let Some(started) = started {
+            stages[5] += started.elapsed();
+        }
+    }
+    if detection_started.is_some() {
+        for (label, elapsed) in [
+            ("interstack.http_producers", stages[0]),
+            ("interstack.message_producers", stages[1]),
+            ("interstack.config_reads", stages[2]),
+            ("interstack.boundary_config", stages[3]),
+            ("interstack.process_contracts", stages[4]),
+            ("interstack.state_contracts", stages[5]),
+        ] {
+            crate::perf::emit(label, elapsed, &[("files", files.len() as u64)]);
+        }
     }
     if let Some(detection_started) = detection_started {
         crate::perf::emit(

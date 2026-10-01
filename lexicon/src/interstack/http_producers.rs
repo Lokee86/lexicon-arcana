@@ -17,11 +17,13 @@ impl Resolver<'_> {
             return;
         }
         for (index, line) in file.lines.iter().enumerate() {
+            if !line.to_ascii_lowercase().contains("return") {
+                continue;
+            }
             let Some(owner) = self.index.owner_at(&file.path, (index + 1) as u64) else {
                 continue;
             };
-            if !is_http_provider_name(&owner.name) || !line.to_ascii_lowercase().contains("return")
-            {
+            if !is_http_provider_name(&owner.name) {
                 continue;
             }
             for capture in QUOTED_HTTP_VALUE.captures_iter(line) {

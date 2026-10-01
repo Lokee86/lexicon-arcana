@@ -48,6 +48,14 @@ const BOUNDARY_CONFIG_KEYS: &[&str] = &[
 impl Resolver<'_> {
     pub(crate) fn detect_config_reads(&mut self, file: &SourceFile) {
         for (index, line) in file.lines.iter().enumerate() {
+            // Every supported pattern contains one of these literal prefixes.
+            // Avoid scanning callable intervals on ordinary source lines.
+            if !["os.", "ENV", "process.env.", "OS."]
+                .iter()
+                .any(|prefix| line.contains(prefix))
+            {
+                continue;
+            }
             let Some(owner) = self.index.owner_at(&file.path, (index + 1) as u64) else {
                 continue;
             };
@@ -76,6 +84,9 @@ impl Resolver<'_> {
 
     pub(crate) fn detect_boundary_config(&mut self, file: &SourceFile) {
         for (index, line) in file.lines.iter().enumerate() {
+            if !BOUNDARY_CONFIG_KEYS.iter().any(|key| line.contains(key)) {
+                continue;
+            }
             let Some(owner) = self.index.owner_at(&file.path, (index + 1) as u64) else {
                 continue;
             };
