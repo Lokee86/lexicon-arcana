@@ -161,37 +161,39 @@ def main() -> int:
     parser.add_argument("--repository", type=Path, required=True)
     parser.add_argument("--makefile", default="Makefile")
     parser.add_argument("--target", required=True)
+    parser.add_argument(
+        "--fallback-target", action="append", default=[],
+        help="capture only sources absent from earlier targets; repeat in priority order",
+    )
     parser.add_argument("--output", type=Path)
     parser.add_argument("--make-arg", action="append", default=[])
     args = parser.parse_args()
 
     repository = args.repository.resolve()
-    command = [
-        "make",
-        "-n",
-        "-B",
-        "-j1",
-        "-f",
-        args.makefile,
-        args.target,
-        *args.make_arg,
-    ]
-    completed = subprocess.run(
-        command,
-        cwd=repository,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    if completed.returncode != 0:
-        raise SystemExit(
-            f"make dry-run failed ({completed.returncode}):\n{completed.stderr}"
+    records: list[dict] = []
+    selected_files: set[str] = set()
+    for target in [args.target, *args.fallback_target]:
+        completed = subprocess.run(
+            ["make", "-n", "-B", "-j1", "-f", args.makefile, target, *args.make_arg],
+            cwd=repository,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
-
-    records = compile_output_records(completed.stdout, repository)
-
-    if not records:
-        raise SystemExit("make dry-run produced no C/C++ compile commands")
+        if completed.returncode != 0:
+            raise SystemExit(
+                f"make dry-run for {target} failed ({completed.returncode}):\n"
+                f"{completed.stderr}"
+            )
+        target_records = compile_output_records(completed.stdout, repository)
+        if not target_records:
+            raise SystemExit(f"make dry-run for {target} produced no C/C++ compile commands")
+        # Earlier targets own shared sources. Preserve distinct commands within
+        # the selected target, but never let a fallback override its build flags.
+        records.extend(
+            record for record in target_records if record["file"] not in selected_files
+        )
+        selected_files.update(record["file"] for record in target_records)
 
     output = args.output or repository / "compile_commands.json"
     output.parent.mkdir(parents=True, exist_ok=True)
