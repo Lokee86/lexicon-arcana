@@ -51,7 +51,23 @@ The package fixture archives only `acp_adapter/` from the same Hermes commit: 14
 
 On this fixture the repaired one-file scan loads the index without reconstructing the language-wide dependency graph. Nevertheless, its scoped adapter completes (~8 ms), the topology safety check reads only the selected prior file, then shared-object reconciliation reads the prior shared and touched file objects and detects a changed shared-object ID. The conservative safety path retries complete Python analysis (~6.5 seconds) on both one-file edits. This yields 12.984–13.297-second CLI walls and misses the provisional 10-second one-file target *even at package scale*. The measured repaired full adapter stage is 6.122 seconds; the additional requirement of one edit taking no more than 20% of that stage is also not met on this fixture. These package failures cannot substitute for the unmeasured full-Hermes warm target.
 
-The old package incremental export contains 11,010 records following each comment-only edit; the repaired full-retry export contains 11,011. All initial full exports match exactly. Six of nine paired scenario fact digests differ. A missing old fact is plausible, but an independent canonical fact oracle for each changed source state is required before deciding which output is correct; never bypass the safety fallback merely to reproduce the old result.
+The old package incremental export contains 11,010 records following each comment-only edit; the repaired full-retry export contains 11,011. All initial full exports match exactly. Six of nine paired scenario fact digests differ. A separate exact-fact oracle has since adjudicated the **first one-file edit** (below); the remaining changed-scenario differences still require independent evaluation. Do not weaken the safety fallback to reproduce the old result.
+
+## Independent one-file semantic oracle (same pinned package)
+
+A fresh diagnostic ran three **independent, disposable** checkouts of the exact pinned `acp_adapter/` package. Each applied the identical appended `# phase5 edit_once` comment to `acp_adapter/__init__.py`. The reference performed a **fresh complete analysis of that edited source**, rather than treating either incremental result as ground truth.
+
+| Analysis of the same edited source | Fact records | Relative to independent full reference |
+| --- | ---: | --- |
+| Fresh full analysis using repaired binary | 11,011 | Exact reference |
+| Old incremental path | 11,010 | Missing exactly one shared edge; no extras |
+| Repaired incremental path, including safety-triggered full retry | 11,011 | **Exact match** |
+
+The missing old edge is `depends-on` with attribute `source: acp_adapter.tools`, `category: local`, and `path: true`. It was a cross-module dependency relationship, not a duplicate or harmless formatting difference. The old incremental result silently lost it on this comment-only edit; the repaired path preserves it but currently spends approximately 5–6 seconds rerunning full Python analysis. Its measured 9.5-second repeat in this separate diagnostic should not be substituted for the original 12.984-second acceptance measurement: the runs were not paired under identical external workload.
+
+This establishes correctness of the repaired **first edit** but not successful Phase 5 performance acceptance. The remaining five changed-scenario hash mismatches have not been adjudicated against separate edited-source full references. An optimized incremental shared-fact policy must prove that it retains existing edges from untouched sources to stable changed-node identities, or take the conservative full fallback when source/target facts genuinely change. In particular, do not delete a shared edge merely because its target node belongs to an edited file if the scoped adapter cannot independently regenerate that cross-file edge.
+
+Reproduction: `lexicon/evaluation/performance/incremental_phase5_shared_oracle.py`; result: `incremental-phase5-shared-oracle-2026-10-01.json`.
 
 Package memory consumption improved despite the latency failures: first-edit sampled RSS was 137,003,008 bytes before and 41,955,328 bytes after. Memory alone does not satisfy the performance or semantic gates.
 
@@ -68,7 +84,7 @@ Both package-level interruption probes terminated the scan subprocess, then comp
 | Full Hermes one-file within 10 s and 20% full-adapter time | No full warm run or completed full-adapter measurement | Unmeasured |
 | Full Hermes ten-file baseline-derived bound | Neither full run reached the ten-file case | Unmeasured |
 | No unrelated source/fact-object reads | Phase 4 synthetic gates pass; package dependency lookup bounded | Limited to fixtures |
-| Full before/after semantic parity | Six package-level exported fact mismatches; no full run | **Failed diagnostic** |
+| Full before/after semantic parity | Six package-level exported fact mismatches; first one-edit mismatch independently traced to an old missing cross-module edge; five others unadjudicated; no full run | **Failed diagnostic** |
 | Peak RSS | Sampled; complete-run memory cap was not reached | Partial |
 | Failure/interrupt lock release | Both package-level recoveries and adapter-drift integration pass | Passed at fixture level |
 
@@ -77,7 +93,7 @@ Both package-level interruption probes terminated the scan subprocess, then comp
 ## Follow-up repair and retest order
 
 1. Profile the native Python cold-analysis path on the pinned full Hermes corpus after adapter discovery, with bounded per-shard progress and a defensible time/RSS limit. This is separate from the already repaired warm dependency planner.
-2. Resolve the shared-fact scoped-merge discrepancy using a small exact-fact oracle: inspect which record is lost by old scoped edits, why the new scoped shared-object ID differs, and whether a provably complete local update can replace the conservative full retry. Do not weaken ownership correctness.
+2. The one-edit exact-fact oracle identifies an old missing `acp_adapter.tools` dependency edge and confirms that the repaired full retry produces the correct reference facts. Repair shared-fact invalidation so untouched cross-file dependencies are preserved when provably safe, and retain full retry for unprovable transitions. Adjudicate the other five mismatched mutation scenarios independently. Do not weaken ownership correctness.
 3. Repeat the exact full pinned Hermes before/after sequence *after* the blockers are addressed. Require completed full-adapter time, zero unrelated warm reads, full semantic-fact identity (or adjudicated differences), ten-file bound, adapter drift, and success/failure/cancellation recovery before changing acceptance status.
 
 ## Artifacts and verification
@@ -86,6 +102,7 @@ Both package-level interruption probes terminated the scan subprocess, then comp
 - Comparator: `incremental_phase5_compare.py` and its five unit tests. Missing/censored data is never treated as a pass.
 - Full cold failure: `incremental-phase5-hermes-full-after-2026-10-01.json`.
 - Censored intermediate cold run: `incremental-phase5-hermes320-before-2026-10-01.json`.
+- Independent one-edit fact oracle: `incremental-phase5-shared-oracle-2026-10-01.json`; reproducible `incremental_phase5_shared_oracle.py`. It confirms one old missing cross-module dependency and exact repaired/reference parity for that one edit.
 - Paired package runs: `incremental-phase5-acp-before-2026-10-01.json`, `incremental-phase5-acp-after-2026-10-01.json`; result: `incremental-phase5-acp-comparison-2026-10-01.json`.
 - Rust engine regression: `lexicon/tests/phase5_adapter_drift.rs`.
 - Earlier [Phase 4 bounded-work evidence](lexicon-incremental-phase4-2026-10-01.md) remains valid for the independent 61- and 1,001-file synthetic checks.

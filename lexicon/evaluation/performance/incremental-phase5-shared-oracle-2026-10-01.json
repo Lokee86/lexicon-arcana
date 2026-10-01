@@ -1,0 +1,88 @@
+{
+  "source_revision": "7798df0a83721df7ff44b9ba023d56b85b351d1e",
+  "change": "append # phase5 edit_once to acp_adapter/__init__.py",
+  "cases": {
+    "edited_full_oracle": {
+      "init_seconds": 8.844,
+      "init_exit": 0,
+      "init_timed_out": false,
+      "fact_count": 11011
+    },
+    "before_incremental": {
+      "init_seconds": 9.547,
+      "init_exit": 0,
+      "init_timed_out": false,
+      "edit_seconds": 4.391,
+      "edit_exit": 0,
+      "edit_timed_out": false,
+      "shared_merge": [
+        {
+          "stage": "scan.adapter.python.incremental",
+          "elapsed_ms": 40.527,
+          "requested_changed_files": 1,
+          "requested_removed_files": 0,
+          "failed": 0
+        }
+      ],
+      "fact_count": 11010,
+      "missing_vs_full": [
+        {
+          "count": 1,
+          "fact": {
+            "attributes": {
+              "build": false,
+              "category": "local",
+              "constraint": "",
+              "dev": false,
+              "optional": false,
+              "path": true,
+              "peer": false,
+              "source": "acp_adapter.tools"
+            },
+            "record": "edge",
+            "relation": "depends-on",
+            "source": "sha256:f4e4693737eba22d45595e45bf61a19bf33f3ecd92b0453fc2c0d4c8441ca1c2",
+            "target": "sha256:1db997c3e1c562643812b996583c2dde08d4dbfc9b687579ae67c28ce0970c50"
+          }
+        }
+      ],
+      "extra_vs_full": [],
+      "matches_full_oracle": false
+    },
+    "after_incremental": {
+      "init_seconds": 17.156,
+      "init_exit": 0,
+      "init_timed_out": false,
+      "edit_seconds": 9.5,
+      "edit_exit": 0,
+      "edit_timed_out": false,
+      "shared_merge": [
+        {
+          "stage": "scan.adapter.python.incremental",
+          "elapsed_ms": 6.111,
+          "requested_changed_files": 1,
+          "requested_removed_files": 0,
+          "failed": 0
+        },
+        {
+          "stage": "scan.shared_merge",
+          "elapsed_ms": 50.128,
+          "previous_shared_records": 650,
+          "changed_file_objects_decoded": 1,
+          "fact_object_reads": 2
+        },
+        {
+          "stage": "scan.adapter.python.full",
+          "elapsed_ms": 5331.247,
+          "requested_changed_files": 0,
+          "requested_removed_files": 0,
+          "failed": 0
+        }
+      ],
+      "fact_count": 11011,
+      "missing_vs_full": [],
+      "extra_vs_full": [],
+      "matches_full_oracle": true
+    }
+  }
+}
