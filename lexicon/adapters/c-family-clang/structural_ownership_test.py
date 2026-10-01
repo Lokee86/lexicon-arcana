@@ -555,8 +555,17 @@ def protocol_v3_hard_cut_is_enforced(helper: pathlib.Path, version: str) -> None
 def failed_frontend_exits_without_hanging(helper: pathlib.Path, version: str) -> None:
     with temporary_directory("lexicon-frontend-failure-") as temp:
         root = pathlib.Path(temp)
-        (root / "broken.c").write_text("int broken( {\n", encoding="utf-8")
-        compile_database(root, ["broken.c"])
+        (root / "broken.c").write_text("int broken(void) { return 0; }\n", encoding="utf-8")
+        write_compile_database(
+            root,
+            [
+                {
+                    "directory": str(root),
+                    "arguments": ["clang", "-fno-such-lexicon-option", "-c", "broken.c"],
+                    "file": "broken.c",
+                }
+            ],
+        )
         try:
             completed = subprocess.run(
                 [
@@ -586,7 +595,36 @@ def failed_frontend_exits_without_hanging(helper: pathlib.Path, version: str) ->
         except subprocess.TimeoutExpired as error:
             raise RuntimeError("failed frontend hung instead of completing") from error
         if completed.returncode == 0:
-            raise RuntimeError("syntactically invalid frontend unexpectedly succeeded")
+            raise RuntimeError("driver-invalid frontend unexpectedly succeeded")
+
+
+def syntax_error_is_observed_without_aborting(
+    helper: pathlib.Path, version: str
+) -> None:
+    with temporary_directory("lexicon-syntax-diagnostic-") as temp:
+        root = pathlib.Path(temp)
+        (root / "broken.c").write_text("int broken( {\n", encoding="utf-8")
+        compile_database(root, ["broken.c"])
+        response = run(
+            helper,
+            version,
+            root,
+            {
+                "protocol_version": 3,
+                "operation": "structural",
+                "repository_root": str(root),
+                "owned_files": ["broken.c"],
+                "context_files": [],
+                "workers": 1,
+            },
+        )
+        if [value.get("path") for value in response.get("files", [])] != ["broken.c"]:
+            raise RuntimeError("syntax-error TU did not retain owned-file observations")
+        if not any(
+            value.get("severity") in {"error", "fatal"}
+            for value in response.get("diagnostics", [])
+        ):
+            raise RuntimeError("syntax-error TU emitted no compiler diagnostic")
 
 
 def shared_header_once(helper: pathlib.Path, version: str) -> None:
@@ -868,6 +906,7 @@ def main() -> int:
     execution_policy_is_fact_stable(helper, version)
     protocol_v3_hard_cut_is_enforced(helper, version)
     failed_frontend_exits_without_hanging(helper, version)
+    syntax_error_is_observed_without_aborting(helper, version)
     return 0
 
 

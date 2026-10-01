@@ -218,7 +218,7 @@ public:
                       unit_.translation_unit);
         }
       }
-      submit_(std::move(state_), ended_ && !failed_ ? 0 : 1);
+      submit_(std::move(state_), ended_ ? 0 : 1);
     }
   }
 
@@ -227,7 +227,6 @@ public:
   }
 
   void EndSourceFileAction() override {
-    failed_ = getCompilerInstance().getDiagnostics().hasErrorOccurred();
     clang::ASTFrontendAction::EndSourceFileAction();
     ended_ = true;
   }
@@ -252,7 +251,6 @@ private:
   std::string root_;
   std::function<void(State, int)> submit_;
   bool ended_ = false;
-  bool failed_ = false;
 };
 
 class StructuralActionFactory final
@@ -314,21 +312,23 @@ public:
     current_submitted_ = false;
     current_result_.reset();
     current_status_ = 0;
-    const auto succeeded = clang::tooling::FrontendActionFactory::runInvocation(
+    clang::tooling::FrontendActionFactory::runInvocation(
         std::move(invocation), files, std::move(pch_container_ops),
         diagnostic_consumer);
+    auto completed = false;
     if (!current_submitted_) {
       submit_failed(units_[current_index_],
                     "Clang did not create a frontend action for " +
                         input.str());
     } else {
-      submit_(units_[current_index_].rank, std::move(*current_result_),
-              succeeded && current_status_ == 0 ? 0 : 1);
+      const auto status = current_status_;
+      submit_(units_[current_index_].rank, std::move(*current_result_), status);
       current_result_.reset();
+      completed = status == 0;
     }
     current_submitted_ = true;
     ++current_index_;
-    return succeeded;
+    return completed;
   }
 
 private:
