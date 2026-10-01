@@ -11,6 +11,10 @@ Development documentation defines current L+A verification/release practice and 
 - [Testing and benchmarks](testing-and-benchmarks.md) — component/evaluation procedures and retained report artifacts.
 - [Arcana Lexicon ingestion heap baseline](arcana-lexicon-ingestion-heap-baseline-2026-09-28.md) — frozen pre-refactor heap, allocation, fixture, and artifact-oracle measurements for the bounded-memory ingestion refactor.
 - [Arcana Lexicon ingestion final memory gate](../../arcana/evaluation/results/hermes-arcana-final-gate-2026-09-28/report.md) — bounded-memory refactor evidence for the frozen fixture; rerun verification after integration.
+- [Lexicon incremental scan Phase 0](lexicon-incremental-phase0-2026-10-01.md) — controlled production-path instrumentation and baseline evidence for bounded warm scans.
+- [Lexicon incremental scan Phase 0](lexicon-incremental-phase0-2026-10-01.md) — controlled production-path instrumentation and baseline evidence for bounded warm scans.
+- [Lexicon incremental scan Phase 0](lexicon-incremental-phase0-2026-10-01.md) — controlled production-path instrumentation and baseline evidence for bounded warm scans.
+- [Lexicon incremental scan Phase 0](lexicon-incremental-phase0-2026-10-01.md) — controlled production-path instrumentation and bounded baseline evidence for warm scans.
 - [Lexicon-wide performance restoration](lexicon-wide-performance-restoration.md) — active Rust-wide restoration project; Phases 0, 1, 2, 4, 5, 6, 7, and 8 complete, with Phase 3 still pending.
 - [Lexicon-wide pre-port optimization parity matrix](lexicon-wide-optimization-parity-matrix.md) — permanent Phase 5 audit of the mature pre-Rust performance sequence and current ownership/status.
 - [Lexicon Go-path performance restoration](lexicon-performance-restoration.md) — completed Go adapter/helper optimization project retained as historical evidence.

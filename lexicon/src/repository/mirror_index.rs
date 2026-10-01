@@ -12,10 +12,30 @@ pub(crate) fn unchanged_files(
     desired: &BTreeMap<PathBuf, PathBuf>,
 ) -> Option<BTreeSet<PathBuf>> {
     let state_root = mirror_root.parent()?;
-    if !mirror_clean(state_root)? {
+    let clean = mirror_clean(state_root);
+    if crate::perf::enabled() {
+        crate::perf::emit(
+            "scan.mirror_index_state",
+            std::time::Duration::ZERO,
+            &[
+                ("mirror_clean", u64::from(matches!(clean, Some(true)))),
+                ("mirror_dirty", u64::from(matches!(clean, Some(false)))),
+                ("mirror_status_failed", u64::from(clean.is_none())),
+            ],
+        );
+    }
+    if !clean? {
         return None;
     }
-    let index = source_index(state_root)?;
+    let index = source_index(state_root);
+    if index.is_none() && crate::perf::enabled() {
+        crate::perf::emit(
+            "scan.mirror_index_fallback",
+            std::time::Duration::ZERO,
+            &[("source_index_failed", 1), ("source_hash_failed", 0)],
+        );
+    }
+    let index = index?;
     let paths = desired.keys().cloned().collect::<Vec<_>>();
     if paths.iter().any(|path| {
         let value = path.to_string_lossy();
@@ -23,7 +43,27 @@ pub(crate) fn unchanged_files(
     }) {
         return None;
     }
-    let hashes = hash_paths(state_root, source_root, &paths)?;
+    let hash_started = crate::perf::start();
+    let hashes = hash_paths(state_root, source_root, &paths);
+    if let Some(hash_started) = hash_started {
+        // File lengths are observed with metadata only; the content reads happen
+        // in Git's hash-object subprocesses, not in the profiler.
+        let requested_bytes = paths
+            .iter()
+            .filter_map(|path| std::fs::metadata(source_root.join(path)).ok())
+            .map(|metadata| metadata.len())
+            .sum::<u64>();
+        crate::perf::emit(
+            "scan.source_index_hash",
+            hash_started.elapsed(),
+            &[
+                ("requested_files", paths.len() as u64),
+                ("requested_bytes", requested_bytes),
+                ("hash_failed", u64::from(hashes.is_none())),
+            ],
+        );
+    }
+    let hashes = hashes?;
     if hashes.len() != paths.len() {
         return None;
     }

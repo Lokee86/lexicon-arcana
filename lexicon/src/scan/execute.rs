@@ -77,6 +77,7 @@ fn execute_plan(
         });
     }
 
+    let scope_started = crate::perf::start();
     let repository = if plan.full {
         source_root.to_path_buf()
     } else {
@@ -95,6 +96,16 @@ fn execute_plan(
             &context,
         )?
     };
+    if let Some(scope_started) = scope_started {
+        crate::perf::emit(
+            "scan.scope_construction",
+            scope_started.elapsed(),
+            &[
+                ("full", u64::from(plan.full)),
+                ("context_files", plan.context_files.len() as u64),
+            ],
+        );
+    }
     let request = request_for_plan(plan, execution, repository);
 
     let entry = if plan.full {
@@ -144,6 +155,7 @@ fn execute_incremental(
         None
     };
     let replace_shared = analysis.header.shared_complete.unwrap_or(false);
+    let materialize_started = crate::perf::start();
     let result = store.build_incremental_language(
         previous,
         &analysis,
@@ -154,6 +166,18 @@ fn execute_incremental(
         &plan.removed_files,
         replace_shared,
     );
+    if let Some(materialize_started) = materialize_started {
+        crate::perf::emit(
+            "scan.materialize_incremental",
+            materialize_started.elapsed(),
+            &[
+                ("changed_files", plan.changed_files.len() as u64),
+                ("removed_files", plan.removed_files.len() as u64),
+                ("shared_replacement", u64::from(replace_shared)),
+                ("failed", u64::from(result.is_err())),
+            ],
+        );
+    }
     if let Some(storage_started) = storage_started {
         crate::perf::emit(
             "go.final_serialization_storage",
@@ -178,6 +202,7 @@ fn apply_full(
     } else {
         None
     };
+    let materialize_started = crate::perf::start();
     let result = store.build_full_language(
         analysis,
         &sources,
@@ -185,6 +210,17 @@ fn apply_full(
         ANALYSIS_CONFIG_ID,
         &fingerprint,
     );
+    if let Some(materialize_started) = materialize_started {
+        crate::perf::emit(
+            "scan.materialize_full",
+            materialize_started.elapsed(),
+            &[
+                ("source_files", sources.len() as u64),
+                ("fact_records", analysis.records.len() as u64),
+                ("failed", u64::from(result.is_err())),
+            ],
+        );
+    }
     if let Some(storage_started) = storage_started {
         crate::perf::emit(
             "go.final_serialization_storage",

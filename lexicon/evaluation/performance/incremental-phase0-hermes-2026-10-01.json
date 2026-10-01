@@ -1,0 +1,90 @@
+{
+  "lexicon_revision": "ea6de4a02f5cd19c8dac371870f799a69326c4a4",
+  "binary_version": "lexicon version dev",
+  "steps": {
+    "init_full": {
+      "exit_code": 1,
+      "timed_out": true,
+      "wall_seconds": 121.579,
+      "peak_sampled_rss_bytes": 1153789952,
+      "rss_scope": "parent + children",
+      "stdout_tail": "File not found - \\\\?\\C:\\Users\\archa\\AppData\\Local\\Temp\\lexicon-phase0-26faw1g0\\source\\.lexicon\n",
+      "stderr_tail": "[lexicon-perf] stage=scan.source_discovery elapsed_ms=621.438 discovered_files=11017\n[lexicon-perf] stage=scan.mirror_index_state elapsed_ms=0.000 mirror_clean=1 mirror_dirty=0 mirror_status_failed=0\n[lexicon-perf] stage=scan.source_index_hash elapsed_ms=397.691 requested_files=11017 requested_bytes=123089584 hash_failed=1\n[lexicon-perf] stage=scan.source_index elapsed_ms=469.923 candidate_files=11017 indexed_skips=0 index_unavailable=1\n[lexicon-perf] stage=scan.source_copy elapsed_ms=34275.704 candidate_files=11017 candidate_source_bytes=123089584 byte_equal_skips=0 copied_files=11017\n[lexicon-perf] stage=scan.source_prune elapsed_ms=405.850\n[lexicon-perf] stage=scan.source_inventory elapsed_ms=36044.907 discovered_files=11017 source_bytes=123089584 indexed_skips=0 byte_equal_skips=0 copied_files=11017\n[lexicon-perf] stage=scan.scope_construction elapsed_ms=0.059 full=1 context_files=0\n[lexicon-perf] stage=python.execution_plan elapsed_ms=0.000 workers=16 logical_shards=256 merge_fan_in=8\n[lexicon-perf] stage=python.adapter_discovery elapsed_ms=1405.085 discovered_files=7114 source_bytes=88964777 retained_source_bytes=0 retained_files=0 retained_ast_files=0 file_descriptors=7114\n",
+      "metrics": [
+        {
+          "stage": "scan.source_discovery",
+          "elapsed_ms": 621.438,
+          "discovered_files": 11017
+        },
+        {
+          "stage": "scan.mirror_index_state",
+          "elapsed_ms": 0.0,
+          "mirror_clean": 1,
+          "mirror_dirty": 0,
+          "mirror_status_failed": 0
+        },
+        {
+          "stage": "scan.source_index_hash",
+          "elapsed_ms": 397.691,
+          "requested_files": 11017,
+          "requested_bytes": 123089584,
+          "hash_failed": 1
+        },
+        {
+          "stage": "scan.source_index",
+          "elapsed_ms": 469.923,
+          "candidate_files": 11017,
+          "indexed_skips": 0,
+          "index_unavailable": 1
+        },
+        {
+          "stage": "scan.source_copy",
+          "elapsed_ms": 34275.704,
+          "candidate_files": 11017,
+          "candidate_source_bytes": 123089584,
+          "byte_equal_skips": 0,
+          "copied_files": 11017
+        },
+        {
+          "stage": "scan.source_prune",
+          "elapsed_ms": 405.85
+        },
+        {
+          "stage": "scan.source_inventory",
+          "elapsed_ms": 36044.907,
+          "discovered_files": 11017,
+          "source_bytes": 123089584,
+          "indexed_skips": 0,
+          "byte_equal_skips": 0,
+          "copied_files": 11017
+        },
+        {
+          "stage": "scan.scope_construction",
+          "elapsed_ms": 0.059,
+          "full": 1,
+          "context_files": 0
+        },
+        {
+          "stage": "python.execution_plan",
+          "elapsed_ms": 0.0,
+          "workers": 16,
+          "logical_shards": 256,
+          "merge_fan_in": 8
+        },
+        {
+          "stage": "python.adapter_discovery",
+          "elapsed_ms": 1405.085,
+          "discovered_files": 7114,
+          "source_bytes": 88964777,
+          "retained_source_bytes": 0,
+          "retained_files": 0,
+          "retained_ast_files": 0,
+          "file_descriptors": 7114
+        }
+      ],
+      "log": "C:\\!bin\\workspace\\lexicon-arcana-incremental-perf\\lexicon\\evaluation\\performance\\incremental-phase0-hermes-2026-10-01.init_full.log",
+      "snapshot_id": null
+    }
+  },
+  "source_revision": "7798df0a83721df7ff44b9ba023d56b85b351d1e"
+}

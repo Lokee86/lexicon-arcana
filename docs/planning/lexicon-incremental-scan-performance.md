@@ -1,8 +1,16 @@
 # Lexicon Incremental Scan Performance — Hard-Cut Repair
 
 Parent index: [Planning](INDEX.md)
-Status: planned; performance findings require fresh reproduction on the implementation branch.
+Status: Phase 0 instrumented and measured on controlled 61- and 1,001-file fixtures; a bounded pinned-Hermes cold run timed out before publication. Source/scope scaling is reproducible and Phases 1–4 may proceed, but a complete Hermes before/after production acceptance run remains mandatory in Phase 5. Evidence: [2026-10-01 Phase 0](../development/lexicon-incremental-phase0-2026-10-01.md).
 Owner: Lexicon repository mirror, Rust planner and storage. Arcana ingestion is unchanged.
+
+## Purpose
+
+Restore bounded, Git-like Lexicon warm-scan cost across source mirroring, scope planning and snapshot publication.
+
+## Overview
+
+The hard cut preserves existing incremental analysis semantics while replacing expensive repository-wide setup with a verified source delta and a snapshot-scoped persistent dependency index. Phases 0–5 separate evidence, mirror repair, index creation, incremental maintenance, deletion of the old full-object planner, and real-repository acceptance.
 
 ## Goal
 
@@ -89,3 +97,13 @@ Gate: actual lexicon scan production path passes, not just planner microbenchmar
 Execute 0, 1, 2, 3, 4, 5 in order. Each phase gets its own tests and commit. Use the isolated perf/lexicon-incremental-scan worktree; do not modify the active C-family branch. A later stage may be split if index storage/recovery grows beyond a reviewable change. Do not start by rescanning Hermes repeatedly or refreshing Arcana to generate the design.
 
 Non-goals: Arcana graph storage refactor, new language parsing behavior, altered dependency depth, broad adapter rewrites, increasing scan timeouts as a performance fix, or retaining the old full-object scope builder as a compatibility fallback in production.
+
+## Related docs
+
+- [Phase 0 baseline and instrumentation evidence](../development/lexicon-incremental-phase0-2026-10-01.md)
+- [Lexicon dependency semantics](../../lexicon/docs/DEPENDENCY_SEMANTICS.md)
+- [Testing and benchmarks](../development/testing-and-benchmarks.md)
+
+## Notes
+
+The pinned-Hermes cold run was deliberately terminated at its diagnostic limit and is not a completed benchmark. The full production before/after gate remains a Phase 5 requirement.

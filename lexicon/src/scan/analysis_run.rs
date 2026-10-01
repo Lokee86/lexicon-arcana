@@ -8,7 +8,30 @@ pub(crate) fn run_analysis(
     host: &AdapterHost,
     request: &AdapterRequest,
 ) -> Result<Analysis, ScanExecutionError> {
-    host.analyze(request).map_err(ScanExecutionError::from)
+    let started = crate::perf::start();
+    let result = host.analyze(request);
+    if let Some(started) = started {
+        let mode = match request.mode {
+            crate::AdapterMode::Full => "full",
+            crate::AdapterMode::Incremental => "incremental",
+        };
+        crate::perf::emit(
+            &format!("scan.adapter.{}.{}", request.language, mode),
+            started.elapsed(),
+            &[
+                (
+                    "requested_changed_files",
+                    request.changed_files.len() as u64,
+                ),
+                (
+                    "requested_removed_files",
+                    request.removed_files.len() as u64,
+                ),
+                ("failed", u64::from(result.is_err())),
+            ],
+        );
+    }
+    result.map_err(ScanExecutionError::from)
 }
 
 pub(crate) fn retry_full(

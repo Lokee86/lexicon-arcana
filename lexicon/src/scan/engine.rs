@@ -66,7 +66,11 @@ impl ScanEngine {
         synchronize: impl FnOnce(&SourceMirror, &Path) -> Result<(), crate::RepositoryError>,
     ) -> Result<ScanReport, ScanExecutionError> {
         let scan_started = crate::perf::start();
+        let lock_started = crate::perf::start();
         let _guard = self.store.lock()?;
+        if let Some(lock_started) = lock_started {
+            crate::perf::emit("scan.lock_wait", lock_started.elapsed(), &[]);
+        }
         let head = self.git.head_option()?;
         match self.store.recover_pending(head.as_deref())? {
             RecoveryOutcome::NoPending

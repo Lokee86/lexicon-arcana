@@ -31,7 +31,21 @@ pub fn plan_scan(
             roots.extend(removed.iter().cloned());
             let roots = unique_sorted(&roots);
             let added = unique_sorted(&plan.added_files);
-            match store.incremental_scope_with_additions(&plan.language, &roots, &added) {
+            let scope_started = crate::perf::start();
+            let scope = store.incremental_scope_with_additions(&plan.language, &roots, &added);
+            if let Some(scope_started) = scope_started {
+                let fallback = scope.as_ref().map_or(true, |scope| scope.full_required);
+                crate::perf::emit(
+                    "scan.planner_dependency_lookup",
+                    scope_started.elapsed(),
+                    &[
+                        ("roots", roots.len() as u64),
+                        ("additions", added.len() as u64),
+                        ("full_fallback", u64::from(fallback)),
+                    ],
+                );
+            }
+            match scope {
                 Ok(scope) if !scope.full_required => {
                     let mut changed = scope.emit;
                     changed.extend(added.iter().cloned());

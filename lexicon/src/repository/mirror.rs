@@ -27,7 +27,15 @@ impl SourceMirror {
         let started = crate::perf::start();
         let source = absolute(source)?;
         let policy = IgnorePolicy::load(&source)?;
+        let discovery_started = crate::perf::start();
         let desired = relevant_files(&source, &source, &policy)?;
+        if let Some(discovery_started) = discovery_started {
+            crate::perf::emit(
+                "scan.source_discovery",
+                discovery_started.elapsed(),
+                &[("discovered_files", desired.len() as u64)],
+            );
+        }
         let source_bytes = if started.is_some() {
             desired
                 .values()
@@ -37,10 +45,61 @@ impl SourceMirror {
         } else {
             0
         };
+        let index_started = crate::perf::start();
         let indexed = unchanged_files(&self.root, &source, &desired);
         let indexed_skips = indexed.as_ref().map_or(0, std::collections::BTreeSet::len);
+        if let Some(index_started) = index_started {
+            crate::perf::emit(
+                "scan.source_index",
+                index_started.elapsed(),
+                &[
+                    (
+                        "candidate_files",
+                        desired.len().saturating_sub(indexed_skips) as u64,
+                    ),
+                    ("indexed_skips", indexed_skips as u64),
+                    ("index_unavailable", u64::from(indexed.is_none())),
+                ],
+            );
+        }
+        let copy_started = crate::perf::start();
+        let candidate_source_bytes = if copy_started.is_some() {
+            // The mirror reads these source bodies once on every successful
+            // fallback comparison. Inventory lengths are measured separately.
+            desired
+                .iter()
+                .filter(|(relative, _)| {
+                    indexed
+                        .as_ref()
+                        .is_none_or(|paths| !paths.contains(*relative))
+                })
+                .filter_map(|(_, path)| fs::metadata(path).ok())
+                .map(|metadata| metadata.len())
+                .sum::<u64>()
+        } else {
+            0
+        };
         let (copied_files, byte_equal_skips) = copy_all(&self.root, &desired, indexed.as_ref())?;
+        if let Some(copy_started) = copy_started {
+            crate::perf::emit(
+                "scan.source_copy",
+                copy_started.elapsed(),
+                &[
+                    (
+                        "candidate_files",
+                        desired.len().saturating_sub(indexed_skips) as u64,
+                    ),
+                    ("candidate_source_bytes", candidate_source_bytes),
+                    ("byte_equal_skips", byte_equal_skips as u64),
+                    ("copied_files", copied_files as u64),
+                ],
+            );
+        }
+        let prune_started = crate::perf::start();
         self.remove_missing(&desired)?;
+        if let Some(prune_started) = prune_started {
+            crate::perf::emit("scan.source_prune", prune_started.elapsed(), &[]);
+        }
         if let Some(started) = started {
             crate::perf::emit(
                 "scan.source_inventory",
