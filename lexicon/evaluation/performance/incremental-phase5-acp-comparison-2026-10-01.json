@@ -1,0 +1,118 @@
+{
+  "status": "fail",
+  "gates": {
+    "comparable_inputs": "pass",
+    "warm_nochange_under_5_s": "pass",
+    "one_edit_under_10_s": "fail",
+    "one_edit_under_20pct_full_adapter": "fail",
+    "edit_once_bounded_work": "fail",
+    "edit_twice_bounded_work": "fail",
+    "ten_file_before_after_bound": "fail",
+    "semantic_parity": "fail",
+    "before_cancellation_recovery": "pass",
+    "after_cancellation_recovery": "pass"
+  },
+  "rows": [
+    {
+      "scenario": "init_full",
+      "before_seconds": 16.891,
+      "after_seconds": 12.484,
+      "before_rss": 110006272,
+      "after_rss": 40656896,
+      "before_completed": true,
+      "after_completed": true,
+      "fact_parity": true
+    },
+    {
+      "scenario": "unchanged",
+      "before_seconds": 2.39,
+      "after_seconds": 2.672,
+      "before_rss": 132173824,
+      "after_rss": 22528000,
+      "before_completed": true,
+      "after_completed": true,
+      "fact_parity": true
+    },
+    {
+      "scenario": "edit_once",
+      "before_seconds": 5.187,
+      "after_seconds": 12.984,
+      "before_rss": 137003008,
+      "after_rss": 41955328,
+      "before_completed": true,
+      "after_completed": true,
+      "fact_parity": false
+    },
+    {
+      "scenario": "edit_twice",
+      "before_seconds": 5.203,
+      "after_seconds": 13.297,
+      "before_rss": 161624064,
+      "after_rss": 47316992,
+      "before_completed": true,
+      "after_completed": true,
+      "fact_parity": false
+    },
+    {
+      "scenario": "dirty_mirror",
+      "before_seconds": 3.063,
+      "after_seconds": 3.829,
+      "before_rss": 23158784,
+      "after_rss": 23117824,
+      "before_completed": true,
+      "after_completed": true,
+      "fact_parity": false
+    },
+    {
+      "scenario": "edit_ten",
+      "before_seconds": 16.125,
+      "after_seconds": 20.969,
+      "before_rss": 104734720,
+      "after_rss": 39751680,
+      "before_completed": true,
+      "after_completed": true,
+      "fact_parity": false
+    },
+    {
+      "scenario": "add_file",
+      "before_seconds": 5.109,
+      "after_seconds": 11.422,
+      "before_rss": 104742912,
+      "after_rss": 38031360,
+      "before_completed": true,
+      "after_completed": true,
+      "fact_parity": false
+    },
+    {
+      "scenario": "remove_file",
+      "before_seconds": 11.812,
+      "after_seconds": 11.86,
+      "before_rss": 134447104,
+      "after_rss": 41340928,
+      "before_completed": true,
+      "after_completed": true,
+      "fact_parity": true
+    },
+    {
+      "scenario": "rename_file",
+      "before_seconds": 4.719,
+      "after_seconds": 12.0,
+      "before_rss": 122286080,
+      "after_rss": 39890944,
+      "before_completed": true,
+      "after_completed": true,
+      "fact_parity": false
+    }
+  ],
+  "mismatches": [
+    "edit_once exported semantic facts differ",
+    "edit_twice exported semantic facts differ",
+    "dirty_mirror exported semantic facts differ",
+    "edit_ten exported semantic facts differ",
+    "add_file exported semantic facts differ",
+    "rename_file exported semantic facts differ"
+  ],
+  "limitations": [],
+  "full_adapter_seconds": 6.122349,
+  "ten_file_old_bound_s": 16.125
+}

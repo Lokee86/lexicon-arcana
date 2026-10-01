@@ -90,7 +90,7 @@ Arcana stores and traverses these relationships. Lexicon owns discovering them b
 - complete-language analysis; or
 - a scoped analysis containing impacted owners, required dependency context, and language configuration files.
 
-The planner treats correctness as the priority. Structural changes, invalid prior state, unsupported ownership, unsafe topology changes, or scoped adapter failure trigger complete-language analysis.
+The planner treats correctness as the priority. Structural changes, invalid prior state, unsupported ownership, unsafe topology changes, or scoped adapter failure trigger complete-language analysis. A shared-fact replacement with a changed resulting shared-object identity also conservatively retries complete analysis; [Phase 5 pinned-Hermes acceptance](../../docs/development/lexicon-incremental-phase5-2026-10-01.md) exposed repeated full retries in this path and a separate full-corpus cold timeout. Production performance acceptance is still blocked pending shared-fact parity adjudication and complete full-corpus retesting.
 
 ### Object storage
 

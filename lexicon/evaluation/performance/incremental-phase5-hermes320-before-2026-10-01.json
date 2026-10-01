@@ -1,0 +1,120 @@
+{
+  "role": "before",
+  "source_revision": "7798df0a83721df7ff44b9ba023d56b85b351d1e",
+  "binary": "C:\\!bin\\workspace\\lexicon-phase5-bin\\before-2d896f6.exe",
+  "provenance": {
+    "machine": "Windows-10-10.0.26200-SP0",
+    "cpu_count": 16,
+    "binary_sha256": "eb0180a6039fe3fb0630f4608afda7d11ba18afedf0278577907d1aaef1f800e",
+    "binary_bytes": 33076736,
+    "psutil_available": true,
+    "machine_memory_bytes": 16931676160
+  },
+  "run_status": "incomplete",
+  "steps": {
+    "init_full": {
+      "exit_code": 1,
+      "timed_out": true,
+      "rss_limit_exceeded": false,
+      "wall_seconds": 157.313,
+      "peak_sampled_rss_bytes": 271556608,
+      "rss_scope": "parent + children",
+      "stdout_tail": "File not found - \\\\?\\C:\\Users\\archa\\AppData\\Local\\Temp\\lexicon-phase5-before-8jzfi3ds\\source\\.lexicon\n",
+      "stderr_tail": "[lexicon-perf] stage=scan.source_discovery elapsed_ms=994.587 discovered_files=4223\n[lexicon-perf] stage=scan.mirror_index_state elapsed_ms=0.000 mirror_clean=1 mirror_dirty=0 mirror_status_failed=0\n[lexicon-perf] stage=scan.source_index_hash elapsed_ms=995.061 requested_files=4223 requested_bytes=40663181 hash_failed=1\n[lexicon-perf] stage=scan.source_index elapsed_ms=1204.449 candidate_files=4223 indexed_skips=0 index_unavailable=1\n[lexicon-perf] stage=scan.source_copy elapsed_ms=21814.700 candidate_files=4223 candidate_source_bytes=40663181 byte_equal_skips=0 copied_files=4223\n[lexicon-perf] stage=scan.source_prune elapsed_ms=152.256\n[lexicon-perf] stage=scan.source_inventory elapsed_ms=24746.526 discovered_files=4223 source_bytes=40663181 indexed_skips=0 byte_equal_skips=0 copied_files=4223\n[lexicon-perf] stage=scan.scope_construction elapsed_ms=0.002 full=1 context_files=0\n[lexicon-perf] stage=python.execution_plan elapsed_ms=0.000 workers=4 logical_shards=8 merge_fan_in=4\n[lexicon-perf] stage=python.adapter_discovery elapsed_ms=182.291 discovered_files=320 source_bytes=6538374 retained_source_bytes=0 retained_files=0 retained_ast_files=0 file_descriptors=320\n",
+      "metrics": [
+        {
+          "stage": "scan.source_discovery",
+          "elapsed_ms": 994.587,
+          "discovered_files": 4223
+        },
+        {
+          "stage": "scan.mirror_index_state",
+          "elapsed_ms": 0.0,
+          "mirror_clean": 1,
+          "mirror_dirty": 0,
+          "mirror_status_failed": 0
+        },
+        {
+          "stage": "scan.source_index_hash",
+          "elapsed_ms": 995.061,
+          "requested_files": 4223,
+          "requested_bytes": 40663181,
+          "hash_failed": 1
+        },
+        {
+          "stage": "scan.source_index",
+          "elapsed_ms": 1204.449,
+          "candidate_files": 4223,
+          "indexed_skips": 0,
+          "index_unavailable": 1
+        },
+        {
+          "stage": "scan.source_copy",
+          "elapsed_ms": 21814.7,
+          "candidate_files": 4223,
+          "candidate_source_bytes": 40663181,
+          "byte_equal_skips": 0,
+          "copied_files": 4223
+        },
+        {
+          "stage": "scan.source_prune",
+          "elapsed_ms": 152.256
+        },
+        {
+          "stage": "scan.source_inventory",
+          "elapsed_ms": 24746.526,
+          "discovered_files": 4223,
+          "source_bytes": 40663181,
+          "indexed_skips": 0,
+          "byte_equal_skips": 0,
+          "copied_files": 4223
+        },
+        {
+          "stage": "scan.scope_construction",
+          "elapsed_ms": 0.002,
+          "full": 1,
+          "context_files": 0
+        },
+        {
+          "stage": "python.execution_plan",
+          "elapsed_ms": 0.0,
+          "workers": 4,
+          "logical_shards": 8,
+          "merge_fan_in": 4
+        },
+        {
+          "stage": "python.adapter_discovery",
+          "elapsed_ms": 182.291,
+          "discovered_files": 320,
+          "source_bytes": 6538374,
+          "retained_source_bytes": 0,
+          "retained_files": 0,
+          "retained_ast_files": 0,
+          "file_descriptors": 320
+        }
+      ],
+      "log": "C:\\!bin\\workspace\\lexicon-arcana-incremental-perf\\lexicon\\evaluation\\performance\\incremental-phase5-hermes320-before-2026-10-01.init_full.log",
+      "snapshot_id": null
+    }
+  },
+  "fixture": {
+    "pinned_revision": "7798df0a83721df7ff44b9ba023d56b85b351d1e",
+    "fixture": "hermes-derived-python-subset-320",
+    "python_count": 320,
+    "original": "acp_adapter/__init__.py",
+    "ten_files": [
+      "acp_adapter/__main__.py",
+      "acp_adapter/auth.py",
+      "acp_adapter/commands.py",
+      "acp_adapter/content.py",
+      "acp_adapter/edit_approval.py",
+      "acp_adapter/entry.py",
+      "acp_adapter/events.py",
+      "acp_adapter/model_catalog.py",
+      "acp_adapter/permissions.py",
+      "acp_adapter/provenance.py"
+    ]
+  },
+  "stop_reason": "init_full: failed, capped or timed out",
+  "elapsed_seconds": 375.88
+}

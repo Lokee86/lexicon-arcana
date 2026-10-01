@@ -26,6 +26,7 @@ coverage.out
 /lexicon/evaluation/performance/incremental-phase2-*.log
 /lexicon/evaluation/performance/incremental-phase3-*.log
 /lexicon/evaluation/performance/incremental-phase4-*.log
+/lexicon/evaluation/performance/incremental-phase5-*.log
 __pycache__/
 *.pyc
 /fixtures/local/experiments/arcana-hermes-phase8-20260927/arcana-base/

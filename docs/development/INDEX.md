@@ -16,6 +16,7 @@ Development documentation defines current L+A verification/release practice and 
 - [Lexicon incremental scan Phase 2](lexicon-incremental-phase2-2026-10-01.md) — snapshot-scoped immutable dependency index, legacy bootstrap, parity and CLI evidence.
 - [Lexicon incremental scan Phase 3](lexicon-incremental-phase3-2026-10-01.md) — copy-on-write dependency-index updates, snapshot retention, interrupted publication recovery and repeated-edit CLI evidence.
 - [Lexicon incremental scan Phase 4](lexicon-incremental-phase4-2026-10-01.md) — hard-cut production dependency loader, isolated one-time legacy migration, full-path bounded-work assertions and fixture scaling.
+- [Lexicon incremental scan Phase 5](lexicon-incremental-phase5-2026-10-01.md) — pinned-Hermes production acceptance attempted; full cold scan and paired package acceptance blocked; remediation evidence.
 - [Lexicon-wide performance restoration](lexicon-wide-performance-restoration.md) — active Rust-wide restoration project; Phases 0, 1, 2, 4, 5, 6, 7, and 8 complete, with Phase 3 still pending.
 - [Lexicon-wide pre-port optimization parity matrix](lexicon-wide-optimization-parity-matrix.md) — permanent Phase 5 audit of the mature pre-Rust performance sequence and current ownership/status.
 - [Lexicon Go-path performance restoration](lexicon-performance-restoration.md) — completed Go adapter/helper optimization project retained as historical evidence.

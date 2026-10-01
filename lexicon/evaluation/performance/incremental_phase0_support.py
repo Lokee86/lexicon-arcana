@@ -64,7 +64,10 @@ def windows_peak(process: subprocess.Popen) -> int:
     return int(counters.peak_working_set) if success else 0
 
 
-def measure(binary: Path, args: list[str], timeout: int, log: Path) -> dict:
+def measure(
+    binary: Path, args: list[str], timeout: int, log: Path,
+    rss_limit_bytes: int | None = None,
+) -> dict:
     start = time.monotonic()
     process = subprocess.Popen(
         [str(binary), *args], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -72,6 +75,7 @@ def measure(binary: Path, args: list[str], timeout: int, log: Path) -> dict:
     )
     peak_rss = 0
     stop = threading.Event()
+    exceeded = threading.Event()
 
     def sample() -> None:
         nonlocal peak_rss
@@ -86,6 +90,16 @@ def measure(binary: Path, args: list[str], timeout: int, log: Path) -> dict:
                 else:
                     rss = 0
                 peak_rss = max(peak_rss, rss)
+                if rss_limit_bytes and rss > rss_limit_bytes:
+                    exceeded.set()
+                    if os.name == "nt":
+                        subprocess.run(
+                            ["taskkill", "/F", "/T", "/PID", str(process.pid)],
+                            capture_output=True, check=False,
+                        )
+                    else:
+                        process.kill()
+                    return
             except (OSError, Exception) as error:
                 # Transient exits/races are expected during a sampled subprocess.
                 if not isinstance(error, (OSError,)) and (
@@ -131,6 +145,7 @@ def measure(binary: Path, args: list[str], timeout: int, log: Path) -> dict:
     return {
         "exit_code": process.returncode,
         "timed_out": timed_out,
+        "rss_limit_exceeded": exceeded.is_set(),
         "wall_seconds": round(time.monotonic() - start, 3),
         "peak_sampled_rss_bytes": peak_rss or None,
         "rss_scope": "parent + children" if psutil else "Windows parent only",
