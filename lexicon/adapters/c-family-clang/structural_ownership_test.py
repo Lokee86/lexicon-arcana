@@ -781,6 +781,60 @@ def template_instantiation_call_source_is_materialized(
             )
 
 
+def invalid_recovery_function_does_not_emit_semantic_calls(
+    helper: pathlib.Path, version: str
+) -> None:
+    with temporary_directory("lexicon-invalid-recovery-source-") as temp:
+        root = pathlib.Path(temp)
+        (root / "bad.h").write_text(
+            "void sink(const char*);\n"
+            "#define CHECK(condition, message) "
+            "((condition) ? (void)0 : sink(message))\n",
+            encoding="utf-8",
+        )
+        (root / "main.cpp").write_text(
+            '#include "bad.h"\n'
+            "template <typename T> using bad_t = typename Missing<T>::type;\n"
+            "template <typename T> auto broken(T value) -> bad_t<T> {\n"
+            '  CHECK(value > 0, "bad");\n'
+            "  return {};\n"
+            "}\n"
+            "int use() { return broken(1); }\n",
+            encoding="utf-8",
+        )
+        compile_database(root, ["main.cpp"])
+        response = run(
+            helper,
+            version,
+            root,
+            {
+                "protocol_version": 3,
+                "operation": "structural",
+                "repository_root": str(root),
+                "owned_files": ["bad.h", "main.cpp"],
+                "context_files": [],
+                "workers": 1,
+            },
+        )
+        files = {value["path"]: value for value in response.get("files", [])}
+        if set(files) != {"bad.h", "main.cpp"}:
+            raise RuntimeError(
+                f"invalid-recovery fixture lost owned files: {sorted(files)!r}"
+            )
+        if files["bad.h"].get("calls"):
+            raise RuntimeError(
+                "invalid recovery function leaked macro-expanded semantic calls: "
+                f"{files['bad.h']['calls']!r}"
+            )
+        if not any(
+            value.get("severity") in {"error", "fatal"}
+            for value in response.get("diagnostics", [])
+        ):
+            raise RuntimeError(
+                "invalid recovery function emitted no compiler diagnostics"
+            )
+
+
 def relationship_sources_are_materialized(
     helper: pathlib.Path, version: str
 ) -> None:
@@ -963,6 +1017,7 @@ def main() -> int:
     skipped_driver_tu_does_not_block_later_tu(helper, version)
     context_identity_without_context_file(helper, version)
     template_instantiation_call_source_is_materialized(helper, version)
+    invalid_recovery_function_does_not_emit_semantic_calls(helper, version)
     relationship_sources_are_materialized(helper, version)
     execution_policy_is_fact_stable(helper, version)
     protocol_v3_hard_cut_is_enforced(helper, version)

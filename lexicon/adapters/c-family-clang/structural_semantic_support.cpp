@@ -59,7 +59,8 @@ SemanticArgument argument(const clang::Expr &expression, State &state,
 } // namespace
 
 bool semantic_source_function(const clang::FunctionDecl &function) {
-  return !function.isImplicit() && !lambda_call_operator(&function);
+  return !function.isImplicit() && !function.isInvalidDecl() &&
+         !lambda_call_operator(&function);
 }
 
 SymbolReference symbol_reference(const clang::NamedDecl *declaration,
