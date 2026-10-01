@@ -250,8 +250,6 @@ impl ClangFrontend {
         repository: &Path,
         inventory: ScanInventory,
         workers: usize,
-        shards: usize,
-        merge_fan_in: usize,
     ) -> Result<StructuralObservationStore, AdapterError> {
         let repository = repository.canonicalize().map_err(|error| {
             AdapterError::new(format!(
@@ -275,8 +273,6 @@ impl ClangFrontend {
             inventory.owned_files,
             inventory.context_files,
             workers,
-            shards,
-            merge_fan_in,
         );
         self.runner.run_framed(
             &repository,
@@ -321,12 +317,13 @@ impl ClangFrontend {
 }
 
 fn verify_helper_version(actual: &str) -> Result<(), AdapterError> {
-    if actual == clang_protocol::HELPER_VERSION {
+    let expected = clang_protocol::HELPER_VERSION.trim();
+    if actual == expected {
         return Ok(());
     }
     Err(AdapterError::new(format!(
         "C-family Clang helper version mismatch: got {actual:?}, expected {:?}",
-        clang_protocol::HELPER_VERSION
+        expected
     )))
 }
 
@@ -335,7 +332,7 @@ fn helper_arguments() -> Vec<OsString> {
         OsString::from("--protocol-version"),
         OsString::from(clang_protocol::PROTOCOL_VERSION.to_string()),
         OsString::from("--helper-version"),
-        OsString::from(clang_protocol::HELPER_VERSION),
+        OsString::from(clang_protocol::HELPER_VERSION.trim()),
     ]
 }
 

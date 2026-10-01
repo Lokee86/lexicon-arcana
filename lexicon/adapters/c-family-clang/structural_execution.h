@@ -1,27 +1,32 @@
 #pragma once
 
 #include <cstddef>
+#include <functional>
 #include <string>
 #include <vector>
 
 #include "structural_model.h"
-#include "structural_plan.h"
+#include "structural_compilation.h"
 
 namespace lexicon::clang_frontend {
 
-struct ExecutionPolicy {
-  std::size_t workers;
-  std::size_t shards;
-  std::size_t merge_fan_in;
-};
-
 struct ExecutionSummary {
-  std::size_t logical_shards = 0;
-  std::size_t worker_limit = 0;
+  std::size_t active_clang_lanes = 0;
+  std::size_t completed_tus = 0;
+  std::size_t orphan_fallback_units = 0;
+  std::size_t completed_orphan_tus = 0;
+  std::size_t claimed_orphan_files = 0;
+  std::size_t discarded_duplicate_orphan_observations = 0;
+  std::size_t claimed_owned_files = 0;
+  std::size_t discarded_duplicate_file_observations = 0;
 };
 
-int execute_task_plan(const std::string &root, CompilationCommands &database,
-                      State &state, const std::vector<AnalysisTask> &tasks,
-                      ExecutionPolicy policy, ExecutionSummary &summary);
+using FileObservationConsumer = std::function<void(State &&)>;
+
+int execute_parse_plan(const std::string &root, CompilationCommands &database,
+                       const std::vector<std::string> &owned_files,
+                       const ParsePlan &plan, std::size_t workers, State &state,
+                       ExecutionSummary &summary,
+                       const FileObservationConsumer &consume_files);
 
 } // namespace lexicon::clang_frontend

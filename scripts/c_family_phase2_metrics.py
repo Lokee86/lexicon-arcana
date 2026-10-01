@@ -35,6 +35,8 @@ def summarize_facts(repository: Path, facts: Path) -> dict:
     relations = Counter()
     unresolved_reasons = Counter()
     file_paths: set[str] = set()
+    materialized_nodes: set[str] = set()
+    graph_sources: set[str] = set()
     call_states: dict[tuple, set[str]] = defaultdict(set)
     possible_targets: dict[tuple, set[str]] = defaultdict(set)
     macro_calls = 0
@@ -49,10 +51,12 @@ def summarize_facts(repository: Path, facts: Path) -> dict:
         kind = record.get("record")
         if kind == "node":
             counts["nodes"] += 1
+            materialized_nodes.add(record["id"])
             if record.get("kind") == "file":
                 file_paths.add(record["path"])
             continue
         if kind == "unresolved":
+            graph_sources.add(record["source"])
             counts["unresolved"] += 1
             unresolved_reasons[record["reason"]] += 1
             relations[f"unresolved:{record['relation']}"] += 1
@@ -63,6 +67,7 @@ def summarize_facts(repository: Path, facts: Path) -> dict:
             continue
 
         counts["edges"] += 1
+        graph_sources.add(record["source"])
         relation = record["relation"]
         relations[relation] += 1
         if relation in {"calls", "possible-calls"}:
@@ -82,6 +87,13 @@ def summarize_facts(repository: Path, facts: Path) -> dict:
         depth = attributes.get("expansion_depth")
         if isinstance(depth, int):
             max_macro_depth = max(max_macro_depth, depth)
+
+    missing_sources = graph_sources - materialized_nodes
+    if missing_sources:
+        raise RuntimeError(
+            "C-family graph sources lack materialized nodes: "
+            + ", ".join(sorted(missing_sources)[:10])
+        )
 
     call_site_counts = Counter()
     for states in call_states.values():

@@ -13,13 +13,15 @@ void observe_value_access(State &state, clang::ASTContext &context,
                           clang::Expr &expression,
                           llvm::StringRef repository_root,
                           llvm::StringRef translation_unit,
-                          llvm::StringRef language);
+                          llvm::StringRef language,
+                          const clang::FunctionDecl *source);
 
 void observe_variable(State &state, clang::ASTContext &context,
                       clang::VarDecl &declaration,
-                              llvm::StringRef repository_root,
-                              llvm::StringRef translation_unit,
-                              llvm::StringRef language);
+                      llvm::StringRef repository_root,
+                      llvm::StringRef translation_unit,
+                      llvm::StringRef language,
+                      const clang::FunctionDecl *source);
 
 void observe_pointer_field(State &state, clang::ASTContext &context,
                            clang::FieldDecl &declaration,

@@ -1,6 +1,8 @@
 #include "structural_frontend.h"
 
+#include <optional>
 #include <string>
+#include <unordered_map>
 #include <utility>
 
 #include "clang/AST/ASTConsumer.h"
@@ -10,6 +12,7 @@
 #include "structural_calls.h"
 #include "structural_declaration_support.h"
 #include "structural_relationships.h"
+#include "structural_semantic_support.h"
 #include "structural_source.h"
 #include "perf.h"
 #include "structural_hot_path.h"
@@ -29,13 +32,28 @@ public:
     reset_hot_path_context(perf_enabled());
   }
 
+  bool TraverseFunctionDecl(clang::FunctionDecl *function) {
+    if (!function) {
+      return true;
+    }
+    const auto *previous = source_function_;
+    if (semantic_source_function(*function)) {
+      source_function_ = function;
+    }
+    const bool result =
+        clang::RecursiveASTVisitor<SemanticVisitor>::TraverseFunctionDecl(
+            function);
+    source_function_ = previous;
+    return result;
+  }
+
   bool VisitDecl(clang::Decl *declaration) {
     if (!declaration || declaration->isImplicit() ||
         declaration->getLocation().isInvalid()) {
       return true;
     }
-    auto path = source_path(sources_, declaration->getLocation(), root_);
-    if (!path || !state_.owns(*path)) {
+    auto path = owned_path(declaration->getLocation());
+    if (!path) {
       return true;
     }
     auto *named = llvm::dyn_cast<clang::NamedDecl>(declaration);
@@ -71,7 +89,8 @@ public:
 
   bool VisitCallExpr(clang::CallExpr *call) {
     if (call && owned(call->getExprLoc())) {
-      observe_call(state_, context_, *call, root_, translation_unit_, language_);
+      observe_call(state_, context_, *call, root_, translation_unit_, language_,
+                   source_function_);
     }
     return true;
   }
@@ -79,7 +98,7 @@ public:
   bool VisitCXXConstructExpr(clang::CXXConstructExpr *call) {
     if (call && owned(call->getExprLoc())) {
       observe_constructor(state_, context_, *call, root_, translation_unit_,
-                          language_);
+                          language_, source_function_);
     }
     return true;
   }
@@ -87,7 +106,7 @@ public:
   bool VisitDeclRefExpr(clang::DeclRefExpr *expression) {
     if (expression && owned(expression->getExprLoc())) {
       observe_value_access(state_, context_, *expression, root_,
-                           translation_unit_, language_);
+                           translation_unit_, language_, source_function_);
     }
     return true;
   }
@@ -95,7 +114,7 @@ public:
   bool VisitMemberExpr(clang::MemberExpr *expression) {
     if (expression && owned(expression->getExprLoc())) {
       observe_value_access(state_, context_, *expression, root_,
-                           translation_unit_, language_);
+                           translation_unit_, language_, source_function_);
     }
     return true;
   }
@@ -103,7 +122,7 @@ public:
   bool VisitVarDecl(clang::VarDecl *declaration) {
     if (declaration && owned(declaration->getLocation())) {
       observe_variable(state_, context_, *declaration, root_,
-                       translation_unit_, language_);
+                       translation_unit_, language_, source_function_);
     }
     return true;
   }
@@ -133,12 +152,50 @@ public:
   }
 
 private:
-  bool owned(clang::SourceLocation location) const {
-    if (location.isInvalid()) {
-      return false;
+  struct FileIdHash {
+    std::size_t operator()(clang::FileID id) const {
+      return id.getHashValue();
     }
-    auto path = source_path(sources_, location, root_);
-    return path && state_.owns(*path);
+  };
+
+  std::optional<std::string> repository_file_path(clang::SourceLocation location) {
+    if (location.isInvalid()) {
+      return std::nullopt;
+    }
+    const auto file_id = sources_.getFileID(location);
+    if (file_id.isInvalid()) {
+      return std::nullopt;
+    }
+    if (const auto found = file_paths_.find(file_id); found != file_paths_.end()) {
+      return found->second;
+    }
+    auto path = repository_path(sources_.getFilename(location), root_,
+                                 sources_.getFileManager());
+    file_paths_.emplace(file_id, path);
+    return path;
+  }
+
+  std::optional<std::string> source_file_path(clang::SourceLocation location) {
+    if (location.isInvalid()) {
+      return std::nullopt;
+    }
+    auto spelling = sources_.getSpellingLoc(location);
+    if (auto path = repository_file_path(spelling)) {
+      return path;
+    }
+    return repository_file_path(sources_.getExpansionLoc(location));
+  }
+
+  std::optional<std::string> owned_path(clang::SourceLocation location) {
+    auto path = source_file_path(location);
+    if (!path || !state_.owns(*path)) {
+      return std::nullopt;
+    }
+    return path;
+  }
+
+  bool owned(clang::SourceLocation location) {
+    return owned_path(location).has_value();
   }
 
   State &state_;
@@ -147,6 +204,9 @@ private:
   std::string root_;
   std::string translation_unit_;
   std::string language_;
+  std::unordered_map<clang::FileID, std::optional<std::string>, FileIdHash>
+      file_paths_;
+  const clang::FunctionDecl *source_function_ = nullptr;
 };
 
 class VisitorConsumer final : public clang::ASTConsumer {

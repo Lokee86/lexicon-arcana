@@ -100,14 +100,14 @@ bool virtual_dispatch(const clang::CallExpr &call,
 
 void observe_call(State &state, clang::ASTContext &context,
                   clang::CallExpr &call, llvm::StringRef repository_root,
-                  llvm::StringRef translation_unit, llvm::StringRef language) {
+                  llvm::StringRef translation_unit, llvm::StringRef language,
+                  const clang::FunctionDecl *source) {
   if (call.getExprLoc().isInvalid()) {
     return;
   }
   auto &sources = context.getSourceManager();
   auto path = source_path(sources, call.getExprLoc(), repository_root);
-  const auto *source = enclosing_function(context, call);
-  if (!path || !state.owns(*path) || !source || source->isImplicit()) {
+  if (!path || !state.owns(*path) || !source) {
     return;
   }
 
@@ -159,16 +159,15 @@ void observe_constructor(State &state, clang::ASTContext &context,
                          clang::CXXConstructExpr &call,
                          llvm::StringRef repository_root,
                          llvm::StringRef translation_unit,
-                         llvm::StringRef language) {
+                         llvm::StringRef language,
+                         const clang::FunctionDecl *source) {
   if (call.getExprLoc().isInvalid()) {
     return;
   }
   auto &sources = context.getSourceManager();
   auto path = source_path(sources, call.getExprLoc(), repository_root);
-  const auto *source = enclosing_function(context, call);
   const auto *target = call.getConstructor();
-  if (!path || !state.owns(*path) || !source || source->isImplicit() ||
-      !target) {
+  if (!path || !state.owns(*path) || !source || !target) {
     return;
   }
 

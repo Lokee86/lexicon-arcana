@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cstdint>
 #include <initializer_list>
+#include <mutex>
 #include <string_view>
 #include <utility>
 
@@ -55,6 +56,8 @@ inline void emit_perf(
   if (!perf_enabled()) {
     return;
   }
+  static std::mutex output_mutex;
+  std::lock_guard lock(output_mutex);
   const double elapsed_ms =
       std::chrono::duration<double, std::milli>(elapsed).count();
   llvm::errs() << "[lexicon-perf] stage=" << stage

@@ -18,13 +18,14 @@ add_executable(
     structural_action.cpp
     structural_access_flow.cpp
     structural_calls.cpp
+    structural_commit.cpp
+    structural_compilation.cpp
     structural_declaration_support.cpp
     structural_declarations.cpp
     structural_execution.cpp
     structural_frontend.cpp
     structural_hot_path.cpp
     structural_model.cpp
-    structural_plan.cpp
     structural_relationships.cpp
     structural_semantic_support.cpp
     structural_semantics.cpp
@@ -51,7 +52,6 @@ target_link_libraries(
     PRIVATE
     clangAST
     clangBasic
-    clangDependencyScanning
     clangFrontend
     clangIndex
     clangLex
@@ -64,31 +64,63 @@ if(WIN32)
 endif()
 
 enable_testing()
+find_package(Threads REQUIRED)
 
 add_executable(
-    lexicon-c-family-clang-plan-test
-    structural_plan_test.cpp
-    structural_plan.cpp
+    lexicon-c-family-clang-compilation-test
+    structural_compilation_test.cpp
+    structural_compilation.cpp
 )
-target_compile_features(lexicon-c-family-clang-plan-test PRIVATE cxx_std_20)
+target_compile_features(lexicon-c-family-clang-compilation-test PRIVATE cxx_std_20)
 target_include_directories(
-    lexicon-c-family-clang-plan-test
+    lexicon-c-family-clang-compilation-test
     SYSTEM PRIVATE
     ${LLVM_INCLUDE_DIRS}
     ${CLANG_INCLUDE_DIRS}
 )
 target_link_libraries(
-    lexicon-c-family-clang-plan-test
+    lexicon-c-family-clang-compilation-test
     PRIVATE
     clangBasic
-    clangDependencyScanning
     clangTooling
     ${LEXICON_LLVM_LIBS}
 )
 add_test(
-    NAME lexicon-c-family-clang-plan
-    COMMAND lexicon-c-family-clang-plan-test
+    NAME lexicon-c-family-clang-compilation
+    COMMAND lexicon-c-family-clang-compilation-test
 )
+
+add_executable(
+    lexicon-c-family-clang-commit-test
+    structural_commit_test.cpp
+    structural_commit.cpp
+    structural_model.cpp
+    structural_semantics.cpp
+    structural_value_flow_json.cpp
+)
+target_compile_features(lexicon-c-family-clang-commit-test PRIVATE cxx_std_20)
+target_include_directories(
+    lexicon-c-family-clang-commit-test
+    SYSTEM PRIVATE
+    ${LLVM_INCLUDE_DIRS}
+    ${CLANG_INCLUDE_DIRS}
+)
+target_compile_definitions(
+    lexicon-c-family-clang-commit-test
+    PRIVATE
+    LEXICON_CLANG_HELPER_VERSION="${HELPER_VERSION}"
+)
+target_link_libraries(
+    lexicon-c-family-clang-commit-test
+    PRIVATE
+    Threads::Threads
+    ${LEXICON_LLVM_LIBS}
+)
+add_test(
+    NAME lexicon-c-family-clang-commit
+    COMMAND lexicon-c-family-clang-commit-test
+)
+set_tests_properties(lexicon-c-family-clang-commit PROPERTIES TIMEOUT 30)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(

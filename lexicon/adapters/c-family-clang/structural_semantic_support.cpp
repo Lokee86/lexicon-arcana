@@ -1,11 +1,7 @@
 #include "structural_semantic_support.h"
 
-#include <deque>
-#include <set>
-
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
-#include "clang/AST/ParentMapContext.h"
 
 #include "structural_declaration_support.h"
 #include "structural_source.h"
@@ -62,6 +58,10 @@ SemanticArgument argument(const clang::Expr &expression, State &state,
 
 } // namespace
 
+bool semantic_source_function(const clang::FunctionDecl &function) {
+  return !function.isImplicit() && !lambda_call_operator(&function);
+}
+
 SymbolReference symbol_reference(const clang::NamedDecl *declaration,
                                  State &state, clang::ASTContext &context,
                                  llvm::StringRef repository_root) {
@@ -102,63 +102,6 @@ callable_reference(const clang::Expr *expression, State &state,
     return std::nullopt;
   }
   return symbol_reference(declaration, state, context, repository_root);
-}
-
-const clang::FunctionDecl *
-enclosing_function(clang::ASTContext &context, clang::DynTypedNode initial) {
-  const auto started = hot_path_profiling() ? PerfClock::now() : PerfClock::time_point{};
-  std::uint64_t steps = 0;
-  std::deque<clang::DynTypedNode> queue;
-  std::set<const void *> seen;
-  queue.push_back(initial);
-  const clang::FunctionDecl *result = nullptr;
-  while (!queue.empty() && !result) {
-    auto current = queue.front();
-    queue.pop_front();
-    const auto parents = context.getParents(current);
-    steps += parents.size();
-    for (const auto &parent : parents) {
-      if (const auto *function = parent.get<clang::FunctionDecl>()) {
-        if (!function->isImplicit() && !lambda_call_operator(function)) {
-          result = function;
-          break;
-        }
-        if (seen.insert(function).second) {
-          queue.push_back(parent);
-        }
-        continue;
-      }
-      if (const auto *stmt = parent.get<clang::Stmt>()) {
-        if (seen.insert(stmt).second) {
-          queue.push_back(parent);
-        }
-        continue;
-      }
-      if (const auto *decl = parent.get<clang::Decl>()) {
-        if (seen.insert(decl).second) {
-          queue.push_back(parent);
-        }
-      }
-    }
-  }
-  const auto elapsed_ns = hot_path_profiling()
-                              ? static_cast<std::uint64_t>(
-                                    std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                        PerfClock::now() - started)
-                                        .count())
-                              : 0;
-  record_parent_chain(steps, elapsed_ns);
-  return result;
-}
-
-const clang::FunctionDecl *enclosing_function(clang::ASTContext &context,
-                                              const clang::Stmt &statement) {
-  return enclosing_function(context, clang::DynTypedNode::create(statement));
-}
-
-const clang::FunctionDecl *enclosing_function(clang::ASTContext &context,
-                                              const clang::Decl &declaration) {
-  return enclosing_function(context, clang::DynTypedNode::create(declaration));
 }
 
 std::vector<SymbolReference>

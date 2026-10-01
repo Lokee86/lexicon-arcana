@@ -171,17 +171,21 @@ def current_adapter_version() -> str:
 
 def run_once(executable: Path, repository: Path, facts: Path, timeout: float) -> dict:
     started = time.perf_counter()
-    process = subprocess.Popen(
-        [str(executable), "c-family", str(repository), str(facts)],
-        cwd=ROOT,
-        text=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.PIPE,
-        env={**os.environ, "LEXICON_PERF": "1"},
-    )
-    peak_rss, timed_out = sample_tree_rss(process, timeout)
-    return_code = process.wait()
-    stderr = process.stderr.read() if process.stderr is not None else ""
+    # Frontend profiles can exceed a pipe's capacity. Spool stderr while RSS is
+    # sampled so profiling cannot block the compiler and manufacture a timeout.
+    with tempfile.TemporaryFile(mode="w+", encoding="utf-8", dir=facts.parent) as log:
+        process = subprocess.Popen(
+            [str(executable), "c-family", str(repository), str(facts)],
+            cwd=ROOT,
+            text=True,
+            stdout=subprocess.DEVNULL,
+            stderr=log,
+            env={**os.environ, "LEXICON_PERF": "1"},
+        )
+        peak_rss, timed_out = sample_tree_rss(process, timeout)
+        return_code = process.wait()
+        log.seek(0)
+        stderr = log.read()
     wall_ms = (time.perf_counter() - started) * 1000.0
     if return_code != 0 and not timed_out:
         raise RuntimeError(f"adapter_eval failed for {repository}: {stderr}")
@@ -195,7 +199,7 @@ def run_once(executable: Path, repository: Path, facts: Path, timeout: float) ->
 
 
 def run_cold_case(executable: Path, repository: Path, timeout: float) -> dict:
-    with tempfile.TemporaryDirectory(prefix="c-family-phase2-cold-") as raw:
+    with tempfile.TemporaryDirectory(prefix=".c-family-phase2-cold-", dir=ROOT) as raw:
         cold_facts = Path(raw) / "cold.jsonl"
         cold = run_once(executable, repository, cold_facts, timeout)
         facts_summary = (
@@ -210,7 +214,7 @@ def run_warm_case(
     timeout: float,
     expected_sha256: str,
 ) -> dict:
-    with tempfile.TemporaryDirectory(prefix="c-family-phase2-warm-") as raw:
+    with tempfile.TemporaryDirectory(prefix=".c-family-phase2-warm-", dir=ROOT) as raw:
         warm_facts = Path(raw) / "warm.jsonl"
         warm = run_once(executable, repository, warm_facts, timeout)
         if warm["completed"]:

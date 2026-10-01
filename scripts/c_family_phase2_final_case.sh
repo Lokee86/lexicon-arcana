@@ -4,14 +4,17 @@ set -eu
 case_name="$1"
 source_root="$2"
 run_mode="${3:-full}"
-work_root="/work/corpus"
+export LEXICON_MAX_WORKERS="${LEXICON_MAX_WORKERS:-5}"
+work_root="${LEXICON_PHASE2_WORK_ROOT:-/work/corpus}"
 repo_name="$(basename "$source_root")"
 case_root="$work_root/$repo_name"
 
 git config --global --add safe.directory '*'
 mkdir -p "$work_root"
-rm -rf "$case_root"
-cp -a "$source_root" "$case_root"
+if [ "${LEXICON_PHASE2_REUSE_CASE:-0}" != "1" ] || [ ! -d "$case_root" ]; then
+  rm -rf "$case_root"
+  cp -a "$source_root" "$case_root"
+fi
 
 case "$case_name" in
   leveldb)

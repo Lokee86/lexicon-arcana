@@ -68,7 +68,6 @@ pub fn execution_plan_with_limits(
     if let Some(limit) = worker_limit.filter(|limit| *limit < workers) {
         workers = limit;
     }
-
     let enterprise =
         paths.len() >= ENTERPRISE_FILE_THRESHOLD || bytes >= ENTERPRISE_BYTES_THRESHOLD;
     let worker_ceiling = if enterprise {
@@ -179,4 +178,42 @@ fn next_power_of_two(value: usize) -> usize {
 
 fn path_from_slash(value: &str) -> PathBuf {
     value.split('/').collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn c_family_uses_partitioned_execution_plan() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "lexicon-c-family-execution-{}-{nonce}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        for index in 0..513 {
+            fs::write(root.join(format!("unit-{index:03}.c")), b"int value;\n").unwrap();
+        }
+
+        let plan = AnalysisPlan {
+            language: "c-family".into(),
+            full: true,
+            known_present: false,
+            changed_files: Vec::new(),
+            added_files: Vec::new(),
+            removed_files: Vec::new(),
+            context_files: Vec::new(),
+        };
+        let execution = execution_plan_with_limits(&root, &plan, 16, Some(8)).unwrap();
+        let _ = fs::remove_dir_all(&root);
+
+        assert!(execution.logical_shards > 1);
+        assert!(execution.active_workers > 1);
+        assert_eq!(execution.active_workers, 8);
+    }
 }

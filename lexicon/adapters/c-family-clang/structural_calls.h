@@ -11,12 +11,14 @@ namespace lexicon::clang_frontend {
 
 void observe_call(State &state, clang::ASTContext &context,
                   clang::CallExpr &call, llvm::StringRef repository_root,
-                  llvm::StringRef translation_unit, llvm::StringRef language);
+                  llvm::StringRef translation_unit, llvm::StringRef language,
+                  const clang::FunctionDecl *source);
 
 void observe_constructor(State &state, clang::ASTContext &context,
                          clang::CXXConstructExpr &call,
                          llvm::StringRef repository_root,
                          llvm::StringRef translation_unit,
-                         llvm::StringRef language);
+                         llvm::StringRef language,
+                         const clang::FunctionDecl *source);
 
 } // namespace lexicon::clang_frontend

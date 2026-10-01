@@ -11,7 +11,7 @@ use crate::{
 
 use super::{CFamilyAdapter, clang_frontend::ClangFrontend};
 
-const STRUCTURAL_RESPONSE: &str = r#"{"protocol_version":2,"helper_version":"0.6.0","clang_version":"clang test","compilation_database":false,"translation_units":[{"path":"main.c","language":"c","directory":".","arguments":["clang","-xc","main.c"],"synthesized":true}],"files":[{"path":"main.c","languages":["c"],"translation_units":["main.c"],"declarations":[{"compiler_id":"main","kind":"function","name":"main","qualified_name":"main","signature":"int main()","span":{"path":"main.c","start_line":1,"start_column":1,"end_line":1,"end_column":9},"callable":true,"definition":true,"internal":false,"template":false,"virtual_member":false,"function_pointer":false,"alias":false,"enum_member":false,"parameter_count":0}]}],"diagnostics":[]}"#;
+const STRUCTURAL_RESPONSE: &str = r#"{"protocol_version":3,"helper_version":"0.7.0","clang_version":"clang test","compilation_database":false,"translation_units":[{"path":"main.c","language":"c","directory":".","arguments":["clang","-xc","main.c"],"synthesized":true}],"files":[{"path":"main.c","languages":["c"],"translation_units":["main.c"],"declarations":[{"compiler_id":"main","kind":"function","name":"main","qualified_name":"main","signature":"int main()","span":{"path":"main.c","start_line":1,"start_column":1,"end_line":1,"end_column":9},"callable":true,"definition":true,"internal":false,"template":false,"virtual_member":false,"function_pointer":false,"alias":false,"enum_member":false,"parameter_count":0}]}],"diagnostics":[]}"#;
 
 #[test]
 fn production_adapter_routes_through_clang_frontend() {
@@ -119,7 +119,7 @@ fn framed_structural_response(response: &str) -> String {
         .unwrap_or_else(|| serde_json::json!([]));
     let metadata = serde_json::to_vec(&value).unwrap();
     let mut output = format!(
-        "{{\"protocol_version\":2,\"kind\":\"metadata\",\"bytes\":{}}}\n",
+        "{{\"protocol_version\":3,\"kind\":\"metadata\",\"bytes\":{}}}\n",
         metadata.len()
     )
     .into_bytes();
@@ -128,7 +128,7 @@ fn framed_structural_response(response: &str) -> String {
     for file in files.as_array().unwrap() {
         let payload = serde_json::to_vec(file).unwrap();
         let header = serde_json::json!({
-            "protocol_version": 2,
+            "protocol_version": 3,
             "kind": "file",
             "path": file["path"].as_str().unwrap(),
             "bytes": payload.len(),
@@ -166,6 +166,8 @@ fn scripted_frontend(root: &std::path::Path, response: &str) -> FrontendRunner {
             program,
             vec![
                 OsString::from("-NoProfile"),
+                OsString::from("-ExecutionPolicy"),
+                OsString::from("Bypass"),
                 OsString::from("-File"),
                 script.into_os_string(),
             ],

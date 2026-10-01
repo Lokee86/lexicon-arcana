@@ -1,5 +1,7 @@
 # C-family Phase 2.7 restart handoff
 
+Parent index: [Development Documentation](INDEX.md)
+
 **Branch:** `refactor/c-family-clang`
 
 **Base:** `610f840` — `Cut C-family production over to Clang`

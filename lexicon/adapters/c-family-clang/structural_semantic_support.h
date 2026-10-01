@@ -22,10 +22,7 @@ std::optional<SymbolReference>
 callable_reference(const clang::Expr *expression, State &state,
                    clang::ASTContext &context,
                    llvm::StringRef repository_root);
-const clang::FunctionDecl *enclosing_function(clang::ASTContext &context,
-                                              const clang::Stmt &statement);
-const clang::FunctionDecl *enclosing_function(clang::ASTContext &context,
-                                              const clang::Decl &declaration);
+bool semantic_source_function(const clang::FunctionDecl &function);
 std::vector<SymbolReference>
 overload_candidates(const clang::Expr *callee, State &state,
                     clang::ASTContext &context,

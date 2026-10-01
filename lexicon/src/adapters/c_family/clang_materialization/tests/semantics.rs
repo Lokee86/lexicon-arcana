@@ -18,8 +18,8 @@ fn clang_semantics_materialize_relationships_and_call_policy() {
     .unwrap();
 
     let response: StructuralResponse = serde_json::from_value(json!({
-        "protocol_version": 2,
-        "helper_version": "0.5.0",
+        "protocol_version": 3,
+        "helper_version": "0.7.0",
         "clang_version": "clang test",
         "compilation_database": true,
         "files": [{
@@ -167,8 +167,8 @@ fn macro_spanned_semantics_resolve_source_identity_across_files() {
     fs::write(root.path.join("macro.h"), b"#define WRAP() target\n").unwrap();
 
     let response: StructuralResponse = serde_json::from_value(json!({
-        "protocol_version": 2,
-        "helper_version": "0.5.0",
+        "protocol_version": 3,
+        "helper_version": "0.7.0",
         "clang_version": "clang test",
         "compilation_database": true,
         "files": [
@@ -266,8 +266,8 @@ fn context_identity_resolves_owned_call_without_materializing_context_file() {
     .unwrap();
 
     let response: StructuralResponse = serde_json::from_value(json!({
-        "protocol_version": 2,
-        "helper_version": "0.5.0",
+        "protocol_version": 3,
+        "helper_version": "0.7.0",
         "clang_version": "clang test",
         "compilation_database": true,
         "context_identities": [{
@@ -316,6 +316,64 @@ fn context_identity_resolves_owned_call_without_materializing_context_file() {
 }
 
 #[test]
+fn context_identity_argument_value_is_not_a_materialized_graph_source() {
+    let root = TestDirectory::new("semantic-context-argument");
+    fs::write(
+        root.path.join("caller.c"),
+        b"int caller(void) { return sink(context_value); }\n",
+    )
+    .unwrap();
+
+    let response: StructuralResponse = serde_json::from_value(json!({
+        "protocol_version": 3,
+        "helper_version": "0.7.0",
+        "clang_version": "clang test",
+        "compilation_database": true,
+        "context_identities": [{
+            "compiler_id": "context-value-usr",
+            "path": "context.h",
+            "kind": "variable",
+            "qualified_name": "context_value",
+            "signature": "",
+            "definition": true
+        }],
+        "files": [{
+            "path": "caller.c",
+            "languages": ["c"],
+            "translation_units": ["caller.c"],
+            "declarations": [
+                declaration("caller", "function", "caller", "caller", "caller(void)", "int", "", 1)
+            ],
+            "calls": [{
+                "source_compiler_id": "caller",
+                "form": "direct",
+                "resolution": "missing",
+                "expression": "sink",
+                "candidates": [],
+                "receiver_type_name": "",
+                "virtual_dispatch": false,
+                "compiler_candidate_count": 0,
+                "arguments": [{
+                    "expression": "context_value",
+                    "value": symbol(
+                        "context-value-usr",
+                        "context.h",
+                        "context_value",
+                        "Var",
+                        false
+                    )
+                }],
+                "span": span("caller.c", 1, 27, 1, 46)
+            }]
+        }]
+    }))
+    .unwrap();
+
+    let model = materialize(&root.path, &response).unwrap();
+    assert_eq!(model.files[0].semantic_calls[0].arguments[0].value_id, "");
+}
+
+#[test]
 fn resolved_external_clang_target_stays_unresolved_in_lexicon_policy() {
     let root = TestDirectory::new("semantic-external");
     fs::write(
@@ -324,8 +382,8 @@ fn resolved_external_clang_target_stays_unresolved_in_lexicon_policy() {
     )
     .unwrap();
     let response: StructuralResponse = serde_json::from_value(json!({
-        "protocol_version": 2,
-        "helper_version": "0.5.0",
+        "protocol_version": 3,
+        "helper_version": "0.7.0",
         "clang_version": "clang test",
         "compilation_database": true,
         "files": [{
@@ -378,8 +436,8 @@ fn clang_entity_prefers_repository_definition_when_callsite_has_no_same_file_red
     .unwrap();
 
     let response: StructuralResponse = serde_json::from_value(json!({
-        "protocol_version": 2,
-        "helper_version": "0.5.0",
+        "protocol_version": 3,
+        "helper_version": "0.7.0",
         "clang_version": "clang test",
         "compilation_database": true,
         "files": [

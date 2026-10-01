@@ -19,7 +19,11 @@ void observe_inheritance(State &state, clang::ASTContext &context,
   if (!path || !state.owns(*path)) {
     return;
   }
-  auto source_id = compiler_id(&record, sources);
+  auto source_id = ensure_owned_declaration(
+      state, context, record, repository_root, translation_unit, language);
+  if (source_id.empty()) {
+    return;
+  }
   for (const auto &base : record.bases()) {
     state.file(*path, language.str(), translation_unit.str())
         .relationships.push_back({
@@ -48,7 +52,11 @@ void observe_overrides(State &state, clang::ASTContext &context,
   if (!path || !state.owns(*path)) {
     return;
   }
-  auto source_id = compiler_id(&method, sources);
+  auto source_id = ensure_owned_declaration(
+      state, context, method, repository_root, translation_unit, language);
+  if (source_id.empty()) {
+    return;
+  }
   for (const auto *target : method.overridden_methods()) {
     state.file(*path, language.str(), translation_unit.str())
         .relationships.push_back({

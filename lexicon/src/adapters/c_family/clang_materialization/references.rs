@@ -19,6 +19,7 @@ struct ReferenceCandidate {
     path: String,
     id: String,
     definition: bool,
+    materialized: bool,
 }
 
 impl ReferenceIndex {
@@ -52,6 +53,7 @@ impl ReferenceIndex {
                     path: file.path.clone(),
                     id: id.clone(),
                     definition: declaration.definition,
+                    materialized: true,
                 });
         }
     }
@@ -72,6 +74,7 @@ impl ReferenceIndex {
                     path: value.path.clone(),
                     id: declarations::context_identity_id(value),
                     definition: value.definition,
+                    materialized: false,
                 });
         }
     }
@@ -104,8 +107,62 @@ impl ReferenceIndex {
         )
     }
 
-    pub(super) fn resolve_compiler_id(&self, compiler_id: &str, source_path: &str) -> String {
-        self.resolve_with_path(compiler_id, source_path, None)
+    pub(super) fn resolve_materialized(
+        &self,
+        reference: &SymbolReferenceObservation,
+        source_path: &str,
+    ) -> String {
+        if reference.external {
+            return String::new();
+        }
+        self.resolve_materialized_with_path(
+            &reference.compiler_id,
+            source_path,
+            (!reference.path.is_empty()).then_some(reference.path.as_str()),
+        )
+    }
+
+    pub(super) fn resolve_materialized_compiler_id(
+        &self,
+        compiler_id: &str,
+        source_path: &str,
+    ) -> String {
+        self.resolve_materialized_with_path(compiler_id, source_path, None)
+    }
+
+    fn resolve_materialized_with_path(
+        &self,
+        compiler_id: &str,
+        source_path: &str,
+        reference_path: Option<&str>,
+    ) -> String {
+        let Some(candidates) = self.by_compiler.get(compiler_id) else {
+            return String::new();
+        };
+        if let Some(value) = candidates
+            .iter()
+            .find(|value| value.materialized && value.path == source_path)
+        {
+            return value.id.clone();
+        }
+        if let Some(value) = candidates
+            .iter()
+            .find(|value| value.materialized && value.definition)
+        {
+            return value.id.clone();
+        }
+        if let Some(reference_path) = reference_path
+            && let Some(value) = candidates
+                .iter()
+                .find(|value| value.materialized && value.path == reference_path)
+        {
+            return value.id.clone();
+        }
+        candidates
+            .iter()
+            .find(|value| value.materialized)
+            .map(|value| value.id.clone())
+            .unwrap_or_default()
     }
 
     fn resolve_with_path(
@@ -166,5 +223,26 @@ mod tests {
             external: false,
         };
         assert_eq!(index.resolve(&reference, "owner.c"), expected);
+    }
+
+    #[test]
+    fn context_identity_does_not_resolve_as_materialized_source() {
+        let identity = ContextIdentityObservation {
+            compiler_id: "c:@F@api".into(),
+            path: "api.h".into(),
+            kind: "function".into(),
+            qualified_name: "api".into(),
+            signature: "api()".into(),
+            definition: true,
+        };
+
+        let mut index = ReferenceIndex::empty();
+        index.add_context_identities(std::slice::from_ref(&identity));
+        index.finalize();
+
+        assert_eq!(
+            index.resolve_materialized_compiler_id(&identity.compiler_id, "owner.c"),
+            ""
+        );
     }
 }

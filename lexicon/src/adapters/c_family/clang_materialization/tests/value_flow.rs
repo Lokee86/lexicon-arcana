@@ -20,8 +20,8 @@ fn clang_bound_values_drive_accesses_and_passes_to() {
     .unwrap();
 
     let response: StructuralResponse = serde_json::from_value(json!({
-        "protocol_version": 2,
-        "helper_version": "0.5.0",
+        "protocol_version": 3,
+        "helper_version": "0.7.0",
         "clang_version": "clang test",
         "compilation_database": true,
         "files": [{
@@ -92,4 +92,52 @@ fn clang_bound_values_drive_accesses_and_passes_to() {
         &ids["callee::value"],
         "passes-to"
     ));
+}
+
+#[test]
+fn context_identity_cannot_be_a_materialized_pointer_binding_source() {
+    let root = TestDirectory::new("context-pointer-source");
+    fs::write(root.path.join("owner.c"), b"void owner(void) {}\n").unwrap();
+
+    let response: StructuralResponse = serde_json::from_value(json!({
+        "protocol_version": 3,
+        "helper_version": "0.7.0",
+        "clang_version": "clang test",
+        "compilation_database": true,
+        "context_identities": [{
+            "compiler_id": "context-pointer-usr",
+            "path": "context.h",
+            "kind": "variable",
+            "qualified_name": "context_pointer",
+            "signature": "",
+            "definition": true
+        }],
+        "files": [{
+            "path": "owner.c",
+            "languages": ["c"],
+            "translation_units": ["owner.c"],
+            "declarations": [
+                function("owner.c", "owner", "owner", 0, 1)
+            ],
+            "pointer_bindings": [{
+                "pointer": symbol(
+                    "context-pointer-usr",
+                    "context.h",
+                    "context_pointer",
+                    "Var",
+                    false
+                ),
+                "target": symbol("external-target", "", "target", "Function", true),
+                "expression": "context_pointer = target",
+                "span": span("owner.c", 1, 1, 1, 19)
+            }]
+        }]
+    }))
+    .unwrap();
+
+    let error = materialize(&root.path, &response).unwrap_err().to_string();
+    assert!(
+        error.contains("pointer \"context_pointer\" is not materialized"),
+        "{error}"
+    );
 }

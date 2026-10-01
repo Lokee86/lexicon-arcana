@@ -266,9 +266,10 @@ void State::merge(State other) {
                      std::make_move_iterator(other.diagnostics.begin()),
                      std::make_move_iterator(other.diagnostics.end()));
   all_owned_paths.merge(other.all_owned_paths);
-  for (auto &identity : other.context_identities) {
-    add_context_identity(std::move(identity));
-  }
+  context_identities.insert(
+      context_identities.end(),
+      std::make_move_iterator(other.context_identities.begin()),
+      std::make_move_iterator(other.context_identities.end()));
 
   for (auto &[path, source] : other.files) {
     auto &[_, target] = *files.try_emplace(path, File{.path = path}).first;
@@ -308,22 +309,24 @@ llvm::json::Object State::metadata_response(bool compilation_database,
 
   std::sort(context_identities.begin(), context_identities.end(),
             [](const ContextIdentity &left, const ContextIdentity &right) {
-              return std::tie(left.compiler_id, left.path, left.kind,
-                              left.qualified_name, left.signature,
-                              left.definition) <
-                     std::tie(right.compiler_id, right.path, right.kind,
-                              right.qualified_name, right.signature,
-                              right.definition);
+              if (left.compiler_id != right.compiler_id) {
+                return left.compiler_id < right.compiler_id;
+              }
+              if (left.path != right.path) {
+                return left.path < right.path;
+              }
+              if (left.definition != right.definition) {
+                return left.definition;
+              }
+              return std::tie(left.kind, left.qualified_name, left.signature) <
+                     std::tie(right.kind, right.qualified_name,
+                              right.signature);
             });
   context_identities.erase(
       std::unique(context_identities.begin(), context_identities.end(),
                   [](const ContextIdentity &left, const ContextIdentity &right) {
                     return left.compiler_id == right.compiler_id &&
-                           left.path == right.path &&
-                           left.kind == right.kind &&
-                           left.qualified_name == right.qualified_name &&
-                           left.signature == right.signature &&
-                           left.definition == right.definition;
+                           left.path == right.path;
                   }),
       context_identities.end());
 

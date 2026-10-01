@@ -87,7 +87,8 @@ void observe_value_access(State &state, clang::ASTContext &context,
                           clang::Expr &expression,
                           llvm::StringRef repository_root,
                           llvm::StringRef translation_unit,
-                          llvm::StringRef language) {
+                          llvm::StringRef language,
+                          const clang::FunctionDecl *source) {
   const auto mode = access_mode(context, expression);
   if (mode == AccessMode::Skip) {
     return;
@@ -99,9 +100,8 @@ void observe_value_access(State &state, clang::ASTContext &context,
     return;
   }
 
-  const auto *source = enclosing_function(context, expression);
   auto target = value_reference(&expression, state, context, repository_root);
-  if (!source || source->isImplicit() || !target) {
+  if (!source || !target) {
     return;
   }
 

@@ -8,6 +8,12 @@ import subprocess
 import sys
 import tempfile
 
+REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[3]
+
+
+def temporary_directory(prefix: str) -> tempfile.TemporaryDirectory:
+    return tempfile.TemporaryDirectory(prefix=prefix, dir=REPOSITORY_ROOT)
+
 
 def decode_framed_response(stdout: bytes) -> dict:
     offset = 0
@@ -37,15 +43,17 @@ def decode_framed_response(stdout: bytes) -> dict:
             raise RuntimeError(f"unexpected frame kind: {header['kind']!r}")
     if metadata is None:
         raise RuntimeError("framed response omitted metadata")
+    files.sort(key=lambda value: value["path"])
     return {**metadata, "files": files}
 
 
 def run(helper: pathlib.Path, version: str, root: pathlib.Path, request: dict) -> dict:
     completed = subprocess.run(
-        [str(helper), "--protocol-version", "2", "--helper-version", version],
+        [str(helper), "--protocol-version", "3", "--helper-version", version],
         input=(json.dumps(request) + "\n").encode("utf-8"),
         capture_output=True,
         cwd=root,
+        timeout=120,
     )
     if completed.returncode != 0:
         raise RuntimeError(
@@ -61,17 +69,16 @@ def run_with_perf(
     version: str,
     root: pathlib.Path,
     request: dict,
-    legacy_jobs: int,
 ) -> tuple[dict, str]:
     environment = os.environ.copy()
     environment["LEXICON_PERF"] = "1"
-    environment["LEXICON_CLANG_JOBS"] = str(legacy_jobs)
     completed = subprocess.run(
-        [str(helper), "--protocol-version", "2", "--helper-version", version],
+        [str(helper), "--protocol-version", "3", "--helper-version", version],
         input=(json.dumps(request) + "\n").encode("utf-8"),
         capture_output=True,
         cwd=root,
         env=environment,
+        timeout=120,
     )
     stderr = completed.stderr.decode("utf-8", errors="replace")
     if completed.returncode != 0:
@@ -80,6 +87,31 @@ def run_with_perf(
             f"{completed.stdout.decode('utf-8', errors='replace')}"
         )
     return decode_framed_response(completed.stdout), stderr
+
+
+def perf_totals(stderr: str, stage: str) -> dict[str, int]:
+    totals: dict[str, int] = {}
+    lines = [line for line in stderr.splitlines() if f"stage={stage}" in line]
+    if not lines:
+        raise RuntimeError(f"missing {stage} perf metrics")
+    for line in lines:
+        for token in line.split():
+            if "=" not in token:
+                continue
+            key, value = token.split("=", 1)
+            try:
+                totals[key] = totals.get(key, 0) + int(value)
+            except ValueError:
+                continue
+    return totals
+
+
+def assert_metric(stderr: str, stage: str, name: str, expected: int) -> None:
+    actual = perf_totals(stderr, stage).get(name)
+    if actual != expected:
+        raise RuntimeError(
+            f"expected {stage} {name}={expected}, got {actual!r}: {stderr!r}"
+        )
 
 def compile_database(root: pathlib.Path, files: list[str]) -> None:
     entries = [
@@ -93,8 +125,472 @@ def compile_database(root: pathlib.Path, files: list[str]) -> None:
     (root / "compile_commands.json").write_text(json.dumps(entries), encoding="utf-8")
 
 
+def write_compile_database(root: pathlib.Path, entries: list[dict]) -> None:
+    (root / "compile_commands.json").write_text(
+        json.dumps(entries), encoding="utf-8"
+    )
+
+
+def run_expect_failure(
+    helper: pathlib.Path,
+    version: str,
+    root: pathlib.Path,
+    request: dict,
+    *,
+    protocol_version: int = 3,
+    timeout: int = 30,
+) -> subprocess.CompletedProcess:
+    completed = subprocess.run(
+        [
+            str(helper),
+            "--protocol-version",
+            str(protocol_version),
+            "--helper-version",
+            version,
+        ],
+        input=(json.dumps(request) + "\n").encode("utf-8"),
+        capture_output=True,
+        cwd=root,
+        timeout=timeout,
+    )
+    if completed.returncode == 0:
+        raise RuntimeError(
+            "helper unexpectedly accepted an invalid request: "
+            f"{completed.stdout.decode('utf-8', errors='replace')}"
+        )
+    return completed
+
+
+def changed_source_only(helper: pathlib.Path, version: str) -> None:
+    with temporary_directory("lexicon-changed-source-") as temp:
+        root = pathlib.Path(temp)
+        (root / "api.h").write_text(
+            "#pragma once\nint api(void);\n", encoding="utf-8"
+        )
+        for name in ("changed.c", "unchanged.c"):
+            (root / name).write_text(
+                '#include "api.h"\n'
+                f"int {name.removesuffix('.c')}(void) {{ return api(); }}\n",
+                encoding="utf-8",
+            )
+        compile_database(root, ["changed.c", "unchanged.c"])
+        response = run(
+            helper,
+            version,
+            root,
+            {
+                "protocol_version": 3,
+                "operation": "structural",
+                "repository_root": str(root),
+                "owned_files": ["changed.c"],
+                "context_files": ["api.h", "unchanged.c"],
+                "workers": 2,
+            },
+        )
+        paths = [value["path"] for value in response.get("files", [])]
+        if paths != ["changed.c"]:
+            raise RuntimeError(
+                f"source-only incremental request emitted {paths!r}"
+            )
+        units = response.get("translation_units", [])
+        if [value.get("path") for value in units] != ["changed.c"]:
+            raise RuntimeError(
+                f"source-only request parsed unchanged context TUs: {units!r}"
+            )
+
+
+def changed_header_uses_real_context_first(
+    helper: pathlib.Path, version: str
+) -> None:
+    with temporary_directory("lexicon-changed-header-") as temp:
+        root = pathlib.Path(temp)
+        (root / "changed.h").write_text(
+            "#pragma once\n"
+            "#if REAL_CONTEXT\n"
+            "int from_real_context(void);\n"
+            "#else\n"
+            "int from_synthetic_context(void);\n"
+            "#endif\n",
+            encoding="utf-8",
+        )
+        (root / "real.c").write_text(
+            '#include "changed.h"\nint real_user(void) { return 0; }\n',
+            encoding="utf-8",
+        )
+        (root / "synthetic.c").write_text(
+            '#include "changed.h"\nint synthetic_user(void) { return 0; }\n',
+            encoding="utf-8",
+        )
+        (root / "compile_commands.json").write_text(
+            json.dumps(
+                [
+                    {
+                        "directory": str(root),
+                        "arguments": [
+                            "clang",
+                            "-DREAL_CONTEXT=1",
+                            "-I",
+                            str(root),
+                            "-c",
+                            "real.c",
+                        ],
+                        "file": "real.c",
+                    }
+                ]
+            ),
+            encoding="utf-8",
+        )
+        response = run(
+            helper,
+            version,
+            root,
+            {
+                "protocol_version": 3,
+                "operation": "structural",
+                "repository_root": str(root),
+                "owned_files": ["changed.h"],
+                "context_files": ["real.c", "synthetic.c"],
+                "workers": 2,
+            },
+        )
+        files = response.get("files", [])
+        if len(files) != 1 or files[0].get("path") != "changed.h":
+            raise RuntimeError(f"changed-header output was not singular: {files!r}")
+        names = {value.get("name") for value in files[0].get("declarations", [])}
+        if "from_real_context" not in names or "from_synthetic_context" in names:
+            raise RuntimeError(
+                "real compile-command context did not win over synthetic context: "
+                f"{names!r}"
+            )
+        units = response.get("translation_units", [])
+        by_path = {value.get("path"): value for value in units}
+        if set(by_path) != {"real.c", "synthetic.c"}:
+            raise RuntimeError(f"missing real/synthetic header candidates: {units!r}")
+        if by_path["real.c"].get("synthesized") or not by_path[
+            "synthetic.c"
+        ].get("synthesized"):
+            raise RuntimeError(f"candidate compile contexts were misclassified: {units!r}")
+        if files[0].get("translation_units") != ["real.c"]:
+            raise RuntimeError(
+                "owned header was not claimed by the earliest real TU: "
+                f"{files[0].get('translation_units')!r}"
+            )
+
+
+def orphan_header_is_fallback_parsed_once(
+    helper: pathlib.Path, version: str
+) -> None:
+    with temporary_directory("lexicon-orphan-header-") as temp:
+        root = pathlib.Path(temp)
+        (root / "orphan.h").write_text(
+            "#pragma once\nint orphan_api(void);\n", encoding="utf-8"
+        )
+        compile_database(root, [])
+        response, stderr = run_with_perf(
+            helper,
+            version,
+            root,
+            {
+                "protocol_version": 3,
+                "operation": "structural",
+                "repository_root": str(root),
+                "owned_files": ["orphan.h"],
+                "context_files": [],
+                "workers": 1,
+            },
+        )
+        files = response.get("files", [])
+        if [value.get("path") for value in files] != ["orphan.h"]:
+            raise RuntimeError(f"orphan header was not emitted exactly once: {files!r}")
+        units = response.get("translation_units", [])
+        if [value.get("path") for value in units] != ["orphan.h"]:
+            raise RuntimeError(f"orphan header fallback was not parsed once: {units!r}")
+        assert_metric(stderr, "c-family.clang.execution", "orphan_fallback_units", 1)
+
+
+def synthetic_source_is_parsed_once(helper: pathlib.Path, version: str) -> None:
+    with temporary_directory("lexicon-synthetic-source-") as temp:
+        root = pathlib.Path(temp)
+        (root / "synthetic.c").write_text(
+            "int synthetic_source(void) { return 7; }\n", encoding="utf-8"
+        )
+        compile_database(root, [])
+        response, stderr = run_with_perf(
+            helper,
+            version,
+            root,
+            {
+                "protocol_version": 3,
+                "operation": "structural",
+                "repository_root": str(root),
+                "owned_files": ["synthetic.c"],
+                "context_files": [],
+                "workers": 1,
+            },
+        )
+        units = response.get("translation_units", [])
+        if len(units) != 1 or units[0].get("path") != "synthetic.c":
+            raise RuntimeError(f"synthetic source was not parsed once: {units!r}")
+        if not units[0].get("synthesized"):
+            raise RuntimeError(f"source without a command was not synthetic: {units!r}")
+        if [value.get("path") for value in response.get("files", [])] != [
+            "synthetic.c"
+        ]:
+            raise RuntimeError("synthetic source facts were not emitted exactly once")
+        assert_metric(stderr, "c-family.clang.execution", "completed_tus", 1)
+        assert_metric(
+            stderr, "c-family.clang.execution", "primary_synthetic_parse_units", 1
+        )
+
+
+def empty_owned_source_is_emitted_once(helper: pathlib.Path, version: str) -> None:
+    with temporary_directory("lexicon-empty-source-") as temp:
+        root = pathlib.Path(temp)
+        (root / "empty.c").write_text("", encoding="utf-8")
+        compile_database(root, ["empty.c"])
+        response = run(
+            helper,
+            version,
+            root,
+            {
+                "protocol_version": 3,
+                "operation": "structural",
+                "repository_root": str(root),
+                "owned_files": ["empty.c"],
+                "context_files": [],
+                "workers": 1,
+            },
+        )
+        files = response.get("files", [])
+        if [value.get("path") for value in files] != ["empty.c"]:
+            raise RuntimeError(
+                f"empty owned source was not emitted exactly once: {files!r}"
+            )
+
+
+def differing_compile_directories_are_respected(
+    helper: pathlib.Path, version: str
+) -> None:
+    with temporary_directory("lexicon-compile-directories-") as temp:
+        root = pathlib.Path(temp)
+        build_dirs = {name: root / name / "build" for name in ("one", "two")}
+        for name, build_dir in build_dirs.items():
+            source_dir = root / name / "src"
+            include_dir = root / name / "include"
+            build_dir.mkdir(parents=True)
+            source_dir.mkdir()
+            include_dir.mkdir()
+            (include_dir / "api.h").write_text(
+                f"int {name}_api(void);\n", encoding="utf-8"
+            )
+            (source_dir / "main.c").write_text(
+                '#include "include/api.h"\n'
+                f"int {name}_user(void) {{ return {name}_api(); }}\n",
+                encoding="utf-8",
+            )
+        write_compile_database(
+            root,
+            [
+                {
+                    "directory": str(build_dirs["two"]),
+                    "arguments": ["clang", "-I", "..", "-c", "../src/main.c"],
+                    "file": "../src/main.c",
+                },
+                {
+                    "directory": str(build_dirs["one"]),
+                    "arguments": ["clang", "-I", "..", "-c", "../src/main.c"],
+                    "file": "../src/main.c",
+                },
+            ],
+        )
+        response = run(
+            helper,
+            version,
+            root,
+            {
+                "protocol_version": 3,
+                "operation": "structural",
+                "repository_root": str(root),
+                "owned_files": [
+                    "one/include/api.h",
+                    "one/src/main.c",
+                    "two/include/api.h",
+                    "two/src/main.c",
+                ],
+                "context_files": [],
+                "workers": 1,
+            },
+        )
+        files = response.get("files", [])
+        expected_files = [
+            "one/include/api.h",
+            "one/src/main.c",
+            "two/include/api.h",
+            "two/src/main.c",
+        ]
+        if [value.get("path") for value in files] != expected_files:
+            raise RuntimeError(
+                f"different command directories lost owned source output: {files!r}"
+            )
+        units = {
+            value.get("path"): value
+            for value in response.get("translation_units", [])
+        }
+        expected_directories = {
+            "one/src/main.c": str(build_dirs["one"]),
+            "two/src/main.c": str(build_dirs["two"]),
+        }
+        if set(units) != set(expected_directories) or any(
+            pathlib.Path(units[path].get("directory", "")).resolve()
+            != pathlib.Path(directory).resolve()
+            for path, directory in expected_directories.items()
+        ):
+            raise RuntimeError(
+                f"translation units did not retain their compile command directories: {units!r}"
+            )
+        declarations = {
+            value.get("path"): {
+                item.get("name") for item in value.get("declarations", [])
+            }
+            for value in files
+        }
+        if "one_api" not in declarations["one/include/api.h"] or (
+            "two_api" in declarations["one/include/api.h"]
+        ) or "two_api" not in declarations["two/include/api.h"] or (
+            "one_api" in declarations["two/include/api.h"]
+        ):
+            raise RuntimeError(
+                f"relative header paths collided between command directories: {declarations!r}"
+            )
+
+
+def skipped_driver_tu_does_not_block_later_tu(
+    helper: pathlib.Path, version: str
+) -> None:
+    with temporary_directory("lexicon-skipped-driver-tu-") as temp:
+        root = pathlib.Path(temp)
+        (root / "a-skipped.c").write_text(
+            "int skipped_source(void) { return 0; }\n", encoding="utf-8"
+        )
+        (root / "z-valid.c").write_text(
+            "int later_valid_source(void) { return 42; }\n", encoding="utf-8"
+        )
+        write_compile_database(
+            root,
+            [
+                {
+                    "directory": str(root),
+                    "arguments": ["clang", "-fno-such-lexicon-option", "-c", "a-skipped.c"],
+                    "file": "a-skipped.c",
+                },
+                {
+                    "directory": str(root),
+                    "arguments": ["clang", "-c", "z-valid.c"],
+                    "file": "z-valid.c",
+                },
+            ],
+        )
+        completed = subprocess.run(
+            [str(helper), "--protocol-version", "3", "--helper-version", version],
+            input=(
+                json.dumps(
+                    {
+                        "protocol_version": 3,
+                        "operation": "structural",
+                        "repository_root": str(root),
+                        "owned_files": ["a-skipped.c", "z-valid.c"],
+                        "context_files": [],
+                        "workers": 1,
+                    }
+                )
+                + "\n"
+            ).encode("utf-8"),
+            capture_output=True,
+            cwd=root,
+            timeout=30,
+        )
+        if completed.returncode == 0:
+            raise RuntimeError("driver-skipped translation unit did not fail the request")
+        if not completed.stdout:
+            raise RuntimeError(
+                "driver-skipped translation unit prevented framed results from being emitted"
+            )
+        response = decode_framed_response(completed.stdout)
+        emitted = [value.get("path") for value in response.get("files", [])]
+        units = {value.get("path") for value in response.get("translation_units", [])}
+        if "z-valid.c" not in emitted or "z-valid.c" not in units:
+            raise RuntimeError(
+                "valid TU after a driver-skipped rank was not completed and emitted: "
+                f"files={emitted!r}, units={units!r}"
+            )
+
+
+def protocol_v3_hard_cut_is_enforced(helper: pathlib.Path, version: str) -> None:
+    with temporary_directory("lexicon-protocol-v3-") as temp:
+        root = pathlib.Path(temp)
+        compile_database(root, [])
+        base = {
+            "protocol_version": 3,
+            "operation": "structural",
+            "repository_root": str(root),
+            "owned_files": [],
+            "context_files": [],
+            "workers": 1,
+        }
+        run_expect_failure(
+            helper,
+            version,
+            root,
+            {**base, "protocol_version": 2},
+            protocol_version=2,
+        )
+        run_expect_failure(
+            helper,
+            version,
+            root,
+            {**base, "shards": 1, "merge_fan_in": 1},
+        )
+
+
+def failed_frontend_exits_without_hanging(helper: pathlib.Path, version: str) -> None:
+    with temporary_directory("lexicon-frontend-failure-") as temp:
+        root = pathlib.Path(temp)
+        (root / "broken.c").write_text("int broken( {\n", encoding="utf-8")
+        compile_database(root, ["broken.c"])
+        try:
+            completed = subprocess.run(
+                [
+                    str(helper),
+                    "--protocol-version",
+                    "3",
+                    "--helper-version",
+                    version,
+                ],
+                input=(
+                    json.dumps(
+                        {
+                            "protocol_version": 3,
+                            "operation": "structural",
+                            "repository_root": str(root),
+                            "owned_files": ["broken.c"],
+                            "context_files": [],
+                            "workers": 2,
+                        }
+                    )
+                    + "\n"
+                ).encode("utf-8"),
+                capture_output=True,
+                cwd=root,
+                timeout=30,
+            )
+        except subprocess.TimeoutExpired as error:
+            raise RuntimeError("failed frontend hung instead of completing") from error
+        if completed.returncode == 0:
+            raise RuntimeError("syntactically invalid frontend unexpectedly succeeded")
+
+
 def shared_header_once(helper: pathlib.Path, version: str) -> None:
-    with tempfile.TemporaryDirectory(prefix="lexicon-ownership-") as temp:
+    with temporary_directory("lexicon-ownership-") as temp:
         root = pathlib.Path(temp)
         (root / "shared.h").write_text(
             "#pragma once\nint shared_value(void);\n", encoding="utf-8"
@@ -108,32 +604,45 @@ def shared_header_once(helper: pathlib.Path, version: str) -> None:
                 encoding="utf-8",
             )
         compile_database(root, sources)
-        response = run(
+        request = {
+            "protocol_version": 3,
+            "operation": "structural",
+            "repository_root": str(root),
+            "owned_files": ["shared.h"],
+            "context_files": sources,
+            "workers": 4,
+        }
+        response, stderr = run_with_perf(
             helper,
             version,
             root,
-            {
-                "protocol_version": 2,
-                "operation": "structural",
-                "repository_root": str(root),
-                "owned_files": ["shared.h"],
-                "context_files": sources,
-                "workers": 4,
-                "shards": 16,
-                "merge_fan_in": 4,
-            },
+            request,
         )
         paths = [value["path"] for value in response.get("files", [])]
         if paths != ["shared.h"]:
             raise RuntimeError(
                 f"shared header ownership leaked or duplicated: emitted {paths!r}"
             )
+        units = response.get("translation_units", [])
+        if len(units) != 50 or {value.get("path") for value in units} != set(sources):
+            raise RuntimeError(f"expected 50 real source TUs, got {units!r}")
+        if any(value.get("synthesized") for value in units):
+            raise RuntimeError("real compile-database TUs were synthesized")
+        assert_metric(stderr, "c-family.clang.execution", "active_clang_lanes", 4)
+        assert_metric(stderr, "c-family.clang.execution", "completed_tus", 50)
+        assert_metric(stderr, "c-family.clang.execution", "claimed_owned_files", 1)
+        assert_metric(
+            stderr,
+            "c-family.clang.execution",
+            "discarded_duplicate_file_observations",
+            49,
+        )
 
 
 def context_identity_without_context_file(
     helper: pathlib.Path, version: str
 ) -> None:
-    with tempfile.TemporaryDirectory(prefix="lexicon-context-") as temp:
+    with temporary_directory("lexicon-context-") as temp:
         root = pathlib.Path(temp)
         (root / "api.h").write_text(
             "#pragma once\nint api(void);\n", encoding="utf-8"
@@ -148,14 +657,12 @@ def context_identity_without_context_file(
             version,
             root,
             {
-                "protocol_version": 2,
+                "protocol_version": 3,
                 "operation": "structural",
                 "repository_root": str(root),
                 "owned_files": ["owner.c"],
                 "context_files": ["api.h"],
                 "workers": 1,
-                "shards": 1,
-                "merge_fan_in": 2,
             },
         )
         paths = [value["path"] for value in response.get("files", [])]
@@ -176,8 +683,56 @@ def context_identity_without_context_file(
 
 
 
+def relationship_sources_are_materialized(
+    helper: pathlib.Path, version: str
+) -> None:
+    with temporary_directory("lexicon-relationship-source-") as temp:
+        root = pathlib.Path(temp)
+        (root / "main.cpp").write_text(
+            "struct Base { virtual int run() { return 1; } };\n"
+            "struct Derived : Base { int run() override { return 2; } };\n"
+            "int use() { Derived value; return value.run(); }\n",
+            encoding="utf-8",
+        )
+        compile_database(root, ["main.cpp"])
+        response = run(
+            helper,
+            version,
+            root,
+            {
+                "protocol_version": 3,
+                "operation": "structural",
+                "repository_root": str(root),
+                "owned_files": ["main.cpp"],
+                "context_files": [],
+                "workers": 1,
+            },
+        )
+        files = response.get("files", [])
+        if len(files) != 1 or files[0].get("path") != "main.cpp":
+            raise RuntimeError(f"unexpected relationship fixture output: {files!r}")
+        declarations = {
+            value["compiler_id"] for value in files[0].get("declarations", [])
+        }
+        relationships = files[0].get("relationships", [])
+        if not relationships:
+            raise RuntimeError("relationship fixture emitted no relationships")
+        missing = sorted(
+            {
+                value["source_compiler_id"]
+                for value in relationships
+                if value["source_compiler_id"] not in declarations
+            }
+        )
+        if missing:
+            raise RuntimeError(
+                "relationship sources were not materialized as owned declarations: "
+                f"{missing!r}"
+            )
+
+
 def execution_policy_is_fact_stable(helper: pathlib.Path, version: str) -> None:
-    with tempfile.TemporaryDirectory(prefix="lexicon-execution-policy-") as temp:
+    with temporary_directory("lexicon-execution-policy-") as temp:
         root = pathlib.Path(temp)
         (root / "shared.h").write_text(
             "#pragma once\nstatic inline int shared_value(int value) { return value + 1; }\n",
@@ -200,26 +755,15 @@ def execution_policy_is_fact_stable(helper: pathlib.Path, version: str) -> None:
         compile_database(root, sources)
 
         base_request = {
-            "protocol_version": 2,
+            "protocol_version": 3,
             "operation": "structural",
             "repository_root": str(root),
             "owned_files": ["shared.h", *sources],
             "context_files": ["api.h"],
         }
-        configurations = [
-            (1, 1, 2, 99, 1, 1),
-            (2, 3, 2, 1, 3, 2),
-            (4, 7, 4, 2, 7, 4),
-        ]
+        configurations = [1, 2, 4]
         canonical = []
-        for (
-            workers,
-            shards,
-            merge_fan_in,
-            legacy_jobs,
-            expected_shards,
-            expected_workers,
-        ) in configurations:
+        for workers in configurations:
             response, stderr = run_with_perf(
                 helper,
                 version,
@@ -227,20 +771,18 @@ def execution_policy_is_fact_stable(helper: pathlib.Path, version: str) -> None:
                 {
                     **base_request,
                     "workers": workers,
-                    "shards": shards,
-                    "merge_fan_in": merge_fan_in,
                 },
-                legacy_jobs,
             )
-            expected_policy = (
-                f"logical_shards={expected_shards} "
-                f"worker_limit={expected_workers} "
-                f"merge_fan_in={merge_fan_in}"
+            assert_metric(
+                stderr, "c-family.clang.execution", "active_clang_lanes", workers
             )
-            if expected_policy not in stderr:
+            assert_metric(stderr, "c-family.clang.execution", "completed_tus", 9)
+            expected_paths = sorted(["shared.h", *sources])
+            actual_paths = [value.get("path") for value in response.get("files", [])]
+            if actual_paths != expected_paths:
                 raise RuntimeError(
-                    "helper did not report requested Lexicon execution policy: "
-                    f"{expected_policy!r} not found in {stderr!r}"
+                    "full-scan owned files were not each emitted exactly once: "
+                    f"{actual_paths!r}"
                 )
             emission = next(
                 (
@@ -287,9 +829,6 @@ def execution_policy_is_fact_stable(helper: pathlib.Path, version: str) -> None:
                 "compiler_id_cache_hits",
                 "compiler_id_cache_misses",
                 "compiler_id_ns",
-                "parent_chain_queries",
-                "parent_chain_steps",
-                "parent_chain_ns",
             ):
                 if hot_totals.get(counter, 0) <= 0:
                     raise RuntimeError(
@@ -314,9 +853,21 @@ def execution_policy_is_fact_stable(helper: pathlib.Path, version: str) -> None:
 def main() -> int:
     helper = pathlib.Path(sys.argv[1]).resolve()
     version = sys.argv[2]
+    if version != "0.7.0":
+        raise RuntimeError(f"native ownership regressions require helper 0.7.0, got {version}")
     shared_header_once(helper, version)
+    changed_source_only(helper, version)
+    changed_header_uses_real_context_first(helper, version)
+    orphan_header_is_fallback_parsed_once(helper, version)
+    synthetic_source_is_parsed_once(helper, version)
+    empty_owned_source_is_emitted_once(helper, version)
+    differing_compile_directories_are_respected(helper, version)
+    skipped_driver_tu_does_not_block_later_tu(helper, version)
     context_identity_without_context_file(helper, version)
+    relationship_sources_are_materialized(helper, version)
     execution_policy_is_fact_stable(helper, version)
+    protocol_v3_hard_cut_is_enforced(helper, version)
+    failed_frontend_exits_without_hanging(helper, version)
     return 0
 
 

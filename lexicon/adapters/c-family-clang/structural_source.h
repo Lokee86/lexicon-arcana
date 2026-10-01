@@ -4,6 +4,7 @@
 #include <string>
 
 #include "clang/Basic/LangOptions.h"
+#include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/StringRef.h"
@@ -14,6 +15,9 @@ namespace lexicon::clang_frontend {
 
 std::optional<std::string> repository_path(llvm::StringRef value,
                                            llvm::StringRef root);
+std::optional<std::string> repository_path(llvm::StringRef value,
+                                           llvm::StringRef root,
+                                           const clang::FileManager &files);
 std::optional<std::string> source_path(const clang::SourceManager &sources,
                                        clang::SourceLocation location,
                                        llvm::StringRef root);

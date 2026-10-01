@@ -18,8 +18,8 @@ fn preserves_frozen_c_family_callable_identity_vectors() {
     .unwrap();
 
     let response: StructuralResponse = serde_json::from_value(json!({
-        "protocol_version": 2,
-        "helper_version": "0.5.0",
+        "protocol_version": 3,
+        "helper_version": "0.7.0",
         "clang_version": "clang test",
         "compilation_database": true,
         "files": [
@@ -146,8 +146,8 @@ fn compiler_ids_are_correlated_within_each_source_owner() {
         })
     };
     let response: StructuralResponse = serde_json::from_value(json!({
-        "protocol_version": 2,
-        "helper_version": "0.5.0",
+        "protocol_version": 3,
+        "helper_version": "0.7.0",
         "clang_version": "clang test",
         "compilation_database": false,
         "files": [declaration("left.cpp"), declaration("right.cpp")]

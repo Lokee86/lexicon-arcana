@@ -19,8 +19,8 @@ fn materializes_clang_structural_observations_into_lexicon_identities() {
     fs::write(root.path.join("thing.hpp"), b"struct HeaderType {};\n").unwrap();
 
     let response: StructuralResponse = serde_json::from_value(json!({
-        "protocol_version": 2,
-        "helper_version": "0.5.0",
+        "protocol_version": 3,
+        "helper_version": "0.7.0",
         "clang_version": "clang test",
         "compilation_database": true,
         "translation_units": [{
@@ -249,8 +249,8 @@ fn ambiguous_orphan_header_preserves_content_language_policy() {
     )
     .unwrap();
     let response: StructuralResponse = serde_json::from_value(json!({
-        "protocol_version": 2,
-        "helper_version": "0.5.0",
+        "protocol_version": 3,
+        "helper_version": "0.7.0",
         "clang_version": "clang test",
         "compilation_database": false,
         "files": [{
@@ -274,8 +274,8 @@ fn mixed_real_translation_unit_header_preserves_c_first_policy() {
     )
     .unwrap();
     let response: StructuralResponse = serde_json::from_value(json!({
-        "protocol_version": 2,
-        "helper_version": "0.5.0",
+        "protocol_version": 3,
+        "helper_version": "0.7.0",
         "clang_version": "clang test",
         "compilation_database": true,
         "files": [{

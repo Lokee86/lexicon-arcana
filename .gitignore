@@ -18,6 +18,9 @@ coverage.out
 /bin/
 /build/
 /build-*/
+/.hardcut-build/
+/.hardcut-build-v3/
+/.cargo-target/
 /dist/
 /lexicon-cli/target/
 __pycache__/

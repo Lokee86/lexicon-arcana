@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{SourceSpan, adapters::frontend::ProtocolResponse};
+use crate::SourceSpan;
 
-pub(crate) const PROTOCOL_VERSION: u32 = 2;
+#[cfg(test)]
+use crate::adapters::frontend::ProtocolResponse;
+
+pub(crate) const PROTOCOL_VERSION: u32 = 3;
 pub(crate) const HELPER_VERSION: &str = include_str!("../../../adapters/c-family-clang/VERSION");
 
 #[cfg(test)]
@@ -34,8 +37,6 @@ pub(crate) struct StructuralRequest {
     pub owned_files: Vec<String>,
     pub context_files: Vec<String>,
     pub workers: usize,
-    pub shards: usize,
-    pub merge_fan_in: usize,
 }
 
 impl StructuralRequest {
@@ -44,8 +45,6 @@ impl StructuralRequest {
         mut owned_files: Vec<String>,
         mut context_files: Vec<String>,
         workers: usize,
-        shards: usize,
-        merge_fan_in: usize,
     ) -> Self {
         owned_files.sort();
         owned_files.dedup();
@@ -58,8 +57,6 @@ impl StructuralRequest {
             owned_files,
             context_files,
             workers: workers.max(1),
-            shards: shards.max(1),
-            merge_fan_in: merge_fan_in.max(2),
         }
     }
 }

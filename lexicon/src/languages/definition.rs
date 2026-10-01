@@ -24,7 +24,7 @@ const DEFINITIONS: &[StaticDefinition] = &[
             ".inc", ".inl", ".ipp", ".tpp",
         ],
         &["compile_commands.json", "CMakeLists.txt"],
-        false,
+        true,
     ),
     def("gdscript", "gdscript", &[".gd"], &["project.godot"], false),
     def("go", "go", &[".go"], &["go.mod", "go.sum"], true),

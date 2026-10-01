@@ -121,7 +121,7 @@ impl LanguageAdapter for CFamilyAdapter {
                 ("visibility.rs", include_bytes!("visibility.rs")),
                 (
                     "clang-helper-version",
-                    clang_protocol::HELPER_VERSION.as_bytes(),
+                    clang_protocol::HELPER_VERSION.trim().as_bytes(),
                 ),
                 ("../frontend/mod.rs", include_bytes!("../frontend/mod.rs")),
                 (
@@ -169,13 +169,9 @@ impl LanguageAdapter for CFamilyAdapter {
         }
 
         let frontend_started = crate::perf::start();
-        let observations = self.frontend.structural(
-            &repository,
-            inventory,
-            request.workers,
-            request.shards,
-            request.merge_fan_in,
-        )?;
+        let observations = self
+            .frontend
+            .structural(&repository, inventory, request.workers)?;
         if let Some(started) = frontend_started {
             crate::perf::emit(
                 "c-family.frontend.semantic_analysis",

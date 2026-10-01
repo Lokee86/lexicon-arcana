@@ -41,13 +41,14 @@ void observe_variable(State &state, clang::ASTContext &context,
                       clang::VarDecl &declaration,
                       llvm::StringRef repository_root,
                       llvm::StringRef translation_unit,
-                      llvm::StringRef language) {
+                      llvm::StringRef language,
+                      const clang::FunctionDecl *source) {
   if (!declaration.hasInit()) {
     return;
   }
 
   auto &sources = context.getSourceManager();
-  if (const auto *source = enclosing_function(context, declaration)) {
+  if (source) {
     auto path =
         source_path(sources, declaration.getLocation(), repository_root);
     if (path && state.owns(*path)) {

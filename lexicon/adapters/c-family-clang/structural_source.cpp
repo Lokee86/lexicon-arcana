@@ -6,6 +6,8 @@
 #include <unordered_map>
 
 #include "clang/Lex/Lexer.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/Support/Path.h"
 
 #include "structural_hot_path.h"
 
@@ -71,15 +73,30 @@ std::optional<std::string> repository_path(llvm::StringRef value,
   return resolved;
 }
 
+std::optional<std::string> repository_path(llvm::StringRef value,
+                                           llvm::StringRef root,
+                                           const clang::FileManager &files) {
+  if (value.empty() || value.starts_with("<") || llvm::sys::path::is_absolute(value)) {
+    return repository_path(value, root);
+  }
+  // Resolve relative compiler paths in this lane's compile-command directory,
+  // before caching. Identical relative names in different TUs are distinct.
+  llvm::SmallString<256> absolute(value);
+  files.makeAbsolutePath(absolute);
+  return repository_path(absolute, root);
+}
+
 std::optional<std::string> source_path(const clang::SourceManager &sources,
                                        clang::SourceLocation location,
                                        llvm::StringRef root) {
   auto spelling = sources.getSpellingLoc(location);
-  if (auto path = repository_path(sources.getFilename(spelling), root)) {
+  if (auto path = repository_path(sources.getFilename(spelling), root,
+                                  sources.getFileManager())) {
     return path;
   }
   auto expansion = sources.getExpansionLoc(location);
-  return repository_path(sources.getFilename(expansion), root);
+  return repository_path(sources.getFilename(expansion), root,
+                          sources.getFileManager());
 }
 
 Span source_span(const clang::SourceManager &sources,

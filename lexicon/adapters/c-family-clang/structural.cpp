@@ -1,7 +1,10 @@
 #include "structural.h"
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <filesystem>
+#include <mutex>
 #include <string>
 #include <utility>
 #include <vector>
@@ -12,9 +15,9 @@
 
 #include "perf.h"
 #include "protocol.h"
+#include "structural_compilation.h"
 #include "structural_execution.h"
 #include "structural_model.h"
-#include "structural_plan.h"
 #include "structural_transport.h"
 
 namespace {
@@ -40,8 +43,6 @@ struct StructuralInput {
   std::vector<std::string> owned_files;
   std::vector<std::string> context_files;
   std::size_t workers = 0;
-  std::size_t shards = 0;
-  std::size_t merge_fan_in = 0;
 };
 
 bool read_inventory(const llvm::json::Object &request, llvm::StringRef field,
@@ -81,9 +82,15 @@ bool validate_request(const llvm::json::Object &request, StructuralInput &input,
   auto protocol = request.getInteger("protocol_version");
   auto operation = request.getString("operation");
   auto repository_root = request.getString("repository_root");
-  if (request.get("files")) {
-    error = "legacy files field is unsupported";
-    return false;
+  for (const auto &entry : request) {
+    const auto field = entry.first;
+    if (field != "protocol_version" && field != "operation" &&
+        field != "repository_root" && field != "owned_files" &&
+        field != "context_files" && field != "workers") {
+      error = std::string("unsupported C-family Clang request field: ") +
+              field.str();
+      return false;
+    }
   }
   if (!protocol || *protocol != lexicon::clang_frontend::kProtocolVersion) {
     error = "unsupported C-family Clang protocol version";
@@ -117,10 +124,7 @@ bool validate_request(const llvm::json::Object &request, StructuralInput &input,
     }
   }
 
-  if (!read_execution_value(request, "workers", 1, input.workers, error) ||
-      !read_execution_value(request, "shards", 1, input.shards, error) ||
-      !read_execution_value(request, "merge_fan_in", 2, input.merge_fan_in,
-                            error)) {
+  if (!read_execution_value(request, "workers", 1, input.workers, error)) {
     return false;
   }
   return true;
@@ -148,44 +152,52 @@ bool emit_structural(const llvm::json::Object &request,
   lexicon::clang_frontend::State state(root);
 
   const auto planning_started = lexicon::clang_frontend::PerfClock::now();
-  const auto plan = lexicon::clang_frontend::build_task_plan(
+  const auto plan = lexicon::clang_frontend::build_parse_plan(
       root, database, input.owned_files, input.context_files);
   lexicon::clang_frontend::emit_perf(
-      "c-family.clang.context_planning",
+      "c-family.clang.parse_plan",
       lexicon::clang_frontend::PerfClock::now() - planning_started,
-      {{"owned_files", static_cast<std::uint64_t>(input.owned_files.size())},
+      {{"discovered_owned_files",
+        static_cast<std::uint64_t>(input.owned_files.size())},
        {"context_files", static_cast<std::uint64_t>(input.context_files.size())},
-       {"semantic_tasks", static_cast<std::uint64_t>(plan.tasks.size())},
-       {"dependency_scans",
-        static_cast<std::uint64_t>(plan.dependency_scan_attempts)},
-       {"dependency_scan_failures",
-        static_cast<std::uint64_t>(plan.dependency_scan_failures)},
-       {"synthetic_header_tasks",
-        static_cast<std::uint64_t>(plan.synthetic_header_tasks)}});
+       {"real_units", static_cast<std::uint64_t>(plan.real_units)},
+       {"synthetic_units", static_cast<std::uint64_t>(plan.synthetic_units)},
+       {"explicit_header_units",
+        static_cast<std::uint64_t>(plan.explicit_header_units)}});
 
   lexicon::clang_frontend::ExecutionSummary execution;
+  lexicon::clang_frontend::TransportSummary transport;
+  std::atomic<std::uint64_t> emission_ns{0};
+  bool transport_ok = true;
+  std::string transport_error;
+  std::mutex transport_mutex;
   const auto frontend_started = lexicon::clang_frontend::PerfClock::now();
-  int status = lexicon::clang_frontend::execute_task_plan(
-      root, database, state, plan.tasks,
-      {
-          .workers = input.workers,
-          .shards = input.shards,
-          .merge_fan_in = input.merge_fan_in,
-      },
-      execution);
-  lexicon::clang_frontend::emit_perf(
-      "c-family.clang.frontend_plan", std::chrono::nanoseconds(0),
-      {{"semantic_tasks", static_cast<std::uint64_t>(plan.tasks.size())},
-       {"logical_shards",
-        static_cast<std::uint64_t>(execution.logical_shards)},
-       {"worker_limit", static_cast<std::uint64_t>(execution.worker_limit)},
-       {"merge_fan_in", static_cast<std::uint64_t>(input.merge_fan_in)}});
-  lexicon::clang_frontend::emit_perf(
-      "c-family.clang.frontend_work",
-      lexicon::clang_frontend::PerfClock::now() - frontend_started,
-      {{"translation_units",
-        static_cast<std::uint64_t>(state.translation_units.size())},
-       {"semantic_tasks", static_cast<std::uint64_t>(plan.tasks.size())}});
+  const int status = lexicon::clang_frontend::execute_parse_plan(
+      root, database, input.owned_files, plan, input.workers, state, execution,
+      [&](lexicon::clang_frontend::State &&file_state) {
+        const auto emission_started = lexicon::clang_frontend::PerfClock::now();
+        auto encoded =
+            lexicon::clang_frontend::encode_owned_file_frames(file_state);
+        {
+          std::lock_guard lock(transport_mutex);
+          if (transport_ok &&
+              !lexicon::clang_frontend::emit_encoded_file_frames(
+                  std::move(encoded), output, transport, transport_error)) {
+            transport_ok = false;
+          }
+        }
+        emission_ns.fetch_add(
+            static_cast<std::uint64_t>(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    lexicon::clang_frontend::PerfClock::now() -
+                    emission_started)
+                    .count()),
+            std::memory_order_relaxed);
+      });
+  if (!transport_ok) {
+    error = std::move(transport_error);
+    return false;
+  }
   lexicon::clang_frontend::emit_perf(
       "c-family.clang.semantic_analysis",
       std::chrono::nanoseconds(state.semantic_analysis_ns));
@@ -195,20 +207,65 @@ bool emit_structural(const llvm::json::Object &request,
         .message = "Clang tooling returned status " + std::to_string(status),
     });
   }
+  lexicon::clang_frontend::emit_perf(
+      "c-family.clang.execution",
+      std::chrono::nanoseconds(0),
+      {{"discovered_owned_files",
+        static_cast<std::uint64_t>(input.owned_files.size())},
+       {"primary_real_parse_units",
+        static_cast<std::uint64_t>(plan.real_units)},
+       {"primary_synthetic_parse_units",
+        static_cast<std::uint64_t>(plan.synthetic_units)},
+       {"explicit_header_compile_units",
+        static_cast<std::uint64_t>(plan.explicit_header_units)},
+       {"orphan_fallback_units",
+        static_cast<std::uint64_t>(execution.orphan_fallback_units)},
+       {"completed_orphan_tus",
+        static_cast<std::uint64_t>(execution.completed_orphan_tus)},
+       {"claimed_orphan_files",
+        static_cast<std::uint64_t>(execution.claimed_orphan_files)},
+       {"discarded_duplicate_orphan_observations",
+        static_cast<std::uint64_t>(
+            execution.discarded_duplicate_orphan_observations)},
+       {"active_clang_lanes",
+        static_cast<std::uint64_t>(execution.active_clang_lanes)},
+       {"completed_tus", static_cast<std::uint64_t>(execution.completed_tus)},
+       {"claimed_owned_files",
+        static_cast<std::uint64_t>(execution.claimed_owned_files)},
+       {"discarded_duplicate_file_observations",
+        static_cast<std::uint64_t>(
+            execution.discarded_duplicate_file_observations)}});
+  lexicon::clang_frontend::emit_perf(
+      "c-family.clang.frontend_work",
+      lexicon::clang_frontend::PerfClock::now() - frontend_started,
+      {{"completed_tus", static_cast<std::uint64_t>(execution.completed_tus)}});
 
-  const auto emission_started = lexicon::clang_frontend::PerfClock::now();
-  lexicon::clang_frontend::TransportSummary transport;
-  if (!lexicon::clang_frontend::emit_structural_frames(
+  const auto metadata_started = lexicon::clang_frontend::PerfClock::now();
+  if (!lexicon::clang_frontend::emit_structural_metadata(
           state, base != nullptr, clang::getClangFullVersion(),
           lexicon::clang_frontend::kHelperVersion, output, transport, error)) {
     return false;
   }
+  emission_ns.fetch_add(
+      static_cast<std::uint64_t>(
+          std::chrono::duration_cast<std::chrono::nanoseconds>(
+              lexicon::clang_frontend::PerfClock::now() - metadata_started)
+              .count()),
+      std::memory_order_relaxed);
+  const auto peak_helper_rss_bytes =
+      lexicon::clang_frontend::peak_rss_bytes();
   lexicon::clang_frontend::emit_perf(
       "c-family.clang.observation_emission",
-      lexicon::clang_frontend::PerfClock::now() - emission_started,
+      std::chrono::nanoseconds(emission_ns.load(std::memory_order_relaxed)),
       {{"observed_files", transport.file_frames},
        {"transport_frames", transport.frames},
        {"transport_bytes", transport.bytes},
-       {"peak_rss_bytes", lexicon::clang_frontend::peak_rss_bytes()}});
+       {"framed_transport_bytes", transport.bytes},
+       {"peak_rss_bytes", peak_helper_rss_bytes},
+       {"peak_helper_rss_bytes", peak_helper_rss_bytes}});
+  if (status != 0) {
+    error = "Clang tooling returned status " + std::to_string(status);
+    return false;
+  }
   return true;
 }

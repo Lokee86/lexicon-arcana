@@ -6,7 +6,7 @@ use std::{
 
 use crate::adapters::AdapterError;
 
-const MAX_STDERR_BYTES: usize = 16 * 1024;
+const MAX_STDERR_BYTES: usize = 512 * 1024;
 
 #[derive(Default)]
 pub(crate) struct StderrCapture {

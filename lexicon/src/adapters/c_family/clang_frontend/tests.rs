@@ -13,49 +13,50 @@ use super::{ClangFrontend, ScanInventory, clang_protocol};
 fn capabilities_uses_versioned_private_frontend_contract() {
     let root = TestDirectory::new("capabilities");
     let response = format!(
-        r#"{{"protocol_version":2,"helper_version":"{}","clang_version":"clang test","capabilities":["ast","compile-database"],"compilation_database":true}}"#,
-        clang_protocol::HELPER_VERSION
+        r#"{{"protocol_version":3,"helper_version":"{}","clang_version":"clang test","capabilities":["ast","compile-database"],"compilation_database":true}}"#,
+        clang_protocol::HELPER_VERSION.trim()
     );
     let frontend = ClangFrontend::with_runner(scripted_frontend(&root.path, &response));
     let capabilities = frontend.capabilities(&root.path).unwrap();
 
-    assert_eq!(capabilities.protocol_version, 2);
-    assert_eq!(capabilities.helper_version, clang_protocol::HELPER_VERSION);
+    assert_eq!(capabilities.protocol_version, 3);
+    assert_eq!(
+        capabilities.helper_version,
+        clang_protocol::HELPER_VERSION.trim()
+    );
     assert_eq!(capabilities.clang_version, "clang test");
     assert!(capabilities.compilation_database);
     assert_eq!(capabilities.capabilities, ["ast", "compile-database"]);
 }
 
 #[test]
-fn structural_request_v2_has_explicit_ownership_and_execution_policy() {
+fn structural_request_v3_has_explicit_ownership_and_worker_limit() {
     let request = clang_protocol::StructuralRequest::new(
         "C:/repo".into(),
         vec!["src/main.c".into()],
         vec!["include/api.h".into()],
         4,
-        16,
-        4,
     );
     let value = serde_json::to_value(request).unwrap();
 
-    assert_eq!(value["protocol_version"], 2);
+    assert_eq!(value["protocol_version"], 3);
     assert_eq!(value["owned_files"], serde_json::json!(["src/main.c"]));
     assert_eq!(value["context_files"], serde_json::json!(["include/api.h"]));
     assert_eq!(value["workers"], 4);
-    assert_eq!(value["shards"], 16);
-    assert_eq!(value["merge_fan_in"], 4);
+    assert_eq!(value.as_object().unwrap().len(), 6);
+    assert!(value.get("shards").is_none());
+    assert!(value.get("merge_fan_in").is_none());
     assert!(value.get("files").is_none());
 }
 
 #[test]
-fn structural_request_normalizes_zero_execution_policy() {
+fn structural_request_normalizes_zero_workers() {
     let request =
-        clang_protocol::StructuralRequest::new("C:/repo".into(), Vec::new(), Vec::new(), 0, 0, 0);
+        clang_protocol::StructuralRequest::new("C:/repo".into(), Vec::new(), Vec::new(), 0);
     let value = serde_json::to_value(request).unwrap();
 
     assert_eq!(value["workers"], 1);
-    assert_eq!(value["shards"], 1);
-    assert_eq!(value["merge_fan_in"], 2);
+    assert_eq!(value.as_object().unwrap().len(), 6);
 }
 
 #[test]
@@ -63,8 +64,8 @@ fn structural_uses_versioned_private_frontend_contract() {
     let root = TestDirectory::new("structural");
     fs::write(root.path.join("main.c"), b"int main(void) { return 0; }\n").unwrap();
     let response = framed_structural_response(&format!(
-        r#"{{"protocol_version":2,"helper_version":"{}","clang_version":"clang test","compilation_database":false,"translation_units":[{{"path":"main.c","language":"c","directory":".","arguments":["clang","-xc","main.c"],"synthesized":true}}],"files":[{{"path":"main.c","languages":["c"],"translation_units":["main.c"]}}],"diagnostics":[]}}"#,
-        clang_protocol::HELPER_VERSION
+        r#"{{"protocol_version":3,"helper_version":"{}","clang_version":"clang test","compilation_database":false,"translation_units":[{{"path":"main.c","language":"c","directory":".","arguments":["clang","-xc","main.c"],"synthesized":true}}],"files":[{{"path":"main.c","languages":["c"],"translation_units":["main.c"]}}],"diagnostics":[]}}"#,
+        clang_protocol::HELPER_VERSION.trim()
     ));
     let frontend = ClangFrontend::with_runner(scripted_frontend(&root.path, &response));
     let structural = frontend
@@ -74,8 +75,6 @@ fn structural_uses_versioned_private_frontend_contract() {
                 owned_files: vec!["main.c".into()],
                 context_files: Vec::new(),
             },
-            4,
-            16,
             4,
         )
         .unwrap();
@@ -89,12 +88,36 @@ fn structural_uses_versioned_private_frontend_contract() {
 }
 
 #[test]
+fn structural_rejects_v2_response_without_compatibility_fallback() {
+    let root = TestDirectory::new("structural-reject-v2");
+    let response = framed_structural_response(&format!(
+        r#"{{"protocol_version":3,"helper_version":"{}","clang_version":"clang test","compilation_database":false,"translation_units":[],"files":[],"diagnostics":[]}}"#,
+        clang_protocol::HELPER_VERSION.trim()
+    ))
+    .replace("\"protocol_version\":3", "\"protocol_version\":2");
+    let frontend = ClangFrontend::with_runner(scripted_frontend(&root.path, &response));
+    let error = frontend
+        .structural(
+            &root.path,
+            ScanInventory {
+                owned_files: Vec::new(),
+                context_files: Vec::new(),
+            },
+            1,
+        )
+        .unwrap_err()
+        .to_string();
+
+    assert!(error.contains("protocol mismatch"), "{error}");
+}
+
+#[test]
 fn structural_sends_entire_inventory_in_one_helper_request() {
     let root = TestDirectory::new("structural-single-request");
     let counter = root.path.join("calls.txt");
     let response = framed_structural_response(&format!(
-        r#"{{"protocol_version":2,"helper_version":"{}","clang_version":"clang test","compilation_database":false,"translation_units":[],"files":[],"diagnostics":[]}}"#,
-        clang_protocol::HELPER_VERSION
+        r#"{{"protocol_version":3,"helper_version":"{}","clang_version":"clang test","compilation_database":false,"translation_units":[],"files":[],"diagnostics":[]}}"#,
+        clang_protocol::HELPER_VERSION.trim()
     ));
     let frontend = ClangFrontend::with_runner(counting_frontend(&root.path, &counter, &response));
     let owned_files = (0..17)
@@ -112,8 +135,6 @@ fn structural_sends_entire_inventory_in_one_helper_request() {
                 context_files: context_files.clone(),
             },
             3,
-            7,
-            5,
         )
         .unwrap();
 
@@ -124,8 +145,9 @@ fn structural_sends_entire_inventory_in_one_helper_request() {
     assert_eq!(request["owned_files"], serde_json::json!(owned_files));
     assert_eq!(request["context_files"], serde_json::json!(context_files));
     assert_eq!(request["workers"], 3);
-    assert_eq!(request["shards"], 7);
-    assert_eq!(request["merge_fan_in"], 5);
+    assert_eq!(request.as_object().unwrap().len(), 6);
+    assert!(request.get("shards").is_none());
+    assert!(request.get("merge_fan_in").is_none());
 }
 
 #[test]
@@ -133,8 +155,8 @@ fn structural_sends_owned_headers_with_source_context_in_one_helper_request() {
     let root = TestDirectory::new("structural-header-batch");
     let counter = root.path.join("calls.txt");
     let response = framed_structural_response(&format!(
-        r#"{{"protocol_version":2,"helper_version":"{}","clang_version":"clang test","compilation_database":false,"translation_units":[],"files":[],"diagnostics":[]}}"#,
-        clang_protocol::HELPER_VERSION
+        r#"{{"protocol_version":3,"helper_version":"{}","clang_version":"clang test","compilation_database":false,"translation_units":[],"files":[],"diagnostics":[]}}"#,
+        clang_protocol::HELPER_VERSION.trim()
     ));
     let frontend = ClangFrontend::with_runner(counting_frontend(&root.path, &counter, &response));
 
@@ -145,8 +167,6 @@ fn structural_sends_owned_headers_with_source_context_in_one_helper_request() {
                 owned_files: vec!["shared.h".into()],
                 context_files: vec!["b.c".into(), "a.c".into()],
             },
-            4,
-            16,
             4,
         )
         .unwrap();
@@ -162,7 +182,7 @@ fn structural_sends_owned_headers_with_source_context_in_one_helper_request() {
 #[test]
 fn capabilities_rejects_helper_version_mismatch() {
     let root = TestDirectory::new("version-mismatch");
-    let response = r#"{"protocol_version":2,"helper_version":"stale","clang_version":"clang test","capabilities":[],"compilation_database":false}"#;
+    let response = r#"{"protocol_version":3,"helper_version":"stale","clang_version":"clang test","capabilities":[],"compilation_database":false}"#;
     let frontend = ClangFrontend::with_runner(scripted_frontend(&root.path, response));
     let error = frontend.capabilities(&root.path).unwrap_err().to_string();
 
@@ -177,7 +197,7 @@ fn framed_structural_response(response: &str) -> String {
         .unwrap_or_else(|| serde_json::json!([]));
     let metadata = serde_json::to_vec(&value).unwrap();
     let mut output = format!(
-        "{{\"protocol_version\":2,\"kind\":\"metadata\",\"bytes\":{}}}\n",
+        "{{\"protocol_version\":3,\"kind\":\"metadata\",\"bytes\":{}}}\n",
         metadata.len()
     )
     .into_bytes();
@@ -188,7 +208,7 @@ fn framed_structural_response(response: &str) -> String {
         let payload = serde_json::to_vec(file).unwrap();
         let path = file["path"].as_str().unwrap();
         let header = serde_json::json!({
-            "protocol_version": 2,
+            "protocol_version": 3,
             "kind": "file",
             "path": path,
             "bytes": payload.len(),
@@ -230,6 +250,8 @@ fn counting_frontend(
             program,
             vec![
                 OsString::from("-NoProfile"),
+                OsString::from("-ExecutionPolicy"),
+                OsString::from("Bypass"),
                 OsString::from("-File"),
                 script.into_os_string(),
             ],
@@ -275,6 +297,8 @@ fn scripted_frontend(root: &std::path::Path, response: &str) -> FrontendRunner {
             program,
             vec![
                 OsString::from("-NoProfile"),
+                OsString::from("-ExecutionPolicy"),
+                OsString::from("Bypass"),
                 OsString::from("-File"),
                 script.into_os_string(),
             ],

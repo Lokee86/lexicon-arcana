@@ -90,35 +90,39 @@ void record_context_identity(State &state, clang::ASTContext &context,
   });
 }
 
-std::string ensure_callable_declaration(
+std::string ensure_owned_declaration(
     State &state, clang::ASTContext &context,
-    const clang::FunctionDecl &function, llvm::StringRef repository_root,
+    const clang::NamedDecl &declaration, llvm::StringRef repository_root,
     llvm::StringRef translation_unit, llvm::StringRef language) {
   auto &sources = context.getSourceManager();
-  auto id = compiler_id(&function, sources);
+  auto id = compiler_id(&declaration, sources);
   if (id.empty()) {
     return {};
   }
-  auto path = source_path(sources, function.getLocation(), repository_root);
-  if (!path) {
+  auto path = source_path(sources, declaration.getLocation(), repository_root);
+  if (!path || !state.owns(*path)) {
     return {};
-  }
-  if (!state.owns(*path)) {
-    record_context_identity(state, context, function, repository_root);
-    return id;
   }
   auto &file = state.file(*path, language.str(), translation_unit.str());
   if (file.declaration_compiler_ids.contains(id)) {
     return id;
   }
   auto observation = classify_declaration(
-      *const_cast<clang::FunctionDecl *>(&function), *path, context);
-  if (!observation || !observation->callable) {
+      *const_cast<clang::NamedDecl *>(&declaration), *path, context);
+  if (!observation) {
     return {};
   }
   file.declaration_compiler_ids.insert(observation->compiler_id);
   file.declarations.push_back(std::move(*observation));
   return id;
+}
+
+std::string ensure_callable_declaration(
+    State &state, clang::ASTContext &context,
+    const clang::FunctionDecl &function, llvm::StringRef repository_root,
+    llvm::StringRef translation_unit, llvm::StringRef language) {
+  return ensure_owned_declaration(state, context, function, repository_root,
+                                  translation_unit, language);
 }
 
 std::string context_id(const clang::DeclContext *context,

@@ -62,7 +62,9 @@ fn relationship(
     let source_id = local
         .get(&value.source_compiler_id)
         .cloned()
-        .unwrap_or_else(|| references.resolve_compiler_id(&value.source_compiler_id, path));
+        .unwrap_or_else(|| {
+            references.resolve_materialized_compiler_id(&value.source_compiler_id, path)
+        });
     if source_id.is_empty() {
         return Err(AdapterError::new(format!(
             "C-family Clang relationship source {:?} is not materialized",
@@ -90,7 +92,9 @@ fn call(
     let source_id = local
         .get(&value.source_compiler_id)
         .cloned()
-        .unwrap_or_else(|| references.resolve_compiler_id(&value.source_compiler_id, path));
+        .unwrap_or_else(|| {
+            references.resolve_materialized_compiler_id(&value.source_compiler_id, path)
+        });
     if source_id.is_empty() {
         return Err(AdapterError::new(format!(
             "C-family Clang call source {:?} is not materialized",
@@ -203,7 +207,7 @@ fn materialize_argument(
         value_id: value
             .value
             .as_ref()
-            .map(|target| references.resolve(target, path))
+            .map(|target| references.resolve_materialized(target, path))
             .unwrap_or_default(),
         callable_id: value
             .callable

@@ -43,7 +43,7 @@ fn pointer_binding(
     value: &ProtocolBinding,
     references: &ReferenceIndex,
 ) -> Result<SemanticPointerBindingObservation, AdapterError> {
-    let pointer_id = references.resolve(&value.pointer, path);
+    let pointer_id = references.resolve_materialized(&value.pointer, path);
     if pointer_id.is_empty() {
         return Err(AdapterError::new(format!(
             "C-family Clang pointer {:?} is not materialized in {path}",
@@ -71,7 +71,9 @@ fn access(
     let source_id = local
         .get(&value.source_compiler_id)
         .cloned()
-        .unwrap_or_else(|| references.resolve_compiler_id(&value.source_compiler_id, path));
+        .unwrap_or_else(|| {
+            references.resolve_materialized_compiler_id(&value.source_compiler_id, path)
+        });
     if source_id.is_empty() {
         return Err(AdapterError::new(format!(
             "C-family Clang access source {:?} is not materialized",

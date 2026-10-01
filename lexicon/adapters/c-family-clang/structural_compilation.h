@@ -31,30 +31,31 @@ private:
       exact_commands_;
 };
 
-struct AnalysisTask {
+struct ParseUnit {
+  std::size_t rank = 0;
   std::string translation_unit;
-  std::vector<std::string> owned_files;
   bool synthesized = false;
 
-  bool operator==(const AnalysisTask &) const = default;
+  bool operator==(const ParseUnit &) const = default;
 };
 
-struct TaskPlan {
-  std::vector<AnalysisTask> tasks;
-  std::size_t dependency_scan_attempts = 0;
-  std::size_t dependency_scan_failures = 0;
-  std::size_t synthetic_header_tasks = 0;
+struct ParsePlan {
+  std::vector<ParseUnit> primary_units;
+  std::vector<std::string> orphan_candidates;
+  std::size_t real_units = 0;
+  std::size_t synthetic_units = 0;
+  std::size_t explicit_header_units = 0;
 
-  bool operator==(const TaskPlan &) const = default;
+  bool operator==(const ParsePlan &) const = default;
 };
 
 bool header_source(llvm::StringRef file);
 std::string language_for(llvm::StringRef file,
                          const std::vector<std::string> &arguments);
 
-TaskPlan build_task_plan(const std::string &root,
-                         CompilationCommands &database,
-                         std::vector<std::string> owned_files,
-                         std::vector<std::string> context_files);
+ParsePlan build_parse_plan(const std::string &root,
+                           CompilationCommands &database,
+                           std::vector<std::string> owned_files,
+                           std::vector<std::string> context_files);
 
 } // namespace lexicon::clang_frontend

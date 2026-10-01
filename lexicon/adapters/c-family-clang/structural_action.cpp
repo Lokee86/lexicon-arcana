@@ -1,14 +1,19 @@
 #include "structural_frontend.h"
 
 #include <memory>
+#include <filesystem>
+#include <functional>
+#include <optional>
 #include <string>
 #include <utility>
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Frontend/CompilerInstance.h"
+#include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/FrontendAction.h"
 #include "clang/Lex/Lexer.h"
 #include "clang/Lex/PPCallbacks.h"
+#include "llvm/Support/VirtualFileSystem.h"
 
 #include "structural_source.h"
 
@@ -41,6 +46,7 @@ public:
 
   void HandleDiagnostic(clang::DiagnosticsEngine::Level level,
                         const clang::Diagnostic &info) override {
+    clang::DiagnosticConsumer::HandleDiagnostic(level, info);
     llvm::SmallString<256> message;
     info.FormatDiagnostic(message);
     Diagnostic value{
@@ -79,6 +85,18 @@ public:
         root_(std::move(root)), translation_unit_(std::move(translation_unit)),
         language_(std::move(language)) {}
 
+  void FileChanged(clang::SourceLocation location, FileChangeReason reason,
+                   clang::SrcMgr::CharacteristicKind,
+                   clang::FileID) override {
+    if (reason != EnterFile) {
+      return;
+    }
+    auto path = source_path(sources_, location, root_);
+    if (path && state_.owns(*path)) {
+      state_.file(*path, language_, translation_unit_);
+    }
+  }
+
   void InclusionDirective(
       clang::SourceLocation hash_location, const clang::Token &,
       llvm::StringRef file_name, bool angled,
@@ -93,7 +111,8 @@ public:
     Include value{
         .target = file_name.str(),
         .resolved_path =
-            file ? repository_path(file->getName(), root_).value_or("") : "",
+            file ? repository_path(file->getName(), root_,
+                                    sources_.getFileManager()).value_or("") : "",
         .expression = angled ? "<" + file_name.str() + ">"
                              : "\"" + file_name.str() + "\"",
         .system = angled,
@@ -177,18 +196,47 @@ private:
 
 class StructuralAction final : public clang::ASTFrontendAction {
 public:
-  StructuralAction(State &state, std::string root)
-      : state_(state), root_(std::move(root)) {}
+  StructuralAction(ParseUnit unit, State state, std::string root,
+                   std::function<void(State, int)> submit)
+      : unit_(std::move(unit)), state_(std::move(state)),
+        root_(std::move(root)), submit_(std::move(submit)) {}
+
+  ~StructuralAction() override {
+    if (submit_) {
+      if (!ended_) {
+        const auto language = state_.translation_units.empty()
+                                  ? std::string("cpp")
+                                  : state_.translation_units.front().language;
+        state_.add_diagnostic({
+            .severity = "error",
+            .message = "Clang frontend did not complete translation unit " +
+                       unit_.translation_unit,
+            .path = unit_.translation_unit,
+        });
+        if (state_.owns(unit_.translation_unit)) {
+          state_.file(unit_.translation_unit, language,
+                      unit_.translation_unit);
+        }
+      }
+      submit_(std::move(state_), ended_ && !failed_ ? 0 : 1);
+    }
+  }
+
+  bool BeginSourceFileAction(clang::CompilerInstance &compiler) override {
+    return clang::ASTFrontendAction::BeginSourceFileAction(compiler);
+  }
+
+  void EndSourceFileAction() override {
+    failed_ = getCompilerInstance().getDiagnostics().hasErrorOccurred();
+    clang::ASTFrontendAction::EndSourceFileAction();
+    ended_ = true;
+  }
 
   std::unique_ptr<clang::ASTConsumer>
   CreateASTConsumer(clang::CompilerInstance &compiler,
                     llvm::StringRef input_file) override {
-    auto translation_unit = repository_path(input_file, root_)
-                                .value_or(input_file.str());
+    auto translation_unit = unit_.translation_unit;
     auto language = compiler.getLangOpts().CPlusPlus ? "cpp" : "c";
-    if (state_.owns(translation_unit)) {
-      state_.file(translation_unit, language, translation_unit);
-    }
     compiler.getDiagnostics().setClient(
         new DiagnosticObserver(state_, root_, language, translation_unit), true);
     compiler.getPreprocessor().addPPCallbacks(
@@ -199,31 +247,172 @@ public:
   }
 
 private:
-  State &state_;
+  ParseUnit unit_;
+  State state_;
   std::string root_;
+  std::function<void(State, int)> submit_;
+  bool ended_ = false;
+  bool failed_ = false;
 };
 
 class StructuralActionFactory final
     : public clang::tooling::FrontendActionFactory {
 public:
-  StructuralActionFactory(State &state, std::string root)
-      : state_(state), root_(std::move(root)) {}
+  StructuralActionFactory(
+      std::vector<ParseUnit> units, CompilationCommands &database,
+      std::vector<std::string> owned_files, std::string root,
+      std::function<void(std::size_t, State, int)> submit)
+      : units_(std::move(units)), database_(database),
+        owned_files_(std::move(owned_files)), root_(std::move(root)),
+        submit_(std::move(submit)) {}
 
   std::unique_ptr<clang::FrontendAction> create() override {
-    return std::make_unique<StructuralAction>(state_, root_);
+    if (current_index_ >= units_.size() || current_submitted_) {
+      return nullptr;
+    }
+    auto unit = units_[current_index_];
+    auto state = make_translation_unit_state(root_, database_, unit,
+                                             owned_files_);
+    auto submit = [this](State result, int status) mutable {
+      current_submitted_ = true;
+      current_result_ = std::move(result);
+      current_status_ = status;
+    };
+    return std::make_unique<StructuralAction>(
+        std::move(unit), std::move(state), root_, std::move(submit));
+  }
+
+  bool runInvocation(
+      std::shared_ptr<clang::CompilerInvocation> invocation,
+      clang::FileManager *files,
+      std::shared_ptr<clang::PCHContainerOperations> pch_container_ops,
+      clang::DiagnosticConsumer *diagnostic_consumer) override {
+    if (!invocation || invocation->getFrontendOpts().Inputs.empty()) {
+      return false;
+    }
+    const auto input = invocation->getFrontendOpts().Inputs.front().getFile();
+    auto input_file = std::filesystem::path(input.str());
+    if (input_file.is_relative()) {
+      if (auto directory = files->getVirtualFileSystem().getCurrentWorkingDirectory()) {
+        input_file = std::filesystem::path(*directory) / input_file;
+      }
+    }
+    const auto input_path = normalize_input(input_file.string());
+    auto match = current_index_;
+    while (match < units_.size() &&
+           normalize_input(units_[match].translation_unit) != input_path) {
+      ++match;
+    }
+    if (match == units_.size()) {
+      return false;
+    }
+    while (current_index_ < match) {
+      submit_failed(units_[current_index_],
+                    "Clang skipped translation unit before " + input.str());
+      ++current_index_;
+    }
+    current_submitted_ = false;
+    current_result_.reset();
+    current_status_ = 0;
+    const auto succeeded = clang::tooling::FrontendActionFactory::runInvocation(
+        std::move(invocation), files, std::move(pch_container_ops),
+        diagnostic_consumer);
+    if (!current_submitted_) {
+      submit_failed(units_[current_index_],
+                    "Clang did not create a frontend action for " +
+                        input.str());
+    } else {
+      submit_(units_[current_index_].rank, std::move(*current_result_),
+              succeeded && current_status_ == 0 ? 0 : 1);
+      current_result_.reset();
+    }
+    current_submitted_ = true;
+    ++current_index_;
+    return succeeded;
   }
 
 private:
-  State &state_;
+  std::string normalize_input(llvm::StringRef input) const {
+    auto path = std::filesystem::path(input.str());
+    if (path.is_relative()) {
+      path = std::filesystem::path(root_) / path;
+    }
+    return std::filesystem::absolute(path).lexically_normal().string();
+  }
+
+  void submit_failed(const ParseUnit &unit, std::string message) {
+    auto state = make_translation_unit_state(root_, database_, unit,
+                                             owned_files_);
+    state.add_diagnostic({
+        .severity = "error",
+        .message = std::move(message),
+    });
+    if (state.owns(unit.translation_unit)) {
+      const auto language = state.translation_units.empty()
+                                ? std::string("cpp")
+                                : state.translation_units.front().language;
+      state.file(unit.translation_unit, language, unit.translation_unit);
+    }
+    submit_(unit.rank, std::move(state), 1);
+  }
+
+  std::vector<ParseUnit> units_;
+  CompilationCommands &database_;
+  std::vector<std::string> owned_files_;
   std::string root_;
+  std::function<void(std::size_t, State, int)> submit_;
+  std::optional<State> current_result_;
+  std::size_t current_index_ = 0;
+  int current_status_ = 0;
+  bool current_submitted_ = true;
 };
 
 } // namespace
 
 std::unique_ptr<clang::tooling::FrontendActionFactory>
-make_frontend_factory(State &state, std::string repository_root) {
+make_frontend_factory(const std::vector<ParseUnit> &units,
+                      CompilationCommands &database,
+                      std::vector<std::string> owned_files,
+                      std::string repository_root,
+                      std::function<void(std::size_t, State, int)> submit) {
   return std::make_unique<StructuralActionFactory>(
-      state, std::move(repository_root));
+      units, database, std::move(owned_files), std::move(repository_root),
+      std::move(submit));
+}
+
+State make_translation_unit_state(
+    const std::string &repository_root, CompilationCommands &database,
+    const ParseUnit &unit, const std::vector<std::string> &owned_files) {
+  State state(repository_root);
+  state.set_owned_files(owned_files);
+  const auto absolute =
+      (std::filesystem::path(repository_root) /
+       std::filesystem::path(unit.translation_unit))
+          .lexically_normal()
+          .string();
+  const auto commands = database.getCompileCommands(absolute);
+  if (commands.empty()) {
+    state.add_diagnostic({
+        .severity = "error",
+        .message = "no compile command for translation unit " +
+                   unit.translation_unit,
+        .path = unit.translation_unit,
+    });
+    return state;
+  }
+  const auto &command = commands.front();
+  state.translation_units.push_back({
+      .path = unit.translation_unit,
+      .language = language_for(unit.translation_unit, command.CommandLine),
+      .directory = command.Directory,
+      .arguments = command.CommandLine,
+      .synthesized = unit.synthesized,
+  });
+  if (state.owns(unit.translation_unit)) {
+    state.file(unit.translation_unit, state.translation_units.front().language,
+               unit.translation_unit);
+  }
+  return state;
 }
 
 } // namespace lexicon::clang_frontend

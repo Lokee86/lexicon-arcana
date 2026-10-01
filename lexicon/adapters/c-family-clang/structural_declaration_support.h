@@ -39,6 +39,11 @@ classify_declaration(clang::NamedDecl &named, const std::string &path,
 void record_context_identity(State &state, clang::ASTContext &context,
                              const clang::NamedDecl &declaration,
                              llvm::StringRef repository_root);
+std::string ensure_owned_declaration(State &state, clang::ASTContext &context,
+                                     const clang::NamedDecl &declaration,
+                                     llvm::StringRef repository_root,
+                                     llvm::StringRef translation_unit,
+                                     llvm::StringRef language);
 std::string ensure_callable_declaration(State &state, clang::ASTContext &context,
                                         const clang::FunctionDecl &function,
                                         llvm::StringRef repository_root,
