@@ -140,6 +140,22 @@ def compile_records(line: str, repository: Path) -> list[dict]:
     return records
 
 
+def compile_output_records(output: str, repository: Path) -> list[dict]:
+    # Make preserves backslash-newline pairs in continued recipes. Remove
+    # them as the shell would before tokenizing complete compiler commands.
+    output = output.replace("\\\r\n", "").replace("\\\n", "")
+    records: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+    for line in output.splitlines():
+        for record in compile_records(line, repository):
+            key = (record["file"], record["command"])
+            if key in seen:
+                continue
+            seen.add(key)
+            records.append(record)
+    return records
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repository", type=Path, required=True)
@@ -172,15 +188,7 @@ def main() -> int:
             f"make dry-run failed ({completed.returncode}):\n{completed.stderr}"
         )
 
-    records: list[dict] = []
-    seen: set[tuple[str, str]] = set()
-    for line in completed.stdout.splitlines():
-        for record in compile_records(line, repository):
-            key = (record["file"], record["command"])
-            if key in seen:
-                continue
-            seen.add(key)
-            records.append(record)
+    records = compile_output_records(completed.stdout, repository)
 
     if not records:
         raise SystemExit("make dry-run produced no C/C++ compile commands")

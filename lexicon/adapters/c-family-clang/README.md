@@ -96,4 +96,6 @@ python scripts/c_family_tu_calibration.py --case codebase-memory --adapter-eval 
 python scripts/c_family_tu_calibration.py --case git --adapter-eval lexicon/target/release/examples/adapter_eval.exe --clang-helper .hardcut-build/native/lexicon-c-family-clang.exe
 ```
 
+Make-based compilation-database preparation joins backslash-continued dry-run recipes before extracting compiler commands. Multi-source compiler/link recipes produce one syntax-only entry per source, preserving build include paths, defines, and language flags. Exact duplicate commands are removed while distinct build contexts remain. Focused capture regressions run with `python -m unittest discover -s scripts -p test_c_family_make_compdb.py`.
+
 Each result stores cold and warm wall time, process-tree peak RSS, TU architecture counters, and the canonical facts hash. `--check-concurrency` adds worker-count 1, 2, and 4 runs and requires the same hash. Codebase Memory must complete without timeout, with cold wall at most 63 seconds and cold peak process-tree RSS at most 2.812 GB. Git calibration is a separate follow-up and is gated on that Codebase Memory result. Result records and build/cache data stay under `.hardcut-build` unless `--results-dir` is supplied.
