@@ -1,13 +1,10 @@
-use std::collections::BTreeMap;
-
 use crate::repository::{ContentId, NodeKey};
 
-use super::build::CompactRepositoryBuild;
-use super::build_stream_finish::finish_stream_build;
-use super::{RepositoryStoreWriteError, Sha256Identity};
-
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub(crate) struct TempStringId(pub u32);
+use super::build::{CompactRepositoryBuild, CompactRepositoryDelta};
+use super::build_stream_finish::{finish_stream_build, finish_stream_delta};
+use super::build_stream_nodes::{StagedNodeError, canonicalize_nodes};
+use super::string_arena::StagedStringArena;
+use super::{RepositoryStoreWriteError, Sha256Identity, TempStringId};
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub(crate) struct TempSpan {
@@ -22,7 +19,9 @@ pub(crate) struct TempSpan {
 pub(super) struct TempNodeRecord {
     pub key: NodeKey,
     pub external_identity: Sha256Identity,
+    pub signature_digest: [u8; 32],
     pub content_id: Option<ContentId>,
+    pub owner: Option<TempStringId>,
     pub path: TempStringId,
     pub name: TempStringId,
     pub qualified_name: TempStringId,
@@ -51,7 +50,7 @@ pub(super) struct TempUnresolvedRecord {
 }
 
 pub(crate) struct CompactRepositoryAssembler {
-    pub(super) strings: BTreeMap<String, TempStringId>,
+    pub(super) strings: StagedStringArena,
     pub(super) nodes: Vec<TempNodeRecord>,
     pub(super) edges: Vec<TempEdgeRecord>,
     pub(super) unresolved: Vec<TempUnresolvedRecord>,
@@ -60,7 +59,7 @@ pub(crate) struct CompactRepositoryAssembler {
 impl CompactRepositoryAssembler {
     pub(crate) fn with_capacity(nodes: usize, edges: usize, unresolved: usize) -> Self {
         Self {
-            strings: BTreeMap::new(),
+            strings: StagedStringArena::default(),
             nodes: Vec::with_capacity(nodes),
             edges: Vec::with_capacity(edges),
             unresolved: Vec::with_capacity(unresolved),
@@ -76,6 +75,23 @@ impl CompactRepositoryAssembler {
         reserve_to(&mut self.unresolved, unresolved);
     }
 
+    pub(crate) fn canonicalize_nodes(&mut self) -> Result<(), StagedNodeError> {
+        canonicalize_nodes(&mut self.nodes)
+    }
+
+    pub(crate) fn contains_node_key(&self, key: NodeKey) -> bool {
+        self.nodes
+            .binary_search_by_key(&key, |node| node.key)
+            .is_ok()
+    }
+
+    pub(crate) fn contains_node_identity(&self, key: NodeKey, identity: Sha256Identity) -> bool {
+        self.nodes
+            .binary_search_by_key(&key, |node| node.key)
+            .ok()
+            .is_some_and(|index| self.nodes[index].external_identity == identity)
+    }
+
     #[cfg(test)]
     pub(crate) fn capacities(&self) -> (usize, usize, usize) {
         (
@@ -89,21 +105,16 @@ impl CompactRepositoryAssembler {
         &mut self,
         value: &str,
     ) -> Result<TempStringId, RepositoryStoreWriteError> {
-        if let Some(id) = self.strings.get(value) {
-            return Ok(*id);
-        }
-        let id = u32::try_from(self.strings.len())
-            .map(TempStringId)
-            .map_err(|_| super::StoreFormatError::TooManyStrings)?;
-        self.strings.insert(value.to_owned(), id);
-        Ok(id)
+        self.strings.intern(value).map_err(Into::into)
     }
 
     pub(crate) fn push_node(
         &mut self,
         key: NodeKey,
         external_identity: Sha256Identity,
+        signature_digest: [u8; 32],
         content_id: Option<ContentId>,
+        owner: Option<TempStringId>,
         kind_code: u16,
         path: TempStringId,
         name: TempStringId,
@@ -113,7 +124,9 @@ impl CompactRepositoryAssembler {
         self.nodes.push(TempNodeRecord {
             key,
             external_identity,
+            signature_digest,
             content_id,
+            owner,
             path,
             name,
             qualified_name,
@@ -162,6 +175,10 @@ impl CompactRepositoryAssembler {
 
     pub(crate) fn finish(self) -> Result<CompactRepositoryBuild, RepositoryStoreWriteError> {
         finish_stream_build(self)
+    }
+
+    pub(crate) fn finish_delta(self) -> Result<CompactRepositoryDelta, RepositoryStoreWriteError> {
+        finish_stream_delta(self)
     }
 }
 

@@ -5,11 +5,13 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use arcana::lexicon::{LexiconSnapshotError, LexiconSnapshotMetadata};
-use arcana::repository::RepositorySnapshot;
+use arcana::repository::{IncrementalError, RepositorySnapshotError};
 
 use crate::cli::SyncCommand;
 use crate::cli_commands::CliCommandError;
-use crate::cli_sync_build::{SnapshotWrite, build_snapshot, read_compatibility_warnings};
+use crate::cli_sync_build::{
+    SnapshotWrite, SyncPlan, build_snapshot, plan_snapshot, read_compatibility_warnings,
+};
 use crate::cli_sync_state::{SyncLock, replace_file};
 use crate::repository_state;
 
@@ -22,22 +24,25 @@ pub fn run_sync(command: &SyncCommand) -> Result<String, SyncError> {
 
     let output = snapshot_directory(&command.state, current.id())?;
     let previous_id = read_current(&command.state)?;
-    let result = if complete_snapshot(&output, current.id()) {
-        SnapshotWrite {
+    let plan = plan_snapshot(
+        &lexicon_root,
+        &command.state,
+        &output,
+        previous_id.as_deref(),
+        &current,
+    )?;
+    let result = match plan {
+        SyncPlan::Existing => SnapshotWrite {
             mode: "existing",
+            reason: None,
             compatibility_warnings: read_compatibility_warnings(&output)?,
+        },
+        plan => {
+            if output.try_exists()? {
+                fs::remove_dir_all(&output)?;
+            }
+            build_snapshot(&lexicon_root, &command.state, &output, &current, plan)?
         }
-    } else {
-        if output.try_exists()? {
-            fs::remove_dir_all(&output)?;
-        }
-        build_snapshot(
-            &lexicon_root,
-            &command.state,
-            &output,
-            previous_id.as_deref(),
-            &current,
-        )?
     };
     for warning in &result.compatibility_warnings {
         eprintln!("arcana sync WARNING: {warning}");
@@ -46,19 +51,19 @@ pub fn run_sync(command: &SyncCommand) -> Result<String, SyncError> {
     if command.register {
         register_consumer(&lexicon_root, &command.state)?;
     }
+    let reason = result
+        .reason
+        .as_deref()
+        .map(|reason| format!(" reason={reason}"))
+        .unwrap_or_default();
     Ok(format!(
-        "synced Lexicon snapshot {} mode={} registered={} compatibility_warnings={}\n",
+        "synced Lexicon snapshot {} mode={}{} registered={} compatibility_warnings={}\n",
         current.id(),
         result.mode,
+        reason,
         command.register,
         result.compatibility_warnings.len()
     ))
-}
-
-fn complete_snapshot(output: &Path, lexicon_id: &str) -> bool {
-    let source = fs::read_to_string(output.join("lexicon.snapshot"));
-    source.is_ok_and(|source| source.trim() == lexicon_id)
-        && RepositorySnapshot::open(output.join("repository.manifest")).is_ok()
 }
 
 fn register_consumer(lexicon_root: &Path, state: &Path) -> Result<(), SyncError> {
@@ -138,6 +143,8 @@ pub enum SyncError {
     Io(io::Error),
     Json(serde_json::Error),
     Lexicon(LexiconSnapshotError),
+    Repository(RepositorySnapshotError),
+    Incremental(IncrementalError),
     Command(CliCommandError),
     InvalidState(String),
 }
@@ -148,6 +155,8 @@ impl fmt::Display for SyncError {
             Self::Io(error) => error.fmt(formatter),
             Self::Json(error) => error.fmt(formatter),
             Self::Lexicon(error) => error.fmt(formatter),
+            Self::Repository(error) => error.fmt(formatter),
+            Self::Incremental(error) => error.fmt(formatter),
             Self::Command(error) => error.fmt(formatter),
             Self::InvalidState(message) => formatter.write_str(message),
         }
@@ -171,6 +180,18 @@ impl From<serde_json::Error> for SyncError {
 impl From<LexiconSnapshotError> for SyncError {
     fn from(error: LexiconSnapshotError) -> Self {
         Self::Lexicon(error)
+    }
+}
+
+impl From<RepositorySnapshotError> for SyncError {
+    fn from(error: RepositorySnapshotError) -> Self {
+        Self::Repository(error)
+    }
+}
+
+impl From<IncrementalError> for SyncError {
+    fn from(error: IncrementalError) -> Self {
+        Self::Incremental(error)
     }
 }
 

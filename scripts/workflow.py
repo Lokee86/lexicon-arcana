@@ -394,6 +394,12 @@ def test(jobs: int = 1) -> None:
         ROOT,
         environment,
     )
+    typescript = ROOT / "lexicon" / "adapters" / "typescript"
+    npm = shutil.which("npm") or shutil.which("npm.cmd")
+    if not npm:
+        raise FileNotFoundError("npm executable not found on PATH")
+    run([npm, "ci", "--silent"], typescript, environment)
+    run([npm, "test", "--silent"], typescript, environment)
     for manifest in (
         ROOT / "lexicon" / "Cargo.toml",
         ROOT / "lexicon-cli" / "Cargo.toml",

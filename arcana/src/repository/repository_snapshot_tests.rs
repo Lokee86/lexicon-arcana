@@ -165,3 +165,39 @@ fn protocol_parts_materialize_from_repository_store() {
     assert_eq!(unresolved.unresolved, compiled.unresolved);
     fs::remove_dir_all(directory).unwrap();
 }
+
+#[test]
+fn opening_legacy_v1_manifest_reports_unsupported_version() {
+    let directory = test_directory();
+    let manifest = [
+        "version=1",
+        "snapshot_id=94c045dcded9d831",
+        "created_unix_seconds=1790472019",
+        "repository_id=ac971b0222626ca4",
+        "adapter_name=lexicon",
+        "adapter_version=sha256:legacy",
+        "fact_schema_version=4",
+        "node_count=1159295",
+        "edge_count=2449939",
+        "unresolved_count=724765",
+        "graph_snapshot_id=aba89512fdcdf908",
+        "graph_manifest_checksum=df67593e78eb3ac4",
+        "catalogue_checksum=fd388f0b72fc7ab1",
+        "unresolved_checksum=1eba36be551f48fb",
+        "facts_checksum=ac971b0222626ca4",
+        "graph_manifest_file=graph.manifest",
+        "catalogue_file=catalogue.tsv",
+        "unresolved_file=unresolved.tsv",
+        "facts_file=facts.tsv",
+        "",
+    ]
+    .join("\n");
+    let path = directory.join(REPOSITORY_MANIFEST_FILE);
+    fs::write(&path, manifest).unwrap();
+
+    assert!(matches!(
+        RepositorySnapshot::open(&path),
+        Err(RepositorySnapshotError::UnsupportedManifestVersion(1))
+    ));
+    fs::remove_dir_all(directory).unwrap();
+}

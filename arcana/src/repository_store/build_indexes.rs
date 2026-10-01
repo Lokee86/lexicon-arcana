@@ -41,33 +41,41 @@ pub(super) fn sorted_kind_index(
 }
 
 pub(super) fn canonicalize_edges(edges: &mut Vec<CompactEdgeRecord>) {
-    edges.sort_unstable_by(|left, right| {
-        left.source
-            .cmp(&right.source)
-            .then_with(|| left.target.cmp(&right.target))
-            .then_with(|| relation(left.relation_code).cmp(&relation(right.relation_code)))
-            .then_with(|| left.span.cmp(&right.span))
-    });
+    edges.sort_unstable_by(compare_edges);
     edges.dedup();
 }
 
+pub(super) fn compare_edges(
+    left: &CompactEdgeRecord,
+    right: &CompactEdgeRecord,
+) -> std::cmp::Ordering {
+    left.source
+        .cmp(&right.source)
+        .then_with(|| left.target.cmp(&right.target))
+        .then_with(|| relation(left.relation_code).cmp(&relation(right.relation_code)))
+        .then_with(|| left.span.cmp(&right.span))
+}
+
 pub(super) fn canonicalize_unresolved(records: &mut Vec<CompactUnresolvedRecord>) {
-    records.sort_unstable_by(|left, right| {
-        left.source
-            .cmp(&right.source)
-            .then_with(|| relation(left.relation_code).cmp(&relation(right.relation_code)))
-            .then_with(|| left.expression.cmp(&right.expression))
-            .then_with(|| {
-                optional(left.candidate_namespace).cmp(&optional(right.candidate_namespace))
-            })
-            .then_with(|| optional(left.candidate_name).cmp(&optional(right.candidate_name)))
-            .then_with(|| {
-                (left.reason_code, optional(left.unknown_reason))
-                    .cmp(&(right.reason_code, optional(right.unknown_reason)))
-            })
-            .then_with(|| left.span.cmp(&right.span))
-    });
+    records.sort_unstable_by(compare_unresolved);
     records.dedup();
+}
+
+pub(super) fn compare_unresolved(
+    left: &CompactUnresolvedRecord,
+    right: &CompactUnresolvedRecord,
+) -> std::cmp::Ordering {
+    left.source
+        .cmp(&right.source)
+        .then_with(|| relation(left.relation_code).cmp(&relation(right.relation_code)))
+        .then_with(|| left.expression.cmp(&right.expression))
+        .then_with(|| optional(left.candidate_namespace).cmp(&optional(right.candidate_namespace)))
+        .then_with(|| optional(left.candidate_name).cmp(&optional(right.candidate_name)))
+        .then_with(|| {
+            (left.reason_code, optional(left.unknown_reason))
+                .cmp(&(right.reason_code, optional(right.unknown_reason)))
+        })
+        .then_with(|| left.span.cmp(&right.span))
 }
 
 fn relation(code: u16) -> RelationKind {

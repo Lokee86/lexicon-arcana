@@ -12,6 +12,12 @@ pub struct FactStream {
 
 impl FactStream {
     pub fn parse(input: &str) -> Result<Self, ValidationError> {
+        let stream = Self::parse_unvalidated(input)?;
+        stream.validate()?;
+        Ok(stream)
+    }
+
+    pub(crate) fn parse_unvalidated(input: &str) -> Result<Self, ValidationError> {
         let mut lines = input.lines().filter(|line| !line.trim().is_empty());
         let header_line = lines.next().ok_or(ValidationError::EmptyStream)?;
         let header: FactHeader = serde_json::from_str(header_line)
@@ -22,9 +28,7 @@ impl FactStream {
             records.push(parse_record(line, offset + 2)?);
         }
 
-        let stream = Self { header, records };
-        stream.validate()?;
-        Ok(stream)
+        Ok(Self { header, records })
     }
 
     pub fn validate(&self) -> Result<(), ValidationError> {

@@ -9,6 +9,7 @@ use super::format::FormatError;
 #[derive(Debug)]
 pub enum RepositoryStoreWriteError {
     Io(io::Error),
+    Read(super::RepositoryStoreReadError),
     Format(FormatError),
     Store(StoreFormatError),
     Ownership(FactOwnershipError),
@@ -16,9 +17,10 @@ pub enum RepositoryStoreWriteError {
     TooManyNodeOccurrences { key: NodeKey },
     MissingEdgeEndpoint { key: NodeKey },
     MissingUnresolvedSource { key: NodeKey },
-    DuplicateCompactNodeOwner { key: NodeKey },
     TooManyNodes,
     TooManyContributions,
+    ReplacementNodeSetMismatch,
+    MissingRewriteMapping(&'static str),
     SizeOverflow,
 }
 
@@ -26,6 +28,7 @@ impl fmt::Display for RepositoryStoreWriteError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Io(error) => error.fmt(formatter),
+            Self::Read(error) => error.fmt(formatter),
             Self::Format(error) => error.fmt(formatter),
             Self::Store(error) => error.fmt(formatter),
             Self::Ownership(error) => error.fmt(formatter),
@@ -47,12 +50,18 @@ impl fmt::Display for RepositoryStoreWriteError {
                     "unresolved reference has missing source node key {key:?}"
                 )
             }
-            Self::DuplicateCompactNodeOwner { key } => {
-                write!(formatter, "node key {key:?} has conflicting compact owners")
-            }
             Self::TooManyNodes => formatter.write_str("repository has more than u32::MAX nodes"),
             Self::TooManyContributions => {
                 formatter.write_str("repository ownership contribution count exceeds u64")
+            }
+            Self::ReplacementNodeSetMismatch => {
+                formatter.write_str("replacement repository delta changes the owned node set")
+            }
+            Self::MissingRewriteMapping(stage) => {
+                write!(
+                    formatter,
+                    "repository rewrite is missing a canonical record mapping in {stage}"
+                )
             }
             Self::SizeOverflow => formatter.write_str("repository.arcana size overflow"),
         }
@@ -64,6 +73,12 @@ impl std::error::Error for RepositoryStoreWriteError {}
 impl From<io::Error> for RepositoryStoreWriteError {
     fn from(error: io::Error) -> Self {
         Self::Io(error)
+    }
+}
+
+impl From<super::RepositoryStoreReadError> for RepositoryStoreWriteError {
+    fn from(error: super::RepositoryStoreReadError) -> Self {
+        Self::Read(error)
     }
 }
 

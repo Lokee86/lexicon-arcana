@@ -18,6 +18,8 @@ mod cli_sync_compact_test_support;
 #[cfg(test)]
 mod cli_sync_compact_tests;
 #[cfg(test)]
+mod cli_sync_differential_tests;
+#[cfg(test)]
 mod cli_sync_metadata_tests;
 #[cfg(test)]
 mod cli_sync_tests;

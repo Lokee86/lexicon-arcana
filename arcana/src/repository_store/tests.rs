@@ -38,6 +38,20 @@ fn string_table_is_deterministic_and_preserves_weird_strings() {
 }
 
 #[test]
+fn string_table_rejects_invalid_utf8() {
+    let mut encoded = Vec::new();
+    encoded.extend_from_slice(&0_u64.to_le_bytes());
+    encoded.extend_from_slice(&1_u32.to_le_bytes());
+    encoded.extend_from_slice(&0_u32.to_le_bytes());
+    encoded.push(0xff);
+
+    assert_eq!(
+        CompactStringTable::decode(&encoded, 1),
+        Err(StoreFormatError::InvalidUtf8)
+    );
+}
+
+#[test]
 fn sha256_identity_round_trips_raw_digest() {
     let text = format!("sha256:{}", "0a".repeat(32));
     let identity = Sha256Identity::parse(&text).unwrap();

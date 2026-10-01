@@ -4,8 +4,6 @@ use std::path::{Path, PathBuf};
 
 use crate::repository_store::{RepositoryStore, RepositoryStoreFile};
 use crate::snapshot::GraphSnapshot;
-use crate::storage::QueryError;
-use crate::synthetic::GraphDataset;
 
 use super::repository_snapshot_validation::{
     checksum, compare, read_verified, repository_identity_from_checksum,
@@ -90,10 +88,6 @@ impl RepositoryUpdateBase {
 
     pub fn base_graph_path(&self) -> PathBuf {
         self.root.join(&self.graph.manifest().base_file)
-    }
-
-    pub fn materialize_base_dataset(&self) -> Result<GraphDataset, QueryError> {
-        self.graph.materialize_base_dataset()
     }
 }
 

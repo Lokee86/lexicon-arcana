@@ -1,0 +1,38 @@
+﻿{
+    "gate":  "Final",
+    "branch":  "perf/arcana-heap-refactor",
+    "commit":  "04a109dabaabd12c6b8e5a346e8b72183303bede",
+    "lexicon_snapshot":  "sha256:ee46a8a475c443f908e0eff6db9efca62e3871fe1f541e62251ebd9f5ed2c621",
+    "rescan_performed":  false,
+    "release_binary":  true,
+    "mode":  "rebuild",
+    "exit_code":  0,
+    "wall_seconds":  233.983033,
+    "peak_process_tree_rss_bytes":  617877504,
+    "peak_process_tree_rss_mib":  589.25,
+    "rss_sampling_interval_ms":  20,
+    "rss_samples":  6766,
+    "child_process_observed":  false,
+    "final_limit_mib":  600,
+    "final_memory_gate_pass":  true,
+    "oracle_counts_exact":  true,
+    "final_gate_pass":  true,
+    "counts":  {
+                   "nodes":  1125126,
+                   "visible_edges":  2367423,
+                   "unresolved":  699349
+               },
+    "artifacts":  {
+                      "repository.arcana":  {
+                                                "size_bytes":  489778032,
+                                                "sha256":  "10cb311318a28703e3c9a510cae1b177e24f123c2d604ffafc194c3e55de0281",
+                                                "oracle_byte_identical":  true
+                                            },
+                      "graph.arcana":  {
+                                           "size_bytes":  46411248,
+                                           "sha256":  "ee64b0367905d5e39c64d75c1269b429fc3791b5a6287cce0576e32f22e8fd5d",
+                                           "oracle_byte_identical":  true
+                                       }
+                  },
+    "profile_stderr":  "arcana sync profile: phase=compact-node-pass elapsed_ms=108161.932\narcana sync profile: phase=compact-relation-pass elapsed_ms=111946.373\narcana sync profile: phase=compact-build-finish elapsed_ms=7203.649\narcana sync profile: phase=compact-store-write elapsed_ms=2706.356\narcana sync profile: phase=compact-store-checksum elapsed_ms=587.370\narcana sync profile: phase=compact-graph-compile elapsed_ms=1491.022 nodes=1125126 edges=2367423 unresolved=699349"
+}

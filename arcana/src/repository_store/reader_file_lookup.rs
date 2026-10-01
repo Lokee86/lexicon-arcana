@@ -1,18 +1,60 @@
-use std::collections::BTreeSet;
+use std::path::Path;
 
-use crate::repository::NodeKey;
+use crate::repository::{NodeKey, NodeKind};
+use crate::synthetic::NodeId;
 
 use super::format::{
     CONTRIBUTION_KIND_OFFSET, CONTRIBUTION_RECORD_INDEX_OFFSET, CONTRIBUTION_RECORD_LEN,
-    FILE_OWNERSHIP_RECORD_LEN, NODE_KEY_OFFSET, NODE_RECORD_LEN,
+    EDGE_RECORD_LEN, FILE_OWNERSHIP_RECORD_LEN, FormatError, NODE_KEY_OFFSET, NODE_RECORD_LEN,
     OWNERSHIP_CONTRIBUTION_COUNT_OFFSET, OWNERSHIP_CONTRIBUTION_START_OFFSET,
     OWNERSHIP_PATH_ID_OFFSET, STRING_ENTRY_LENGTH_OFFSET, STRING_ENTRY_OFFSET_OFFSET,
-    STRING_INDEX_RECORD_LEN, SectionKind,
+    STRING_INDEX_RECORD_LEN, SectionKind, UNRESOLVED_RECORD_LEN,
 };
 use super::record_io::{get_u32, get_u64};
-use super::{RepositoryStoreFile, RepositoryStoreReadError, StoreFormatError, StringId};
+use super::{
+    CompactEdgeRecord, CompactNodeRecord, CompactUnresolvedRecord, ContributionKindView,
+    RepositoryStoreFile, RepositoryStoreReadError, Sha256Identity, StoreFormatError, StringId,
+};
 
 impl RepositoryStoreFile {
+    pub fn contains_node_key(&mut self, key: NodeKey) -> Result<bool, RepositoryStoreReadError> {
+        Ok(self.find_node_record(key)?.is_some())
+    }
+
+    pub fn node_id(&mut self, key: NodeKey) -> Result<Option<NodeId>, RepositoryStoreReadError> {
+        Ok(self.find_node_record(key)?.map(|(node_id, _)| node_id))
+    }
+
+    pub fn contains_node_identity(
+        &mut self,
+        key: NodeKey,
+        identity: Sha256Identity,
+    ) -> Result<bool, RepositoryStoreReadError> {
+        Ok(self
+            .find_node_record(key)?
+            .is_some_and(|(_, record)| record.external_identity == Some(identity)))
+    }
+
+    pub(super) fn find_node_record(
+        &mut self,
+        key: NodeKey,
+    ) -> Result<Option<(NodeId, CompactNodeRecord)>, RepositoryStoreReadError> {
+        let count = self.header.section(SectionKind::Nodes).record_count;
+        let mut low = 0_u64;
+        let mut high = count;
+        while low < high {
+            let mid = low + (high - low) / 2;
+            let node_id = u32::try_from(mid).map_err(|_| FormatError::TooManyNodes)?;
+            let record = self.node_record(node_id)?;
+            match record.key.cmp(&key) {
+                std::cmp::Ordering::Less => low = mid + 1,
+                std::cmp::Ordering::Greater => high = mid,
+                std::cmp::Ordering::Equal => return Ok(Some((NodeId(node_id), record))),
+            }
+        }
+        Ok(None)
+    }
+
     pub(super) fn find_ownership(
         &mut self,
         path: &str,
@@ -33,10 +75,10 @@ impl RepositoryStoreFile {
         Ok(None)
     }
 
-    pub(super) fn collect_owned_nodes(
+    pub(super) fn for_each_owned_contribution(
         &mut self,
         index: u64,
-        node_ids: &mut BTreeSet<u32>,
+        mut visit: impl FnMut(ContributionKindView, u64) -> Result<(), RepositoryStoreReadError>,
     ) -> Result<(), RepositoryStoreReadError> {
         let record = self.ownership_record(index)?;
         let start = get_u64(&record, OWNERSHIP_CONTRIBUTION_START_OFFSET);
@@ -66,27 +108,28 @@ impl RepositoryStoreFile {
             self.read_exact_at(offset, &mut bytes)?;
 
             let record_index = get_u64(&bytes, CONTRIBUTION_RECORD_INDEX_OFFSET);
-            let kind = bytes[CONTRIBUTION_KIND_OFFSET];
-            let limit = match kind {
-                1 => self.header.section(SectionKind::Nodes).record_count,
-                2 => self.header.section(SectionKind::Edges).record_count,
-                3 => self.header.section(SectionKind::Unresolved).record_count,
+            let kind = match bytes[CONTRIBUTION_KIND_OFFSET] {
+                1 => ContributionKindView::Node,
+                2 => ContributionKindView::Edge,
+                3 => ContributionKindView::Unresolved,
                 _ => return Err(RepositoryStoreReadError::InvalidOwnership),
+            };
+            let limit = match kind {
+                ContributionKindView::Node => self.header.section(SectionKind::Nodes).record_count,
+                ContributionKindView::Edge => self.header.section(SectionKind::Edges).record_count,
+                ContributionKindView::Unresolved => {
+                    self.header.section(SectionKind::Unresolved).record_count
+                }
             };
             if record_index >= limit {
                 return Err(RepositoryStoreReadError::InvalidOwnership);
             }
-            if kind == 1 {
-                node_ids.insert(
-                    u32::try_from(record_index)
-                        .map_err(|_| RepositoryStoreReadError::InvalidOwnership)?,
-                );
-            }
+            visit(kind, record_index)?;
         }
         Ok(())
     }
 
-    fn contribution_count(&self) -> Result<u64, RepositoryStoreReadError> {
+    pub(super) fn contribution_count(&self) -> Result<u64, RepositoryStoreReadError> {
         let descriptor = self.header.section(SectionKind::Ownership);
         let fixed = descriptor
             .record_count
@@ -102,7 +145,7 @@ impl RepositoryStoreFile {
         Ok(tail / CONTRIBUTION_RECORD_LEN)
     }
 
-    fn ownership_record(
+    pub(super) fn ownership_record(
         &mut self,
         index: u64,
     ) -> Result<[u8; FILE_OWNERSHIP_RECORD_LEN as usize], RepositoryStoreReadError> {
@@ -121,6 +164,93 @@ impl RepositoryStoreFile {
         let mut bytes = [0_u8; FILE_OWNERSHIP_RECORD_LEN as usize];
         self.read_exact_at(offset, &mut bytes)?;
         Ok(bytes)
+    }
+
+    pub(super) fn node_record(
+        &mut self,
+        node_id: u32,
+    ) -> Result<CompactNodeRecord, RepositoryStoreReadError> {
+        let descriptor = self.header.section(SectionKind::Nodes);
+        if u64::from(node_id) >= descriptor.record_count {
+            return Err(RepositoryStoreReadError::InvalidNodeId(node_id));
+        }
+        let offset = descriptor
+            .offset
+            .checked_add(
+                u64::from(node_id)
+                    .checked_mul(NODE_RECORD_LEN)
+                    .ok_or(RepositoryStoreReadError::InvalidNodeId(node_id))?,
+            )
+            .ok_or(RepositoryStoreReadError::InvalidNodeId(node_id))?;
+        let mut bytes = [0_u8; NODE_RECORD_LEN as usize];
+        self.read_exact_at(offset, &mut bytes)?;
+        CompactNodeRecord::decode(&bytes).map_err(Into::into)
+    }
+
+    pub(super) fn edge_record(
+        &mut self,
+        index: u64,
+    ) -> Result<CompactEdgeRecord, RepositoryStoreReadError> {
+        let descriptor = self.header.section(SectionKind::Edges);
+        if index >= descriptor.record_count {
+            return Err(RepositoryStoreReadError::InvalidOwnership);
+        }
+        let offset = descriptor
+            .offset
+            .checked_add(
+                index
+                    .checked_mul(EDGE_RECORD_LEN)
+                    .ok_or(RepositoryStoreReadError::InvalidOwnership)?,
+            )
+            .ok_or(RepositoryStoreReadError::InvalidOwnership)?;
+        let mut bytes = [0_u8; EDGE_RECORD_LEN as usize];
+        self.read_exact_at(offset, &mut bytes)?;
+        CompactEdgeRecord::decode(&bytes).map_err(Into::into)
+    }
+
+    pub(super) fn unresolved_record(
+        &mut self,
+        index: u64,
+    ) -> Result<CompactUnresolvedRecord, RepositoryStoreReadError> {
+        let descriptor = self.header.section(SectionKind::Unresolved);
+        if index >= descriptor.record_count {
+            return Err(RepositoryStoreReadError::InvalidOwnership);
+        }
+        let offset = descriptor
+            .offset
+            .checked_add(
+                index
+                    .checked_mul(UNRESOLVED_RECORD_LEN)
+                    .ok_or(RepositoryStoreReadError::InvalidOwnership)?,
+            )
+            .ok_or(RepositoryStoreReadError::InvalidOwnership)?;
+        let mut bytes = [0_u8; UNRESOLVED_RECORD_LEN as usize];
+        self.read_exact_at(offset, &mut bytes)?;
+        CompactUnresolvedRecord::decode(&bytes).map_err(Into::into)
+    }
+
+    pub(crate) fn node_owner_path(
+        &mut self,
+        key: NodeKey,
+    ) -> Result<Option<String>, RepositoryStoreReadError> {
+        let Some((_, record)) = self.find_node_record(key)? else {
+            return Ok(None);
+        };
+        if let Some(span) = record.span {
+            return self.string(span.path).map(Some);
+        }
+        let kind = super::format::node_kind_from_code(record.kind_code)
+            .ok_or(StoreFormatError::InvalidNodeKind(record.kind_code))?;
+        let path = self.string(record.path)?;
+        if matches!(
+            kind,
+            NodeKind::Repository | NodeKind::Directory | NodeKind::Module | NodeKind::Namespace
+        ) || Path::new(&path).extension().is_none()
+        {
+            Ok(None)
+        } else {
+            Ok(Some(path))
+        }
     }
 
     pub(super) fn node_key(&mut self, node_id: u32) -> Result<NodeKey, RepositoryStoreReadError> {
@@ -142,7 +272,7 @@ impl RepositoryStoreFile {
         Ok(NodeKey::from_u64(u64::from_le_bytes(bytes)))
     }
 
-    fn string(&mut self, id: StringId) -> Result<String, RepositoryStoreReadError> {
+    pub(super) fn string(&mut self, id: StringId) -> Result<String, RepositoryStoreReadError> {
         let descriptor = self.header.section(SectionKind::Strings);
         if id == StringId::ABSENT {
             return Err(StoreFormatError::AbsentString.into());

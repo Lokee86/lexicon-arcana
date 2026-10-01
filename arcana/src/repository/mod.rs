@@ -12,6 +12,11 @@ mod fact_file_tests;
 mod graph_compile;
 mod incremental;
 mod incremental_diff;
+mod incremental_local;
+#[cfg(test)]
+mod incremental_local_test_support;
+#[cfg(test)]
+mod incremental_local_tests;
 mod incremental_store;
 #[cfg(test)]
 mod incremental_store_tests;
@@ -58,10 +63,9 @@ pub use incremental::{
     IncrementalError, IncrementalUpdate, plan_file_update, plan_file_update_from_verified_base,
 };
 #[doc(hidden)]
-pub use incremental_store::{
-    CompactIncrementalUpdate, VerifiedCompactSnapshotUpdatePlan,
-    plan_verified_compact_snapshot_update_from_store,
-};
+pub use incremental_local::plan_compact_delta_edge_changes_from_store;
+#[doc(hidden)]
+pub use incremental_store::verify_compact_delta_node_set_from_store;
 pub use incremental_store::{VerifiedSnapshotUpdatePlan, plan_verified_snapshot_update_from_store};
 pub use model::{ContentId, EdgeFact, NodeFact, NodeKey, NodeKind, RelationKind, SourceSpan};
 pub use ownership::{
@@ -77,7 +81,10 @@ pub use repository_publish::{
     publish_repository_snapshot, repository_artifact_checksum, repository_artifact_file_checksum,
     repository_identity_for_facts,
 };
-pub use repository_publish_graph::publish_graph_repository_snapshot_with_identity;
+pub use repository_publish_graph::{
+    publish_graph_repository_snapshot_with_identity,
+    publish_incremental_graph_repository_snapshot_with_identity,
+};
 pub use repository_snapshot::{REPOSITORY_MANIFEST_FILE, RepositorySnapshot};
 pub use repository_snapshot_error::RepositorySnapshotError;
 pub use repository_snapshot_format::{REPOSITORY_MANIFEST_VERSION, RepositorySnapshotManifest};

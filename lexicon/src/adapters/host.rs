@@ -8,7 +8,7 @@ use super::{
     ADAPTER_CONTRACT_VERSION, AdapterError, AdapterRequest, LanguageAdapter,
     c_family::CFamilyAdapter, fingerprint, gdscript::GdscriptAdapter, generic::GenericAdapter,
     go::GoAdapter, kotlin::KotlinAdapter, lotusscript::LotusScriptAdapter, python::PythonAdapter,
-    ruby::RubyAdapter, rust::RustAdapter,
+    ruby::RubyAdapter, rust::RustAdapter, typescript::TypeScriptAdapter,
 };
 
 pub struct AdapterHost {
@@ -33,6 +33,7 @@ impl AdapterHost {
         host.register("kotlin", Arc::new(KotlinAdapter));
         host.register("rust", Arc::new(RustAdapter));
         host.register("ruby", Arc::new(RubyAdapter));
+        host.register("typescript", Arc::new(TypeScriptAdapter::new(&root)));
         host
     }
 

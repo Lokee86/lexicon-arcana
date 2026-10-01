@@ -65,12 +65,20 @@ fn facts(first: NodeKey, second: NodeKey, reverse: bool) -> RepositoryFacts {
             node(first, NodeKind::Function, "a.go"),
             node(second, NodeKind::Function, "b.go"),
         ],
-        edges: vec![EdgeFact {
-            source,
-            target,
-            relation: RelationKind::Calls,
-            span: Some(SourceSpan::new("a.go", 1, 1, 1, 2).unwrap()),
-        }],
+        edges: vec![
+            EdgeFact {
+                source,
+                target,
+                relation: RelationKind::Calls,
+                span: Some(SourceSpan::new("a.go", 1, 1, 1, 2).unwrap()),
+            },
+            EdgeFact {
+                source: second,
+                target: first,
+                relation: RelationKind::References,
+                span: Some(SourceSpan::new("b.go", 2, 1, 2, 2).unwrap()),
+            },
+        ],
         unresolved: Vec::new(),
     }
 }

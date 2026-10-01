@@ -1,20 +1,20 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use super::LexiconSnapshotError;
 use super::binary_v2_stream::{EdgeRef, NodeRef, UnresolvedRef};
 use super::identity::LexiconIdentity;
 use super::object::{NodeReference, RecordCounts};
 use super::stream_compact_convert::{compact_span, node_kind, relation_code, unresolved_reason};
-use super::stream_compact_node::{NodeSignature, optional_intern, signature};
+use super::stream_compact_node::{optional_intern, signature_digest};
 use crate::repository::{NodeKey, normalize_repository_path};
-use crate::repository_store::{CompactRepositoryAssembler, CompactRepositoryBuild, Sha256Identity};
+use crate::repository_store::{
+    CompactRepositoryAssembler, CompactRepositoryBuild, CompactRepositoryDelta,
+    RepositoryStoreFile, Sha256Identity, StagedNodeError,
+};
 
 pub(super) type CompatibilityCounts = BTreeMap<String, usize>;
 
 pub(super) struct CompactPass {
-    nodes: BTreeMap<LexiconIdentity, NodeSignature>,
-    keys: HashMap<NodeKey, LexiconIdentity>,
-    external_ids: HashMap<LexiconIdentity, NodeKey>,
     assembler: CompactRepositoryAssembler,
     planned_counts: RecordCounts,
     relation_counts: RecordCounts,
@@ -24,9 +24,6 @@ pub(super) struct CompactPass {
 impl CompactPass {
     pub(super) fn new() -> Self {
         Self {
-            nodes: BTreeMap::new(),
-            keys: HashMap::new(),
-            external_ids: HashMap::new(),
             assembler: CompactRepositoryAssembler::with_capacity(0, 0, 0),
             planned_counts: RecordCounts::default(),
             relation_counts: RecordCounts::default(),
@@ -71,31 +68,14 @@ impl CompactPass {
     }
 
     pub(super) fn ingest_node(&mut self, record: NodeRef<'_>) -> Result<(), LexiconSnapshotError> {
-        let signature = signature(&mut self.assembler, &record)?;
-        if let Some(existing) = self.nodes.get(&record.id) {
-            if existing != &signature {
-                return Err(LexiconSnapshotError::ConflictingNode(
-                    record.id.canonical_string(),
-                ));
-            }
-            return Ok(());
-        }
-
         validate_owner(record.owner)?;
         let path = normalized(record.path)?;
         if record.qualified_name.is_empty() {
             return Err(LexiconSnapshotError::Malformed("node qualified name"));
         }
         let key = record.id.node_key();
-        if self
-            .keys
-            .insert(key, record.id)
-            .is_some_and(|existing| existing != record.id)
-        {
-            return Err(LexiconSnapshotError::Malformed("node identity collision"));
-        }
-        self.external_ids.insert(record.id, key);
-
+        let signature_digest = signature_digest(&record);
+        let owner = optional_intern(&mut self.assembler, record.owner)?;
         let kind_code = node_kind(record.kind, &mut self.compatibility);
         let path = self.assembler.intern(&path)?;
         let name = self.assembler.intern(record.name)?;
@@ -104,27 +84,53 @@ impl CompactPass {
         self.assembler.push_node(
             key,
             Sha256Identity(record.id.digest()),
+            signature_digest,
             record.content_id.map(LexiconIdentity::content_id),
+            owner,
             kind_code,
             path,
             name,
             qualified_name,
             span,
         );
-        self.nodes.insert(record.id, signature);
         Ok(())
     }
 
-    pub(super) fn finish_node_pass(&mut self) {
-        self.nodes.clear();
-        self.keys.clear();
-        self.keys.shrink_to_fit();
+    pub(super) fn finish_node_pass(&mut self) -> Result<(), LexiconSnapshotError> {
+        self.assembler
+            .canonicalize_nodes()
+            .map_err(node_staging_error)?;
+        Ok(())
+    }
+
+    pub(super) fn finish_delta_node_pass(&mut self) -> Result<(), LexiconSnapshotError> {
+        self.assembler
+            .canonicalize_nodes()
+            .map_err(node_staging_error)
     }
 
     pub(super) fn ingest_edge(&mut self, record: EdgeRef<'_>) -> Result<(), LexiconSnapshotError> {
         validate_owner(record.owner)?;
         let source = self.resolve(record.source)?;
         let target = self.resolve(record.target)?;
+        let Some(relation_code) = relation_code(record.relation, "edge", &mut self.compatibility)
+        else {
+            return Ok(());
+        };
+        let span = compact_span(&mut self.assembler, record.span)?;
+        self.assembler
+            .push_edge(source, target, relation_code, span);
+        Ok(())
+    }
+
+    pub(super) fn ingest_edge_with_base(
+        &mut self,
+        record: EdgeRef<'_>,
+        base: &mut RepositoryStoreFile,
+    ) -> Result<(), LexiconSnapshotError> {
+        validate_owner(record.owner)?;
+        let source = self.resolve_with_base(record.source, base)?;
+        let target = self.resolve_with_base(record.target, base)?;
         let Some(relation_code) = relation_code(record.relation, "edge", &mut self.compatibility)
         else {
             return Ok(());
@@ -167,16 +173,47 @@ impl CompactPass {
         Ok(())
     }
 
+    pub(super) fn ingest_unresolved_with_base(
+        &mut self,
+        record: UnresolvedRef<'_>,
+        base: &mut RepositoryStoreFile,
+    ) -> Result<(), LexiconSnapshotError> {
+        validate_owner(record.owner)?;
+        let source = self.resolve_with_base(record.source, base)?;
+        let Some(relation_code) =
+            relation_code(record.relation, "unresolved", &mut self.compatibility)
+        else {
+            return Ok(());
+        };
+        let (reason_code, unknown) = unresolved_reason(record.reason, &mut self.compatibility)?;
+        let expression = self.assembler.intern(record.expression)?;
+        let candidate_namespace = optional_intern(&mut self.assembler, record.candidate_namespace)?;
+        let candidate_name = optional_intern(&mut self.assembler, record.candidate_name)?;
+        let unknown_reason = unknown
+            .then(|| self.assembler.intern(record.reason))
+            .transpose()?;
+        let span = compact_span(&mut self.assembler, record.span)?;
+        self.assembler.push_unresolved(
+            source,
+            relation_code,
+            reason_code,
+            expression,
+            candidate_namespace,
+            candidate_name,
+            unknown_reason,
+            span,
+        );
+        Ok(())
+    }
+
     pub(super) fn finish(
         self,
     ) -> Result<(CompactRepositoryBuild, Vec<String>), LexiconSnapshotError> {
         let Self {
             assembler,
             compatibility,
-            external_ids,
             ..
         } = self;
-        drop(external_ids);
         let warnings = compatibility
             .into_iter()
             .map(|(message, count)| format!("{message} ({count} record(s))"))
@@ -184,14 +221,70 @@ impl CompactPass {
         Ok((assembler.finish()?, warnings))
     }
 
+    pub(super) fn finish_delta(
+        self,
+    ) -> Result<(CompactRepositoryDelta, Vec<String>), LexiconSnapshotError> {
+        let Self {
+            assembler,
+            compatibility,
+            ..
+        } = self;
+        let warnings = compatibility
+            .into_iter()
+            .map(|(message, count)| format!("{message} ({count} record(s))"))
+            .collect();
+        Ok((assembler.finish_delta()?, warnings))
+    }
+
     fn resolve(&self, reference: NodeReference) -> Result<NodeKey, LexiconSnapshotError> {
         match reference {
             NodeReference::Key(key) => Ok(key),
-            NodeReference::Identity(identity) => self
-                .external_ids
-                .get(&identity)
-                .copied()
-                .ok_or(LexiconSnapshotError::Malformed("unknown relationship node")),
+            NodeReference::Identity(identity) => {
+                let key = identity.node_key();
+                self.assembler
+                    .contains_node_identity(key, Sha256Identity(identity.digest()))
+                    .then_some(key)
+                    .ok_or(LexiconSnapshotError::Malformed("unknown relationship node"))
+            }
+        }
+    }
+
+    fn resolve_with_base(
+        &self,
+        reference: NodeReference,
+        base: &mut RepositoryStoreFile,
+    ) -> Result<NodeKey, LexiconSnapshotError> {
+        match reference {
+            NodeReference::Key(key) => {
+                if self.assembler.contains_node_key(key) || base.contains_node_key(key)? {
+                    Ok(key)
+                } else {
+                    Err(LexiconSnapshotError::Malformed("unknown relationship node"))
+                }
+            }
+            NodeReference::Identity(identity) => {
+                let key = identity.node_key();
+                if self
+                    .assembler
+                    .contains_node_identity(key, Sha256Identity(identity.digest()))
+                    || base.contains_node_identity(key, Sha256Identity(identity.digest()))?
+                {
+                    Ok(key)
+                } else {
+                    Err(LexiconSnapshotError::Malformed("unknown relationship node"))
+                }
+            }
+        }
+    }
+}
+
+fn node_staging_error(error: StagedNodeError) -> LexiconSnapshotError {
+    match error {
+        StagedNodeError::IdentityCollision { .. } => {
+            LexiconSnapshotError::Malformed("node identity collision")
+        }
+        StagedNodeError::ConflictingDefinition { identity } => {
+            LexiconSnapshotError::ConflictingNode(identity.canonical_string())
         }
     }
 }
@@ -211,43 +304,5 @@ fn normalized(path: &str) -> Result<String, LexiconSnapshotError> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{CompactPass, RecordCounts};
-
-    #[test]
-    fn relation_capacity_is_planned_during_nodes_and_reserved_during_relations() {
-        let mut pass = CompactPass::new();
-        let first = RecordCounts {
-            nodes: 3,
-            edges: 5,
-            unresolved: 7,
-        };
-        let second = RecordCounts {
-            nodes: 2,
-            edges: 11,
-            unresolved: 13,
-        };
-
-        pass.reserve_object(first).unwrap();
-        pass.reserve_object(second).unwrap();
-        let (nodes, edges, unresolved) = pass.assembler.capacities();
-        assert!(nodes >= 5);
-        assert_eq!(edges, 0);
-        assert_eq!(unresolved, 0);
-
-        pass.finish_node_pass();
-        let (_, edges, unresolved) = pass.assembler.capacities();
-        assert_eq!(edges, 0);
-        assert_eq!(unresolved, 0);
-
-        pass.reserve_relation_object(first).unwrap();
-        let (_, edges, unresolved) = pass.assembler.capacities();
-        assert!(edges >= 5);
-        assert!(unresolved >= 7);
-
-        pass.reserve_relation_object(second).unwrap();
-        let (_, edges, unresolved) = pass.assembler.capacities();
-        assert!(edges >= 16);
-        assert!(unresolved >= 20);
-    }
-}
+#[path = "stream_compact_tests.rs"]
+mod tests;
