@@ -10,13 +10,14 @@ namespace lexicon::clang_frontend {
 OrderedObservationCommitter::OrderedObservationCommitter(
     std::string repository_root, std::vector<std::string> owned_files,
     std::size_t total_results, std::size_t pending_limit,
-    FileConsumer consume_files)
+    FileConsumer consume_files, const std::vector<std::string> &prior_claims)
     : repository_root_(std::move(repository_root)),
       owned_files_(owned_files.begin(), owned_files.end()),
       total_results_(total_results),
       pending_limit_(std::max<std::size_t>(pending_limit, 1)),
       consume_files_(std::move(consume_files)),
       submitted_ranks_(total_results, false),
+      claimed_files_(prior_claims.begin(), prior_claims.end()),
       metadata_state_(repository_root_) {
   metadata_state_.set_owned_files(owned_files);
 }
@@ -76,6 +77,20 @@ void OrderedObservationCommitter::commit_one_locked(std::size_t rank,
                                                     PendingResult result) {
   auto &state = result.state;
   aggregate_status_ |= result.status;
+  // A mere file entry (or recovery AST) is not sufficient coverage. Only the
+  // canonical claim from a completed, error-free real TU may replace a source
+  // fallback; the emitted language must match that fallback's language.
+  const auto valid_real_tu =
+      result.status == 0 && state.translation_units.size() == 1 &&
+      !state.translation_units.front().synthesized &&
+      std::none_of(state.diagnostics.begin(), state.diagnostics.end(),
+                   [](const auto &diagnostic) {
+                     return diagnostic.severity == "error" ||
+                            diagnostic.severity == "fatal";
+                   });
+  const auto language = valid_real_tu
+                            ? state.translation_units.front().language
+                            : std::string();
   summary_.completed_tus += 1;
   metadata_state_.semantic_analysis_ns += state.semantic_analysis_ns;
   metadata_state_.translation_units.insert(
@@ -111,6 +126,10 @@ void OrderedObservationCommitter::commit_one_locked(std::size_t rank,
       ++summary_.discarded_duplicate_file_observations;
       continue;
     }
+    if (valid_real_tu && file.languages.contains(language) &&
+        (!file.declarations.empty() || !file.macros.empty())) {
+      valid_real_coverage_.emplace(path, language);
+    }
     ++summary_.claimed_owned_files;
     file_observations.all_owned_paths.insert(path);
     file_observations.files.emplace(path, std::move(file));
@@ -141,6 +160,12 @@ OrderedObservationCommitter::summary() const {
 std::vector<std::string> OrderedObservationCommitter::claimed_files() const {
   std::lock_guard lock(mutex_);
   return {claimed_files_.begin(), claimed_files_.end()};
+}
+
+std::set<std::pair<std::string, std::string>>
+OrderedObservationCommitter::valid_real_coverage() const {
+  std::lock_guard lock(mutex_);
+  return valid_real_coverage_;
 }
 
 } // namespace lexicon::clang_frontend

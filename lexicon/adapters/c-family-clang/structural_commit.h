@@ -8,6 +8,7 @@
 #include <string>
 #include <set>
 #include <vector>
+#include <utility>
 
 #include "structural_model.h"
 
@@ -28,7 +29,8 @@ public:
                               std::vector<std::string> owned_files,
                               std::size_t total_results,
                               std::size_t pending_limit,
-                              FileConsumer consume_files);
+                              FileConsumer consume_files,
+                              const std::vector<std::string> &prior_claims = {});
 
   // Returns false only when this rank has already completed or is invalid.
   // A rank at the current commit frontier may always enter a full window.
@@ -39,6 +41,7 @@ public:
   State take_metadata_state();
   Summary summary() const;
   std::vector<std::string> claimed_files() const;
+  std::set<std::pair<std::string, std::string>> valid_real_coverage() const;
 
 private:
   struct PendingResult {
@@ -59,6 +62,7 @@ private:
   std::map<std::size_t, PendingResult> pending_;
   std::vector<bool> submitted_ranks_;
   std::set<std::string> claimed_files_;
+  std::set<std::pair<std::string, std::string>> valid_real_coverage_;
   std::map<std::pair<std::string, std::string>, ContextIdentity>
       context_identities_;
   State metadata_state_;

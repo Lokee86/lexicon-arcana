@@ -93,6 +93,7 @@ add_test(
 add_executable(
     lexicon-c-family-clang-commit-test
     structural_commit_test.cpp
+    structural_coverage_test.cpp
     structural_commit.cpp
     structural_model.cpp
     structural_semantics.cpp
@@ -123,6 +124,15 @@ add_test(
 set_tests_properties(lexicon-c-family-clang-commit PROPERTIES TIMEOUT 30)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(
+    NAME lexicon-c-family-clang-source-coverage
+    COMMAND
+        ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/structural_source_coverage_test.py
+        $<TARGET_FILE:lexicon-c-family-clang>
+        ${HELPER_VERSION}
+)
+set_tests_properties(lexicon-c-family-clang-source-coverage PROPERTIES TIMEOUT 60)
 add_test(
     NAME lexicon-c-family-clang-ownership
     COMMAND

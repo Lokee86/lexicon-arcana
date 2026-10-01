@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <memory>
+#include <set>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -129,12 +130,15 @@ int execute_parse_plan(const std::string &root, CompilationCommands &database,
       consume_files(std::move(files));
     }
   };
+  std::set<std::pair<std::string, std::string>> valid_real_coverage;
   auto execute_phase = [&](const std::vector<ParseUnit> &units,
-                           const std::vector<std::string> &owned) {
+                           const std::vector<std::string> &owned,
+                           const std::vector<std::string> &prior_claims =
+                               std::vector<std::string>{}) {
     const auto active_lanes = std::min(workers, units.size());
     OrderedObservationCommitter committer(
         root, owned, units.size(),
-        std::max<std::size_t>(active_lanes * 2, 1), consume);
+        std::max<std::size_t>(active_lanes * 2, 1), consume, prior_claims);
     const auto status = run_lanes(root, database, units, owned, active_lanes,
                                   committer);
     const auto completed = committer.summary();
@@ -144,11 +148,35 @@ int execute_parse_plan(const std::string &root, CompilationCommands &database,
     summary.claimed_owned_files += completed.claimed_owned_files;
     summary.discarded_duplicate_file_observations +=
         completed.discarded_duplicate_file_observations;
+    const auto coverage = committer.valid_real_coverage();
+    valid_real_coverage.insert(coverage.begin(), coverage.end());
     state.merge(committer.take_metadata_state());
     return std::make_pair(status, committer.claimed_files());
   };
 
-  auto [status, primary_claimed] = execute_phase(plan.primary_units, owned_files);
+  std::vector<ParseUnit> real, synthetic;
+  for (const auto &unit : plan.primary_units) {
+    if (!unit.synthesized) {
+      real.push_back({real.size(), unit.translation_unit, false});
+    }
+  }
+  auto [status, primary_claimed] = execute_phase(real, owned_files);
+  for (const auto &unit : plan.primary_units) {
+    if (!unit.synthesized) {
+      continue;
+    }
+    if (valid_real_coverage.contains(
+            {unit.translation_unit, language_for(unit.translation_unit, {})})) {
+      ++summary.skipped_covered_source_units;
+    } else {
+      synthetic.push_back({synthetic.size(), unit.translation_unit, true});
+    }
+  }
+  summary.primary_synthetic_parse_units = synthetic.size();
+  auto synthetic_result = execute_phase(synthetic, owned_files, primary_claimed);
+  status |= synthetic_result.first;
+  primary_claimed = std::move(synthetic_result.second);
+
   std::vector<std::string> orphans;
   for (const auto &path : plan.orphan_candidates) {
     if (!std::binary_search(primary_claimed.begin(), primary_claimed.end(), path)) {
