@@ -1,0 +1,1036 @@
+{
+  "lexicon_revision": "1f8bacdfe64d6483a7ebd1e74ec6b02a5d6d5017",
+  "binary_version": "lexicon version dev",
+  "steps": {
+    "init_full": {
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 10.375,
+      "peak_sampled_rss_bytes": 66064384,
+      "rss_scope": "parent + children",
+      "stdout_tail": "File not found - \\\\?\\C:\\Users\\archa\\AppData\\Local\\Temp\\lexicon-phase0-6izyle_d\\source\\.lexicon\ninitialized Lexicon: \\\\?\\C:\\Users\\archa\\AppData\\Local\\Temp\\lexicon-phase0-6izyle_d\\source\nlibraries: python\nsnapshot: sha256:637a81ec9b03460aa1347df3648944671cb804297a9aa48e15776ff9556e9fa6\n",
+      "stderr_tail": "owned_records=7999 shared_records=4005 record_clones=0 record_references=12004\n[lexicon-perf] stage=python.object_construction_cas elapsed_ms=1282.996 file_objects=1001 shared_objects=1 owned_records=7999 shared_records=4005 record_clones=0 record_references=12004 source_bytes=43749\n[lexicon-perf] stage=scan.dependency_index_build elapsed_ms=1193.891 files=1001 cross_file_edges=0 partitions=320 fact_object_reads=0\n[lexicon-perf] stage=scan.materialize_full elapsed_ms=2528.296 source_files=1001 fact_records=12004 failed=0\n[lexicon-perf] stage=interstack.node_loading elapsed_ms=74.417 languages=1 objects=1002 nodes=5004\n[lexicon-perf] stage=interstack.source_loading elapsed_ms=16.829 files=1001\n[lexicon-perf] stage=interstack.source_index elapsed_ms=14.546 libraries=1 nodes=5004\n[lexicon-perf] stage=interstack.contract_detection elapsed_ms=139.466 files=1001\n[lexicon-perf] stage=interstack.linking elapsed_ms=0.025 nodes=0 edges=0 unresolved=0\n[lexicon-perf] stage=interstack.resolution elapsed_ms=173.170 nodes=0 edges=0 unresolved=0\n[lexicon-perf] stage=interstack.materialization elapsed_ms=0.052 facts=0\n[lexicon-perf] stage=interstack.total elapsed_ms=248.085 objects=1002 nodes=5004\n",
+      "metrics": [
+        {
+          "stage": "scan.source_discovery",
+          "elapsed_ms": 46.111,
+          "discovered_files": 1001
+        },
+        {
+          "stage": "scan.mirror_index_fallback",
+          "elapsed_ms": 0.0,
+          "reason": 1
+        },
+        {
+          "stage": "scan.source_index",
+          "elapsed_ms": 46.084,
+          "candidate_files": 1001,
+          "indexed_skips": 0,
+          "index_unavailable": 1
+        },
+        {
+          "stage": "scan.source_copy",
+          "elapsed_ms": 2105.262,
+          "candidate_files": 1001,
+          "candidate_source_bytes": 43749,
+          "byte_equal_skips": 0,
+          "copied_files": 1001
+        },
+        {
+          "stage": "scan.source_prune",
+          "elapsed_ms": 6.76
+        },
+        {
+          "stage": "scan.source_inventory",
+          "elapsed_ms": 2238.696,
+          "discovered_files": 1001,
+          "source_bytes": 43749,
+          "indexed_skips": 0,
+          "byte_equal_skips": 0,
+          "copied_files": 1001
+        },
+        {
+          "stage": "scan.scope_construction",
+          "elapsed_ms": 0.001,
+          "full": 1,
+          "context_files": 0
+        },
+        {
+          "stage": "python.execution_plan",
+          "elapsed_ms": 0.0,
+          "workers": 8,
+          "logical_shards": 16,
+          "merge_fan_in": 4
+        },
+        {
+          "stage": "python.adapter_discovery",
+          "elapsed_ms": 55.655,
+          "discovered_files": 1001,
+          "source_bytes": 43749,
+          "retained_source_bytes": 0,
+          "retained_files": 0,
+          "retained_ast_files": 0,
+          "file_descriptors": 1001
+        },
+        {
+          "stage": "python.extraction",
+          "elapsed_ms": 159.248,
+          "fact_count": 10006,
+          "extraction_state_cardinality": 12003,
+          "calls_retained": 0,
+          "imports_retained": 999,
+          "functions_retained": 0,
+          "classes_retained": 0,
+          "bindings_retained": 3998,
+          "peak_retained_source_bytes": 704,
+          "peak_retained_files": 8,
+          "peak_retained_ast_files": 8,
+          "extraction_workers": 8,
+          "extraction_shards": 16
+        },
+        {
+          "stage": "python.import_resolution",
+          "elapsed_ms": 42.837,
+          "imports": 999,
+          "scope_bindings": 999,
+          "module_bindings": 999
+        },
+        {
+          "stage": "python.inheritance_resolution",
+          "elapsed_ms": 0.015,
+          "classes": 0
+        },
+        {
+          "stage": "python.override_resolution",
+          "elapsed_ms": 0.016,
+          "functions": 0
+        },
+        {
+          "stage": "python.call_resolution",
+          "elapsed_ms": 11.692,
+          "calls": 0
+        },
+        {
+          "stage": "python.repository_resolution",
+          "elapsed_ms": 60.22,
+          "fact_count": 11005,
+          "extraction_state_cardinality": 12003,
+          "calls_retained": 0,
+          "imports_retained": 999,
+          "functions_retained": 0,
+          "classes_retained": 0,
+          "bindings_retained": 3998,
+          "facts_before_resolution": 10006,
+          "facts_after_resolution": 11005
+        },
+        {
+          "stage": "python.final_fact_emission",
+          "elapsed_ms": 39.754,
+          "final_fact_count": 12004,
+          "record_clones": 0,
+          "released_calls": 0
+        },
+        {
+          "stage": "python.lexicon.canonicalization",
+          "elapsed_ms": 1.94,
+          "fact_count": 12004
+        },
+        {
+          "stage": "python.validation",
+          "elapsed_ms": 50.859,
+          "fact_count": 12004
+        },
+        {
+          "stage": "scan.adapter.python.full",
+          "elapsed_ms": 381.096,
+          "requested_changed_files": 0,
+          "requested_removed_files": 0,
+          "failed": 0
+        },
+        {
+          "stage": "storage.source_copy",
+          "elapsed_ms": 5.737,
+          "source_files": 1001,
+          "source_bytes": 43749,
+          "cloned_source_bytes": 0
+        },
+        {
+          "stage": "python.ownership_partitioning",
+          "elapsed_ms": 37.721,
+          "fact_count": 12004,
+          "ownership_partitions": 1001,
+          "owned_records": 7999,
+          "shared_records": 4005,
+          "record_clones": 0,
+          "record_references": 12004
+        },
+        {
+          "stage": "python.object_construction_cas",
+          "elapsed_ms": 1282.996,
+          "file_objects": 1001,
+          "shared_objects": 1,
+          "owned_records": 7999,
+          "shared_records": 4005,
+          "record_clones": 0,
+          "record_references": 12004,
+          "source_bytes": 43749
+        },
+        {
+          "stage": "scan.dependency_index_build",
+          "elapsed_ms": 1193.891,
+          "files": 1001,
+          "cross_file_edges": 0,
+          "partitions": 320,
+          "fact_object_reads": 0
+        },
+        {
+          "stage": "scan.materialize_full",
+          "elapsed_ms": 2528.296,
+          "source_files": 1001,
+          "fact_records": 12004,
+          "failed": 0
+        },
+        {
+          "stage": "interstack.node_loading",
+          "elapsed_ms": 74.417,
+          "languages": 1,
+          "objects": 1002,
+          "nodes": 5004
+        },
+        {
+          "stage": "interstack.source_loading",
+          "elapsed_ms": 16.829,
+          "files": 1001
+        },
+        {
+          "stage": "interstack.source_index",
+          "elapsed_ms": 14.546,
+          "libraries": 1,
+          "nodes": 5004
+        },
+        {
+          "stage": "interstack.contract_detection",
+          "elapsed_ms": 139.466,
+          "files": 1001
+        },
+        {
+          "stage": "interstack.linking",
+          "elapsed_ms": 0.025,
+          "nodes": 0,
+          "edges": 0,
+          "unresolved": 0
+        },
+        {
+          "stage": "interstack.resolution",
+          "elapsed_ms": 173.17,
+          "nodes": 0,
+          "edges": 0,
+          "unresolved": 0
+        },
+        {
+          "stage": "interstack.materialization",
+          "elapsed_ms": 0.052,
+          "facts": 0
+        },
+        {
+          "stage": "interstack.total",
+          "elapsed_ms": 248.085,
+          "objects": 1002,
+          "nodes": 5004
+        }
+      ],
+      "log": "C:\\!bin\\workspace\\lexicon-arcana-incremental-perf\\lexicon\\evaluation\\performance\\incremental-phase3-git1000-2026-10-01.init_full.log",
+      "snapshot_id": "sha256:637a81ec9b03460aa1347df3648944671cb804297a9aa48e15776ff9556e9fa6"
+    },
+    "unchanged": {
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 1.407,
+      "peak_sampled_rss_bytes": 24174592,
+      "rss_scope": "parent + children",
+      "stdout_tail": "Lexicon is current: sha256:637a81ec9b03460aa1347df3648944671cb804297a9aa48e15776ff9556e9fa6\n",
+      "stderr_tail": "[lexicon-perf] stage=scan.lock_wait elapsed_ms=0.422\n[lexicon-perf] stage=scan.source_discovery elapsed_ms=32.541 discovered_files=1001\n[lexicon-perf] stage=scan.mirror_index_state elapsed_ms=0.000 mirror_clean=1 mirror_dirty=0 mirror_status_failed=0\n[lexicon-perf] stage=scan.source_index_metadata elapsed_ms=0.000 desired_files=1001 matching_blobs=1001 private_dirty=0 source_dirty=0 indexed_skips=1001 source_content_reads=0\n[lexicon-perf] stage=scan.source_index elapsed_ms=525.991 candidate_files=0 indexed_skips=1001 index_unavailable=0\n[lexicon-perf] stage=scan.source_copy elapsed_ms=3.182 candidate_files=0 candidate_source_bytes=0 byte_equal_skips=0 copied_files=0\n[lexicon-perf] stage=scan.source_prune elapsed_ms=3.870\n[lexicon-perf] stage=scan.source_inventory elapsed_ms=592.511 discovered_files=1001 source_bytes=43749 indexed_skips=1001 byte_equal_skips=0 copied_files=0\n[lexicon-perf] stage=scan.source_change_detection elapsed_ms=120.569 changed_files=0\n[lexicon-perf] stage=scan.planning elapsed_ms=45.363 present_languages=1 analysis_plans=0 full_analysis_plans=0\n[lexicon-perf] stage=scan.total elapsed_ms=1306.767 analysis_plans=0 published=0\n",
+      "metrics": [
+        {
+          "stage": "scan.lock_wait",
+          "elapsed_ms": 0.422
+        },
+        {
+          "stage": "scan.source_discovery",
+          "elapsed_ms": 32.541,
+          "discovered_files": 1001
+        },
+        {
+          "stage": "scan.mirror_index_state",
+          "elapsed_ms": 0.0,
+          "mirror_clean": 1,
+          "mirror_dirty": 0,
+          "mirror_status_failed": 0
+        },
+        {
+          "stage": "scan.source_index_metadata",
+          "elapsed_ms": 0.0,
+          "desired_files": 1001,
+          "matching_blobs": 1001,
+          "private_dirty": 0,
+          "source_dirty": 0,
+          "indexed_skips": 1001,
+          "source_content_reads": 0
+        },
+        {
+          "stage": "scan.source_index",
+          "elapsed_ms": 525.991,
+          "candidate_files": 0,
+          "indexed_skips": 1001,
+          "index_unavailable": 0
+        },
+        {
+          "stage": "scan.source_copy",
+          "elapsed_ms": 3.182,
+          "candidate_files": 0,
+          "candidate_source_bytes": 0,
+          "byte_equal_skips": 0,
+          "copied_files": 0
+        },
+        {
+          "stage": "scan.source_prune",
+          "elapsed_ms": 3.87
+        },
+        {
+          "stage": "scan.source_inventory",
+          "elapsed_ms": 592.511,
+          "discovered_files": 1001,
+          "source_bytes": 43749,
+          "indexed_skips": 1001,
+          "byte_equal_skips": 0,
+          "copied_files": 0
+        },
+        {
+          "stage": "scan.source_change_detection",
+          "elapsed_ms": 120.569,
+          "changed_files": 0
+        },
+        {
+          "stage": "scan.planning",
+          "elapsed_ms": 45.363,
+          "present_languages": 1,
+          "analysis_plans": 0,
+          "full_analysis_plans": 0
+        },
+        {
+          "stage": "scan.total",
+          "elapsed_ms": 1306.767,
+          "analysis_plans": 0,
+          "published": 0
+        }
+      ],
+      "log": "C:\\!bin\\workspace\\lexicon-arcana-incremental-perf\\lexicon\\evaluation\\performance\\incremental-phase3-git1000-2026-10-01.unchanged.log",
+      "snapshot_id": "sha256:637a81ec9b03460aa1347df3648944671cb804297a9aa48e15776ff9556e9fa6"
+    },
+    "edit_once": {
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 2.593,
+      "peak_sampled_rss_bytes": 43495424,
+      "rss_scope": "parent + children",
+      "stdout_tail": "updated 1 files: python\nsnapshot: sha256:24e553d837344c76716ba0290991fa94eae72b1e68496efdbe64130020f6819e\n",
+      "stderr_tail": "2 cloned_source_bytes=0\n[lexicon-perf] stage=scan.dependency_index_delta elapsed_ms=32.378 changed_files=1 affected_files=1 loaded_partitions=8 rewritten_partitions=0 fact_object_reads=0\n[lexicon-perf] stage=scan.materialize_incremental elapsed_ms=168.305 changed_files=1 removed_files=0 shared_replacement=1 failed=0\n[lexicon-perf] stage=scan.analysis elapsed_ms=318.734 analysis_plans=1\n[lexicon-perf] stage=interstack.node_loading elapsed_ms=69.808 languages=1 objects=1002 nodes=5004\n[lexicon-perf] stage=interstack.source_loading elapsed_ms=16.707 files=1001\n[lexicon-perf] stage=interstack.source_index elapsed_ms=14.733 libraries=1 nodes=5004\n[lexicon-perf] stage=interstack.contract_detection elapsed_ms=133.440 files=1001\n[lexicon-perf] stage=interstack.linking elapsed_ms=0.016 nodes=0 edges=0 unresolved=0\n[lexicon-perf] stage=interstack.resolution elapsed_ms=168.563 nodes=0 edges=0 unresolved=0\n[lexicon-perf] stage=interstack.materialization elapsed_ms=0.059 facts=0\n[lexicon-perf] stage=interstack.total elapsed_ms=238.914 objects=1002 nodes=5004\n[lexicon-perf] stage=scan.publication elapsed_ms=698.687\n[lexicon-perf] stage=scan.total elapsed_ms=2483.892 analysis_plans=1 published=1\n",
+      "metrics": [
+        {
+          "stage": "scan.lock_wait",
+          "elapsed_ms": 0.436
+        },
+        {
+          "stage": "scan.source_discovery",
+          "elapsed_ms": 33.987,
+          "discovered_files": 1001
+        },
+        {
+          "stage": "scan.mirror_index_state",
+          "elapsed_ms": 0.0,
+          "mirror_clean": 1,
+          "mirror_dirty": 0,
+          "mirror_status_failed": 0
+        },
+        {
+          "stage": "scan.source_index_metadata",
+          "elapsed_ms": 0.0,
+          "desired_files": 1001,
+          "matching_blobs": 1000,
+          "private_dirty": 0,
+          "source_dirty": 1,
+          "indexed_skips": 1000,
+          "source_content_reads": 0
+        },
+        {
+          "stage": "scan.source_index",
+          "elapsed_ms": 521.024,
+          "candidate_files": 1,
+          "indexed_skips": 1000,
+          "index_unavailable": 0
+        },
+        {
+          "stage": "scan.source_copy",
+          "elapsed_ms": 11.948,
+          "candidate_files": 1,
+          "candidate_source_bytes": 22,
+          "byte_equal_skips": 0,
+          "copied_files": 1
+        },
+        {
+          "stage": "scan.source_prune",
+          "elapsed_ms": 6.672
+        },
+        {
+          "stage": "scan.source_inventory",
+          "elapsed_ms": 597.028,
+          "discovered_files": 1001,
+          "source_bytes": 43771,
+          "indexed_skips": 1000,
+          "byte_equal_skips": 0,
+          "copied_files": 1
+        },
+        {
+          "stage": "scan.source_change_detection",
+          "elapsed_ms": 122.648,
+          "changed_files": 1
+        },
+        {
+          "stage": "scan.dependency_index_query",
+          "elapsed_ms": 0.63,
+          "roots": 1,
+          "emit_files": 1,
+          "context_files": 1,
+          "loaded_partitions": 1,
+          "fact_object_reads": 0,
+          "full_required": 0
+        },
+        {
+          "stage": "scan.dependency_scope",
+          "elapsed_ms": 22.739,
+          "roots": 1,
+          "emit_files": 1,
+          "context_files": 1,
+          "full_required": 0
+        },
+        {
+          "stage": "scan.planner_dependency_lookup",
+          "elapsed_ms": 23.227,
+          "roots": 1,
+          "additions": 0,
+          "full_fallback": 0
+        },
+        {
+          "stage": "scan.planning",
+          "elapsed_ms": 55.27,
+          "present_languages": 1,
+          "analysis_plans": 1,
+          "full_analysis_plans": 0
+        },
+        {
+          "stage": "scan.scope_construction",
+          "elapsed_ms": 12.232,
+          "full": 0,
+          "context_files": 1
+        },
+        {
+          "stage": "python.execution_plan",
+          "elapsed_ms": 0.0,
+          "workers": 1,
+          "logical_shards": 1,
+          "merge_fan_in": 2
+        },
+        {
+          "stage": "python.adapter_discovery",
+          "elapsed_ms": 0.567,
+          "discovered_files": 1,
+          "source_bytes": 22,
+          "retained_source_bytes": 0,
+          "retained_files": 0,
+          "retained_ast_files": 0,
+          "file_descriptors": 1
+        },
+        {
+          "stage": "python.extraction",
+          "elapsed_ms": 1.776,
+          "fact_count": 8,
+          "extraction_state_cardinality": 7,
+          "calls_retained": 0,
+          "imports_retained": 0,
+          "functions_retained": 0,
+          "classes_retained": 0,
+          "bindings_retained": 0,
+          "peak_retained_source_bytes": 44,
+          "peak_retained_files": 1,
+          "peak_retained_ast_files": 1,
+          "extraction_workers": 1,
+          "extraction_shards": 1
+        },
+        {
+          "stage": "python.import_resolution",
+          "elapsed_ms": 0.005,
+          "imports": 0,
+          "scope_bindings": 0,
+          "module_bindings": 0
+        },
+        {
+          "stage": "python.inheritance_resolution",
+          "elapsed_ms": 0.004,
+          "classes": 0
+        },
+        {
+          "stage": "python.override_resolution",
+          "elapsed_ms": 0.007,
+          "functions": 0
+        },
+        {
+          "stage": "python.call_resolution",
+          "elapsed_ms": 0.053,
+          "calls": 0
+        },
+        {
+          "stage": "python.repository_resolution",
+          "elapsed_ms": 0.242,
+          "fact_count": 8,
+          "extraction_state_cardinality": 7,
+          "calls_retained": 0,
+          "imports_retained": 0,
+          "functions_retained": 0,
+          "classes_retained": 0,
+          "bindings_retained": 0,
+          "facts_before_resolution": 8,
+          "facts_after_resolution": 8
+        },
+        {
+          "stage": "python.final_fact_emission",
+          "elapsed_ms": 0.185,
+          "final_fact_count": 8,
+          "record_clones": 0,
+          "released_calls": 0
+        },
+        {
+          "stage": "python.lexicon.canonicalization",
+          "elapsed_ms": 0.007,
+          "fact_count": 8
+        },
+        {
+          "stage": "python.validation",
+          "elapsed_ms": 0.093,
+          "fact_count": 8
+        },
+        {
+          "stage": "scan.adapter.python.incremental",
+          "elapsed_ms": 3.551,
+          "requested_changed_files": 1,
+          "requested_removed_files": 0,
+          "failed": 0
+        },
+        {
+          "stage": "python.ownership_partitioning",
+          "elapsed_ms": 0.029,
+          "fact_count": 8,
+          "ownership_partitions": 1,
+          "owned_records": 2,
+          "shared_records": 6,
+          "record_clones": 0,
+          "record_references": 8
+        },
+        {
+          "stage": "python.ownership_partitioning",
+          "elapsed_ms": 0.038,
+          "fact_count": 8,
+          "ownership_partitions": 1,
+          "owned_records": 2,
+          "shared_records": 6,
+          "record_clones": 0,
+          "record_references": 8
+        },
+        {
+          "stage": "storage.source_copy",
+          "elapsed_ms": 0.022,
+          "source_files": 1,
+          "source_bytes": 22,
+          "cloned_source_bytes": 0
+        },
+        {
+          "stage": "scan.dependency_index_delta",
+          "elapsed_ms": 32.378,
+          "changed_files": 1,
+          "affected_files": 1,
+          "loaded_partitions": 8,
+          "rewritten_partitions": 0,
+          "fact_object_reads": 0
+        },
+        {
+          "stage": "scan.materialize_incremental",
+          "elapsed_ms": 168.305,
+          "changed_files": 1,
+          "removed_files": 0,
+          "shared_replacement": 1,
+          "failed": 0
+        },
+        {
+          "stage": "scan.analysis",
+          "elapsed_ms": 318.734,
+          "analysis_plans": 1
+        },
+        {
+          "stage": "interstack.node_loading",
+          "elapsed_ms": 69.808,
+          "languages": 1,
+          "objects": 1002,
+          "nodes": 5004
+        },
+        {
+          "stage": "interstack.source_loading",
+          "elapsed_ms": 16.707,
+          "files": 1001
+        },
+        {
+          "stage": "interstack.source_index",
+          "elapsed_ms": 14.733,
+          "libraries": 1,
+          "nodes": 5004
+        },
+        {
+          "stage": "interstack.contract_detection",
+          "elapsed_ms": 133.44,
+          "files": 1001
+        },
+        {
+          "stage": "interstack.linking",
+          "elapsed_ms": 0.016,
+          "nodes": 0,
+          "edges": 0,
+          "unresolved": 0
+        },
+        {
+          "stage": "interstack.resolution",
+          "elapsed_ms": 168.563,
+          "nodes": 0,
+          "edges": 0,
+          "unresolved": 0
+        },
+        {
+          "stage": "interstack.materialization",
+          "elapsed_ms": 0.059,
+          "facts": 0
+        },
+        {
+          "stage": "interstack.total",
+          "elapsed_ms": 238.914,
+          "objects": 1002,
+          "nodes": 5004
+        },
+        {
+          "stage": "scan.publication",
+          "elapsed_ms": 698.687
+        },
+        {
+          "stage": "scan.total",
+          "elapsed_ms": 2483.892,
+          "analysis_plans": 1,
+          "published": 1
+        }
+      ],
+      "log": "C:\\!bin\\workspace\\lexicon-arcana-incremental-perf\\lexicon\\evaluation\\performance\\incremental-phase3-git1000-2026-10-01.edit_once.log",
+      "snapshot_id": "sha256:24e553d837344c76716ba0290991fa94eae72b1e68496efdbe64130020f6819e"
+    },
+    "edit_twice": {
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 2.704,
+      "peak_sampled_rss_bytes": 43614208,
+      "rss_scope": "parent + children",
+      "stdout_tail": "updated 1 files: python\nsnapshot: sha256:9239ec74d4656f71f9ee8a132d76d6e9348f8476e96c55404b0f57ca95590492\n",
+      "stderr_tail": "5 cloned_source_bytes=0\n[lexicon-perf] stage=scan.dependency_index_delta elapsed_ms=37.075 changed_files=1 affected_files=1 loaded_partitions=8 rewritten_partitions=0 fact_object_reads=0\n[lexicon-perf] stage=scan.materialize_incremental elapsed_ms=187.735 changed_files=1 removed_files=0 shared_replacement=1 failed=0\n[lexicon-perf] stage=scan.analysis elapsed_ms=323.965 analysis_plans=1\n[lexicon-perf] stage=interstack.node_loading elapsed_ms=74.227 languages=1 objects=1002 nodes=5004\n[lexicon-perf] stage=interstack.source_loading elapsed_ms=21.854 files=1001\n[lexicon-perf] stage=interstack.source_index elapsed_ms=15.258 libraries=1 nodes=5004\n[lexicon-perf] stage=interstack.contract_detection elapsed_ms=135.904 files=1001\n[lexicon-perf] stage=interstack.linking elapsed_ms=0.017 nodes=0 edges=0 unresolved=0\n[lexicon-perf] stage=interstack.resolution elapsed_ms=175.500 nodes=0 edges=0 unresolved=0\n[lexicon-perf] stage=interstack.materialization elapsed_ms=0.054 facts=0\n[lexicon-perf] stage=interstack.total elapsed_ms=250.230 objects=1002 nodes=5004\n[lexicon-perf] stage=scan.publication elapsed_ms=763.779\n[lexicon-perf] stage=scan.total elapsed_ms=2638.205 analysis_plans=1 published=1\n",
+      "metrics": [
+        {
+          "stage": "scan.lock_wait",
+          "elapsed_ms": 0.451
+        },
+        {
+          "stage": "scan.source_discovery",
+          "elapsed_ms": 37.506,
+          "discovered_files": 1001
+        },
+        {
+          "stage": "scan.mirror_index_state",
+          "elapsed_ms": 0.0,
+          "mirror_clean": 1,
+          "mirror_dirty": 0,
+          "mirror_status_failed": 0
+        },
+        {
+          "stage": "scan.source_index_metadata",
+          "elapsed_ms": 0.0,
+          "desired_files": 1001,
+          "matching_blobs": 1000,
+          "private_dirty": 0,
+          "source_dirty": 1,
+          "indexed_skips": 1000,
+          "source_content_reads": 0
+        },
+        {
+          "stage": "scan.source_index",
+          "elapsed_ms": 540.349,
+          "candidate_files": 1,
+          "indexed_skips": 1000,
+          "index_unavailable": 0
+        },
+        {
+          "stage": "scan.source_copy",
+          "elapsed_ms": 11.583,
+          "candidate_files": 1,
+          "candidate_source_bytes": 45,
+          "byte_equal_skips": 0,
+          "copied_files": 1
+        },
+        {
+          "stage": "scan.source_prune",
+          "elapsed_ms": 4.465
+        },
+        {
+          "stage": "scan.source_inventory",
+          "elapsed_ms": 621.458,
+          "discovered_files": 1001,
+          "source_bytes": 43794,
+          "indexed_skips": 1000,
+          "byte_equal_skips": 0,
+          "copied_files": 1
+        },
+        {
+          "stage": "scan.source_change_detection",
+          "elapsed_ms": 131.869,
+          "changed_files": 1
+        },
+        {
+          "stage": "scan.dependency_index_query",
+          "elapsed_ms": 0.894,
+          "roots": 1,
+          "emit_files": 1,
+          "context_files": 1,
+          "loaded_partitions": 1,
+          "fact_object_reads": 0,
+          "full_required": 0
+        },
+        {
+          "stage": "scan.dependency_scope",
+          "elapsed_ms": 28.395,
+          "roots": 1,
+          "emit_files": 1,
+          "context_files": 1,
+          "full_required": 0
+        },
+        {
+          "stage": "scan.planner_dependency_lookup",
+          "elapsed_ms": 29.077,
+          "roots": 1,
+          "additions": 0,
+          "full_fallback": 0
+        },
+        {
+          "stage": "scan.planning",
+          "elapsed_ms": 73.22,
+          "present_languages": 1,
+          "analysis_plans": 1,
+          "full_analysis_plans": 0
+        },
+        {
+          "stage": "scan.scope_construction",
+          "elapsed_ms": 12.142,
+          "full": 0,
+          "context_files": 1
+        },
+        {
+          "stage": "python.execution_plan",
+          "elapsed_ms": 0.0,
+          "workers": 1,
+          "logical_shards": 1,
+          "merge_fan_in": 2
+        },
+        {
+          "stage": "python.adapter_discovery",
+          "elapsed_ms": 0.537,
+          "discovered_files": 1,
+          "source_bytes": 45,
+          "retained_source_bytes": 0,
+          "retained_files": 0,
+          "retained_ast_files": 0,
+          "file_descriptors": 1
+        },
+        {
+          "stage": "python.extraction",
+          "elapsed_ms": 1.589,
+          "fact_count": 8,
+          "extraction_state_cardinality": 7,
+          "calls_retained": 0,
+          "imports_retained": 0,
+          "functions_retained": 0,
+          "classes_retained": 0,
+          "bindings_retained": 0,
+          "peak_retained_source_bytes": 90,
+          "peak_retained_files": 1,
+          "peak_retained_ast_files": 1,
+          "extraction_workers": 1,
+          "extraction_shards": 1
+        },
+        {
+          "stage": "python.import_resolution",
+          "elapsed_ms": 0.006,
+          "imports": 0,
+          "scope_bindings": 0,
+          "module_bindings": 0
+        },
+        {
+          "stage": "python.inheritance_resolution",
+          "elapsed_ms": 0.005,
+          "classes": 0
+        },
+        {
+          "stage": "python.override_resolution",
+          "elapsed_ms": 0.01,
+          "functions": 0
+        },
+        {
+          "stage": "python.call_resolution",
+          "elapsed_ms": 0.095,
+          "calls": 0
+        },
+        {
+          "stage": "python.repository_resolution",
+          "elapsed_ms": 0.333,
+          "fact_count": 8,
+          "extraction_state_cardinality": 7,
+          "calls_retained": 0,
+          "imports_retained": 0,
+          "functions_retained": 0,
+          "classes_retained": 0,
+          "bindings_retained": 0,
+          "facts_before_resolution": 8,
+          "facts_after_resolution": 8
+        },
+        {
+          "stage": "python.final_fact_emission",
+          "elapsed_ms": 0.33,
+          "final_fact_count": 8,
+          "record_clones": 0,
+          "released_calls": 0
+        },
+        {
+          "stage": "python.lexicon.canonicalization",
+          "elapsed_ms": 0.009,
+          "fact_count": 8
+        },
+        {
+          "stage": "python.validation",
+          "elapsed_ms": 0.118,
+          "fact_count": 8
+        },
+        {
+          "stage": "scan.adapter.python.incremental",
+          "elapsed_ms": 3.732,
+          "requested_changed_files": 1,
+          "requested_removed_files": 0,
+          "failed": 0
+        },
+        {
+          "stage": "python.ownership_partitioning",
+          "elapsed_ms": 0.029,
+          "fact_count": 8,
+          "ownership_partitions": 1,
+          "owned_records": 2,
+          "shared_records": 6,
+          "record_clones": 0,
+          "record_references": 8
+        },
+        {
+          "stage": "python.ownership_partitioning",
+          "elapsed_ms": 0.026,
+          "fact_count": 8,
+          "ownership_partitions": 1,
+          "owned_records": 2,
+          "shared_records": 6,
+          "record_clones": 0,
+          "record_references": 8
+        },
+        {
+          "stage": "storage.source_copy",
+          "elapsed_ms": 0.021,
+          "source_files": 1,
+          "source_bytes": 45,
+          "cloned_source_bytes": 0
+        },
+        {
+          "stage": "scan.dependency_index_delta",
+          "elapsed_ms": 37.075,
+          "changed_files": 1,
+          "affected_files": 1,
+          "loaded_partitions": 8,
+          "rewritten_partitions": 0,
+          "fact_object_reads": 0
+        },
+        {
+          "stage": "scan.materialize_incremental",
+          "elapsed_ms": 187.735,
+          "changed_files": 1,
+          "removed_files": 0,
+          "shared_replacement": 1,
+          "failed": 0
+        },
+        {
+          "stage": "scan.analysis",
+          "elapsed_ms": 323.965,
+          "analysis_plans": 1
+        },
+        {
+          "stage": "interstack.node_loading",
+          "elapsed_ms": 74.227,
+          "languages": 1,
+          "objects": 1002,
+          "nodes": 5004
+        },
+        {
+          "stage": "interstack.source_loading",
+          "elapsed_ms": 21.854,
+          "files": 1001
+        },
+        {
+          "stage": "interstack.source_index",
+          "elapsed_ms": 15.258,
+          "libraries": 1,
+          "nodes": 5004
+        },
+        {
+          "stage": "interstack.contract_detection",
+          "elapsed_ms": 135.904,
+          "files": 1001
+        },
+        {
+          "stage": "interstack.linking",
+          "elapsed_ms": 0.017,
+          "nodes": 0,
+          "edges": 0,
+          "unresolved": 0
+        },
+        {
+          "stage": "interstack.resolution",
+          "elapsed_ms": 175.5,
+          "nodes": 0,
+          "edges": 0,
+          "unresolved": 0
+        },
+        {
+          "stage": "interstack.materialization",
+          "elapsed_ms": 0.054,
+          "facts": 0
+        },
+        {
+          "stage": "interstack.total",
+          "elapsed_ms": 250.23,
+          "objects": 1002,
+          "nodes": 5004
+        },
+        {
+          "stage": "scan.publication",
+          "elapsed_ms": 763.779
+        },
+        {
+          "stage": "scan.total",
+          "elapsed_ms": 2638.205,
+          "analysis_plans": 1,
+          "published": 1
+        }
+      ],
+      "log": "C:\\!bin\\workspace\\lexicon-arcana-incremental-perf\\lexicon\\evaluation\\performance\\incremental-phase3-git1000-2026-10-01.edit_twice.log",
+      "snapshot_id": "sha256:9239ec74d4656f71f9ee8a132d76d6e9348f8476e96c55404b0f57ca95590492"
+    },
+    "dirty_mirror": {
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 1.656,
+      "peak_sampled_rss_bytes": 25280512,
+      "rss_scope": "parent + children",
+      "stdout_tail": "Lexicon is current: sha256:9239ec74d4656f71f9ee8a132d76d6e9348f8476e96c55404b0f57ca95590492\n",
+      "stderr_tail": "[lexicon-perf] stage=scan.lock_wait elapsed_ms=0.394\n[lexicon-perf] stage=scan.source_discovery elapsed_ms=43.017 discovered_files=1001\n[lexicon-perf] stage=scan.mirror_index_state elapsed_ms=0.000 mirror_clean=0 mirror_dirty=1 mirror_status_failed=0\n[lexicon-perf] stage=scan.source_index_metadata elapsed_ms=0.000 desired_files=1001 matching_blobs=1000 private_dirty=1 source_dirty=1 indexed_skips=1000 source_content_reads=0\n[lexicon-perf] stage=scan.source_index elapsed_ms=583.002 candidate_files=1 indexed_skips=1000 index_unavailable=0\n[lexicon-perf] stage=scan.source_copy elapsed_ms=12.652 candidate_files=1 candidate_source_bytes=45 byte_equal_skips=0 copied_files=1\n[lexicon-perf] stage=scan.source_prune elapsed_ms=5.741\n[lexicon-perf] stage=scan.source_inventory elapsed_ms=683.788 discovered_files=1001 source_bytes=43794 indexed_skips=1000 byte_equal_skips=0 copied_files=1\n[lexicon-perf] stage=scan.source_change_detection elapsed_ms=151.060 changed_files=0\n[lexicon-perf] stage=scan.planning elapsed_ms=47.867 present_languages=1 analysis_plans=0 full_analysis_plans=0\n[lexicon-perf] stage=scan.total elapsed_ms=1499.779 analysis_plans=0 published=0\n",
+      "metrics": [
+        {
+          "stage": "scan.lock_wait",
+          "elapsed_ms": 0.394
+        },
+        {
+          "stage": "scan.source_discovery",
+          "elapsed_ms": 43.017,
+          "discovered_files": 1001
+        },
+        {
+          "stage": "scan.mirror_index_state",
+          "elapsed_ms": 0.0,
+          "mirror_clean": 0,
+          "mirror_dirty": 1,
+          "mirror_status_failed": 0
+        },
+        {
+          "stage": "scan.source_index_metadata",
+          "elapsed_ms": 0.0,
+          "desired_files": 1001,
+          "matching_blobs": 1000,
+          "private_dirty": 1,
+          "source_dirty": 1,
+          "indexed_skips": 1000,
+          "source_content_reads": 0
+        },
+        {
+          "stage": "scan.source_index",
+          "elapsed_ms": 583.002,
+          "candidate_files": 1,
+          "indexed_skips": 1000,
+          "index_unavailable": 0
+        },
+        {
+          "stage": "scan.source_copy",
+          "elapsed_ms": 12.652,
+          "candidate_files": 1,
+          "candidate_source_bytes": 45,
+          "byte_equal_skips": 0,
+          "copied_files": 1
+        },
+        {
+          "stage": "scan.source_prune",
+          "elapsed_ms": 5.741
+        },
+        {
+          "stage": "scan.source_inventory",
+          "elapsed_ms": 683.788,
+          "discovered_files": 1001,
+          "source_bytes": 43794,
+          "indexed_skips": 1000,
+          "byte_equal_skips": 0,
+          "copied_files": 1
+        },
+        {
+          "stage": "scan.source_change_detection",
+          "elapsed_ms": 151.06,
+          "changed_files": 0
+        },
+        {
+          "stage": "scan.planning",
+          "elapsed_ms": 47.867,
+          "present_languages": 1,
+          "analysis_plans": 0,
+          "full_analysis_plans": 0
+        },
+        {
+          "stage": "scan.total",
+          "elapsed_ms": 1499.779,
+          "analysis_plans": 0,
+          "published": 0
+        }
+      ],
+      "log": "C:\\!bin\\workspace\\lexicon-arcana-incremental-perf\\lexicon\\evaluation\\performance\\incremental-phase3-git1000-2026-10-01.dirty_mirror.log",
+      "snapshot_id": "sha256:9239ec74d4656f71f9ee8a132d76d6e9348f8476e96c55404b0f57ca95590492"
+    }
+  },
+  "source_revision": "synthetic-python-1000-files",
+  "disposable_source_git_head": "37b4e19c9590d6ca92c5996ee4ab66e5902e1394"
+}

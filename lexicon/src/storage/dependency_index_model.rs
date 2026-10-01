@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 use super::digest::domain_id;
 use super::{LanguageEntry, StorageError};
 
-pub(super) const VERSION: u64 = 1;
+pub(super) const VERSION: u64 = 2;
+pub(super) const BOOTSTRAP_VERSION: u64 = 1;
 pub(super) const DOMAIN: &[u8] = b"lexicon:dependency-index:v1\0";
 pub(super) const SHARDS: u8 = 64;
 
@@ -17,9 +18,11 @@ pub(super) struct IndexRoot {
     pub nodes: BTreeMap<u8, String>,
     pub references: BTreeMap<u8, String>,
     pub unresolved: BTreeMap<u8, String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub shared_paths: BTreeMap<u8, String>,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(super) struct FileTopology {
     pub forward: BTreeSet<String>,
     pub reverse: BTreeSet<String>,

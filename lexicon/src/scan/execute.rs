@@ -185,7 +185,13 @@ fn execute_incremental(
             &[("final_fact_count", analysis.records.len() as u64)],
         );
     }
-    result.map_err(ScanExecutionError::from)
+    match result {
+        Err(crate::StorageError::UnsafeIndexDelta(_)) => {
+            let full = retry_full(host, request, source_root, None)?;
+            apply_full(store, host, source_root, &plan.language, &full)
+        }
+        other => other.map_err(ScanExecutionError::from),
+    }
 }
 
 fn apply_full(

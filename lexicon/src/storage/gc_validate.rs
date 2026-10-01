@@ -38,6 +38,9 @@ pub(super) fn canonical_plan(mut plan: GcPlan) -> Result<GcPlan, StorageError> {
     validate_ids("snapshot", &plan.delete_snapshots)?;
     validate_ids("object", &plan.preserved_objects)?;
     validate_ids("object", &plan.delete_objects)?;
+    validate_ids("topology", &plan.preserved_topology_objects)?;
+    validate_ids("topology", &plan.delete_topology_objects)?;
+    validate_ids("snapshot", &plan.delete_bootstrap_snapshots)?;
 
     let preserved_snapshots = plan
         .preserved_snapshots
@@ -57,6 +60,20 @@ pub(super) fn canonical_plan(mut plan: GcPlan) -> Result<GcPlan, StorageError> {
         &plan.delete_objects,
     )?;
 
+    reject_overlap(
+        "topology",
+        &plan.preserved_topology_objects.iter().cloned().collect(),
+        &plan.delete_topology_objects,
+    )?;
+    let snap_set = plan
+        .preserved_snapshots
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    reject_overlap("bootstrap", &snap_set, &plan.delete_bootstrap_snapshots)?;
+    plan.preserved_topology_objects.sort();
+    plan.delete_topology_objects.sort();
+    plan.delete_bootstrap_snapshots.sort();
     plan.preserved_snapshots.sort();
     plan.delete_snapshots.sort();
     plan.preserved_objects.sort();

@@ -4,7 +4,7 @@ use crate::FactRecord;
 
 use super::analysis::RecordGroups;
 use super::dependency_index_model::{FileTopology, IndexRoot, VERSION, language_signature, shard};
-use super::dependency_support::normalize_owner;
+use super::dependency_index_parts::{file_records, shared_nodes};
 use super::{LanguageEntry, StorageError, Store};
 
 impl Store {
@@ -13,7 +13,7 @@ impl Store {
         entry: &LanguageEntry,
         groups: &RecordGroups<'_>,
     ) -> Result<String, StorageError> {
-        self.index_from_records(entry, &groups.owned, &groups.shared, None)
+        self.index_from_records(entry, &groups.owned, &shared_nodes(&groups.shared), None)
     }
 
     pub(super) fn index_legacy_language(
@@ -21,96 +21,74 @@ impl Store {
         entry: &LanguageEntry,
         objects: &BTreeMap<String, Vec<FactRecord>>,
         owners: &BTreeMap<String, String>,
+        shared: &BTreeMap<String, String>,
     ) -> Result<String, StorageError> {
-        let references = objects
+        let records = objects
             .iter()
-            .map(|(path, records)| (path.clone(), records.iter().collect()))
+            .map(|(path, data)| (path.clone(), data.iter().collect()))
             .collect::<BTreeMap<_, Vec<&FactRecord>>>();
-        self.index_from_records(entry, &references, &[], Some(owners))
+        let mut paths = BTreeMap::<String, BTreeSet<String>>::new();
+        for (id, path) in shared {
+            paths.entry(path.clone()).or_default().insert(id.clone());
+        }
+        self.index_from_records(entry, &records, &paths, Some(owners))
     }
 
     fn index_from_records(
         &self,
         entry: &LanguageEntry,
         groups: &BTreeMap<String, Vec<&FactRecord>>,
-        shared: &[&FactRecord],
+        shared: &BTreeMap<String, BTreeSet<String>>,
         legacy_owners: Option<&BTreeMap<String, String>>,
     ) -> Result<String, StorageError> {
         let started = crate::perf::start();
-        let files = entry.files.as_deref().unwrap_or_default();
-        let known = files
+        let known = entry
+            .files
+            .as_deref()
+            .unwrap_or_default()
             .iter()
             .map(|file| file.path.clone())
             .collect::<BTreeSet<_>>();
+        let mut topology = BTreeMap::<String, FileTopology>::new();
         let mut ownership = BTreeMap::new();
-        let mut topology = known
-            .iter()
-            .map(|file| (file.clone(), FileTopology::default()))
-            .collect::<BTreeMap<_, _>>();
-
-        for file in files {
-            if let Some(records) = groups.get(&file.path) {
-                for record in records {
-                    if let FactRecord::Node(node) = record {
-                        ownership.insert(node.id.clone(), file.path.clone());
-                    }
-                }
+        for path in &known {
+            let data = groups
+                .get(path)
+                .map_or_else(FileTopology::default, |records| file_records(records));
+            for id in &data.nodes {
+                ownership.insert(id.clone(), path.clone());
             }
+            topology.insert(path.clone(), data);
         }
-        for record in shared {
-            if let FactRecord::Node(node) = record {
-                let path = normalize_owner(&node.path);
-                if known.contains(&path) {
-                    ownership.insert(node.id.clone(), path);
+        for (path, ids) in shared {
+            if known.contains(path) {
+                for id in ids {
+                    ownership.insert(id.clone(), path.clone());
                 }
             }
         }
         if let Some(legacy_owners) = legacy_owners {
             ownership = legacy_owners.clone();
         }
-
         let mut references = BTreeMap::<String, BTreeSet<String>>::new();
         let mut unresolved = BTreeMap::<String, BTreeSet<String>>::new();
         for (path, data) in &mut topology {
-            let Some(records) = groups.get(path) else {
-                continue;
-            };
-            for record in records {
-                match record {
-                    FactRecord::Node(node) => {
-                        data.nodes.insert(node.id.clone());
-                    }
-                    FactRecord::Edge(edge) => {
-                        data.referenced_nodes.insert(edge.target.clone());
-                        references
-                            .entry(edge.target.clone())
-                            .or_default()
-                            .insert(path.clone());
-                        if let Some(target) = ownership.get(&edge.target)
-                            && target != path
-                        {
-                            data.forward.insert(target.clone());
-                        }
-                    }
-                    FactRecord::Unresolved(value)
-                        if matches!(
-                            value.reason.as_str(),
-                            "missing-target"
-                                | "ambiguous-target"
-                                | "generated-target"
-                                | "external-target"
-                        ) && let Some(candidate) = value.candidate_name.as_deref()
-                            && !candidate.trim().is_empty() =>
-                    {
-                        let candidate = candidate.trim().to_owned();
-                        data.unresolved_candidates.insert(candidate.clone());
-                        unresolved
-                            .entry(candidate)
-                            .or_default()
-                            .insert(path.clone());
-                    }
-                    _ => {}
+            for target in &data.referenced_nodes {
+                references
+                    .entry(target.clone())
+                    .or_default()
+                    .insert(path.clone());
+                if let Some(owner) = ownership.get(target)
+                    && owner != path
+                {
+                    data.forward.insert(owner.clone());
                 }
+            }
+            for candidate in &data.unresolved_candidates {
+                unresolved
+                    .entry(candidate.clone())
+                    .or_default()
+                    .insert(path.clone());
             }
         }
         let edges = topology
@@ -134,6 +112,7 @@ impl Store {
             nodes: write_shards(self, ownership)?,
             references: write_shards(self, references)?,
             unresolved: write_shards(self, unresolved)?,
+            shared_paths: write_shards(self, shared.clone())?,
         };
         let index_id = self.write_index_object(&root)?;
         if let Some(started) = started {
@@ -148,7 +127,8 @@ impl Store {
                         (root.files.len()
                             + root.nodes.len()
                             + root.references.len()
-                            + root.unresolved.len()) as u64,
+                            + root.unresolved.len()
+                            + root.shared_paths.len()) as u64,
                     ),
                     ("fact_object_reads", 0),
                 ],
@@ -158,7 +138,7 @@ impl Store {
     }
 }
 
-fn write_shards<T: serde::Serialize>(
+pub(super) fn write_shards<T: serde::Serialize>(
     store: &Store,
     values: BTreeMap<String, T>,
 ) -> Result<BTreeMap<u8, String>, StorageError> {
@@ -171,10 +151,6 @@ fn write_shards<T: serde::Serialize>(
     }
     partitions
         .into_iter()
-        .map(|(partition, contents)| {
-            store
-                .write_index_object(&contents)
-                .map(|id| (partition, id))
-        })
+        .map(|(part, data)| store.write_index_object(&data).map(|id| (part, id)))
         .collect()
 }

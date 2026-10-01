@@ -63,6 +63,8 @@ New Rust manifests may also include optional `dependency_index_id: "sha256:..."`
 
 The index uses a distinct `lexicon:dependency-index:v1\\0` hash domain and is stored under `topology/objects/` rather than `objects/`. A root references 64-way partition maps for adjacency/evidence, node ownership, target references and unresolved-candidate lookups. The root's signature covers the language entry's metadata and file/shared fact-object identities, excluding the optional index ID itself. A legacy lookup may create an atomic derived bootstrap pointer under `topology/bootstrap/` bound to that precise snapshot ID. This cache never rewrites the original snapshot or changes its consumer-visible facts.
 
+Index root schema version 2 adds immutable shared-node path partitions, preserving owners even when a shared node's path becomes newly known after an addition. Version 1 roots and version 1 legacy-bootstrap pointers remain readable, and a version 1 root with shared facts incurs at most one shared-object read when upgraded by a new incremental generation. The index hash domain remains `lexicon:dependency-index:v1` with a trailing NUL, regardless of root schema version. On safe incremental publication, Lexicon rewrites only affected index shards; on unprovable ownership collisions or actual complete shared-object changes it retries complete-language analysis. Retained and pinned snapshots keep their referenced index roots and shards during GC. Uncommitted PENDING candidates block garbage collection until publication or discard.
+
 The snapshot ID is SHA-256 over:
 
 ```text

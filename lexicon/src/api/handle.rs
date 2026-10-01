@@ -140,7 +140,6 @@ impl Lexicon {
         options: GcOptions,
         dry_run: bool,
     ) -> Result<GcResult, LexiconError> {
-        let _guard = self.engine.store().lock()?;
         self.engine
             .store()
             .garbage_collect(options, dry_run)

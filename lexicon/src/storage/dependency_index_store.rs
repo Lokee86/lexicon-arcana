@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use serde::{Serialize, de::DeserializeOwned};
 
 use super::dependency_index_model::{
-    DOMAIN, IndexRoot, LegacyBootstrap, VERSION, language_signature,
+    BOOTSTRAP_VERSION, DOMAIN, IndexRoot, LegacyBootstrap, VERSION, language_signature,
 };
 use super::digest::domain_id;
 use super::io::{write_atomic, write_immutable};
@@ -40,7 +40,9 @@ impl Store {
         entry: &LanguageEntry,
     ) -> Result<IndexRoot, StorageError> {
         let root: IndexRoot = self.load_index_object(id)?;
-        if root.version != VERSION || root.language_signature != language_signature(entry)? {
+        if !(1..=VERSION).contains(&root.version)
+            || root.language_signature != language_signature(entry)?
+        {
             return Err(StorageError::Verification(id.to_owned()));
         }
         for partition in root
@@ -49,6 +51,7 @@ impl Store {
             .chain(root.nodes.values())
             .chain(root.references.values())
             .chain(root.unresolved.values())
+            .chain(root.shared_paths.values())
         {
             validate_storage_id(partition)?;
         }
@@ -91,7 +94,7 @@ impl Store {
             Err(error) => return Err(error.into()),
         };
         let bootstrap: LegacyBootstrap = serde_json::from_slice(&bytes)?;
-        if bootstrap.version != VERSION
+        if bootstrap.version != BOOTSTRAP_VERSION
             || bootstrap.snapshot_id != snapshot_id
             || bootstrap.language_signature != language_signature(entry)?
         {
@@ -109,7 +112,7 @@ impl Store {
     ) -> Result<(), StorageError> {
         self.validated_index(index_id, entry)?;
         let bootstrap = LegacyBootstrap {
-            version: VERSION,
+            version: BOOTSTRAP_VERSION,
             snapshot_id: snapshot_id.to_owned(),
             language_signature: language_signature(entry)?,
             index_id: index_id.to_owned(),

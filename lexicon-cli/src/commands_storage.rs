@@ -53,7 +53,6 @@ pub fn gc(arguments: &[String], stdout: &mut dyn Write) -> Result<(), String> {
 
     let root = resolve_repository(repository.as_deref())?;
     let store = Store::new(state_root(&root));
-    let _guard = store.lock().map_err(|error| error.to_string())?;
     let result = store
         .garbage_collect(
             GcOptions {
@@ -71,7 +70,7 @@ pub fn gc(arguments: &[String], stdout: &mut dyn Write) -> Result<(), String> {
         stdout,
         "{mode} {} snapshots and {} objects",
         result.deleted_snapshots.len(),
-        result.deleted_objects.len()
+        result.deleted_objects.len() + result.deleted_topology_objects.len()
     )
     .map_err(|error| error.to_string())
 }

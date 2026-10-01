@@ -8,6 +8,7 @@ use super::{IncrementalScope, LanguageEntry, StorageError, Store};
 struct DependencyData {
     objects: BTreeMap<String, Vec<FactRecord>>,
     node_owners: BTreeMap<String, String>,
+    shared_nodes: BTreeMap<String, String>,
     loaded_objects: u64,
 }
 
@@ -41,8 +42,12 @@ impl Store {
             // Legacy and Phase-2 incremental manifests have no embedded index.
             // Persist once for THIS immutable snapshot, never per query.
             let legacy = self.dependency_data(entry)?;
-            let index_id =
-                self.index_legacy_language(entry, &legacy.objects, &legacy.node_owners)?;
+            let index_id = self.index_legacy_language(
+                entry,
+                &legacy.objects,
+                &legacy.node_owners,
+                &legacy.shared_nodes,
+            )?;
             self.publish_bootstrap(&snapshot_id, entry, &index_id)?;
             if let Some(started) = started {
                 crate::perf::emit(
@@ -106,6 +111,7 @@ impl Store {
         let mut objects = BTreeMap::new();
         let mut node_owners = BTreeMap::new();
         let mut unresolved_candidates = BTreeSet::new();
+        let mut shared_nodes = BTreeMap::new();
         let known_paths: BTreeSet<String> = entry
             .files
             .as_deref()
@@ -149,6 +155,7 @@ impl Store {
             for record in &shared.records {
                 if let FactRecord::Node(node) = record {
                     let path = normalize_owner(&node.path);
+                    shared_nodes.insert(node.id.clone(), path.clone());
                     if known_paths.contains(&path) {
                         node_owners.insert(node.id.clone(), path);
                     }
@@ -172,6 +179,7 @@ impl Store {
         Ok(DependencyData {
             objects,
             node_owners,
+            shared_nodes,
             loaded_objects,
         })
     }

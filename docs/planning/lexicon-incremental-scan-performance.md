@@ -1,7 +1,7 @@
 # Lexicon Incremental Scan Performance — Hard-Cut Repair
 
 Parent index: [Planning](INDEX.md)
-Status: Phases 0–2 implemented and verified on controlled fixtures. Phase 2 introduced immutable partitioned dependency indexing and one-time exact-snapshot legacy bootstrap; first indexed one-file scope reads zero unrelated fact objects. Phase 3 must maintain the index after each incremental publication, Phase 4 closes the old production whole-object planning path, and Phase 5 owns pinned-Hermes full before/after acceptance. Evidence: [Phase 0](../development/lexicon-incremental-phase0-2026-10-01.md), [Phase 1](../development/lexicon-incremental-phase1-2026-10-01.md), [Phase 2](../development/lexicon-incremental-phase2-2026-10-01.md).
+Status: Phases 0–3 implemented and verified on disposable Git-backed fixtures. Phase 3 maintains copy-on-write dependency topology and snapshot-bound ownership evidence after each incremental publication, including exact-shard retention and pending recovery. Two consecutive one-file edits now perform zero dependency fact-object reads and trigger no legacy bootstrap. Phase 4 cleans out the old production whole-object bootstrap/scanner boundary without losing compatibility; Phase 5 owns pinned-Hermes full before/after acceptance. Evidence: [Phase 0](../development/lexicon-incremental-phase0-2026-10-01.md), [Phase 1](../development/lexicon-incremental-phase1-2026-10-01.md), [Phase 2](../development/lexicon-incremental-phase2-2026-10-01.md), [Phase 3](../development/lexicon-incremental-phase3-2026-10-01.md).
 Owner: Lexicon repository mirror, Rust planner and storage. Arcana ingestion is unchanged.
 
 ## Purpose

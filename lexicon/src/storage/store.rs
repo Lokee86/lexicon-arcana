@@ -73,6 +73,7 @@ impl Store {
                 .chain(root.nodes.values())
                 .chain(root.references.values())
                 .chain(root.unresolved.values())
+                .chain(root.shared_paths.values())
             {
                 let _: serde_json::Value = self.load_index_object(id)?;
             }

@@ -16,6 +16,9 @@ pub struct GcPlan {
     pub delete_snapshots: Vec<String>,
     pub preserved_objects: Vec<String>,
     pub delete_objects: Vec<String>,
+    pub preserved_topology_objects: Vec<String>,
+    pub delete_topology_objects: Vec<String>,
+    pub delete_bootstrap_snapshots: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,10 +26,13 @@ pub struct GcResult {
     pub dry_run: bool,
     pub deleted_snapshots: Vec<String>,
     pub deleted_objects: Vec<String>,
+    pub deleted_topology_objects: Vec<String>,
+    pub deleted_bootstrap_snapshots: Vec<String>,
 }
 
 impl Store {
     pub fn plan_gc(&self, options: GcOptions) -> Result<GcPlan, StorageError> {
+        self.refuse_gc_during_pending()?;
         let (current_id, current) = self.current()?;
         let snapshots = list_snapshots(self)?;
         let pins = read_consumer_pins(self)?;
@@ -43,6 +49,7 @@ impl Store {
         let mut manifests = std::collections::BTreeMap::new();
         manifests.insert(current_id.clone(), current);
         let mut objects = BTreeSet::new();
+        let mut topology = BTreeSet::new();
         for id in &preserved {
             let manifest = match manifests.remove(id) {
                 Some(manifest) => manifest,
@@ -54,6 +61,7 @@ impl Store {
             };
             add_manifest_objects(&mut objects, &manifest)
                 .map_err(|error| super::export::operation(format!("snapshot {id}: {error}")))?;
+            self.add_topology_references(id, &manifest, &mut topology)?;
         }
 
         let snapshot_ids = snapshots
@@ -70,7 +78,17 @@ impl Store {
             .cloned()
             .collect::<Vec<_>>();
 
+        let all_topology = self.list_topology_objects()?;
+        let delete_topology_objects = all_topology.difference(&topology).cloned().collect();
+        let delete_bootstrap_snapshots = self
+            .list_bootstrap_snapshots()?
+            .difference(&preserved)
+            .cloned()
+            .collect();
         Ok(GcPlan {
+            preserved_topology_objects: topology.into_iter().collect(),
+            delete_topology_objects,
+            delete_bootstrap_snapshots,
             current_snapshot: current_id,
             preserved_snapshots: preserved.into_iter().collect(),
             delete_snapshots,
@@ -84,7 +102,8 @@ impl Store {
         options: GcOptions,
         dry_run: bool,
     ) -> Result<GcResult, StorageError> {
+        let _guard = self.lock()?;
         let plan = self.plan_gc(options)?;
-        self.execute_gc(plan, dry_run)
+        self.execute_gc_locked(plan, dry_run)
     }
 }

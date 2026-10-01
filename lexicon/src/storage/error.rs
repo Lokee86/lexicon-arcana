@@ -9,6 +9,7 @@ pub enum StorageError {
     InvalidId(String),
     InvalidObject(&'static str),
     Materialization(String),
+    UnsafeIndexDelta(String),
     Operation(String),
     Verification(String),
     Collision(String),
@@ -31,6 +32,9 @@ impl fmt::Display for StorageError {
             Self::InvalidObject(field) => write!(formatter, "invalid Lexicon object field {field}"),
             Self::Materialization(message) => {
                 write!(formatter, "Lexicon materialization failed: {message}")
+            }
+            Self::UnsafeIndexDelta(message) => {
+                write!(formatter, "unsafe incremental index transition: {message}")
             }
             Self::Operation(message) => write!(formatter, "{message}"),
             Self::Verification(id) => write!(formatter, "Lexicon content {id} failed verification"),

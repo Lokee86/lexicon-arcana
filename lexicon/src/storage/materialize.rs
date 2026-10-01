@@ -105,7 +105,6 @@ impl Store {
         }
         require_language(analysis, &previous.language)?;
         require_incremental_scope(analysis, changed_files, removed_files)?;
-
         let changed: BTreeSet<String> = normalized_paths(changed_files).into_iter().collect();
         let removed: BTreeSet<String> = normalized_paths(removed_files).into_iter().collect();
         let groups = analysis.groups(None);
@@ -139,15 +138,24 @@ impl Store {
         } else {
             previous.shared_object_id.clone()
         };
-        // Phase 3 maintains changed index partitions during incremental merge.
-        // Until then NEVER carry the previous generation's index forward:
-        // the new snapshot bootstraps its exact topology at most once.
-        Ok(LanguageEntry {
+        if shared_object_id != previous.shared_object_id {
+            return Err(StorageError::UnsafeIndexDelta(
+                "shared fact replacement requires full analysis".into(),
+            ));
+        }
+        let mut materialized = LanguageEntry {
             files: Some(files.into_values().collect()),
             shared_object_id,
-            dependency_index_id: String::new(),
             ..entry
-        })
+        };
+        materialized.dependency_index_id = self.index_incremental_language(
+            previous,
+            &materialized,
+            &groups.owned,
+            &changed,
+            &removed,
+        )?;
+        Ok(materialized)
     }
 }
 

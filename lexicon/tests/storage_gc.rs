@@ -158,6 +158,9 @@ fn execute_gc_rejects_changed_current_and_invalid_plan() {
         delete_snapshots: vec![old],
         preserved_objects: Vec::new(),
         delete_objects: Vec::new(),
+        preserved_topology_objects: Vec::new(),
+        delete_topology_objects: Vec::new(),
+        delete_bootstrap_snapshots: Vec::new(),
     };
     assert!(store.execute_gc(invalid, true).is_err());
 }
