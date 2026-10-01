@@ -302,11 +302,12 @@ def run_once(
     facts: Path,
     timeout: float,
     workers: int,
+    log_path: Path | None = None,
 ) -> dict[str, Any]:
     old_workers = os.environ.get(WORKERS_ENVIRONMENT)
     os.environ[WORKERS_ENVIRONMENT] = str(workers)
     try:
-        run = baseline.run_once(executable, repository, facts, timeout)
+        run = baseline.run_once(executable, repository, facts, timeout, log_path=log_path)
     finally:
         if old_workers is None:
             os.environ.pop(WORKERS_ENVIRONMENT, None)
@@ -318,6 +319,7 @@ def run_once(
         "wall_ms": run["wall_ms"],
         "peak_process_tree_rss_bytes": run["peak_process_tree_rss_bytes"],
         "performance_stages": run["performance_stages"],
+        "perf_log": str(log_path) if log_path is not None else None,
     }
     if run["completed"]:
         result["architecture_metrics"] = architecture_metrics(run["performance_stages"])
@@ -334,18 +336,23 @@ def run_calibration_case(
     timeout: float,
     workers: int,
     concurrency_check: bool,
+    log_dir: Path | None = None,
 ) -> dict[str, Any]:
     HARD_CUT.mkdir(parents=True, exist_ok=True)
+    if log_dir is not None:
+        log_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".tu-calibration-", dir=HARD_CUT) as raw:
         temp = Path(raw)
-        cold = run_once(executable, repository, temp / "cold.jsonl", timeout, workers)
+        cold = run_once(executable, repository, temp / "cold.jsonl", timeout,
+                        workers, log_dir / "cold.log" if log_dir else None)
         if not cold["completed"]:
             return {
                 "cold": cold, "warm": None, "concurrency": {},
                 "concurrency_required": concurrency_check, "gate_passed": False,
                 "failures": ["cold run timed out"],
             }
-        warm = run_once(executable, repository, temp / "warm.jsonl", timeout, workers)
+        warm = run_once(executable, repository, temp / "warm.jsonl", timeout,
+                        workers, log_dir / "warm.log" if log_dir else None)
         failures: list[str] = []
         if warm["completed"]:
             if warm["canonical_fact_sha256"] != cold["canonical_fact_sha256"]:
@@ -357,7 +364,9 @@ def run_calibration_case(
         if concurrency_check and not failures:
             expected = cold["canonical_fact_sha256"]
             for count in (1, 2, 4):
-                result = run_once(executable, repository, temp / f"workers-{count}.jsonl", timeout, count)
+                result = run_once(executable, repository, temp / f"workers-{count}.jsonl",
+                                  timeout, count,
+                                  log_dir / f"workers-{count}.log" if log_dir else None)
                 concurrency[str(count)] = result
                 if not result["completed"]:
                     failures.append(f"worker-count {count} run timed out")
@@ -434,6 +443,7 @@ def main() -> int:
                 args.timeout_seconds,
                 args.workers,
                 args.check_concurrency,
+                results_dir / "logs" / args.case,
             )
         except Exception as exc:
             result = {
@@ -443,6 +453,8 @@ def main() -> int:
                 "concurrency_required": args.check_concurrency,
                 "gate_passed": False,
                 "failures": [str(exc)],
+                "perf_logs": sorted(str(path) for path in
+                                    (results_dir / "logs" / args.case).glob("*.log")),
             }
     finally:
         if old_helper is None:

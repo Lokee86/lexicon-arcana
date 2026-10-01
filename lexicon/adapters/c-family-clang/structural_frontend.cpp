@@ -48,9 +48,9 @@ public:
     return clang::RecursiveASTVisitor<SemanticVisitor>::TraverseDecl(declaration);
   }
 
-  void emit_traversal_metrics() const {
+  void emit_traversal_metrics(std::size_t rank) const {
     emit_perf("c-family.clang.traversal", std::chrono::nanoseconds(0),
-              {{"pruned_declarations", pruned_declarations_},
+              {{"rank", rank}, {"pruned_declarations", pruned_declarations_},
                {"traversed_declarations", traversed_declarations_}});
   }
 
@@ -250,7 +250,7 @@ public:
                              started - parse_started_, &state_, &context);
     visitor_.prepare_traversal_scope();
     visitor_.TraverseDecl(context.getTranslationUnitDecl());
-    visitor_.emit_traversal_metrics();
+    visitor_.emit_traversal_metrics(rank_);
     state_.semantic_analysis_ns +=
         std::chrono::duration_cast<std::chrono::nanoseconds>(
             PerfClock::now() - started)
@@ -261,7 +261,7 @@ public:
     const auto metrics = hot_path_metrics();
     emit_perf(
         "c-family.clang.hot_path", std::chrono::nanoseconds(0),
-        {{"repository_path_cache_hits", metrics.repository_path_hits},
+        {{"rank", rank_}, {"repository_path_cache_hits", metrics.repository_path_hits},
          {"repository_path_cache_misses", metrics.repository_path_misses},
          {"compiler_id_cache_hits", metrics.compiler_id_hits},
          {"compiler_id_cache_misses", metrics.compiler_id_misses},
@@ -273,6 +273,7 @@ public:
          {"parent_chain_queries", metrics.parent_chain_queries},
          {"parent_chain_steps", metrics.parent_chain_steps},
          {"parent_chain_ns", metrics.parent_chain_ns}});
+    mark_translation_unit_traversal_end(rank_);
   }
 
 private:

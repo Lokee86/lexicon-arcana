@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <memory>
 #include <set>
+#include <string_view>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -17,6 +18,9 @@
 #include "structural_commit.h"
 #include "structural_frontend.h"
 #include "structural_heap.h"
+#include "structural_profile.h"
+#include "structural_memory.h"
+#include "perf.h"
 
 namespace lexicon::clang_frontend {
 namespace {
@@ -45,6 +49,7 @@ int run_lanes(const std::string &root, CompilationCommands &database,
               const std::vector<ParseUnit> &units,
               const std::vector<std::string> &owned_files,
               std::size_t active_lanes,
+              std::string_view phase,
               OrderedObservationCommitter &committer,
               const std::vector<std::string> &prior_claims) {
   if (units.empty()) {
@@ -59,6 +64,7 @@ int run_lanes(const std::string &root, CompilationCommands &database,
   threads.reserve(active_lanes);
   for (std::size_t lane = 0; lane < active_lanes; ++lane) {
     threads.emplace_back([&, lane] {
+      ScopedPerfPhase profile_phase(phase);
       std::vector<std::string> paths;
       paths.reserve(lanes[lane].size());
       for (const auto &unit : lanes[lane]) {
@@ -77,8 +83,17 @@ int run_lanes(const std::string &root, CompilationCommands &database,
           lanes[lane], database, owned_files, root,
           [&](std::size_t rank, State result, int status) {
             statuses[lane] |= status;
+            // FrontendActionFactory::runInvocation has returned: AST/Sema and
+            // compiler state are destroyed, but result observations remain live.
+            report_translation_unit_teardown(rank);
+            reclaim_unused_heap(rank);
+            const auto bytes = estimated_retained_bytes(result);
+            const auto handoff_started = PerfClock::now();
             committer.submit(rank, std::move(result), status);
-            reclaim_unused_heap();
+            emit_perf("c-family.clang.result_handoff",
+                      PerfClock::now() - handoff_started,
+                      {{"rank", rank}, {"result_estimated_bytes", bytes},
+                       {"frontend_status", static_cast<std::uint64_t>(status)}});
           }, prior_claims);
       statuses[lane] |= tool.run(factory.get());
       if (driver_diagnostics.failed()) {
@@ -105,6 +120,9 @@ int run_lanes(const std::string &root, CompilationCommands &database,
           result.file(unit.translation_unit, language, unit.translation_unit);
         }
         result.suppress_observations(prior_claims);
+        // The driver has finished; no compiler state remains live.
+        report_translation_unit_teardown(unit.rank);
+        reclaim_unused_heap(unit.rank);
         committer.submit(unit.rank, std::move(result), 1);
         statuses[lane] |= 1;
       }
@@ -129,14 +147,15 @@ int execute_parse_plan(const std::string &root, CompilationCommands &database,
                        const FileObservationConsumer &consume_files) {
   summary = {};
   workers = std::max<std::size_t>(workers, 1);
-  auto consume = [&](std::size_t, State &&files) {
+  auto consume = [&](std::size_t rank, State &&files) {
     if (consume_files) {
-      consume_files(std::move(files));
+      consume_files(rank, std::move(files));
     }
   };
   std::set<std::pair<std::string, std::string>> valid_real_coverage;
   auto execute_phase = [&](const std::vector<ParseUnit> &units,
                            const std::vector<std::string> &owned,
+                           std::string_view phase,
                            const std::vector<std::string> &prior_claims =
                                std::vector<std::string>{}) {
     const auto active_lanes = std::min(workers, units.size());
@@ -144,7 +163,7 @@ int execute_parse_plan(const std::string &root, CompilationCommands &database,
         root, owned, units.size(),
         std::max<std::size_t>(active_lanes * 2, 1), consume, prior_claims);
     const auto status = run_lanes(root, database, units, owned, active_lanes,
-                                  committer, prior_claims);
+                                  phase, committer, prior_claims);
     const auto completed = committer.summary();
     summary.active_clang_lanes =
         std::max(summary.active_clang_lanes, active_lanes);
@@ -166,7 +185,7 @@ int execute_parse_plan(const std::string &root, CompilationCommands &database,
       real.push_back({real.size(), unit.translation_unit, false});
     }
   }
-  auto [status, primary_claimed] = execute_phase(real, owned_files);
+  auto [status, primary_claimed] = execute_phase(real, owned_files, "real");
   for (const auto &unit : plan.primary_units) {
     if (!unit.synthesized) {
       continue;
@@ -179,7 +198,7 @@ int execute_parse_plan(const std::string &root, CompilationCommands &database,
     }
   }
   summary.primary_synthetic_parse_units = synthetic.size();
-  auto synthetic_result = execute_phase(synthetic, owned_files, primary_claimed);
+  auto synthetic_result = execute_phase(synthetic, owned_files, "synthetic", primary_claimed);
   status |= synthetic_result.first;
   primary_claimed = std::move(synthetic_result.second);
 
@@ -201,7 +220,7 @@ int execute_parse_plan(const std::string &root, CompilationCommands &database,
   const auto primary_claimed_count = summary.claimed_owned_files;
   const auto primary_duplicates = summary.discarded_duplicate_file_observations;
   // Restrict ownership so fallback includes cannot publish primary files again.
-  status |= execute_phase(fallback, orphans).first;
+  status |= execute_phase(fallback, orphans, "orphan").first;
   summary.completed_orphan_tus = summary.completed_tus - primary_completed;
   summary.claimed_orphan_files = summary.claimed_owned_files - primary_claimed_count;
   summary.discarded_duplicate_orphan_observations =

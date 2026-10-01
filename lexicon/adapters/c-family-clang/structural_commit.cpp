@@ -1,5 +1,6 @@
 #include "structural_commit.h"
 #include "structural_memory.h"
+#include "perf.h"
 
 #include <algorithm>
 #include <iterator>
@@ -32,6 +33,7 @@ bool OrderedObservationCommitter::submit(std::size_t rank, State result,
   if (rank >= total_results_ || rank < next_rank_ || submitted_ranks_[rank]) {
     return false;
   }
+  const auto admission_started = PerfClock::now();
   changed_.wait(lock, [&] {
     // Oversized frontier results drain directly; future ones stay in their
     // producer lane instead of entering the pending queue.
@@ -39,6 +41,11 @@ bool OrderedObservationCommitter::submit(std::size_t rank, State result,
             bytes <= pending_byte_limit_ - pending_bytes_) ||
            rank == next_rank_ || rank < next_rank_ || submitted_ranks_[rank];
   });
+  emit_perf("c-family.clang.ordered_admission_wait",
+            PerfClock::now() - admission_started,
+            {{"rank", rank}, {"result_estimated_bytes", bytes},
+             {"pending_result_bytes", pending_bytes_},
+             {"pending_result_count", pending_.size()}});
   if (rank < next_rank_ || submitted_ranks_[rank]) {
     return false;
   }

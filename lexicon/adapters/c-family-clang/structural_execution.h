@@ -24,7 +24,8 @@ struct ExecutionSummary {
   std::size_t discarded_duplicate_file_observations = 0;
 };
 
-using FileObservationConsumer = std::function<void(State &&)>;
+using FileObservationConsumer =
+    std::function<void(std::size_t rank, State &&)>;
 
 int execute_parse_plan(const std::string &root, CompilationCommands &database,
                        const std::vector<std::string> &owned_files,

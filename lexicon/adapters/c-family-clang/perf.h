@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <initializer_list>
 #include <mutex>
+#include <string>
 #include <string_view>
 #include <utility>
 
@@ -21,6 +22,24 @@
 namespace lexicon::clang_frontend {
 
 using PerfClock = std::chrono::steady_clock;
+
+// Phase is thread-local: different Clang workers may parse separate phases,
+// but their records must retain the phase-local rank without global races.
+inline std::string_view &current_perf_phase() {
+  static thread_local std::string_view phase;
+  return phase;
+}
+
+class ScopedPerfPhase {
+public:
+  explicit ScopedPerfPhase(std::string_view phase)
+      : previous_(current_perf_phase()) { current_perf_phase() = phase; }
+  ~ScopedPerfPhase() { current_perf_phase() = previous_; }
+  ScopedPerfPhase(const ScopedPerfPhase &) = delete;
+  ScopedPerfPhase &operator=(const ScopedPerfPhase &) = delete;
+private:
+  std::string_view previous_;
+};
 
 inline bool perf_enabled() {
   const char *value = std::getenv("LEXICON_PERF");
@@ -56,16 +75,25 @@ inline void emit_perf(
   if (!perf_enabled()) {
     return;
   }
-  static std::mutex output_mutex;
-  std::lock_guard lock(output_mutex);
   const double elapsed_ms =
       std::chrono::duration<double, std::milli>(elapsed).count();
-  llvm::errs() << "[lexicon-perf] stage=" << stage
-               << " elapsed_ms=" << llvm::formatv("{0:F3}", elapsed_ms);
-  for (const auto &[name, value] : counters) {
-    llvm::errs() << " " << name << "=" << value;
+  // Compose the complete record privately; do not interleave partial metric
+  // tokens when workers emit concurrently.
+  std::string line;
+  llvm::raw_string_ostream output(line);
+  output << "[lexicon-perf] stage=" << stage
+         << " elapsed_ms=" << llvm::formatv("{0:F3}", elapsed_ms);
+  if (!current_perf_phase().empty()) {
+    output << " phase=" << current_perf_phase();
   }
-  llvm::errs() << "\n";
+  for (const auto &[name, value] : counters) {
+    output << " " << name << "=" << value;
+  }
+  output << "\n";
+  output.flush();
+  static std::mutex output_mutex;
+  std::lock_guard lock(output_mutex);
+  llvm::errs().write(line.data(), line.size());
+  llvm::errs().flush();
 }
-
 } // namespace lexicon::clang_frontend

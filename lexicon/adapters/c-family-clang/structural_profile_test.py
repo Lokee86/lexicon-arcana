@@ -31,6 +31,12 @@ def verify(helper, version):
                 helper, version, root, {**request, "workers": workers},
             )
             assert response == expected, "profiling or workers changed observations"
+            # Concurrent profiler output must contain whole, untorn records.
+            lines = [line for line in stderr.splitlines()
+                     if "[lexicon-perf]" in line]
+            assert all(line.startswith("[lexicon-perf] stage=") and
+                       line.count("[lexicon-perf]") == 1 and
+                       " elapsed_ms=" in line for line in lines), lines
             records = []
             for line in stderr.splitlines():
                 if "stage=c-family.clang.tu." in line:
@@ -39,6 +45,17 @@ def verify(helper, version):
             phases = ("before_parse", "parsed", "visited",
                       "after_teardown", "after_submit")
             for rank in (0, 1):
+                # Parsing/traversal and teardown must carry phase-local rank.
+                trace = [line for line in stderr.splitlines()
+                         if "phase=real" in line and f"rank={rank}" in line]
+                assert any("stage=c-family.clang.teardown" in line and
+                           "measured=1" in line for line in trace), trace
+                assert any("stage=c-family.clang.result_handoff" in line
+                           for line in trace), trace
+                assert any("stage=c-family.clang.file_encoding" in line
+                           for line in trace), trace
+                assert any("stage=c-family.clang.file_write" in line
+                           for line in trace), trace
                 selected = [r for r in records if int(r["rank"]) == rank]
                 assert [r["stage"].split(".")[-1] for r in selected] == list(phases)
                 assert all(int(r["current_rss_bytes"]) >= 0 for r in selected)

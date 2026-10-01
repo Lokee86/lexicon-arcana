@@ -140,18 +140,33 @@ def parse_perf(stderr: str) -> dict[str, dict[str, float | int | str]]:
                     values[key] = raw
 
         stage = match.group(1)
+        # Phase/rank live in the complete log, not the aggregate stage map.
+        values.pop("rank", None)
+        values.pop("phase", None)
+        values.pop("frontend_status", None)
         existing = stages.get(stage)
         if existing is None:
             stages[stage] = values
             continue
 
         for key, value in values.items():
+            # Phase/rank belong to retained raw events, never summed into an
+            # aggregate stage. Current/peak memory and occupancy are gauges.
+            if key in {"rank", "phase", "frontend_status"}:
+                existing.pop(key, None)
+                continue
             previous = existing.get(key)
             if isinstance(previous, (int, float)) and isinstance(value, (int, float)):
-                if key == "jobs":
-                    existing[key] = max(previous, value)
-                else:
-                    existing[key] = previous + value
+                gauge = (key == "jobs" or key == "active_clang_lanes" or
+                         key == "allocator_stats_available" or
+                         key.startswith(("peak_", "current_", "max_")) or
+                         key in {"live_heap_bytes", "free_heap_bytes",
+                                 "free_heap_before_bytes", "free_heap_after_bytes",
+                                 "mapped_heap_bytes", "pending_result_bytes",
+                                 "pending_result_count", "observation_estimated_bytes",
+                                 "ast_allocated_bytes", "ast_side_table_bytes",
+                                 "result_estimated_bytes"})
+                existing[key] = max(previous, value) if gauge else previous + value
             elif previous is None:
                 existing[key] = value
             elif previous != value:
@@ -169,7 +184,8 @@ def current_adapter_version() -> str:
     return match.group(1)
 
 
-def run_once(executable: Path, repository: Path, facts: Path, timeout: float) -> dict:
+def run_once(executable: Path, repository: Path, facts: Path, timeout: float,
+             log_path: Path | None = None) -> dict:
     started = time.perf_counter()
     # Frontend profiles can exceed a pipe's capacity. Spool stderr while RSS is
     # sampled so profiling cannot block the compiler and manufacture a timeout.
@@ -186,6 +202,9 @@ def run_once(executable: Path, repository: Path, facts: Path, timeout: float) ->
         return_code = process.wait()
         log.seek(0)
         stderr = log.read()
+    if log_path is not None:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        log_path.write_text(stderr, encoding="utf-8")
     wall_ms = (time.perf_counter() - started) * 1000.0
     if return_code != 0 and not timed_out:
         raise RuntimeError(f"adapter_eval failed for {repository}: {stderr}")

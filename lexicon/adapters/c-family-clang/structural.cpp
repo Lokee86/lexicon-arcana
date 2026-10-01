@@ -174,18 +174,32 @@ bool emit_structural(const llvm::json::Object &request,
   const auto frontend_started = lexicon::clang_frontend::PerfClock::now();
   const int status = lexicon::clang_frontend::execute_parse_plan(
       root, database, input.owned_files, plan, input.workers, state, execution,
-      [&](lexicon::clang_frontend::State &&file_state) {
+      [&](std::size_t rank, lexicon::clang_frontend::State &&file_state) {
         const auto emission_started = lexicon::clang_frontend::PerfClock::now();
         auto encoded =
             lexicon::clang_frontend::encode_owned_file_frames(file_state);
-        {
-          std::lock_guard lock(transport_mutex);
-          if (transport_ok &&
-              !lexicon::clang_frontend::emit_encoded_file_frames(
-                  std::move(encoded), output, transport, transport_error)) {
-            transport_ok = false;
-          }
+        const auto encoded_at = lexicon::clang_frontend::PerfClock::now();
+        const auto bytes = encoded.bytes;
+        const auto frames = encoded.frames.size();
+        lexicon::clang_frontend::emit_perf(
+            "c-family.clang.file_encoding", encoded_at - emission_started,
+            {{"rank", rank}, {"transport_bytes", bytes}, {"frames", frames}});
+        const auto lock_started = lexicon::clang_frontend::PerfClock::now();
+        auto lock = std::unique_lock(transport_mutex);
+        const auto locked_at = lexicon::clang_frontend::PerfClock::now();
+        lexicon::clang_frontend::emit_perf(
+            "c-family.clang.transport_lock_wait", locked_at - lock_started,
+            {{"rank", rank}});
+        if (transport_ok &&
+            !lexicon::clang_frontend::emit_encoded_file_frames(
+                std::move(encoded), output, transport, transport_error)) {
+          transport_ok = false;
         }
+        const auto written_at = lexicon::clang_frontend::PerfClock::now();
+        lock.unlock();
+        lexicon::clang_frontend::emit_perf(
+            "c-family.clang.file_write", written_at - locked_at,
+            {{"rank", rank}, {"transport_bytes", bytes}, {"frames", frames}});
         emission_ns.fetch_add(
             static_cast<std::uint64_t>(
                 std::chrono::duration_cast<std::chrono::nanoseconds>(

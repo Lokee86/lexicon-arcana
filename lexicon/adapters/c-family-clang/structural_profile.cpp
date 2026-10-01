@@ -1,6 +1,7 @@
 #include "structural_profile.h"
 
 #include <cstdio>
+#include <optional>
 #if defined(__GLIBC__)
 #include <malloc.h>
 #endif
@@ -15,6 +16,28 @@
 #include "structural_memory.h"
 
 namespace lexicon::clang_frontend {
+namespace {
+struct TraversalEnd {
+  std::size_t rank;
+  PerfClock::time_point at;
+};
+thread_local std::optional<TraversalEnd> traversal_end;
+} // namespace
+
+void mark_translation_unit_traversal_end(std::size_t rank) {
+  if (perf_enabled()) traversal_end = TraversalEnd{rank, PerfClock::now()};
+}
+
+void report_translation_unit_teardown(std::size_t rank) {
+  if (!perf_enabled()) return;
+  const bool measured = traversal_end && traversal_end->rank == rank;
+  const auto elapsed = measured ? PerfClock::now() - traversal_end->at
+                                : PerfClock::duration{};
+  traversal_end.reset();
+  emit_perf("c-family.clang.teardown", elapsed,
+            {{"rank", rank}, {"measured", static_cast<std::uint64_t>(measured)}});
+}
+
 std::uint64_t current_rss_bytes() {
 #if defined(_WIN32)
   PROCESS_MEMORY_COUNTERS counters {};

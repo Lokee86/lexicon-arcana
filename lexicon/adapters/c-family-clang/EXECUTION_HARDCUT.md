@@ -104,6 +104,41 @@ Limits used to force spill, corruption, read/write failure and cancellation
 in tests belong on the **internal store constructor**, not in the helper
 request. No migration-only façade or second ownership path is permitted.
 
+
+
+## Step 2: teardown, reclamation and telemetry (implementation)
+
+Reclamation is now invoked in the worker's completed-result callback after
+`FrontendActionFactory::runInvocation` destroys compiler/AST state **and before**
+`OrderedObservationCommitter::submit` can block. The policy retains its
+serialized nonblocking try-lock, 64 MiB free-chunk threshold and resident-growth
+guard. The previous unconditional post-handoff placement was removed. Driver
+failures that do not invoke an action produce terminal results and reach the
+same pre-handoff reclamation point after the ClangTool run.
+
+With `LEXICON_PERF=1`, records are constructed as complete lines under a
+shared output mutex and TU records carry the phase (`real`, `synthetic`,
+`orphan`) and phase-local rank. Existing `tu.before_parse`, `tu.parsed`,
+`tu.visited`, `tu.after_teardown` and `tu.after_submit` markers remain.
+The additional `c-family.clang.teardown` marker measures traversal-completion
+to post-compiler-destruction; when no traversal occurred, `measured=0` prevents
+inventing a teardown duration. `heap_reclaim` distinguishes policy invocations
+from actual trim attempts/successes. New ordered-admission, result-handoff,
+file-encoding, transport-lock-wait and file-write events separate waiting from
+work; none of these events changes canonical output.
+
+The full calibration log for each cold, warm or worker-count run is persisted
+under the case's results `logs/` directory, not inside a disposable fixture.
+The result record contains `perf_log` for the exact retained file. Aggregation
+sums counters/durations, takes maximum observed gauges and excludes phase/rank
+from aggregate records; phase/rank remain in full logs. Active AST reservations,
+shared scheduler dispatch waits, spill bytes and frontier decoding only become
+measurable once the corresponding Step 3/5 mechanisms exist; the current
+ordered-admission wait is explicitly **not** a future scheduler admission metric.
+
+Correctness gates include the pinned 1/2/4-worker golden, native heap/profiling
+tests and parser/log-persistence regression. No full CBM run is part of Step 2.
+
 ## Required next-step gates
 
 Step 2 may change reclamation and instrumentation, but not the pinned
