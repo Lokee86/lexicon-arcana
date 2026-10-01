@@ -15,14 +15,29 @@ impl Store {
         changed_files: &[String],
         removed_files: &[String],
     ) -> Result<String, StorageError> {
+        let started = crate::perf::start();
         if previous.shared_object_id.is_empty() {
             let mut records = updates.iter().map(|record| (*record).clone()).collect();
             crate::facts::sort_records(&mut records)
                 .map_err(|error| materialization(error.to_string()))?;
-            return self.write_language_shared_records(entry, &records);
+            let id = self.write_language_shared_records(entry, &records)?;
+            if let Some(started) = started {
+                crate::perf::emit(
+                    "scan.shared_merge",
+                    started.elapsed(),
+                    &[
+                        ("previous_shared_records", 0),
+                        ("changed_file_objects_decoded", 0),
+                        ("fact_object_reads", 0),
+                    ],
+                );
+            }
+            return Ok(id);
         }
 
         let shared = self.load_object(&previous.shared_object_id)?;
+        let previous_shared_records = shared.records.len() as u64;
+        let mut changed_file_objects = 0_u64;
         let mut invalidated: BTreeSet<String> =
             normalized_paths(changed_files).into_iter().collect();
         invalidated.extend(normalized_paths(removed_files));
@@ -42,6 +57,7 @@ impl Store {
                 continue;
             }
             let object = self.load_object(&file.object_id)?;
+            changed_file_objects += 1;
             invalidated_nodes.extend(object.records.iter().filter_map(|record| match record {
                 FactRecord::Node(node) => Some(node.id.clone()),
                 _ => None,
@@ -61,7 +77,19 @@ impl Store {
         let mut records = merged.into_values().collect::<Vec<_>>();
         crate::facts::sort_records(&mut records)
             .map_err(|error| materialization(error.to_string()))?;
-        self.write_language_shared_records(entry, &records)
+        let id = self.write_language_shared_records(entry, &records)?;
+        if let Some(started) = started {
+            crate::perf::emit(
+                "scan.shared_merge",
+                started.elapsed(),
+                &[
+                    ("previous_shared_records", previous_shared_records),
+                    ("changed_file_objects_decoded", changed_file_objects),
+                    ("fact_object_reads", 1 + changed_file_objects),
+                ],
+            );
+        }
+        Ok(id)
     }
 }
 

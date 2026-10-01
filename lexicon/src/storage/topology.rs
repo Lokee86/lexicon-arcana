@@ -27,12 +27,15 @@ impl Store {
             .map(|file| (file.path.as_str(), file.object_id.as_str()))
             .collect();
 
+        let started = crate::perf::start();
         let selected: BTreeSet<String> = normalized_paths(changed_files).into_iter().collect();
         let mut added = BTreeSet::new();
         let mut previous = BTreeMap::new();
+        let mut decoded = 0_u64;
         for path in &selected {
             if let Some(object_id) = files.get(path.as_str()) {
                 let object = self.load_object(object_id)?;
+                decoded += 1;
                 previous.insert(path.clone(), relation_keys(&object.records)?);
             } else {
                 added.insert(path.clone());
@@ -41,12 +44,14 @@ impl Store {
         }
 
         let groups = analysis.groups(None);
-        for (owner, records) in groups.owned {
+        let mut full_required = false;
+        'owners: for (owner, records) in groups.owned {
             if !records.iter().copied().any(is_relationship) {
                 continue;
             }
             if !selected.contains(&owner) {
-                return Ok(true);
+                full_required = true;
+                break;
             }
             let known = previous
                 .get(&owner)
@@ -63,14 +68,26 @@ impl Store {
                 if let FactRecord::Unresolved(value) = record
                     && topology_sensitive_unresolved(&value.reason)
                 {
-                    return Ok(true);
+                    full_required = true;
+                    break 'owners;
                 }
                 if added.contains(&owner) {
                     continue;
                 }
             }
         }
-        Ok(false)
+        if let Some(started) = started {
+            crate::perf::emit(
+                "scan.topology_safety_check",
+                started.elapsed(),
+                &[
+                    ("selected_files", selected.len() as u64),
+                    ("fact_object_reads", decoded),
+                    ("full_required", u64::from(full_required)),
+                ],
+            );
+        }
+        Ok(full_required)
     }
 }
 

@@ -134,7 +134,7 @@ A scan that produces the same complete manifest confirms the existing snapshot i
 
 ## Incremental correctness boundary
 
-A changed source file does not automatically imply a full language scan. Lexicon starts from the previous immutable snapshot and includes direct one-hop reverse dependents; forward context adds one hop from the emitted set. Sensitive unresolved Python module candidates and unproven topology changes trigger conservative full-language analysis. Newly indexed language generations read only visited immutable topology partitions, not every unrelated fact object. Legacy generations bootstrap that index once under a pointer bound to the exact old snapshot.
+A changed source file does not automatically imply a full language scan. Lexicon starts from the previous immutable snapshot and includes direct one-hop reverse dependents; forward context adds one hop from the emitted set. Sensitive unresolved Python module candidates and unproven topology changes trigger conservative full-language analysis. Newly indexed language generations read only visited immutable topology partitions, not every unrelated fact object. Legacy generations bootstrap that index once under a pointer bound to the exact old snapshot. Production planning uses only `Store::index_for_snapshot` followed by the partitioned index reader: indexed generations never invoke the historical whole-fact decoder. Old unindexed generations migrate through a separate once-per-snapshot storage operation using the same canonical index builder as fresh full analysis. The scoped topology-safety check may inspect selected prior file objects but does not reconstruct repository-wide dependencies.
 
 The scoped repository includes:
 

@@ -175,12 +175,7 @@ impl Store {
                 "previous language entry does not match CURRENT".into(),
             ));
         }
-        if self.read_bootstrap(&snapshot, previous)?.is_none() {
-            self.incremental_scope(&previous.language, &[])?;
-        }
-        self.read_bootstrap(&snapshot, previous)?.ok_or_else(|| {
-            StorageError::UnsafeIndexDelta("legacy topology bootstrap missing".into())
-        })
+        self.index_for_snapshot(&snapshot, previous)
     }
 }
 

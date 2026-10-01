@@ -1,48 +1,8 @@
+#[cfg(test)]
 use std::collections::{BTreeMap, BTreeSet};
-
-use crate::FactRecord;
 
 #[cfg(test)]
 pub(super) type Graph = BTreeMap<String, BTreeSet<String>>;
-
-pub(super) fn collect_dependency_records(
-    records: &[FactRecord],
-    owner: &str,
-    node_owners: &mut BTreeMap<String, String>,
-    unresolved_candidates: &mut BTreeSet<String>,
-) {
-    for record in records {
-        match record {
-            FactRecord::Node(node) => {
-                node_owners.insert(node.id.clone(), owner.to_owned());
-            }
-            FactRecord::Unresolved(value)
-                if addition_sensitive_unresolved(&value.reason)
-                    && value
-                        .candidate_name
-                        .as_deref()
-                        .is_some_and(|candidate| !candidate.trim().is_empty()) =>
-            {
-                unresolved_candidates.insert(
-                    value
-                        .candidate_name
-                        .as_deref()
-                        .expect("checked candidate")
-                        .trim()
-                        .to_owned(),
-                );
-            }
-            _ => {}
-        }
-    }
-}
-
-fn addition_sensitive_unresolved(reason: &str) -> bool {
-    matches!(
-        reason,
-        "missing-target" | "ambiguous-target" | "generated-target" | "external-target"
-    )
-}
 
 pub(super) fn python_module_candidate(path: &str) -> Option<String> {
     let normalized = path.replace('\\', "/");
@@ -71,7 +31,7 @@ pub(super) fn one_hop_closure(seeds: &BTreeSet<String>, graph: &Graph) -> Vec<St
 
 #[cfg(test)]
 mod tests {
-    use super::{Graph, addition_sensitive_unresolved, one_hop_closure, python_module_candidate};
+    use super::{Graph, one_hop_closure, python_module_candidate};
     use std::collections::BTreeSet;
 
     #[test]
@@ -95,10 +55,5 @@ mod tests {
             Some("pkg.new")
         );
         assert_eq!(python_module_candidate("README.md"), None);
-    }
-
-    #[test]
-    fn external_targets_are_addition_sensitive() {
-        assert!(addition_sensitive_unresolved("external-target"));
     }
 }

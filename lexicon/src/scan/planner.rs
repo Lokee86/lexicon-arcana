@@ -34,14 +34,22 @@ pub fn plan_scan(
             let scope_started = crate::perf::start();
             let scope = store.incremental_scope_with_additions(&plan.language, &roots, &added);
             if let Some(scope_started) = scope_started {
-                let fallback = scope.as_ref().map_or(true, |scope| scope.full_required);
+                // Explicit diagnostics distinguish a legitimate full-scope
+                // decision from invalid topology or failed legacy migration.
+                let reason = match &scope {
+                    Ok(scope) if scope.full_required => 1,
+                    Ok(_) => 0,
+                    Err(StorageError::Verification(_) | StorageError::InvalidId(_)) => 2,
+                    Err(_) => 3,
+                };
                 crate::perf::emit(
                     "scan.planner_dependency_lookup",
                     scope_started.elapsed(),
                     &[
                         ("roots", roots.len() as u64),
                         ("additions", added.len() as u64),
-                        ("full_fallback", u64::from(fallback)),
+                        ("full_fallback", u64::from(reason != 0)),
+                        ("fallback_reason", reason),
                     ],
                 );
             }

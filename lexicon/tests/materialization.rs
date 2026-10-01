@@ -98,6 +98,44 @@ fn incremental_materialization_reuses_unchanged_objects_and_shared_facts() {
 }
 
 #[test]
+fn complete_but_identical_shared_merge_decodes_only_touched_prior_objects() {
+    let directory = TestDirectory::new("shared-merge-bounded");
+    let store = Store::new(&directory.path);
+    let previous = store
+        .build_full_language(
+            &Analysis::parse(&full_stream()).unwrap(),
+            &[
+                source("a.py", b"value = 1\n"),
+                source("b.py", b"other = 1\n"),
+            ],
+            "python",
+            "sha256:config",
+            "sha256:adapter",
+        )
+        .unwrap();
+    let original_shared = store.load_object(&previous.shared_object_id).unwrap();
+    let mut incremental = Analysis::parse(&incremental_stream()).unwrap();
+    incremental.records.retain(
+        |record| !matches!(record, lexicon::FactRecord::Node(node) if node.id == SCOPED_REPO),
+    );
+    incremental.records.extend(original_shared.records);
+    let next = store
+        .build_incremental_language(
+            &previous,
+            &incremental,
+            &[source("a.py", b"value = 2\n")],
+            "sha256:config",
+            "sha256:adapter",
+            &["a.py".into()],
+            &[],
+            true,
+        )
+        .unwrap();
+    assert_eq!(next.shared_object_id, previous.shared_object_id);
+    assert!(!next.dependency_index_id.is_empty());
+}
+
+#[test]
 fn manifest_language_mutation_matches_go_sorting_behavior() {
     let directory = TestDirectory::new("manifest-language");
     let store = Store::new(&directory.path);

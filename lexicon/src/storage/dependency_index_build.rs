@@ -13,33 +13,14 @@ impl Store {
         entry: &LanguageEntry,
         groups: &RecordGroups<'_>,
     ) -> Result<String, StorageError> {
-        self.index_from_records(entry, &groups.owned, &shared_nodes(&groups.shared), None)
+        self.index_from_records(entry, &groups.owned, &shared_nodes(&groups.shared))
     }
 
-    pub(super) fn index_legacy_language(
-        &self,
-        entry: &LanguageEntry,
-        objects: &BTreeMap<String, Vec<FactRecord>>,
-        owners: &BTreeMap<String, String>,
-        shared: &BTreeMap<String, String>,
-    ) -> Result<String, StorageError> {
-        let records = objects
-            .iter()
-            .map(|(path, data)| (path.clone(), data.iter().collect()))
-            .collect::<BTreeMap<_, Vec<&FactRecord>>>();
-        let mut paths = BTreeMap::<String, BTreeSet<String>>::new();
-        for (id, path) in shared {
-            paths.entry(path.clone()).or_default().insert(id.clone());
-        }
-        self.index_from_records(entry, &records, &paths, Some(owners))
-    }
-
-    fn index_from_records(
+    pub(super) fn index_from_records(
         &self,
         entry: &LanguageEntry,
         groups: &BTreeMap<String, Vec<&FactRecord>>,
         shared: &BTreeMap<String, BTreeSet<String>>,
-        legacy_owners: Option<&BTreeMap<String, String>>,
     ) -> Result<String, StorageError> {
         let started = crate::perf::start();
         let known = entry
@@ -66,9 +47,6 @@ impl Store {
                     ownership.insert(id.clone(), path.clone());
                 }
             }
-        }
-        if let Some(legacy_owners) = legacy_owners {
-            ownership = legacy_owners.clone();
         }
         let mut references = BTreeMap::<String, BTreeSet<String>>::new();
         let mut unresolved = BTreeMap::<String, BTreeSet<String>>::new();

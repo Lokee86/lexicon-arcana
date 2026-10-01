@@ -5,7 +5,10 @@ import argparse
 import json
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
+
+from incremental_phase4_gate import validate_edit
 
 from incremental_phase0_support import measure, seed_source
 
@@ -18,12 +21,16 @@ def main() -> int:
     parser.add_argument("--synthetic-count", type=int, default=60)
     parser.add_argument("--git-source", action="store_true",
                         help="commit the disposable source tree to exercise Git-backed skips")
+    parser.add_argument("--assert-bounded", action="store_true",
+                        help="fail if ordinary Git edits read unrelated sources or fact objects")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--timeout", type=int, default=150)
     parser.add_argument("--cold-timeout", type=int)
     parser.add_argument("--max-steps", type=int, default=8)
     parser.add_argument("--interrupt", action="store_true")
     args = parser.parse_args()
+    if args.assert_bounded and (not args.git_source or args.max_steps < 4):
+        parser.error("--assert-bounded requires --git-source and --max-steps >= 4")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     result = {
         "lexicon_revision": subprocess.check_output(
@@ -99,6 +106,20 @@ def main() -> int:
                 if current.exists() else None
             )
             result["steps"][label] = record
+            if args.assert_bounded and label in ("edit_once", "edit_twice"):
+                previous = result["steps"]["unchanged"]
+                inventory = next(
+                    m for m in previous["metrics"]
+                    if m["stage"] == "scan.source_inventory"
+                )
+                errors = validate_edit(record, inventory["discovered_files"])
+                if errors:
+                    record["bounds_errors"] = errors
+                    args.output.write_text(
+                        json.dumps(result, indent=2), encoding="utf-8"
+                    )
+                    print(f"phase 4 bounded scan gate: {errors}", file=sys.stderr)
+                    return 1
             args.output.write_text(json.dumps(result, indent=2), encoding="utf-8")
             if record["exit_code"] != 0 or record["timed_out"]:
                 break
