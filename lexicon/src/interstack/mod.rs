@@ -9,6 +9,7 @@ mod message_constants;
 mod messages;
 mod model;
 mod node_loading;
+mod owner_ranges;
 mod paths;
 mod process;
 mod process_commands;

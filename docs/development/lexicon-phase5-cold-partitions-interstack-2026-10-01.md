@@ -60,9 +60,27 @@ The profiling run measured 4.305 seconds in overall contract detection. Costs ar
 
 Raw detector profile: `lexicon/evaluation/performance/incremental-phase5-agent-detectors-profile-2026-10-01.json`.
 
+## Callable ownership interval follow-up
+
+A further implementation replaced `interstack::SourceIndex::owner_at`'s repeated linear scan of the file's sorted callable list with a single immutable, per-file maximum-end interval index. A binary search limits candidates to callables already started; a segment-tree query returns the original **first containing callable**, otherwise the last started callable or the file fallback. It preserves the original overlapping/nested-span precedence, without a second mutable graph owner. A unit test checks every line over nested, overlapping, tied-start, gapped, empty and reversed-length callable fixtures against the original scan. The existing interstack and dependency-index integration suites remain green.
+
+A separate capped cold run on the **same pinned 302-file `agent/` fixture** completed and again exported **249,297** canonical Python facts, with the same exact SHA-256 hash as both preceding builds. This was another single run under potentially varying load, not a simultaneously paired statistical experiment:
+
+| Measurement | Previous filtered-detector build | Interval-index build |
+| --- | ---: | ---: |
+| Complete cold CLI | 21.250 s | 20.813 s |
+| Interstack contract detection | 4.046 s | 3.196 s |
+| Total interstack processing | 4.693 s | 3.709 s |
+| Index construction | 2.267 s | 2.560 s |
+| Peak sampled process-tree RSS | 401,485,824 B | 389,947,392 B |
+
+The index-construction timing increased on the interval-index run despite unchanged index logic, illustrating why individual development-profile timings must not become release thresholds. The stage evidence is consistent with fewer ownership lookups, and exported Python facts remain byte-identical. This does **not** establish independent exact interstack fact parity or complete-Hermes latency acceptance.
+
+Raw evidence: `lexicon/evaluation/performance/incremental-phase5-agent-owner-index-2026-10-01.json`. The other two comparison runs and detector-level profile are retained above.
+
 ## Verification and release boundary
 
-`incremental_phase5_cold_pair_gate.py` rejects mismatched revision/fixture, censored runs, absent RSS evidence, divergent Python facts, changed interstack cardinality, missing eight-worker shard measurements and missing per-detector profile. Its seven mutation tests pass. Existing targeted tests cover topology corruption and same-snapshot verification, deterministic legacy bootstrap, scoped delta, and interstack contract fixtures; an additional independent-store determinism test checks the parallel writer.
+`incremental_phase5_cold_pair_gate.py` rejects mismatched revision/fixture, censored runs, absent RSS evidence, divergent Python facts, changed interstack cardinality, missing eight-worker shard measurements and missing per-detector profile. Its ten evidence-gate tests pass, including the indexed callable-ownership fixture, deliberately mismatched facts, and altered interstack cardinality. Existing targeted tests cover topology corruption and same-snapshot verification, deterministic legacy bootstrap, scoped delta, and interstack contract fixtures; an additional independent-store determinism test checks the parallel writer.
 
 This is a bounded cold **diagnostic**, not a completed Phase 5 release gate. The full pinned Hermes source contains 7,114 Python files, and the original full cold run was cancelled at its 240-second limit. Do not claim a full-source before/after improvement, sub-five-second warm scans or complete interstack semantic parity from this subset. Before rerunning the full corpus, assess scaling on another bounded sample and obtain exact interstack export parity if changing the detector architecture.
 

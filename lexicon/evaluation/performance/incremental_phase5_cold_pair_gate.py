@@ -86,14 +86,57 @@ def inspect(baseline: dict, optimized: dict, profile: dict) -> list[str]:
     return errors
 
 
+def inspect_owner_index(optimized: dict, owner: dict) -> list[str]:
+    """Check the subsequent interval-index fixture, not full-source acceptance."""
+    errors: list[str] = []
+    original = optimized.get("steps", {}).get("init_full", {})
+    candidate = owner.get("steps", {}).get("init_full", {})
+    if (owner.get("source_revision") != PINNED
+            or owner.get("fixture") != optimized.get("fixture")
+            or owner.get("run_status") != "completed"
+            or candidate.get("exit_code") != 0
+            or candidate.get("timed_out")
+            or candidate.get("rss_limit_exceeded")
+            or not candidate.get("snapshot_id")):
+        errors.append("ownership index: incorrect, incomplete or censored fixture")
+    if (original.get("facts") != candidate.get("facts")
+            or candidate.get("facts", {}).get("fact_record_count") != EXPECTED_FACTS):
+        errors.append("ownership index: exact Python fact parity failed")
+    if (not owner.get("provenance", {}).get("binary_sha256")
+            or owner.get("provenance", {}).get("binary_sha256")
+            == optimized.get("provenance", {}).get("binary_sha256")):
+        errors.append("ownership index: distinct binary provenance missing")
+    prior = original.get("metrics", [])
+    after = candidate.get("metrics", [])
+    old_detection = one(prior, "interstack.contract_detection")
+    new_detection = one(after, "interstack.contract_detection")
+    if (old_detection is None or new_detection is None
+            or not 0 < new_detection.get("elapsed_ms", 0)
+                   < old_detection.get("elapsed_ms", 0)):
+        errors.append("ownership index: detection-stage measurement did not improve")
+    old_links, new_links = one(prior, "interstack.linking"), one(after, "interstack.linking")
+    if (old_links is None or new_links is None
+            or any(old_links.get(key) != new_links.get(key) for key in INTERSTACK)):
+        errors.append("ownership index: interstack linkage cardinality changed")
+    if (owner.get("provenance", {}).get("psutil_available") is not True
+            or candidate.get("peak_sampled_rss_bytes", 0) <= 0):
+        errors.append("ownership index: sampled memory unavailable")
+    return errors
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("baseline", "optimized", "profile"):
         parser.add_argument(name, type=Path)
+    parser.add_argument("--owner-index", type=Path,
+                        help="optional separately run interval-index fixture")
     args = parser.parse_args()
     reports = [json.loads(getattr(args, name).read_text(encoding="utf-8"))
                for name in ("baseline", "optimized", "profile")]
     errors = inspect(*reports)
+    if args.owner_index:
+        errors.extend(inspect_owner_index(
+            reports[1], json.loads(args.owner_index.read_text(encoding="utf-8"))))
     print("PINNED AGENT COLD DIAGNOSTIC:", "PASS" if not errors else "FAIL")
     for message in errors:
         print("-", message)

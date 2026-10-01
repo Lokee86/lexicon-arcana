@@ -5,6 +5,8 @@ use serde_json::Value;
 
 use crate::{NodeRecord, SourceSpan};
 
+use super::owner_ranges::CallableRanges;
+
 pub(crate) type Attributes = BTreeMap<String, Value>;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -54,7 +56,7 @@ pub(crate) struct SourceFile {
 #[derive(Debug, Clone, Default)]
 pub(crate) struct SourceIndex<'a> {
     nodes: Vec<&'a Node>,
-    callables: HashMap<String, Vec<usize>>,
+    callables: HashMap<String, CallableRanges>,
     files: HashMap<String, usize>,
     by_qname: HashMap<String, Vec<usize>>,
     by_name: HashMap<String, Vec<usize>>,
@@ -67,6 +69,7 @@ impl<'a> SourceIndex<'a> {
             nodes: Vec::with_capacity(capacity),
             ..Self::default()
         };
+        let mut callables = HashMap::<String, Vec<usize>>::new();
         for library in libraries {
             for node in &library.nodes {
                 let node_index = index.nodes.len();
@@ -85,38 +88,31 @@ impl<'a> SourceIndex<'a> {
                     index.files.insert(path.clone(), node_index);
                 }
                 if is_callable(&node.kind) && !path.is_empty() && node.span.is_some() {
-                    index.callables.entry(path).or_default().push(node_index);
+                    callables.entry(path).or_default().push(node_index);
                 }
                 index.nodes.push(node);
             }
         }
         let nodes = &index.nodes;
-        for values in index.callables.values_mut() {
+        for (path, mut values) in callables {
             values.sort_by_key(|node_index| {
                 let span = nodes[*node_index].span.as_ref().expect("callable span");
                 (span.start_line, span.start_column)
             });
+            let ranges = CallableRanges::new(values, |node_index| {
+                let span = nodes[node_index].span.as_ref().expect("callable span");
+                (span.start_line, span.end_line)
+            });
+            index.callables.insert(path, ranges);
         }
         index
     }
 
     pub(crate) fn owner_at(&self, path: &str, line: u64) -> Option<Node> {
         let path = normalize_source_path(path);
-        let mut nearest = None;
-        if let Some(candidates) = self.callables.get(&path) {
-            for node_index in candidates {
-                let candidate = self.nodes[*node_index];
-                let span = candidate.span.as_ref().expect("callable span");
-                if span.start_line > line {
-                    break;
-                }
-                nearest = Some(*node_index);
-                if span.start_line <= line && span.end_line >= line {
-                    return Some(candidate.clone());
-                }
-            }
-        }
-        nearest
+        self.callables
+            .get(&path)
+            .and_then(|ranges| ranges.owner_at(line))
             .or_else(|| self.files.get(&path).copied())
             .map(|node_index| self.nodes[node_index].clone())
     }
