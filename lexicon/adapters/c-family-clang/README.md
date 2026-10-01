@@ -64,10 +64,10 @@ Rust does not parse macro replacement text or reconstruct C/C++ compiler semanti
 | Helper entry point and protocol dispatch | `main.cpp`, `structural.cpp`, `structural_action.cpp` |
 | Parse-unit planning and exact/synthetic compile commands | `structural_compilation.h`, `structural_compilation.cpp` |
 | Ordered ownership claims, unlocked emission, and count/byte admission | `structural_commit.h`, `structural_commit.cpp`, `structural_memory.h`, `structural_memory.cpp` |
-| Persistent worker lanes and orphan fallback | `structural_execution.h`, `structural_execution.cpp` |
+| Persistent worker lanes, orphan fallback and thresholded freed-page reclamation | `structural_execution.h`, `structural_execution.cpp`, `structural_heap.h`, `structural_heap.cpp`, `structural_heap_test.py` |
 | Translation-unit/declaration observations and conservative AST pruning | `structural_frontend.cpp`, `structural_traversal_scope.h`, `structural_traversal_scope.cpp`, `structural_declarations.cpp`, `structural_declaration_support.cpp` |
 | Calls and compiler relationships | `structural_calls.cpp`, `structural_relationships.cpp`, `structural_semantic_support.cpp`, `structural_semantics.cpp` |
-| Pointer/value/access observations | `structural_access_flow.cpp`, `structural_value_flow.cpp`, `structural_value_flow_json.cpp` |
+| Pointer/value/access observations and owned binding-source regression | `structural_access_flow.cpp`, `structural_value_flow.cpp`, `structural_value_flow_json.cpp`, `structural_pointer_ownership_test.py` |
 | Observation model and deterministic JSON | `structural_model.h`, `structural_model.cpp` |
 | Opt-in TU lifetime, RSS, AST allocation, and allocator-retention profiling | `structural_profile.h`, `structural_profile.cpp`, `structural_profile_test.py` |
 | Rust production adapter and materialization | `../../src/adapters/c_family/clang_frontend.rs`, `clang_protocol.rs`, `clang_materialization.rs` |
@@ -108,6 +108,18 @@ In the initial C probe, parent queries cost 457 ms and traversal added about 84 
 `scripts/c_family_pch_probe.py` compares source parsing with an explicit Clang PCH containing only guarded external context. It separately records PCH creation and checks semantic file payloads, context identities and diagnostics; compilation arguments intentionally differ. The external PCH regression requires a matching Clang executable and runs when CMake finds one. Loaded/PCH ASTs retain full traversal until nested ownership can be indexed safely. In the final C-parser PCH fixture, median warm wall was 0.584 s from source versus 0.581 s with PCH, while peak helper RSS increased from 141.160 MB to 190.398 MB. PCH creation added 0.747 s and produced a 10.289 MB artifact. Automatic PCH creation or dependency caching is not enabled: the cold creation cost is paid per distinct grammar, and safe cache reuse must preserve preprocessing observations, diagnostics, dependency/configuration invalidation and owned-source semantics.
 
 Seven native CTest suites and 25 baseline fixture comparisons protect the change. The 64-record grammar fixture and 1,608-record observation fixture also preserve byte-identical canonical Rust output before/after and at workers 1, 2, and 4. These measurements use small fixtures and do not establish the Codebase Memory performance gate.
+
+### Dependency pointer sources and heap reclamation
+
+Pointer-binding assignments are emitted only when the pointer declaration belongs to the owned inventory. Dependency fields and variables remain available as compact context identities for accesses and indirect calls; they cannot become graph sources. Rust continues to reject malformed bindings whose sources lack materialized declarations. The native pointer-ownership fixture reproduces the former failure and protects the retained owned binding, dependency writes and indirect call.
+
+On glibc 2.33 or newer, worker lanes request heap reclamation after compiler teardown and observation handoff. A nonblocking process-wide lock prevents simultaneous trims. Reclamation requires at least 64 MiB of free allocator chunks and at least 64 MiB resident growth since the last attempt. Other platforms retain their allocator behaviour. This releases freed pages rather than limiting live ASTs, queue results or process RSS. It does not change ownership, parse order or semantic output. The large-AST regression exercises reclamation and worker determinism; opt-in `c-family.clang.heap_reclaim` reports elapsed time and free heap before/after.
+
+The first full CBM validation after step five took 118.560 seconds until Rust materialization failed, with 2.963 GB peak process-tree RSS. It planned 455 real and 38 synthetic sources and returned observations for all 623 files over 469 TUs. The rejected source was the dependency field `TSParseOptions::progress_callback`. No canonical fact stream was produced. Raw post-TU telemetry showed approximately 2.22 GB free allocator chunks with approximately 20 MB live chunks, establishing allocator retention on the full corpus. The 63-second/2.812-GB gate failed; complete semantic coverage was not verified.
+
+The reclamation fixture's three alternating samples retained identical native observations. Median final submission RSS fell from 141.578 MB to 123.945 MB with the resident-growth guard, while peak RSS remained approximately 145.5 MB and wall remained approximately 1.75 seconds. Reclamation reduces retention rather than the live parsing peak.
+
+Post-fix CBM integration at four workers completed in 117.357 seconds with 3.368 GB peak process-tree RSS, 469 TUs, all 623 files and 869,893 canonical facts. The pointer failure is resolved; the performance gate still fails. At a later post-TU sample, RSS was approximately 240 MB despite approximately 2.786 GB free virtual allocator chunks, demonstrating released resident pages. Four-lane peak live work still exceeds the memory budget. The corrected 461-command capture changes build contexts and therefore canonical output from the old 167-command baseline; file coverage matches, but the complete symbol/relationship delta has not been adjudicated. Nine native suites, the pointer fixture's canonical worker hashes and bounded grammar comparisons protect these fixes, without establishing full-corpus parity.
 
 ## Calibration
 

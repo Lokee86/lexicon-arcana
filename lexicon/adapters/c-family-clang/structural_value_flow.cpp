@@ -108,7 +108,8 @@ void observe_pointer_assignment(State &state, clang::ASTContext &context,
   auto target = callable_reference(assignment.getRHS(), state, context,
                                    repository_root);
   auto path = source_path(sources, assignment.getExprLoc(), repository_root);
-  if (!pointer || !target || !path || !state.owns(*path)) {
+  if (!pointer || !target || !path || !state.owns(*path) ||
+      !state.contains_owned(pointer->path)) {
     return;
   }
   state.file(*path, language.str(), translation_unit.str())

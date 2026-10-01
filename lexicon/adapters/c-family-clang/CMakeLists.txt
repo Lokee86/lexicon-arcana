@@ -29,6 +29,7 @@ add_executable(
     structural_model.cpp
     structural_memory.cpp
     structural_profile.cpp
+    structural_heap.cpp
     structural_relationships.cpp
     structural_semantic_support.cpp
     structural_semantics.cpp
@@ -129,6 +130,20 @@ add_test(
 set_tests_properties(lexicon-c-family-clang-commit PROPERTIES TIMEOUT 30)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(
+    NAME lexicon-c-family-clang-heap
+    COMMAND ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/structural_heap_test.py
+        $<TARGET_FILE:lexicon-c-family-clang> ${HELPER_VERSION}
+)
+set_tests_properties(lexicon-c-family-clang-heap PROPERTIES TIMEOUT 60)
+add_test(
+    NAME lexicon-c-family-clang-pointer-ownership
+    COMMAND ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/structural_pointer_ownership_test.py
+        $<TARGET_FILE:lexicon-c-family-clang> ${HELPER_VERSION}
+)
+set_tests_properties(lexicon-c-family-clang-pointer-ownership PROPERTIES TIMEOUT 60)
 add_test(
     NAME lexicon-c-family-clang-profile
     COMMAND

@@ -16,6 +16,7 @@
 
 #include "structural_commit.h"
 #include "structural_frontend.h"
+#include "structural_heap.h"
 
 namespace lexicon::clang_frontend {
 namespace {
@@ -77,6 +78,7 @@ int run_lanes(const std::string &root, CompilationCommands &database,
           [&](std::size_t rank, State result, int status) {
             statuses[lane] |= status;
             committer.submit(rank, std::move(result), status);
+            reclaim_unused_heap();
           }, prior_claims);
       statuses[lane] |= tool.run(factory.get());
       if (driver_diagnostics.failed()) {
