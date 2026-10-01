@@ -1,0 +1,48 @@
+{
+  "edit_once": {
+    "matches_independent_full": true,
+    "independent_full": {
+      "records_sha256": "c450a77eb156e8c32c9e231eb0bd4c35455674858b309974578bae848a5518ba",
+      "fact_record_count": 11011,
+      "header": {
+        "adapter_version": "0.5.0",
+        "language": "python",
+        "mode": "full",
+        "schema_version": 1
+      }
+    },
+    "incremental": {
+      "records_sha256": "c450a77eb156e8c32c9e231eb0bd4c35455674858b309974578bae848a5518ba",
+      "fact_record_count": 11011,
+      "header": {
+        "adapter_version": "0.5.0",
+        "language": "python",
+        "mode": "full",
+        "schema_version": 1
+      }
+    }
+  },
+  "edit_twice": {
+    "matches_independent_full": true,
+    "independent_full": {
+      "records_sha256": "534b449f3f8cc164c2af3d43aa20f43f26075faf24a2c9aa09d67ba9f7633b72",
+      "fact_record_count": 11011,
+      "header": {
+        "adapter_version": "0.5.0",
+        "language": "python",
+        "mode": "full",
+        "schema_version": 1
+      }
+    },
+    "incremental": {
+      "records_sha256": "534b449f3f8cc164c2af3d43aa20f43f26075faf24a2c9aa09d67ba9f7633b72",
+      "fact_record_count": 11011,
+      "header": {
+        "adapter_version": "0.5.0",
+        "language": "python",
+        "mode": "full",
+        "schema_version": 1
+      }
+    }
+  }
+}

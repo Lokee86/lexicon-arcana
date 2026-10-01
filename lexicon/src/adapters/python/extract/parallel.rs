@@ -36,8 +36,20 @@ pub fn extract_repository(
         extract_parallel(repository, &ranges, worker_count, Arc::clone(&tracker))?
     };
 
+    let merge_started = crate::perf::start();
     let merged = reduce_fragments(fragments, merge_fan_in.max(2));
     facts.merge_from(merged);
+    if let Some(started) = merge_started {
+        crate::perf::emit(
+            "python.extract_reduce",
+            started.elapsed(),
+            &[
+                ("logical_shards", ranges.len() as u64),
+                ("nodes", facts.nodes.len() as u64),
+                ("edges", facts.edges.len() as u64),
+            ],
+        );
+    }
     Ok(tracker.metrics(worker_count, ranges.len()))
 }
 
@@ -87,15 +99,90 @@ fn extract_range(
     tracker: &LifetimeTracker,
 ) -> Result<(usize, Facts), AdapterError> {
     let mut facts = Facts::new(repository.name.clone());
-    for input in &repository.files[range] {
+    let shard_started = crate::perf::start();
+    let start_index = range.start;
+    let shard_files = range.end - range.start;
+    let shard_bytes = repository.files[range.clone()]
+        .iter()
+        .map(|file| file.size)
+        .sum::<u64>();
+    if shard_started.is_some() {
+        crate::perf::emit(
+            "python.extract_shard_start",
+            std::time::Duration::ZERO,
+            &[
+                ("shard", index as u64),
+                ("first_file_index", start_index as u64),
+                ("files", shard_files as u64),
+                ("source_bytes", shard_bytes),
+            ],
+        );
+    }
+    let mut slowest_ms = 0_u64;
+    let mut slowest_index = start_index;
+    for (offset, input) in repository.files[range].iter().enumerate() {
+        let file_index = start_index + offset;
+        let file_started = crate::perf::start();
+        if file_started.is_some() && input.size >= 128_000 {
+            crate::perf::emit(
+                "python.extract_large_file_start",
+                std::time::Duration::ZERO,
+                &[
+                    ("file_index", file_index as u64),
+                    ("source_bytes", input.size),
+                ],
+            );
+        }
         let file = load(input)?;
+        let parse_ms = file_started.map_or(0, |start| start.elapsed().as_millis() as u64);
         tracker.enter(&file);
+        let extract_started = crate::perf::start();
         let result = extract_file(&file, &mut facts);
+        let extraction_ms = extract_started.map_or(0, |start| start.elapsed().as_millis() as u64);
+        let semantic_started = crate::perf::start();
         if result.is_ok() {
             semantic::emit_file_facts(&file, &mut facts);
         }
+        let semantic_ms = semantic_started.map_or(0, |start| start.elapsed().as_millis() as u64);
         tracker.exit(&file);
         result?;
+        if let Some(started) = file_started {
+            let elapsed = started.elapsed();
+            let ms = elapsed.as_millis() as u64;
+            if ms > slowest_ms {
+                slowest_ms = ms;
+                slowest_index = file_index;
+            }
+            if ms >= 250 || input.size >= 128_000 {
+                crate::perf::emit(
+                    "python.extract_slow_file",
+                    elapsed,
+                    &[
+                        ("file_index", file_index as u64),
+                        ("source_bytes", input.size),
+                        ("parse_ms", parse_ms),
+                        ("extract_ms", extraction_ms),
+                        ("semantic_ms", semantic_ms),
+                    ],
+                );
+            }
+        }
+    }
+    if let Some(started) = shard_started {
+        crate::perf::emit(
+            "python.extract_shard",
+            started.elapsed(),
+            &[
+                ("shard", index as u64),
+                ("first_file_index", start_index as u64),
+                ("files", shard_files as u64),
+                ("source_bytes", shard_bytes),
+                ("slowest_file_index", slowest_index as u64),
+                ("slowest_file_ms", slowest_ms),
+                ("nodes", facts.nodes.len() as u64),
+                ("edges", facts.edges.len() as u64),
+            ],
+        );
     }
     Ok((index, facts))
 }

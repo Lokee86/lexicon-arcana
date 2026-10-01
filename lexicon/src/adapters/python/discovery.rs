@@ -6,6 +6,7 @@ use rustpython_parser::{Parse, ast};
 use crate::AdapterError;
 
 use super::model::{Repository, SourceFile, SourceInput};
+use super::source::LineIndex;
 
 const EXCLUDED: &[&str] = &[
     ".git",
@@ -73,7 +74,9 @@ pub fn discover(root: &Path) -> Result<Repository, AdapterError> {
 
 pub(super) fn load(input: &SourceInput) -> Result<SourceFile, AdapterError> {
     let bytes = fs::read(&input.path).map_err(AdapterError::from)?;
-    match String::from_utf8(bytes.clone()) {
+    let decoded = String::from_utf8(bytes.clone());
+    let lines = LineIndex::new(decoded.as_deref().unwrap_or(""));
+    match decoded {
         Ok(source) => match ast::Suite::parse(&source, &input.relative) {
             Ok(suite) => Ok(SourceFile {
                 path: input.path.clone(),
@@ -81,6 +84,7 @@ pub(super) fn load(input: &SourceInput) -> Result<SourceFile, AdapterError> {
                 module: input.module.clone(),
                 bytes,
                 source,
+                lines,
                 suite: Some(suite),
                 parse_error: None,
             }),
@@ -90,6 +94,7 @@ pub(super) fn load(input: &SourceInput) -> Result<SourceFile, AdapterError> {
                 module: input.module.clone(),
                 bytes,
                 source,
+                lines,
                 suite: None,
                 parse_error: Some(format!("{error}")),
             }),
@@ -100,6 +105,7 @@ pub(super) fn load(input: &SourceInput) -> Result<SourceFile, AdapterError> {
             module: input.module.clone(),
             bytes,
             source: String::new(),
+            lines,
             suite: None,
             parse_error: Some("UnicodeDecodeError".into()),
         }),

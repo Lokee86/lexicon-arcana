@@ -132,6 +132,7 @@ impl Store {
                 &entry,
                 previous,
                 &groups.shared,
+                &groups.owned,
                 changed_files,
                 removed_files,
             )?

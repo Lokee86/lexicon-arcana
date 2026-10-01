@@ -25,14 +25,17 @@ pub(crate) fn emit(stage: &str, elapsed: Duration, counters: &[(&str, u64)]) {
         return;
     }
 
-    eprint!(
+    // A complete single stderr write prevents concurrent Python extraction
+    // workers from interleaving counter fragments across metric records.
+    let mut line = format!(
         "[lexicon-perf] stage={stage} elapsed_ms={:.3}",
         elapsed.as_secs_f64() * 1000.0
     );
     for (name, value) in counters {
-        eprint!(" {name}={value}");
+        use std::fmt::Write;
+        let _ = write!(&mut line, " {name}={value}");
     }
-    eprintln!();
+    eprintln!("{line}");
 }
 
 #[cfg(test)]

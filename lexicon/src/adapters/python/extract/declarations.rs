@@ -64,7 +64,7 @@ impl Visitor<'_> {
                 class_qname: qname.clone(),
                 base: base.clone(),
                 expression: expression_text(base, &self.file.source),
-                span: span(base, &self.file.relative, &self.file.source),
+                span: span(base, self.file),
             });
         }
 
@@ -173,7 +173,7 @@ impl Visitor<'_> {
     }
 
     pub(super) fn visit_lambda(&mut self, value: &ast::ExprLambda) {
-        let (line, column) = byte_location(value, &self.file.source);
+        let (line, column) = byte_location(value, self.file);
         let name = format!("<lambda>@{line}:{}", column + 1);
         let owner_qname = self
             .facts

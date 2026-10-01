@@ -23,7 +23,7 @@ pub(super) struct LifetimeTracker {
 
 impl LifetimeTracker {
     pub(super) fn enter(&self, file: &SourceFile) {
-        let retained = (file.bytes.len() + file.source.len()) as u64;
+        let retained = (file.bytes.len() + file.source.len() + file.lines.retained_bytes()) as u64;
         let source = self.source_bytes.fetch_add(retained, Ordering::Relaxed) + retained;
         self.peak_source_bytes.fetch_max(source, Ordering::Relaxed);
 
@@ -37,7 +37,7 @@ impl LifetimeTracker {
     }
 
     pub(super) fn exit(&self, file: &SourceFile) {
-        let retained = (file.bytes.len() + file.source.len()) as u64;
+        let retained = (file.bytes.len() + file.source.len() + file.lines.retained_bytes()) as u64;
         self.source_bytes.fetch_sub(retained, Ordering::Relaxed);
         self.files.fetch_sub(1, Ordering::Relaxed);
         if file.suite.is_some() {

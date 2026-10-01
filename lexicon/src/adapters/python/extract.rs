@@ -186,6 +186,6 @@ impl Visitor<'_> {
     }
 
     fn node_span<T: rustpython_parser::ast::Ranged>(&self, node: &T) -> Option<crate::SourceSpan> {
-        span(node, &self.file.relative, &self.file.source)
+        span(node, self.file)
     }
 }

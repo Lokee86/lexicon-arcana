@@ -4,6 +4,8 @@ Parent index: [Development Documentation](INDEX.md)
 Date: 2026-10-01
 **Acceptance: NOT PASSED.** Preserve this report and its exact raw evidence; do not treat synthetic or package-level results as a full-Hermes release sign-off.
 
+A later [Phase 5 repair follow-up](lexicon-incremental-phase5-repairs-2026-10-01.md) fixes the repeated one-file shared-fact fallback and independently verifies two edited exports. The complete full-Hermes acceptance gate remains open. Retain the original data below as historical first-attempt evidence.
+
 ## Purpose
 
 Test the Phase 0–4 performance repair through actual Rust CLI scans, not isolated planner microbenchmarks. Require exact pinned source, measured before/after results, exported-fact comparison, bounded resource usage, and lock release after interruption.
@@ -106,6 +108,10 @@ Both package-level interruption probes terminated the scan subprocess, then comp
 - Paired package runs: `incremental-phase5-acp-before-2026-10-01.json`, `incremental-phase5-acp-after-2026-10-01.json`; result: `incremental-phase5-acp-comparison-2026-10-01.json`.
 - Rust engine regression: `lexicon/tests/phase5_adapter_drift.rs`.
 - Earlier [Phase 4 bounded-work evidence](lexicon-incremental-phase4-2026-10-01.md) remains valid for the independent 61- and 1,001-file synthetic checks.
+
+## Subsequent repair evidence (original results unchanged)
+
+[The Phase 5 follow-up report](lexicon-incremental-phase5-repairs-2026-10-01.md) documents stable shared-node delta reconciliation and corrected shared merge keys: on the same pinned 14-file package, both one-file comment edits and the ten-file edit now match the previously corrected full-retry facts **without** full adapter reruns. The indexed Python line-location repair also completed a pinned 302-file agent/ cold scan in 39.188 seconds after its preceding 85-second benchmark timed out. These new results supersede the original package performance blocker but **do not close full-Hermes release acceptance**, whose complete cold and warm criteria remain unverified.
 
 ## Related docs
 

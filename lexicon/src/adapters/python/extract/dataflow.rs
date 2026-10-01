@@ -102,13 +102,8 @@ impl Visitor<'_> {
             return;
         };
         let owner = self.owner().to_owned();
-        self.facts.add_edge(
-            &owner,
-            &symbol,
-            relation,
-            span(node, &self.file.relative, &self.file.source),
-            None,
-        );
+        self.facts
+            .add_edge(&owner, &symbol, relation, span(node, self.file), None);
     }
 
     pub(super) fn resolve_data(&self, name: &str) -> Option<String> {

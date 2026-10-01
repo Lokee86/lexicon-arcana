@@ -4,6 +4,8 @@ use rustpython_parser::ast;
 
 use crate::SourceSpan;
 
+use super::source::LineIndex;
+
 #[derive(Debug)]
 pub struct Repository {
     pub root: PathBuf,
@@ -27,6 +29,7 @@ pub struct SourceFile {
     pub module: String,
     pub bytes: Vec<u8>,
     pub source: String,
+    pub lines: LineIndex,
     pub suite: Option<ast::Suite>,
     pub parse_error: Option<String>,
 }

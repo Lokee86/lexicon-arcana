@@ -37,7 +37,7 @@ pub(super) fn handler_identity(
     file: &SourceFile,
     handler: &ast::ExceptHandlerExceptHandler,
 ) -> (String, u64, u64) {
-    let (line, column) = byte_location(handler, &file.source);
+    let (line, column) = byte_location(handler, file);
     (
         format!(
             "@semantic/error-handler/python/{}:{line}:{column}",
@@ -60,7 +60,7 @@ pub(super) fn handler_node(
         &file.relative,
         &identity,
         Some(&identity),
-        span(handler, &file.relative, &file.source),
+        span(handler, file),
         None,
         None,
     )

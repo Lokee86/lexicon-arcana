@@ -98,14 +98,14 @@ fn emit_empty_handler_flows(
             continue;
         };
 
-        let (line, column) = byte_location(handler, &file.source);
+        let (line, column) = byte_location(handler, file);
         let handler_identity = format!(
             "@semantic/error-handler/python/{}:{line}:{column}",
             file.relative
         );
-        let (evidence_line, evidence_column) = byte_location(evidence, &file.source);
+        let (evidence_line, evidence_column) = byte_location(evidence, file);
         let identity = format!("{handler_identity}/flow-{flow}:{evidence_line}:{evidence_column}");
-        let record_span = span(evidence, &file.relative, &file.source);
+        let record_span = span(evidence, file);
         let id = facts.add_node(
             "protocol",
             &format!("error-flow:{flow}"),

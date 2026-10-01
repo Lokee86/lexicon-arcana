@@ -33,7 +33,7 @@ impl Visitor<'_> {
                     expression_node: value.clone(),
                     callee: (*value.func).clone(),
                     expression: expression_text(expression, &self.file.source),
-                    span: span(expression, &self.file.relative, &self.file.source),
+                    span: span(expression, self.file),
                     bare_expression: self.bare_call == Some(start),
                     outcome_eligible: self.semantic_outcomes_enabled,
                 });

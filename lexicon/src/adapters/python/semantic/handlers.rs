@@ -263,11 +263,11 @@ fn record<T: ast::Ranged>(
     actions: &mut BTreeMap<&'static str, Evidence>,
 ) {
     actions.entry(action).or_insert_with(|| {
-        let (line, column) = byte_location(node, &file.source);
+        let (line, column) = byte_location(node, file);
         Evidence {
             line,
             column,
-            span: span(node, &file.relative, &file.source),
+            span: span(node, file),
         }
     });
 }
