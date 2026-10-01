@@ -250,16 +250,74 @@ impl ScanEngine {
         &self,
         manifest: SnapshotManifest,
     ) -> Result<String, ScanExecutionError> {
+        let staged = crate::perf::start();
+        if staged.is_some() {
+            crate::perf::emit(
+                "scan.publication_stage_all_start",
+                std::time::Duration::ZERO,
+                &[],
+            );
+        }
         self.git.stage_all()?;
+        if let Some(staged) = staged {
+            crate::perf::emit("scan.publication_stage_all", staged.elapsed(), &[]);
+        }
+
+        let git_state = crate::perf::start();
         let base = self.git.head_option()?.unwrap_or_default();
         let commit_required = !self.git.has_head() || self.git.has_staged_changes();
+        if let Some(git_state) = git_state {
+            crate::perf::emit("scan.publication_git_state", git_state.elapsed(), &[]);
+        }
+
+        let pending = crate::perf::start();
+        if pending.is_some() {
+            crate::perf::emit(
+                "scan.publication_pending_start",
+                std::time::Duration::ZERO,
+                &[],
+            );
+        }
         let transaction = self
             .store
             .begin_scan_publication(&manifest, &base, commit_required)?;
+        if let Some(pending) = pending {
+            crate::perf::emit("scan.publication_pending", pending.elapsed(), &[]);
+        }
+
+        let commit = crate::perf::start();
+        if commit.is_some() {
+            crate::perf::emit(
+                "scan.publication_git_commit_start",
+                std::time::Duration::ZERO,
+                &[],
+            );
+        }
         self.git.commit_state()?;
+        if let Some(commit) = commit {
+            crate::perf::emit("scan.publication_git_commit", commit.elapsed(), &[]);
+        }
+
+        let finish = crate::perf::start();
+        if finish.is_some() {
+            crate::perf::emit(
+                "scan.publication_verify_start",
+                std::time::Duration::ZERO,
+                &[],
+            );
+        }
         let head = self.git.head()?;
-        self.store
+        let result = self
+            .store
             .finish_scan_publication(transaction, &head)
-            .map_err(ScanExecutionError::from)
+            .map_err(ScanExecutionError::from);
+        if let Some(finish) = finish {
+            crate::perf::emit(
+                "scan.publication_verify",
+                finish.elapsed(),
+                &[("failed", u64::from(result.is_err()))],
+            );
+        }
+        result
     }
 }
