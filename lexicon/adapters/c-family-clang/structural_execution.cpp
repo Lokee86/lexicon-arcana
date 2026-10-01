@@ -44,7 +44,8 @@ int run_lanes(const std::string &root, CompilationCommands &database,
               const std::vector<ParseUnit> &units,
               const std::vector<std::string> &owned_files,
               std::size_t active_lanes,
-              OrderedObservationCommitter &committer) {
+              OrderedObservationCommitter &committer,
+              const std::vector<std::string> &prior_claims) {
   if (units.empty()) {
     return 0;
   }
@@ -76,7 +77,7 @@ int run_lanes(const std::string &root, CompilationCommands &database,
           [&](std::size_t rank, State result, int status) {
             statuses[lane] |= status;
             committer.submit(rank, std::move(result), status);
-          });
+          }, prior_claims);
       statuses[lane] |= tool.run(factory.get());
       if (driver_diagnostics.failed()) {
         statuses[lane] |= 1;
@@ -101,6 +102,7 @@ int run_lanes(const std::string &root, CompilationCommands &database,
                                     : result.translation_units.front().language;
           result.file(unit.translation_unit, language, unit.translation_unit);
         }
+        result.suppress_observations(prior_claims);
         committer.submit(unit.rank, std::move(result), 1);
         statuses[lane] |= 1;
       }
@@ -140,11 +142,13 @@ int execute_parse_plan(const std::string &root, CompilationCommands &database,
         root, owned, units.size(),
         std::max<std::size_t>(active_lanes * 2, 1), consume, prior_claims);
     const auto status = run_lanes(root, database, units, owned, active_lanes,
-                                  committer);
+                                  committer, prior_claims);
     const auto completed = committer.summary();
     summary.active_clang_lanes =
         std::max(summary.active_clang_lanes, active_lanes);
     summary.completed_tus += completed.completed_tus;
+    summary.peak_pending_estimated_bytes = std::max(
+        summary.peak_pending_estimated_bytes, completed.peak_pending_estimated_bytes);
     summary.claimed_owned_files += completed.claimed_owned_files;
     summary.discarded_duplicate_file_observations +=
         completed.discarded_duplicate_file_observations;

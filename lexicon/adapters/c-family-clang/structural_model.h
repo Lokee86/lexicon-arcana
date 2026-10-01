@@ -164,6 +164,8 @@ struct State {
              const std::string &translation_unit);
   void set_owned_files(const std::vector<std::string> &paths);
   bool owns(llvm::StringRef path) const;
+  bool contains_owned(llvm::StringRef path) const;
+  void suppress_observations(const std::vector<std::string> &claimed);
   void add_context_identity(ContextIdentity identity);
   void add_diagnostic(Diagnostic diagnostic);
   void merge(State other);
@@ -175,6 +177,7 @@ struct State {
   std::map<std::string, File> files;
   std::set<std::string> active_owned_paths;
   std::set<std::string> all_owned_paths;
+  std::set<std::string> suppressed_observation_paths;
   std::vector<ContextIdentity> context_identities;
   std::vector<TranslationUnit> translation_units;
   std::vector<Diagnostic> diagnostics;

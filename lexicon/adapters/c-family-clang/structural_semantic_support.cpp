@@ -71,7 +71,7 @@ SymbolReference symbol_reference(const clang::NamedDecl *declaration,
   }
   auto &sources = context.getSourceManager();
   auto path = source_path(sources, declaration->getLocation(), repository_root);
-  if (path && !state.owns(*path)) {
+  if (path && !state.contains_owned(*path)) {
     record_context_identity(state, context, *declaration, repository_root);
   }
   return {

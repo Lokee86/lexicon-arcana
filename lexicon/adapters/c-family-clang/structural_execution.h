@@ -13,6 +13,7 @@ namespace lexicon::clang_frontend {
 struct ExecutionSummary {
   std::size_t active_clang_lanes = 0;
   std::size_t completed_tus = 0;
+  std::size_t peak_pending_estimated_bytes = 0;
   std::size_t primary_synthetic_parse_units = 0;
   std::size_t skipped_covered_source_units = 0;
   std::size_t orphan_fallback_units = 0;

@@ -80,7 +80,7 @@ void record_context_identity(State &state, clang::ASTContext &context,
                              llvm::StringRef repository_root) {
   auto &sources = context.getSourceManager();
   auto path = source_path(sources, declaration.getLocation(), repository_root);
-  if (!path || state.owns(*path)) {
+  if (!path || state.contains_owned(*path)) {
     return;
   }
   auto observation = classify_declaration(
@@ -108,8 +108,11 @@ std::string ensure_owned_declaration(
     return {};
   }
   auto path = source_path(sources, declaration.getLocation(), repository_root);
-  if (!path || !state.owns(*path)) {
+  if (!path || !state.contains_owned(*path)) {
     return {};
+  }
+  if (!state.owns(*path)) {
+    return id; // The prior canonical claim already owns this declaration.
   }
   auto &file = state.file(*path, language.str(), translation_unit.str());
   if (file.declaration_compiler_ids.contains(id)) {

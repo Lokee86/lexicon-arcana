@@ -163,9 +163,11 @@ void invalid_and_duplicate_ranks_are_rejected() {
 } // namespace
 
 void staged_source_coverage_tests();
+void commit_buffer_tests();
 
 int main() {
   staged_source_coverage_tests();
+  commit_buffer_tests();
   saturated_window_blocks_and_wakes();
   invalid_and_duplicate_ranks_are_rejected();
 

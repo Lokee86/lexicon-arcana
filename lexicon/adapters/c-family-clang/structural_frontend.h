@@ -24,7 +24,8 @@ make_frontend_factory(const std::vector<ParseUnit> &units,
                       CompilationCommands &database,
                       std::vector<std::string> owned_files,
                       std::string repository_root,
-                      std::function<void(std::size_t, State, int)> submit);
+                      std::function<void(std::size_t, State, int)> submit,
+                      std::vector<std::string> prior_claims = {});
 
 State make_translation_unit_state(const std::string &repository_root,
                                   CompilationCommands &database,

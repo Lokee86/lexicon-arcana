@@ -1,4 +1,5 @@
 #include "structural_frontend.h"
+#include "structural_traversal_scope.h"
 
 #include <optional>
 #include <string>
@@ -28,8 +29,25 @@ public:
                   std::string translation_unit, std::string language)
       : state_(state), context_(context), sources_(context.getSourceManager()),
         root_(std::move(root)), translation_unit_(std::move(translation_unit)),
-        language_(std::move(language)) {
+        language_(std::move(language)), scope_(state, sources_) {
     reset_hot_path_context(perf_enabled());
+  }
+
+  void prepare_traversal_scope() { scope_.index(); }
+
+  bool TraverseDecl(clang::Decl *declaration) {
+    if (declaration && scope_.can_prune(*declaration)) {
+      ++pruned_declarations_;
+      return true;
+    }
+    ++traversed_declarations_;
+    return clang::RecursiveASTVisitor<SemanticVisitor>::TraverseDecl(declaration);
+  }
+
+  void emit_traversal_metrics() const {
+    emit_perf("c-family.clang.traversal", std::chrono::nanoseconds(0),
+              {{"pruned_declarations", pruned_declarations_},
+               {"traversed_declarations", traversed_declarations_}});
   }
 
   bool TraverseFunctionDecl(clang::FunctionDecl *function) {
@@ -207,6 +225,9 @@ private:
   std::unordered_map<clang::FileID, std::optional<std::string>, FileIdHash>
       file_paths_;
   const clang::FunctionDecl *source_function_ = nullptr;
+  TraversalScope scope_;
+  std::uint64_t pruned_declarations_ = 0;
+  std::uint64_t traversed_declarations_ = 0;
 };
 
 class VisitorConsumer final : public clang::ASTConsumer {
@@ -219,7 +240,9 @@ public:
 
   void HandleTranslationUnit(clang::ASTContext &context) override {
     const auto started = PerfClock::now();
+    visitor_.prepare_traversal_scope();
     visitor_.TraverseDecl(context.getTranslationUnitDecl());
+    visitor_.emit_traversal_metrics();
     state_.semantic_analysis_ns +=
         std::chrono::duration_cast<std::chrono::nanoseconds>(
             PerfClock::now() - started)

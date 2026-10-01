@@ -23,6 +23,7 @@ public:
     std::size_t claimed_owned_files = 0;
     std::size_t discarded_duplicate_file_observations = 0;
     std::size_t peak_pending_results = 0;
+    std::size_t peak_pending_estimated_bytes = 0;
   };
 
   OrderedObservationCommitter(std::string repository_root,
@@ -30,7 +31,8 @@ public:
                               std::size_t total_results,
                               std::size_t pending_limit,
                               FileConsumer consume_files,
-                              const std::vector<std::string> &prior_claims = {});
+                              const std::vector<std::string> &prior_claims = {},
+                              std::size_t pending_byte_limit = 64 * 1024 * 1024);
 
   // Returns false only when this rank has already completed or is invalid.
   // A rank at the current commit frontier may always enter a full window.
@@ -47,15 +49,17 @@ private:
   struct PendingResult {
     State state;
     int status = 0;
+    std::size_t estimated_bytes = 0;
   };
 
-  void commit_ready_locked();
-  void commit_one_locked(std::size_t rank, PendingResult result);
+  State commit_one_locked(PendingResult result);
 
   std::string repository_root_;
   std::set<std::string> owned_files_;
   std::size_t total_results_;
   std::size_t pending_limit_;
+  std::size_t pending_byte_limit_;
+  std::size_t pending_bytes_ = 0;
   FileConsumer consume_files_;
   mutable std::mutex mutex_;
   std::condition_variable changed_;

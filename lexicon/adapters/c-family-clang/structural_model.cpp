@@ -228,7 +228,18 @@ void State::set_owned_files(const std::vector<std::string> &paths) {
 }
 
 bool State::owns(llvm::StringRef path) const {
+  return contains_owned(path) && !suppressed_observation_paths.contains(path.str());
+}
+
+bool State::contains_owned(llvm::StringRef path) const {
   return active_owned_paths.contains(path.str());
+}
+
+void State::suppress_observations(const std::vector<std::string> &claimed) {
+  suppressed_observation_paths.insert(claimed.begin(), claimed.end());
+  for (const auto &path : claimed) {
+    files.erase(path);
+  }
 }
 
 void State::add_context_identity(ContextIdentity identity) {

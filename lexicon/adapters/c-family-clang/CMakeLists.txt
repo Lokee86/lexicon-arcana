@@ -24,8 +24,10 @@ add_executable(
     structural_declarations.cpp
     structural_execution.cpp
     structural_frontend.cpp
+    structural_traversal_scope.cpp
     structural_hot_path.cpp
     structural_model.cpp
+    structural_memory.cpp
     structural_relationships.cpp
     structural_semantic_support.cpp
     structural_semantics.cpp
@@ -94,8 +96,10 @@ add_executable(
     lexicon-c-family-clang-commit-test
     structural_commit_test.cpp
     structural_coverage_test.cpp
+    structural_commit_buffer_test.cpp
     structural_commit.cpp
     structural_model.cpp
+    structural_memory.cpp
     structural_semantics.cpp
     structural_value_flow_json.cpp
 )
@@ -133,6 +137,15 @@ add_test(
         ${HELPER_VERSION}
 )
 set_tests_properties(lexicon-c-family-clang-source-coverage PROPERTIES TIMEOUT 60)
+add_test(
+    NAME lexicon-c-family-clang-observation-work
+    COMMAND
+        ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/structural_observation_work_test.py
+        $<TARGET_FILE:lexicon-c-family-clang>
+        ${HELPER_VERSION}
+)
+set_tests_properties(lexicon-c-family-clang-observation-work PROPERTIES TIMEOUT 60)
 add_test(
     NAME lexicon-c-family-clang-ownership
     COMMAND

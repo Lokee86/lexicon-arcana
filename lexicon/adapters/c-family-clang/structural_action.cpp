@@ -259,10 +259,11 @@ public:
   StructuralActionFactory(
       std::vector<ParseUnit> units, CompilationCommands &database,
       std::vector<std::string> owned_files, std::string root,
-      std::function<void(std::size_t, State, int)> submit)
+      std::function<void(std::size_t, State, int)> submit,
+      std::vector<std::string> prior_claims)
       : units_(std::move(units)), database_(database),
         owned_files_(std::move(owned_files)), root_(std::move(root)),
-        submit_(std::move(submit)) {}
+        submit_(std::move(submit)), prior_claims_(std::move(prior_claims)) {}
 
   std::unique_ptr<clang::FrontendAction> create() override {
     if (current_index_ >= units_.size() || current_submitted_) {
@@ -271,6 +272,7 @@ public:
     auto unit = units_[current_index_];
     auto state = make_translation_unit_state(root_, database_, unit,
                                              owned_files_);
+    state.suppress_observations(prior_claims_);
     auto submit = [this](State result, int status) mutable {
       current_submitted_ = true;
       current_result_ = std::move(result);
@@ -353,6 +355,7 @@ private:
                                 : state.translation_units.front().language;
       state.file(unit.translation_unit, language, unit.translation_unit);
     }
+    state.suppress_observations(prior_claims_);
     submit_(unit.rank, std::move(state), 1);
   }
 
@@ -361,6 +364,7 @@ private:
   std::vector<std::string> owned_files_;
   std::string root_;
   std::function<void(std::size_t, State, int)> submit_;
+  std::vector<std::string> prior_claims_;
   std::optional<State> current_result_;
   std::size_t current_index_ = 0;
   int current_status_ = 0;
@@ -374,10 +378,11 @@ make_frontend_factory(const std::vector<ParseUnit> &units,
                       CompilationCommands &database,
                       std::vector<std::string> owned_files,
                       std::string repository_root,
-                      std::function<void(std::size_t, State, int)> submit) {
+                      std::function<void(std::size_t, State, int)> submit,
+                      std::vector<std::string> prior_claims) {
   return std::make_unique<StructuralActionFactory>(
       units, database, std::move(owned_files), std::move(repository_root),
-      std::move(submit));
+      std::move(submit), std::move(prior_claims));
 }
 
 State make_translation_unit_state(
