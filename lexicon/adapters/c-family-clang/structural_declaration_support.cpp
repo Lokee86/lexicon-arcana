@@ -5,6 +5,7 @@
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/DeclTemplate.h"
 #include "clang/AST/TypeLoc.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Index/USRGeneration.h"
@@ -31,8 +32,15 @@ std::string compiler_id(const clang::Decl *declaration,
     }
     if (const auto *function =
             llvm::dyn_cast<clang::FunctionDecl>(pattern)) {
-      if (const auto *instantiated =
-              function->getTemplateInstantiationPattern()) {
+      if (function->isTemplateInstantiation()) {
+        if (const auto *primary = function->getPrimaryTemplate()) {
+          pattern = primary->getTemplatedDecl();
+        } else if (const auto *instantiated =
+                       function->getTemplateInstantiationPattern()) {
+          pattern = instantiated;
+        }
+      } else if (const auto *instantiated =
+                     function->getTemplateInstantiationPattern()) {
         pattern = instantiated;
       }
     }

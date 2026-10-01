@@ -721,6 +721,66 @@ def context_identity_without_context_file(
 
 
 
+def template_instantiation_call_source_is_materialized(
+    helper: pathlib.Path, version: str
+) -> None:
+    with temporary_directory("lexicon-template-call-source-") as temp:
+        root = pathlib.Path(temp)
+        (root / "main.cpp").write_text(
+            "#include <type_traits>\n"
+            "namespace demo {\n"
+            "template <typename T> using make_unsigned_t = "
+            "typename std::make_unsigned<T>::type;\n"
+            "inline int sink(int value) { return value; }\n"
+            "template <typename Int>\n"
+            "auto to_unsigned(Int value) -> make_unsigned_t<Int> {\n"
+            "  return sink(value);\n"
+            "}\n"
+            "}\n"
+            "int use() { return static_cast<int>(demo::to_unsigned(-1)); }\n",
+            encoding="utf-8",
+        )
+        compile_database(root, ["main.cpp"])
+        response = run(
+            helper,
+            version,
+            root,
+            {
+                "protocol_version": 3,
+                "operation": "structural",
+                "repository_root": str(root),
+                "owned_files": ["main.cpp"],
+                "context_files": [],
+                "workers": 1,
+            },
+        )
+        files = response.get("files", [])
+        if len(files) != 1 or files[0].get("path") != "main.cpp":
+            raise RuntimeError(f"unexpected template fixture output: {files!r}")
+        declarations = {
+            value["compiler_id"] for value in files[0].get("declarations", [])
+        }
+        sink_calls = [
+            value
+            for value in files[0].get("calls", [])
+            if value.get("expression") == "sink"
+        ]
+        if not sink_calls:
+            raise RuntimeError("template fixture emitted no instantiated sink call")
+        missing = sorted(
+            {
+                value["source_compiler_id"]
+                for value in sink_calls
+                if value["source_compiler_id"] not in declarations
+            }
+        )
+        if missing:
+            raise RuntimeError(
+                "template-instantiation call sources were not canonicalized to "
+                f"materialized declarations: {missing!r}"
+            )
+
+
 def relationship_sources_are_materialized(
     helper: pathlib.Path, version: str
 ) -> None:
@@ -902,6 +962,7 @@ def main() -> int:
     differing_compile_directories_are_respected(helper, version)
     skipped_driver_tu_does_not_block_later_tu(helper, version)
     context_identity_without_context_file(helper, version)
+    template_instantiation_call_source_is_materialized(helper, version)
     relationship_sources_are_materialized(helper, version)
     execution_policy_is_fact_stable(helper, version)
     protocol_v3_hard_cut_is_enforced(helper, version)
