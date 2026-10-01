@@ -187,6 +187,15 @@ add_test(
 )
 set_tests_properties(lexicon-c-family-clang-observation-work PROPERTIES TIMEOUT 60)
 add_test(
+    NAME lexicon-c-family-clang-execution-baseline
+    COMMAND
+        ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/structural_execution_baseline_test.py
+        $<TARGET_FILE:lexicon-c-family-clang>
+        ${HELPER_VERSION}
+)
+set_tests_properties(lexicon-c-family-clang-execution-baseline PROPERTIES TIMEOUT 90)
+add_test(
     NAME lexicon-c-family-clang-ownership
     COMMAND
         ${Python3_EXECUTABLE}

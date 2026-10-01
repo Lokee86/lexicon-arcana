@@ -1,0 +1,20 @@
+{
+  "canonical_counters": {
+    "claimed_owned_files": 6,
+    "completed_tus": 4,
+    "discovered_owned_files": 6,
+    "orphan_fallback_units": 1,
+    "primary_real_parse_units": 2,
+    "primary_synthetic_parse_units": 1,
+    "skipped_covered_source_units": 1
+  },
+  "clang_version": "Ubuntu clang version 18.1.8 (20ubuntu8)",
+  "complete_native_sha256": "6674c5bd6b0075599b41b08f3414862a51166e6d5ab7099b3278fcfa4e576eeb",
+  "helper_version": "0.7.0",
+  "schema": "lexicon.c-family.execution-fixture.v1",
+  "workers": [
+    1,
+    2,
+    4
+  ]
+}
