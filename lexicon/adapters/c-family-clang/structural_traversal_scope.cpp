@@ -1,6 +1,7 @@
 #include "structural_traversal_scope.h"
 
 #include <algorithm>
+#include "clang/AST/ASTContext.h"
 #include "structural_source.h"
 
 namespace lexicon::clang_frontend {
@@ -34,6 +35,21 @@ void TraversalScope::index() {
   protected_locations_.erase(
       std::unique(protected_locations_.begin(), protected_locations_.end()),
       protected_locations_.end());
+}
+
+std::size_t TraversalScope::restrict_parent_map(clang::ASTContext &context) const {
+  // Preserve loaded/PCH traversal until nested ownership can be indexed safely.
+  if (sources_.loaded_sloc_entry_size() != 0) return 0;
+  std::vector<clang::Decl *> roots;
+  std::size_t pruned = 0;
+  for (auto *declaration : context.getTranslationUnitDecl()->decls()) {
+    if (can_prune(*declaration)) ++pruned;
+    else roots.push_back(declaration);
+  }
+  // This is Clang's analysis scope, not a modified AST. Target declarations and
+  // type resolution remain accessible, while getParents() indexes these roots.
+  if (pruned) context.setTraversalScope(roots);
+  return pruned;
 }
 
 bool TraversalScope::can_prune(const clang::Decl &declaration) const {

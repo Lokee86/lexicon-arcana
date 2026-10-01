@@ -16,6 +16,8 @@
 #include "llvm/Support/VirtualFileSystem.h"
 
 #include "structural_source.h"
+#include "structural_profile.h"
+#include "perf.h"
 
 namespace lexicon::clang_frontend {
 namespace {
@@ -242,7 +244,8 @@ public:
         std::make_unique<PreprocessorObserver>(
             state_, compiler.getSourceManager(), compiler.getLangOpts(), root_,
             translation_unit, language));
-    return make_ast_consumer(state_, compiler, root_, translation_unit, language);
+    return make_ast_consumer(state_, compiler, root_, translation_unit, language,
+                             unit_.rank);
   }
 
 private:
@@ -314,9 +317,17 @@ public:
     current_submitted_ = false;
     current_result_.reset();
     current_status_ = 0;
+    const auto invocation_started = PerfClock::now();
+    profile_translation_unit("c-family.clang.tu.before_parse",
+                             units_[current_index_].rank, PerfClock::duration{});
     clang::tooling::FrontendActionFactory::runInvocation(
         std::move(invocation), files, std::move(pch_container_ops),
         diagnostic_consumer);
+    profile_translation_unit("c-family.clang.tu.after_teardown",
+                             units_[current_index_].rank,
+                             PerfClock::now() - invocation_started,
+                             current_result_ ? &*current_result_ : nullptr);
+    const auto commit_started = PerfClock::now();
     auto completed = false;
     if (!current_submitted_) {
       submit_failed(units_[current_index_],
@@ -328,6 +339,9 @@ public:
       current_result_.reset();
       completed = status == 0;
     }
+    profile_translation_unit("c-family.clang.tu.after_submit",
+                             units_[current_index_].rank,
+                             PerfClock::now() - commit_started);
     current_submitted_ = true;
     ++current_index_;
     return completed;

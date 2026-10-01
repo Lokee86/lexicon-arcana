@@ -28,6 +28,7 @@ add_executable(
     structural_hot_path.cpp
     structural_model.cpp
     structural_memory.cpp
+    structural_profile.cpp
     structural_relationships.cpp
     structural_semantic_support.cpp
     structural_semantics.cpp
@@ -128,6 +129,30 @@ add_test(
 set_tests_properties(lexicon-c-family-clang-commit PROPERTIES TIMEOUT 30)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(
+    NAME lexicon-c-family-clang-profile
+    COMMAND
+        ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/structural_profile_test.py
+        $<TARGET_FILE:lexicon-c-family-clang>
+        ${HELPER_VERSION}
+)
+set_tests_properties(lexicon-c-family-clang-profile PROPERTIES TIMEOUT 60)
+find_program(LEXICON_CLANG_EXECUTABLE NAMES clang clang-18
+             HINTS "${LLVM_TOOLS_BINARY_DIR}")
+if(LEXICON_CLANG_EXECUTABLE)
+    add_test(
+        NAME lexicon-c-family-clang-pch-context
+        COMMAND
+            ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/../../../scripts/c_family_pch_probe.py
+            --helper $<TARGET_FILE:lexicon-c-family-clang>
+            --compiler ${LEXICON_CLANG_EXECUTABLE}
+            --results-dir ${CMAKE_CURRENT_BINARY_DIR}/pch-regression
+            --repetitions 1
+    )
+    set_tests_properties(lexicon-c-family-clang-pch-context PROPERTIES TIMEOUT 60)
+endif()
 add_test(
     NAME lexicon-c-family-clang-source-coverage
     COMMAND

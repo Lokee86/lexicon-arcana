@@ -17,7 +17,7 @@ namespace lexicon::clang_frontend {
 std::unique_ptr<clang::ASTConsumer>
 make_ast_consumer(State &state, clang::CompilerInstance &compiler,
                   std::string repository_root, std::string translation_unit,
-                  std::string language);
+                  std::string language, std::size_t rank);
 
 std::unique_ptr<clang::tooling::FrontendActionFactory>
 make_frontend_factory(const std::vector<ParseUnit> &units,

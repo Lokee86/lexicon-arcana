@@ -12,6 +12,7 @@ class TraversalScope {
 public:
   TraversalScope(const State &state, const clang::SourceManager &sources);
   void index(); // After preprocessing and AST construction, not at consumer creation.
+  std::size_t restrict_parent_map(clang::ASTContext &context) const;
   bool can_prune(const clang::Decl &declaration) const;
 private:
   const State &state_;

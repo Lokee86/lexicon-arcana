@@ -1,5 +1,6 @@
 #include "structural_frontend.h"
 #include "structural_traversal_scope.h"
+#include "structural_profile.h"
 
 #include <optional>
 #include <string>
@@ -33,7 +34,10 @@ public:
     reset_hot_path_context(perf_enabled());
   }
 
-  void prepare_traversal_scope() { scope_.index(); }
+  void prepare_traversal_scope() {
+    scope_.index();
+    pruned_declarations_ += scope_.restrict_parent_map(context_);
+  }
 
   bool TraverseDecl(clang::Decl *declaration) {
     if (declaration && scope_.can_prune(*declaration)) {
@@ -233,13 +237,17 @@ private:
 class VisitorConsumer final : public clang::ASTConsumer {
 public:
   VisitorConsumer(State &state, clang::ASTContext &context, std::string root,
-                  std::string translation_unit, std::string language)
+                  std::string translation_unit, std::string language,
+                  std::size_t rank)
       : state_(state), visitor_(state, context, std::move(root),
                                std::move(translation_unit),
-                               std::move(language)) {}
+                               std::move(language)), rank_(rank),
+        parse_started_(PerfClock::now()) {}
 
   void HandleTranslationUnit(clang::ASTContext &context) override {
     const auto started = PerfClock::now();
+    profile_translation_unit("c-family.clang.tu.parsed", rank_,
+                             started - parse_started_, &state_, &context);
     visitor_.prepare_traversal_scope();
     visitor_.TraverseDecl(context.getTranslationUnitDecl());
     visitor_.emit_traversal_metrics();
@@ -248,6 +256,8 @@ public:
             PerfClock::now() - started)
             .count();
 
+    profile_translation_unit("c-family.clang.tu.visited", rank_,
+                             PerfClock::now() - started, &state_, &context);
     const auto metrics = hot_path_metrics();
     emit_perf(
         "c-family.clang.hot_path", std::chrono::nanoseconds(0),
@@ -268,6 +278,8 @@ public:
 private:
   State &state_;
   SemanticVisitor visitor_;
+  std::size_t rank_;
+  PerfClock::time_point parse_started_;
 };
 
 } // namespace
@@ -275,10 +287,10 @@ private:
 std::unique_ptr<clang::ASTConsumer>
 make_ast_consumer(State &state, clang::CompilerInstance &compiler,
                   std::string repository_root, std::string translation_unit,
-                  std::string language) {
+                  std::string language, std::size_t rank) {
   return std::make_unique<VisitorConsumer>(
       state, compiler.getASTContext(), std::move(repository_root),
-      std::move(translation_unit), std::move(language));
+      std::move(translation_unit), std::move(language), rank);
 }
 
 } // namespace lexicon::clang_frontend
