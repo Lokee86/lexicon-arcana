@@ -1,16 +1,38 @@
-use super::build::CompactRepositoryBuild;
+use super::build::{CompactRepositoryBuild, CompactRepositoryDelta};
 use super::build_indexes::{canonicalize_edges, canonicalize_unresolved};
 use super::build_stream::{
     CompactRepositoryAssembler, TempEdgeRecord, TempNodeRecord, TempSpan, TempUnresolvedRecord,
 };
 use super::{
-    CompactEdgeRecord, CompactNodeRecord, CompactSpan, CompactUnresolvedRecord,
+    CompactEdgeRecord, CompactNodeRecord, CompactSpan, CompactStringTable, CompactUnresolvedRecord,
     RepositoryStoreWriteError, StringId, TempStringId,
 };
 
 pub(super) fn finish_stream_build(
     build: CompactRepositoryAssembler,
 ) -> Result<CompactRepositoryBuild, RepositoryStoreWriteError> {
+    let (strings, nodes, edges, unresolved) = finish_stream_records(build)?;
+    CompactRepositoryBuild::from_canonical_records(strings, nodes, edges, unresolved)
+}
+
+pub(super) fn finish_stream_delta(
+    build: CompactRepositoryAssembler,
+) -> Result<CompactRepositoryDelta, RepositoryStoreWriteError> {
+    let (strings, nodes, edges, unresolved) = finish_stream_records(build)?;
+    CompactRepositoryDelta::from_canonical_records(strings, nodes, edges, unresolved)
+}
+
+fn finish_stream_records(
+    build: CompactRepositoryAssembler,
+) -> Result<
+    (
+        CompactStringTable,
+        Vec<CompactNodeRecord>,
+        Vec<CompactEdgeRecord>,
+        Vec<CompactUnresolvedRecord>,
+    ),
+    RepositoryStoreWriteError,
+> {
     let CompactRepositoryAssembler {
         strings: staged_strings,
         nodes: staged_nodes,
@@ -29,8 +51,7 @@ pub(super) fn finish_stream_build(
     let nodes = finish_nodes(staged_nodes, &remap);
     let edges = finish_edges(staged_edges, &remap);
     let unresolved = finish_unresolved(staged_unresolved, &remap);
-
-    CompactRepositoryBuild::from_canonical_records(strings, nodes, edges, unresolved)
+    Ok((strings, nodes, edges, unresolved))
 }
 
 fn finish_nodes(records: Vec<TempNodeRecord>, remap: &[StringId]) -> Vec<CompactNodeRecord> {

@@ -1,11 +1,13 @@
 use std::fs;
 
 use crate::repository::{NodeKey, repository_artifact_checksum};
+use crate::synthetic::NodeId;
 
 use super::format::{RepositoryHeader, SectionKind};
 use super::writer_test_support::{cleanup, sample_facts, temp_path};
 use super::{
-    RepositoryStore, RepositoryStoreFile, RepositoryStoreReadError, write_repository_store,
+    RepositoryStore, RepositoryStoreFile, RepositoryStoreReadError, Sha256Identity,
+    write_repository_store,
 };
 
 #[test]
@@ -35,6 +37,45 @@ fn file_reader_matches_incremental_owned_node_lookup_without_retaining_store_byt
 }
 
 #[test]
+fn file_reader_matches_incremental_owned_facts_for_all_contribution_kinds() {
+    let path = temp_path("reader-file-owned-facts");
+    write_repository_store(&path, &sample_facts()).unwrap();
+
+    let memory = RepositoryStore::open(&path).unwrap();
+    let expected = memory
+        .owned_facts(&[
+            r"src\a.rs".to_owned(),
+            "src/a.rs".to_owned(),
+            "missing.rs".to_owned(),
+        ])
+        .unwrap()
+        .canonicalized();
+
+    let mut file = RepositoryStoreFile::open(&path).unwrap();
+    let actual = file
+        .owned_facts(&[
+            "src/a.rs".to_owned(),
+            r"src\a.rs".to_owned(),
+            "missing.rs".to_owned(),
+        ])
+        .unwrap()
+        .canonicalized();
+
+    assert_eq!(actual, expected);
+    assert_eq!(actual.nodes.len(), 3);
+    assert_eq!(actual.edges.len(), 3);
+    assert_eq!(actual.unresolved.len(), 2);
+    assert!(actual.nodes.iter().all(|node| node.path == "src/a.rs"));
+
+    let missing = file.owned_facts(&["missing.rs".to_owned()]).unwrap();
+    assert!(missing.nodes.is_empty());
+    assert!(missing.edges.is_empty());
+    assert!(missing.unresolved.is_empty());
+
+    cleanup(&[&path]);
+}
+
+#[test]
 fn file_reader_rejects_section_corruption_during_streaming_validation() {
     let path = temp_path("reader-file-corrupt");
     write_repository_store(&path, &sample_facts()).unwrap();
@@ -49,6 +90,37 @@ fn file_reader_rejects_section_corruption_during_streaming_validation() {
             SectionKind::Nodes
         ))
     ));
+
+    cleanup(&[&path]);
+}
+
+#[test]
+fn file_reader_validates_node_key_and_full_external_identity() {
+    let path = temp_path("reader-file-identity");
+    write_repository_store(&path, &sample_facts()).unwrap();
+
+    let expected = Sha256Identity::parse(&format!("sha256:{}", "ab".repeat(32))).unwrap();
+    let wrong = Sha256Identity::parse(&format!("sha256:{}", "cd".repeat(32))).unwrap();
+    let mut file = RepositoryStoreFile::open(&path).unwrap();
+
+    assert!(file.contains_node_key(NodeKey::from_u64(3)).unwrap());
+    assert_eq!(file.node_id(NodeKey::from_u64(3)).unwrap(), Some(NodeId(2)));
+    assert_eq!(file.node_id(NodeKey::from_u64(99)).unwrap(), None);
+    assert!(!file.contains_node_key(NodeKey::from_u64(99)).unwrap());
+    assert!(
+        file.contains_node_identity(NodeKey::from_u64(3), expected)
+            .unwrap()
+    );
+    assert!(
+        !file
+            .contains_node_identity(NodeKey::from_u64(3), wrong)
+            .unwrap()
+    );
+    assert!(
+        !file
+            .contains_node_identity(NodeKey::from_u64(4), expected)
+            .unwrap()
+    );
 
     cleanup(&[&path]);
 }

@@ -1,7 +1,7 @@
 use crate::repository::{ContentId, NodeKey};
 
-use super::build::CompactRepositoryBuild;
-use super::build_stream_finish::finish_stream_build;
+use super::build::{CompactRepositoryBuild, CompactRepositoryDelta};
+use super::build_stream_finish::{finish_stream_build, finish_stream_delta};
 use super::build_stream_nodes::{StagedNodeError, canonicalize_nodes};
 use super::string_arena::StagedStringArena;
 use super::{RepositoryStoreWriteError, Sha256Identity, TempStringId};
@@ -77,6 +77,12 @@ impl CompactRepositoryAssembler {
 
     pub(crate) fn canonicalize_nodes(&mut self) -> Result<(), StagedNodeError> {
         canonicalize_nodes(&mut self.nodes)
+    }
+
+    pub(crate) fn contains_node_key(&self, key: NodeKey) -> bool {
+        self.nodes
+            .binary_search_by_key(&key, |node| node.key)
+            .is_ok()
     }
 
     pub(crate) fn contains_node_identity(&self, key: NodeKey, identity: Sha256Identity) -> bool {
@@ -169,6 +175,10 @@ impl CompactRepositoryAssembler {
 
     pub(crate) fn finish(self) -> Result<CompactRepositoryBuild, RepositoryStoreWriteError> {
         finish_stream_build(self)
+    }
+
+    pub(crate) fn finish_delta(self) -> Result<CompactRepositoryDelta, RepositoryStoreWriteError> {
+        finish_stream_delta(self)
     }
 }
 

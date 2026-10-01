@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
@@ -12,6 +13,7 @@ use super::snapshot_support::{hex_id, validate_id, verify_content};
 use super::stream_compact::CompactPass;
 use super::stream_compact_legacy;
 use crate::repository::normalize_repository_path;
+use crate::repository_store::RepositoryStoreFile;
 
 pub(super) fn visit_node_pass(
     storage: &Path,
@@ -38,6 +40,32 @@ pub(super) fn visit_node_pass(
     Ok(direct_v2)
 }
 
+pub(super) fn visit_node_pass_selected(
+    storage: &Path,
+    manifest: &Manifest,
+    selected_paths: &BTreeSet<String>,
+    pass: &mut CompactPass,
+) -> Result<bool, LexiconSnapshotError> {
+    let mut direct_v2 = true;
+    for language in &manifest.languages {
+        for file in &language.files {
+            let path = normalize_file_path(&file.path)?;
+            if !selected_paths.contains(&path) {
+                continue;
+            }
+            direct_v2 &= visit_node_object(
+                storage,
+                &file.object_id,
+                language,
+                Some(&path),
+                Some(&file.content_id),
+                pass,
+            )?;
+        }
+    }
+    Ok(direct_v2)
+}
+
 pub(super) fn visit_relation_pass(
     storage: &Path,
     manifest: &Manifest,
@@ -49,6 +77,25 @@ pub(super) fn visit_relation_pass(
         }
         for file in &language.files {
             visit_relation_object(storage, &file.object_id, pass)?;
+        }
+    }
+    Ok(())
+}
+
+pub(super) fn visit_relation_pass_selected(
+    storage: &Path,
+    manifest: &Manifest,
+    selected_paths: &BTreeSet<String>,
+    pass: &mut CompactPass,
+    base: &mut RepositoryStoreFile,
+) -> Result<(), LexiconSnapshotError> {
+    for language in &manifest.languages {
+        for file in &language.files {
+            let path = normalize_file_path(&file.path)?;
+            if !selected_paths.contains(&path) {
+                continue;
+            }
+            visit_relation_object_with_base(storage, &file.object_id, pass, base)?;
         }
     }
     Ok(())
@@ -111,6 +158,42 @@ fn visit_relation_object(
             FactRecord::Edge(record) => stream_compact_legacy::ingest_edge(pass, record)?,
             FactRecord::Unresolved(record) => {
                 stream_compact_legacy::ingest_unresolved(pass, record)?
+            }
+            FactRecord::Node(_) => {}
+        }
+    }
+    Ok(())
+}
+
+fn visit_relation_object_with_base(
+    storage: &Path,
+    id: &str,
+    pass: &mut CompactPass,
+    base: &mut RepositoryStoreFile,
+) -> Result<(), LexiconSnapshotError> {
+    let bytes = read_object(storage, id)?;
+    if bytes.starts_with(MAGIC) {
+        visit_relations(
+            &bytes,
+            pass,
+            |pass, counts| pass.reserve_relation_object(counts),
+            |pass, record| match record {
+                RelationRef::Edge(record) => pass.ingest_edge_with_base(record, base),
+                RelationRef::Unresolved(record) => pass.ingest_unresolved_with_base(record, base),
+            },
+        )?;
+        return Ok(());
+    }
+
+    let (object, counts) = parse_legacy(&bytes, RecordSelection::Relations)?;
+    pass.reserve_relation_object(counts)?;
+    for record in object.records {
+        match record {
+            FactRecord::Edge(record) => {
+                stream_compact_legacy::ingest_edge_with_base(pass, record, base)?
+            }
+            FactRecord::Unresolved(record) => {
+                stream_compact_legacy::ingest_unresolved_with_base(pass, record, base)?
             }
             FactRecord::Node(_) => {}
         }

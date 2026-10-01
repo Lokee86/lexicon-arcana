@@ -106,7 +106,7 @@ fn build_owner_by_node(
     build
         .nodes
         .iter()
-        .map(|node| node_owner(build, node).map(StringId::optional))
+        .map(|node| compact_node_owner(&build.strings, node).map(StringId::optional))
         .collect()
 }
 
@@ -144,8 +144,8 @@ fn node_owner_by_key(
         .and_then(|index| owner_by_node[index].present())
 }
 
-fn node_owner(
-    build: &CompactRepositoryBuild,
+pub(super) fn compact_node_owner(
+    strings: &super::CompactStringTable,
     node: &super::CompactNodeRecord,
 ) -> Result<Option<StringId>, RepositoryStoreWriteError> {
     if let Some(span) = node.span {
@@ -153,7 +153,7 @@ fn node_owner(
     }
     let kind = node_kind_from_code(node.kind_code)
         .ok_or(super::StoreFormatError::InvalidNodeKind(node.kind_code))?;
-    let path = build.strings.get(node.path)?;
+    let path = strings.get(node.path)?;
     if matches!(
         kind,
         NodeKind::Repository | NodeKind::Directory | NodeKind::Module | NodeKind::Namespace

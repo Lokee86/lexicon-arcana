@@ -81,7 +81,10 @@ fn shared_object_change_bypasses_previous_full_state() {
         register: false,
     })
     .unwrap();
-    assert!(summary.contains("mode=rebuild"));
+    assert!(
+        summary.contains("mode=rebuild reason=shared-objects-changed"),
+        "{summary}"
+    );
 
     let current_output = state
         .join("snapshots")

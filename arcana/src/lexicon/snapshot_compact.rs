@@ -1,12 +1,18 @@
+use std::collections::BTreeSet;
 use std::path::Path;
 use std::time::Instant;
 
 use super::snapshot::read_manifest;
-use super::snapshot_compact_visit::{visit_node_pass, visit_relation_pass};
+use super::snapshot_compact_visit::{
+    visit_node_pass, visit_node_pass_selected, visit_relation_pass, visit_relation_pass_selected,
+};
 use super::snapshot_support::storage_root;
 use super::stream_compact::CompactPass;
 use super::{LexiconSnapshotError, LexiconSnapshotMetadata};
-use crate::repository_store::CompactRepositoryBuild;
+use crate::repository::normalize_repository_path;
+use crate::repository_store::{
+    CompactRepositoryBuild, CompactRepositoryDelta, RepositoryStoreFile,
+};
 #[cfg(test)]
 use crate::repository_store::{RepositoryStoreWrite, write_repository_store_compact};
 
@@ -16,6 +22,22 @@ pub struct CompactLexiconSnapshot {
     pub repository: CompactRepositoryBuild,
     pub compatibility_warnings: Vec<String>,
     pub direct_v2: bool,
+}
+
+#[derive(Debug)]
+#[doc(hidden)]
+pub struct CompactLexiconDelta {
+    pub metadata: LexiconSnapshotMetadata,
+    pub repository: CompactRepositoryDelta,
+    pub changed_paths: Vec<String>,
+    pub compatibility_warnings: Vec<String>,
+    pub direct_v2: bool,
+}
+
+impl CompactLexiconDelta {
+    pub fn owned_node_keys(&self) -> Vec<crate::repository::NodeKey> {
+        self.repository.owned_node_keys(&self.changed_paths)
+    }
 }
 
 #[doc(hidden)]
@@ -44,6 +66,56 @@ pub fn load_compact(
     Ok(CompactLexiconSnapshot {
         metadata,
         repository,
+        compatibility_warnings,
+        direct_v2,
+    })
+}
+
+#[doc(hidden)]
+pub fn load_compact_delta(
+    root: impl AsRef<Path>,
+    current: &LexiconSnapshotMetadata,
+    changed_paths: &[String],
+    base: &mut RepositoryStoreFile,
+) -> Result<CompactLexiconDelta, LexiconSnapshotError> {
+    let storage = storage_root(root.as_ref());
+    let (manifest, metadata) = read_manifest(&storage, current.id())?;
+    if &metadata != current {
+        return Err(LexiconSnapshotError::MetadataMismatch("snapshot metadata"));
+    }
+
+    let selected_paths = changed_paths
+        .iter()
+        .map(|path| {
+            normalize_repository_path(path).map_err(|_| LexiconSnapshotError::InvalidPath {
+                field: "file",
+                path: path.clone(),
+            })
+        })
+        .collect::<Result<BTreeSet<_>, _>>()?;
+
+    let mut pass = CompactPass::new();
+    let node_started = Instant::now();
+    let direct_v2 = visit_node_pass_selected(&storage, &manifest, &selected_paths, &mut pass)?;
+    profile("incremental-object-node-load", node_started.elapsed());
+
+    pass.finish_delta_node_pass()?;
+
+    let relation_started = Instant::now();
+    visit_relation_pass_selected(&storage, &manifest, &selected_paths, &mut pass, base)?;
+    profile(
+        "incremental-object-relation-load",
+        relation_started.elapsed(),
+    );
+
+    let finish_started = Instant::now();
+    let (repository, compatibility_warnings) = pass.finish_delta()?;
+    profile("incremental-delta-finish", finish_started.elapsed());
+
+    Ok(CompactLexiconDelta {
+        metadata,
+        repository,
+        changed_paths: selected_paths.into_iter().collect(),
         compatibility_warnings,
         direct_v2,
     })
