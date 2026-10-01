@@ -190,6 +190,7 @@ fn publish(store: &Store, state: &str, object: &str) -> String {
                 repository: String::new(),
                 analysis_config_id: String::new(),
                 shared_object_id: String::new(),
+                dependency_index_id: String::new(),
                 files: Some(vec![FileEntry {
                     path: "file.py".into(),
                     language: "python".into(),

@@ -150,6 +150,7 @@ impl ExportFixture {
             repository: "repo".into(),
             analysis_config_id: "sha256:config".into(),
             shared_object_id: shared_id,
+            dependency_index_id: String::new(),
             files: Some(vec![FileEntry {
                 path: "main.py".into(),
                 language: "python".into(),

@@ -60,6 +60,23 @@ impl Store {
     }
 
     pub fn publish(&self, manifest: &SnapshotManifest) -> Result<String, StorageError> {
+        // Publish a manifest only after its referenced immutable topology is
+        // fully written and verified. Pending recovery passes through here too.
+        for entry in manifest.languages.as_deref().unwrap_or_default() {
+            if entry.dependency_index_id.is_empty() {
+                continue;
+            }
+            let root = self.validated_index(&entry.dependency_index_id, entry)?;
+            for id in root
+                .files
+                .values()
+                .chain(root.nodes.values())
+                .chain(root.references.values())
+                .chain(root.unresolved.values())
+            {
+                let _: serde_json::Value = self.load_index_object(id)?;
+            }
+        }
         let canonical = snapshot_bytes(manifest)?;
         let id = snapshot_id_bytes(&canonical);
         let mut stored = canonical;

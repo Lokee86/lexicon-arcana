@@ -11,6 +11,8 @@ Lexicon snapshots expose one complete, immutable analysis state. The mutable sou
     PENDING
     objects/<first-two-hex>/<remaining-hex>
     snapshots/<64-hex>.json
+    topology/objects/<first-two-hex>/<remaining-hex>
+    topology/bootstrap/<snapshot-hex>/<language-hash>.json
     repo/
 ```
 
@@ -57,6 +59,10 @@ The object file path omits the `sha256:` prefix and splits the first two hexadec
 
 Languages and files are sorted lexicographically. `shared_object_id` is omitted when the adapter emitted no unowned records.
 
+New Rust manifests may also include optional `dependency_index_id: "sha256:..."` per language. This is an opaque Lexicon-owned *derived index* reference, not an additional fact library or a requirement for snapshot consumers. It is omitted from legacy and interim unindexed incremental manifests. Before publishing an indexed manifest, Lexicon verifies the generation-bound index root and every referenced immutable partition. Legacy v1 manifests without this optional field keep their original canonical bytes, ID and full factual meaning; an indexed manifest acquires its own content-derived snapshot ID. Consumers need not open or interpret the optional index to read a complete snapshot.
+
+The index uses a distinct `lexicon:dependency-index:v1\\0` hash domain and is stored under `topology/objects/` rather than `objects/`. A root references 64-way partition maps for adjacency/evidence, node ownership, target references and unresolved-candidate lookups. The root's signature covers the language entry's metadata and file/shared fact-object identities, excluding the optional index ID itself. A legacy lookup may create an atomic derived bootstrap pointer under `topology/bootstrap/` bound to that precise snapshot ID. This cache never rewrites the original snapshot or changes its consumer-visible facts.
+
 The snapshot ID is SHA-256 over:
 
 ```text
@@ -90,6 +96,6 @@ If a process stops before the private state commit advances, the next scan disca
 
 ## Incremental analysis
 
-Ordinary source modifications update only the changed files and their transitive dependents. The dependency closure is calculated from cross-file relationships in the previous snapshot; owners with unresolved relationships are included conservatively. The adapter executes against a temporary repository containing that emission set, its transitive forward dependencies, and required language configuration. Go expands scopes to packages and Rust expands scopes to crates.
+Ordinary safe source modifications update the changed files and their direct one-hop reverse dependents. The dependency scope is calculated from cross-file relationships in the previous snapshot; sensitive unresolved references can make additions require complete analysis. The adapter executes against a temporary repository containing that emission set, its one-hop forward dependencies, and required language configuration. Go expands scopes to packages and Rust expands scopes to crates.
 
 A directly edited file with prior cross-file or unresolved relationships selects complete-language analysis before a scope is built. Scoped streams are reserved for leaf and local-only direct edits; they contain selected file-owned records and declare their shared synthetic set partial, so the previous complete shared object remains authoritative. Before object replacement, new edge or unresolved topology causes a complete-language retry. A scoped adapter failure also retries the complete language repository. Additions, deletions, renames, copies, configuration changes, missing dependency state, and invalid prior snapshot state use the same full fallback. More precise structural invalidation can be added without changing this snapshot contract.

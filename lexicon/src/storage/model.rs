@@ -32,6 +32,8 @@ pub struct LanguageEntry {
     pub analysis_config_id: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub shared_object_id: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub dependency_index_id: String,
     pub files: Option<Vec<FileEntry>>,
 }
 

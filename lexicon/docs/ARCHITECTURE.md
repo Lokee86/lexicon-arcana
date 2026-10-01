@@ -101,7 +101,7 @@ The storage layer consumes validated typed adapter analysis and partitions recor
 
 New objects use the deterministic binary v2 format in `spec/objects-v2.md`; binary v1 and legacy JSON remain readable. Object identity is content-addressed. Existing bytes under an object ID are immutable.
 
-A snapshot manifest references every object required for one complete repository analysis state. `CURRENT` is replaced atomically only after all referenced objects and the manifest are durable.
+A snapshot manifest references every object required for one complete repository analysis state. A newly full-materialized language may also reference an optional immutable, partitioned dependency index, built from the already-grouped facts and verified before publication. The derived index is not necessary for consumers to read facts. Until incremental maintenance lands, a newly incremental language entry intentionally omits the previous generation's index and bootstraps its exact new topology on its next scoped lookup. `CURRENT` is replaced atomically only after all required referenced objects and the manifest are durable.
 
 ### Consumers
 
@@ -134,7 +134,7 @@ A scan that produces the same complete manifest confirms the existing snapshot i
 
 ## Incremental correctness boundary
 
-A changed source file does not automatically imply a full language scan. Lexicon starts from the previous immutable snapshot and follows cross-file relationships in reverse to identify transitive dependents. Owners with unresolved relationships are included conservatively.
+A changed source file does not automatically imply a full language scan. Lexicon starts from the previous immutable snapshot and includes direct one-hop reverse dependents; forward context adds one hop from the emitted set. Sensitive unresolved Python module candidates and unproven topology changes trigger conservative full-language analysis. Newly indexed language generations read only visited immutable topology partitions, not every unrelated fact object. Legacy generations bootstrap that index once under a pointer bound to the exact old snapshot.
 
 The scoped repository includes:
 

@@ -1,6 +1,10 @@
 mod analysis;
 mod binary;
 mod dependency;
+mod dependency_index_build;
+mod dependency_index_model;
+mod dependency_index_read;
+mod dependency_index_store;
 mod dependency_support;
 mod digest;
 mod error;

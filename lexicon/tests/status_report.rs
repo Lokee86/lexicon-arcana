@@ -82,6 +82,7 @@ fn language(name: &str) -> lexicon::LanguageEntry {
         repository: String::new(),
         analysis_config_id: String::new(),
         shared_object_id: String::new(),
+        dependency_index_id: String::new(),
         files: Some(Vec::new()),
     }
 }

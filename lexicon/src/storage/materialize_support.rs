@@ -60,6 +60,7 @@ pub(crate) fn language_metadata(
         repository: analysis.header.repository.clone(),
         analysis_config_id: analysis_config_id.to_owned(),
         shared_object_id: String::new(),
+        dependency_index_id: String::new(),
         files: None,
     }
 }

@@ -2,16 +2,13 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::FactRecord;
 
-use super::dependency_support::{
-    Graph, add_relation, collect_dependency_records, normalize_owner, one_hop_closure,
-    python_module_candidate,
-};
-use super::{IncrementalScope, StorageError, Store};
+use super::dependency_support::{collect_dependency_records, normalize_owner};
+use super::{IncrementalScope, LanguageEntry, StorageError, Store};
 
 struct DependencyData {
     objects: BTreeMap<String, Vec<FactRecord>>,
     node_owners: BTreeMap<String, String>,
-    unresolved_candidates: BTreeSet<String>,
+    loaded_objects: u64,
 }
 
 impl Store {
@@ -29,72 +26,51 @@ impl Store {
         roots: &[String],
         additions: &[String],
     ) -> Result<IncrementalScope, StorageError> {
+        use super::dependency_index_read::IndexReader;
+
         let started = crate::perf::start();
-        let data = self.dependency_data(language)?;
-        let roots: BTreeSet<String> = roots.iter().cloned().collect();
-        let mut found_roots = BTreeSet::new();
-        let mut reverse = Graph::new();
-        let mut forward = Graph::new();
-
-        for (owner, records) in &data.objects {
-            if roots.contains(owner) {
-                found_roots.insert(owner.clone());
+        let (snapshot_id, manifest) = self.current()?;
+        let entry = manifest.language(language).ok_or_else(|| {
+            StorageError::Materialization(format!("snapshot has no {language} analysis"))
+        })?;
+        let index_id = if !entry.dependency_index_id.is_empty() {
+            entry.dependency_index_id.clone()
+        } else if let Some(index_id) = self.read_bootstrap(&snapshot_id, entry)? {
+            index_id
+        } else {
+            // Legacy and Phase-2 incremental manifests have no embedded index.
+            // Persist once for THIS immutable snapshot, never per query.
+            let legacy = self.dependency_data(entry)?;
+            let index_id =
+                self.index_legacy_language(entry, &legacy.objects, &legacy.node_owners)?;
+            self.publish_bootstrap(&snapshot_id, entry, &index_id)?;
+            if let Some(started) = started {
+                crate::perf::emit(
+                    "scan.dependency_bootstrap",
+                    started.elapsed(),
+                    &[
+                        ("fact_object_reads", legacy.loaded_objects),
+                        ("index_written", 1),
+                    ],
+                );
             }
-            for record in records {
-                let FactRecord::Edge(edge) = record else {
-                    continue;
-                };
-                let Some(target_owner) = data.node_owners.get(&edge.target) else {
-                    continue;
-                };
-                if target_owner == owner {
-                    continue;
-                }
-                add_relation(&mut reverse, target_owner, owner);
-                add_relation(&mut forward, owner, target_owner);
-            }
-        }
-
-        let mut full_required = found_roots.len() != roots.len();
-        if !additions.is_empty() {
-            if language != "python" {
-                full_required = true;
-            } else {
-                for path in additions {
-                    let Some(candidate) = python_module_candidate(path) else {
-                        full_required = true;
-                        break;
-                    };
-                    if data.unresolved_candidates.contains(&candidate) {
-                        full_required = true;
-                        break;
-                    }
-                }
-            }
-        }
-
-        let emit = one_hop_closure(&roots, &reverse);
-        let emit_set = emit.iter().cloned().collect();
-        let context = one_hop_closure(&emit_set, &forward);
+            index_id
+        };
+        let mut reader = IndexReader::open(self, entry, &index_id)?;
+        let result = reader.scope(language, roots, additions)?;
         if let Some(started) = started {
             crate::perf::emit(
                 "scan.dependency_scope",
                 started.elapsed(),
                 &[
                     ("roots", roots.len() as u64),
-                    ("emit_files", emit.len() as u64),
-                    ("context_files", context.len() as u64),
-                    ("forward_owners", forward.len() as u64),
-                    ("reverse_owners", reverse.len() as u64),
-                    ("full_required", u64::from(full_required)),
+                    ("emit_files", result.emit.len() as u64),
+                    ("context_files", result.context.len() as u64),
+                    ("full_required", u64::from(result.full_required)),
                 ],
             );
         }
-        Ok(IncrementalScope {
-            full_required,
-            emit,
-            context,
-        })
+        Ok(result)
     }
 
     pub fn dependency_scope(
@@ -122,12 +98,10 @@ impl Store {
         Ok(self.incremental_scope(language, roots)?.full_required)
     }
 
-    fn dependency_data(&self, language: &str) -> Result<DependencyData, StorageError> {
+    fn dependency_data(&self, entry: &LanguageEntry) -> Result<DependencyData, StorageError> {
         let started = crate::perf::start();
-        let (_, manifest) = self.current()?;
-        let entry = manifest.language(language).cloned().ok_or_else(|| {
-            StorageError::Materialization(format!("snapshot has no {language} analysis"))
-        })?;
+        // Use the entry captured from CURRENT by the caller. A concurrent
+        // publication must never change the bootstrap's source generation.
 
         let mut objects = BTreeMap::new();
         let mut node_owners = BTreeMap::new();
@@ -198,7 +172,7 @@ impl Store {
         Ok(DependencyData {
             objects,
             node_owners,
-            unresolved_candidates,
+            loaded_objects,
         })
     }
 }

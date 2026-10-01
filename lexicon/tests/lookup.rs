@@ -185,6 +185,7 @@ fn publish(store: &Store, files: Vec<FileEntry>) -> String {
                 repository: "repo".into(),
                 analysis_config_id: "config".into(),
                 shared_object_id: String::new(),
+                dependency_index_id: String::new(),
                 files: Some(files),
             }]),
         })

@@ -55,11 +55,15 @@ impl Store {
                 ],
             );
         }
-        Ok(LanguageEntry {
+        let mut materialized = LanguageEntry {
             files: Some(files),
             shared_object_id,
             ..entry
-        })
+        };
+        // Full analysis already owns all canonical records. Build the index
+        // directly from those borrowed records, without decoding fact objects.
+        materialized.dependency_index_id = self.index_full_language(&materialized, &groups)?;
+        Ok(materialized)
     }
 
     pub fn build_shared_language(
@@ -135,9 +139,13 @@ impl Store {
         } else {
             previous.shared_object_id.clone()
         };
+        // Phase 3 maintains changed index partitions during incremental merge.
+        // Until then NEVER carry the previous generation's index forward:
+        // the new snapshot bootstraps its exact topology at most once.
         Ok(LanguageEntry {
             files: Some(files.into_values().collect()),
             shared_object_id,
+            dependency_index_id: String::new(),
             ..entry
         })
     }

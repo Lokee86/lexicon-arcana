@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::FactRecord;
 
+#[cfg(test)]
 pub(super) type Graph = BTreeMap<String, BTreeSet<String>>;
 
 pub(super) fn collect_dependency_records(
@@ -57,13 +58,7 @@ pub(super) fn normalize_owner(path: &str) -> String {
     path.replace('\\', "/").trim_start_matches("./").to_owned()
 }
 
-pub(super) fn add_relation(graph: &mut Graph, source: &str, target: &str) {
-    graph
-        .entry(source.to_owned())
-        .or_default()
-        .insert(target.to_owned());
-}
-
+#[cfg(test)]
 pub(super) fn one_hop_closure(seeds: &BTreeSet<String>, graph: &Graph) -> Vec<String> {
     let mut selected = seeds.clone();
     for seed in seeds {

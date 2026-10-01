@@ -221,6 +221,7 @@ fn language_entry(store: &Store, language: &str) -> LanguageEntry {
             repository: "repo".into(),
             analysis_config_id: ANALYSIS_CONFIG_ID.into(),
             shared_object_id: String::new(),
+            dependency_index_id: String::new(),
             files: Some(Vec::new()),
         };
     }
@@ -245,6 +246,7 @@ fn language_entry(store: &Store, language: &str) -> LanguageEntry {
         repository: "repo".into(),
         analysis_config_id: ANALYSIS_CONFIG_ID.into(),
         shared_object_id: String::new(),
+        dependency_index_id: String::new(),
         files: Some(vec![FileEntry {
             path: owner,
             language: language.into(),
