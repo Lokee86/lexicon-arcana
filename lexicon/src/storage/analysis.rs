@@ -27,6 +27,14 @@ impl Analysis {
         })
     }
 
+    pub(crate) fn parse_unvalidated(input: &str) -> Result<Self, StorageError> {
+        let stream = FactStream::parse_unvalidated(input)?;
+        Ok(Self {
+            header: stream.header,
+            records: stream.records,
+        })
+    }
+
     pub fn restrict_incremental_ownership(&mut self) {
         if !self.is_incremental() {
             return;

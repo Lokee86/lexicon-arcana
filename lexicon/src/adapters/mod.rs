@@ -13,6 +13,7 @@ mod model;
 pub mod python;
 pub mod ruby;
 pub mod rust;
+pub mod typescript;
 
 pub use contract::{ADAPTER_CONTRACT_VERSION, AdapterContract, LanguageAdapter};
 pub use error::AdapterError;
