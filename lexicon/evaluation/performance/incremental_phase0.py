@@ -16,6 +16,8 @@ def main() -> int:
     parser.add_argument("--adapters", type=Path, required=True)
     parser.add_argument("--source", type=Path, help="Git repository; archives HEAD only")
     parser.add_argument("--synthetic-count", type=int, default=60)
+    parser.add_argument("--git-source", action="store_true",
+                        help="commit the disposable source tree to exercise Git-backed skips")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--timeout", type=int, default=150)
     parser.add_argument("--cold-timeout", type=int)
@@ -39,6 +41,19 @@ def main() -> int:
         result["source_revision"] = seed_source(
             repo, args.source, args.synthetic_count
         )
+        if args.git_source:
+            def git(*command: str) -> str:
+                return subprocess.check_output(
+                    ["git", "-C", str(repo), *command],
+                    text=True, stderr=subprocess.PIPE,
+                ).strip()
+            git("init", "-q")
+            git("config", "user.name", "Lexicon Phase 1")
+            git("config", "user.email", "lexicon-phase1@example.invalid")
+            git("config", "core.autocrlf", "false")
+            git("add", "-A")
+            git("commit", "-qm", "disposable source baseline")
+            result["disposable_source_git_head"] = git("rev-parse", "HEAD")
         python_files = sorted(repo.rglob("*.py"))
         if not python_files:
             raise RuntimeError("benchmark needs a Python file")

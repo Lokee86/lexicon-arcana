@@ -1,7 +1,7 @@
 # Lexicon Incremental Scan Performance — Hard-Cut Repair
 
 Parent index: [Planning](INDEX.md)
-Status: Phase 0 instrumented and measured on controlled 61- and 1,001-file fixtures; a bounded pinned-Hermes cold run timed out before publication. Source/scope scaling is reproducible and Phases 1–4 may proceed, but a complete Hermes before/after production acceptance run remains mandatory in Phase 5. Evidence: [2026-10-01 Phase 0](../development/lexicon-incremental-phase0-2026-10-01.md).
+Status: Phases 0 and 1 complete. Git-backed source mirroring now skips unchanged file bodies and conservatively verifies dirty/ambiguous paths. Persistent indexed dependency planning (Phases 2–4) is not yet implemented. Full pinned-Hermes end-to-end acceptance remains Phase 5. Evidence: [Phase 0](../development/lexicon-incremental-phase0-2026-10-01.md), [Phase 1](../development/lexicon-incremental-phase1-2026-10-01.md).
 Owner: Lexicon repository mirror, Rust planner and storage. Arcana ingestion is unchanged.
 
 ## Purpose

@@ -133,27 +133,10 @@ Use `find`, `show`, `refs`, and `calls` to verify semantic lookup behavior when 
 
 ## Incremental production-scan profiling
 
-Use the opt-in `LEXICON_PERF=1` stage counters to distinguish source inventory, hash/index fallback, dependency reconstruction, adapter execution, materialization and publication. For a reproducible warm-scan experiment, run `evaluation/performance/incremental_phase0.py` with the development CLI executable, the adapter directory and an output JSON path. The optional `--source` input archives only a pinned Git HEAD to a temporary checkout: it does not modify an active repository or reuse an installed Lexicon snapshot. `--max-steps`, `--cold-timeout`, `--timeout` and `--interrupt` constrain expensive runs. The harness records peak sampled process-tree RSS when `psutil` is available and otherwise labels a Windows parent-only measurement.
+Use `LEXICON_PERF=1` to separate source inventory, Git metadata/skips, fallback source-byte comparisons, dependency reconstruction, adapter analysis, materialization and publication. `evaluation/performance/incremental_phase0.py` runs disposable real CLI transactions on generated Python sources or archived Git HEAD trees. Pass `--git-source` to initialize a Git repository inside that disposable source, exercising the production Git metadata fast path. `--max-steps`, `--cold-timeout`, `--timeout` and optional `--interrupt` bound runs. Memory sampling reports parent-plus-child RSS with `psutil`, otherwise parent-only on Windows.
 
-See the shared [Phase 0 baseline](../../docs/development/lexicon-incremental-phase0-2026-10-01.md) for the current reproduction and its limits. It is a diagnostic harness, not a substitute for the semantic/parity gates above.
+The Git source path compares the published private Git HEAD tree with source Git blob IDs and verifies clean worktree state, EOL equivalence and no checkout-transforming attributes. Ambiguous/untracked/filtered/non-Git paths retain byte-exact comparison. See the shared [Phase 0 baseline](../../docs/development/lexicon-incremental-phase0-2026-10-01.md) and [Phase 1 source mirror evidence](../../docs/development/lexicon-incremental-phase1-2026-10-01.md). This diagnostic runner does not replace semantic parity tests.
 
-## Incremental production-scan profiling
-
-Use the opt-in `LEXICON_PERF=1` stage counters to distinguish source inventory, hash/index fallback, dependency reconstruction, adapter execution, materialization and publication. For a reproducible warm-scan experiment, run `evaluation/performance/incremental_phase0.py` with the development CLI executable, the adapter directory and an output JSON path. The optional `--source` input archives only a pinned Git HEAD to a temporary checkout: it does not modify an active repository or reuse an installed Lexicon snapshot. `--max-steps`, `--cold-timeout`, `--timeout` and `--interrupt` constrain expensive runs. The harness records peak sampled process-tree RSS when `psutil` is available and otherwise labels a Windows parent-only measurement.
-
-See the shared [Phase 0 baseline](../../docs/development/lexicon-incremental-phase0-2026-10-01.md) for the current reproduction and its limits. It is a diagnostic harness, not a substitute for the semantic/parity gates above.
-
-## Incremental production-scan profiling
-
-Use the opt-in `LEXICON_PERF=1` stage counters to distinguish source inventory, hash/index fallback, dependency reconstruction, adapter execution, materialization and publication. For a reproducible warm-scan experiment, run `evaluation/performance/incremental_phase0.py` with the development CLI executable, the adapter directory and an output JSON path. The optional `--source` input archives only a pinned Git HEAD to a temporary checkout: it does not modify an active repository or reuse an installed Lexicon snapshot. `--max-steps`, `--cold-timeout`, `--timeout` and `--interrupt` constrain expensive runs. The harness records peak sampled process-tree RSS when `psutil` is available and otherwise labels a Windows parent-only measurement.
-
-See the shared [Phase 0 baseline](../../docs/development/lexicon-incremental-phase0-2026-10-01.md) for the current reproduction and its limits. It is a diagnostic harness, not a substitute for the semantic/parity gates above.
-
-## Incremental production-scan profiling
-
-Use `LEXICON_PERF=1` to distinguish source inventory, index/hash fallback, dependency reconstruction, adapter execution, materialization, and publication. `evaluation/performance/incremental_phase0.py` runs disposable real CLI transactions on generated Python source or a pinned Git HEAD archive; it never modifies an active working tree. Pass the development CLI executable, adapter directory and output JSON path. `--max-steps`, `--cold-timeout`, `--timeout` and `--interrupt` constrain expensive runs. Peak sampled process-tree RSS is recorded with `psutil`; without it, Windows reports explicitly parent-only memory.
-
-See the shared [Phase 0 baseline](../../docs/development/lexicon-incremental-phase0-2026-10-01.md), including the bounded incomplete Hermes run. Performance profiling is not a substitute for semantic and publication parity tests.
 
 ## Documentation checks
 

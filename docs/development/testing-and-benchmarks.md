@@ -114,19 +114,8 @@ See [Lexicon-wide Performance Restoration](lexicon-wide-performance-restoration.
 
 ## Lexicon production incremental scan diagnosis
 
-The disposable `lexicon/evaluation/performance/incremental_phase0.py` harness runs real CLI `init`/`scan` transactions on an isolated generated Python tree or a pinned Git HEAD archive, including repeated edits and an intentionally dirty private mirror. It emits opt-in `LEXICON_PERF` stage counters plus wall time and sampled memory. Use bounded command timeouts for larger repositories, and distinguish direct Python adapter time from the complete initial build. See the [October 2026 Phase 0 evidence](lexicon-incremental-phase0-2026-10-01.md).
+The disposable `lexicon/evaluation/performance/incremental_phase0.py` harness profiles the actual CLI `init`/`scan` path, supports generated Python fixtures and archived pinned Git HEAD checkouts, and optionally enables a disposable source Git repository with `--git-source`. It covers unchanged scans, repeated edits, dirty private mirror repair, additions, deletions, renames and optional interruption. Runs report `LEXICON_PERF` stage timings and sampled memory. Bound expensive cold runs explicitly; never equate full-adapter time with full cold publication. See [Phase 0](lexicon-incremental-phase0-2026-10-01.md) and the [Git source-mirror Phase 1 proof](lexicon-incremental-phase1-2026-10-01.md).
 
-## Lexicon production incremental scan diagnosis
-
-The disposable `lexicon/evaluation/performance/incremental_phase0.py` harness runs real CLI `init`/`scan` transactions on an isolated generated Python tree or a pinned Git HEAD archive, including repeated edits and an intentionally dirty private mirror. It emits opt-in `LEXICON_PERF` stage counters plus wall time and sampled memory. Use bounded command timeouts for larger repositories, and distinguish direct Python adapter time from the complete initial build. See the [October 2026 Phase 0 evidence](lexicon-incremental-phase0-2026-10-01.md).
-
-## Lexicon production incremental scan diagnosis
-
-The disposable `lexicon/evaluation/performance/incremental_phase0.py` harness runs real CLI `init`/`scan` transactions on an isolated generated Python tree or a pinned Git HEAD archive, including repeated edits and an intentionally dirty private mirror. It emits opt-in `LEXICON_PERF` stage counters plus wall time and sampled memory. Use bounded command timeouts for larger repositories, and distinguish direct Python adapter time from the complete initial build. See the [October 2026 Phase 0 evidence](lexicon-incremental-phase0-2026-10-01.md).
-
-## Lexicon production incremental scan diagnosis
-
-The disposable `lexicon/evaluation/performance/incremental_phase0.py` harness profiles actual CLI `init`/`scan` transactions with `LEXICON_PERF=1` on deterministic Python fixtures or archived Git HEAD trees. It covers unchanged, repeated edit, deliberately dirty private mirror, addition, deletion, rename and optional interruption; it records stage timing, wall time and sampled memory. Bound costly runs explicitly and distinguish full-adapter time from complete cold initialization. The [Phase 0 baseline and incomplete pinned-Hermes sample](lexicon-incremental-phase0-2026-10-01.md) document current evidence.
 
 ## Repository-agent benchmark
 

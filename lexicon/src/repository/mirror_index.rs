@@ -1,195 +1,187 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
-use std::thread;
+use std::process::Command;
+use std::time::Duration;
 
-const MAX_HASH_WORKERS: usize = 16;
+#[path = "mirror_index_worktree.rs"]
+mod worktree;
 
+/// Git's two immutable trees are the baseline: the published private mirror
+/// HEAD and the source HEAD. Only a path clean relative to BOTH trees can be
+/// skipped, and only if the trees contain identical content object IDs.
+/// Untracked, staged, dirty, and ambiguous paths retain byte comparison.
 pub(crate) fn unchanged_files(
     mirror_root: &Path,
     source_root: &Path,
     desired: &BTreeMap<PathBuf, PathBuf>,
 ) -> Option<BTreeSet<PathBuf>> {
-    let state_root = mirror_root.parent()?;
-    let clean = mirror_clean(state_root);
+    let Some(state_root) = mirror_root.parent() else {
+        return fallback(1);
+    };
+    let Some(private_tree) = tree_blobs(state_root, "source/") else {
+        return fallback(1);
+    };
+    let Some(private_dirty) = dirty_paths(state_root, "source/") else {
+        return fallback(2);
+    };
+    let clean = private_dirty.is_empty();
     if crate::perf::enabled() {
         crate::perf::emit(
             "scan.mirror_index_state",
-            std::time::Duration::ZERO,
+            Duration::ZERO,
             &[
-                ("mirror_clean", u64::from(matches!(clean, Some(true)))),
-                ("mirror_dirty", u64::from(matches!(clean, Some(false)))),
-                ("mirror_status_failed", u64::from(clean.is_none())),
+                ("mirror_clean", u64::from(clean)),
+                ("mirror_dirty", u64::from(!clean)),
+                ("mirror_status_failed", 0),
             ],
         );
     }
-    if !clean? {
-        return None;
+
+    // Source repositories may be nested inside a larger Git worktree. Git's
+    // --show-prefix supplies the path relative to that worktree's root.
+    let Some(source_top) = git_text(source_root, &["rev-parse", "--show-toplevel"]) else {
+        return fallback(3);
+    };
+    let Some(source_prefix) = git_text(source_root, &["rev-parse", "--show-prefix"]) else {
+        return fallback(3);
+    };
+    let source_top = PathBuf::from(source_top.trim());
+    let source_prefix = source_prefix.trim().to_owned();
+    let Some(source_tree) = tree_blobs(&source_top, &source_prefix) else {
+        return fallback(4);
+    };
+    let Some(source_dirty) = dirty_paths(&source_top, &source_prefix) else {
+        return fallback(5);
+    };
+    // A Git-clean file can still be transformed on checkout (CRLF, smudge
+    // filters, ident, encoding). Only byte-equivalent working-tree paths qualify.
+    let Some(source_normal) = worktree::eligible_paths(&source_top, &source_prefix) else {
+        return fallback(6);
+    };
+
+    let mut unchanged = BTreeSet::new();
+    let mut matching_blobs = 0_u64;
+    for relative in desired.keys() {
+        let Some(private_oid) = private_tree.get(relative) else {
+            continue;
+        };
+        let Some(source_oid) = source_tree.get(relative) else {
+            continue;
+        };
+        if private_oid != source_oid
+            || private_dirty.contains(relative)
+            || source_dirty.contains(relative)
+            || !source_normal.contains(relative)
+        {
+            continue;
+        }
+        matching_blobs += 1;
+        let destination = mirror_root.join(relative);
+        if std::fs::symlink_metadata(destination)
+            .is_ok_and(|metadata| metadata.file_type().is_file())
+        {
+            unchanged.insert(relative.clone());
+        }
     }
-    let index = source_index(state_root);
-    if index.is_none() && crate::perf::enabled() {
+    if crate::perf::enabled() {
+        crate::perf::emit(
+            "scan.source_index_metadata",
+            Duration::ZERO,
+            &[
+                ("desired_files", desired.len() as u64),
+                ("matching_blobs", matching_blobs),
+                ("private_dirty", private_dirty.len() as u64),
+                ("source_dirty", source_dirty.len() as u64),
+                ("indexed_skips", unchanged.len() as u64),
+                ("source_content_reads", 0),
+            ],
+        );
+    }
+    Some(unchanged)
+}
+
+// Diagnostic reason codes: private baseline missing=1, private status failure=2,
+// source not Git=3, source tree failure=4, source status failure=5,
+// source tracked-file metadata failure=6. Fallback always compares source bytes.
+fn fallback(reason: u64) -> Option<BTreeSet<PathBuf>> {
+    if crate::perf::enabled() {
         crate::perf::emit(
             "scan.mirror_index_fallback",
-            std::time::Duration::ZERO,
-            &[("source_index_failed", 1), ("source_hash_failed", 0)],
+            Duration::ZERO,
+            &[("reason", reason)],
         );
     }
-    let index = index?;
-    let paths = desired.keys().cloned().collect::<Vec<_>>();
-    if paths.iter().any(|path| {
-        let value = path.to_string_lossy();
-        value.contains('\n') || value.contains('\r')
-    }) {
-        return None;
-    }
-    let hash_started = crate::perf::start();
-    let hashes = hash_paths(state_root, source_root, &paths);
-    if let Some(hash_started) = hash_started {
-        // File lengths are observed with metadata only; the content reads happen
-        // in Git's hash-object subprocesses, not in the profiler.
-        let requested_bytes = paths
-            .iter()
-            .filter_map(|path| std::fs::metadata(source_root.join(path)).ok())
-            .map(|metadata| metadata.len())
-            .sum::<u64>();
-        crate::perf::emit(
-            "scan.source_index_hash",
-            hash_started.elapsed(),
-            &[
-                ("requested_files", paths.len() as u64),
-                ("requested_bytes", requested_bytes),
-                ("hash_failed", u64::from(hashes.is_none())),
-            ],
-        );
-    }
-    let hashes = hashes?;
-    if hashes.len() != paths.len() {
-        return None;
-    }
-
-    Some(
-        paths
-            .into_iter()
-            .zip(hashes)
-            .filter_map(|(path, hash)| {
-                let indexed = index.get(&path)?;
-                let destination = mirror_root.join(&path);
-                let present = std::fs::symlink_metadata(destination)
-                    .is_ok_and(|metadata| metadata.file_type().is_file());
-                (present && indexed == &hash).then_some(path)
-            })
-            .collect(),
-    )
+    None
 }
 
-fn mirror_clean(state_root: &Path) -> Option<bool> {
-    let output = Command::new("git")
-        .args([
-            "status",
-            "--porcelain=v1",
-            "-z",
-            "--untracked-files=all",
-            "--",
-            "source",
-        ])
-        .current_dir(state_root)
-        .output()
-        .ok()?;
-    output.status.success().then(|| output.stdout.is_empty())
-}
-
-fn source_index(state_root: &Path) -> Option<BTreeMap<PathBuf, String>> {
-    let output = Command::new("git")
-        .args(["ls-files", "-s", "-z", "--", "source"])
-        .current_dir(state_root)
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
+fn tree_blobs(repo: &Path, prefix: &str) -> Option<BTreeMap<PathBuf, String>> {
+    let mut args = vec!["ls-tree", "-r", "-z", "--full-tree", "HEAD", "--"];
+    if !prefix.is_empty() {
+        args.push(prefix);
     }
-
+    let bytes = git_bytes(repo, &args)?;
     let mut result = BTreeMap::new();
-    for record in output.stdout.split(|byte| *byte == 0) {
-        if record.is_empty() {
-            continue;
-        }
+    for record in bytes
+        .split(|byte| *byte == 0)
+        .filter(|record| !record.is_empty())
+    {
         let tab = record.iter().position(|byte| *byte == b'\t')?;
-        let metadata = String::from_utf8_lossy(&record[..tab]);
+        let metadata = std::str::from_utf8(&record[..tab]).ok()?;
         let mut fields = metadata.split_whitespace();
-        let _mode = fields.next()?;
-        let hash = fields.next()?.to_owned();
-        if fields.next()? != "0" {
+        let mode = fields.next()?;
+        let kind = fields.next()?;
+        let oid = fields.next()?;
+        if kind != "blob" || !matches!(mode, "100644" | "100755") {
             continue;
         }
-        let path = String::from_utf8_lossy(&record[tab + 1..]);
-        let relative = path.strip_prefix("source/")?;
-        result.insert(PathBuf::from(relative), hash);
+        let path = std::str::from_utf8(&record[tab + 1..]).ok()?;
+        if let Some(relative) = path.strip_prefix(prefix)
+            && !relative.is_empty()
+        {
+            result.insert(PathBuf::from(relative), oid.to_owned());
+        }
     }
     Some(result)
 }
 
-fn hash_paths(state_root: &Path, source_root: &Path, paths: &[PathBuf]) -> Option<Vec<String>> {
-    if paths.is_empty() {
-        return Some(Vec::new());
+fn dirty_paths(repo: &Path, prefix: &str) -> Option<BTreeSet<PathBuf>> {
+    // diff HEAD includes staged AND working tree edits; the source tree is
+    // authoritative for tracked files, while untracked paths are never skipped.
+    let mut args = vec!["diff", "--no-ext-diff", "--name-only", "-z", "HEAD", "--"];
+    if !prefix.is_empty() {
+        args.push(prefix);
     }
-    let workers = paths
-        .len()
-        .min(
-            thread::available_parallelism()
-                .map(usize::from)
-                .unwrap_or(1),
-        )
-        .min(MAX_HASH_WORKERS)
-        .max(1);
-    let chunk_size = paths.len().div_ceil(workers);
-
-    thread::scope(|scope| {
-        let handles = paths
-            .chunks(chunk_size)
-            .map(|chunk| scope.spawn(move || hash_chunk(state_root, source_root, chunk)))
-            .collect::<Vec<_>>();
-        let mut result = Vec::with_capacity(paths.len());
-        for handle in handles {
-            result.extend(handle.join().ok()??);
-        }
-        Some(result)
-    })
+    let bytes = git_bytes(repo, &args)?;
+    paths_with_prefix(&bytes, prefix)
 }
 
-fn hash_chunk(state_root: &Path, source_root: &Path, paths: &[PathBuf]) -> Option<Vec<String>> {
-    let git_dir = state_root.join(".git");
-    let mut child = Command::new("git")
-        .arg(format!("--git-dir={}", git_dir.display()))
-        .args(["hash-object", "--stdin-paths", "--no-filters"])
-        .current_dir(source_root)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .ok()?;
-
+fn paths_with_prefix(bytes: &[u8], prefix: &str) -> Option<BTreeSet<PathBuf>> {
+    let mut paths = BTreeSet::new();
+    for raw in bytes
+        .split(|byte| *byte == 0)
+        .filter(|path| !path.is_empty())
     {
-        let stdin = child.stdin.as_mut()?;
-        for path in paths {
-            let value = path.to_string_lossy().replace('\\', "/");
-            writeln!(stdin, "{value}").ok()?;
+        let path = std::str::from_utf8(raw).ok()?;
+        if let Some(relative) = path.strip_prefix(prefix)
+            && !relative.is_empty()
+        {
+            paths.insert(PathBuf::from(relative));
         }
     }
+    Some(paths)
+}
 
-    let output = child.wait_with_output().ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let hashes = String::from_utf8(output.stdout).ok()?;
-    Some(
-        hashes
-            .lines()
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(str::to_owned)
-            .collect(),
-    )
+fn git_text(repo: &Path, args: &[&str]) -> Option<String> {
+    String::from_utf8(git_bytes(repo, args)?).ok()
+}
+
+fn git_bytes(repo: &Path, args: &[&str]) -> Option<Vec<u8>> {
+    let output = Command::new("git")
+        .args(args)
+        .current_dir(repo)
+        .output()
+        .ok()?;
+    output.status.success().then_some(output.stdout)
 }
 
 #[cfg(test)]
