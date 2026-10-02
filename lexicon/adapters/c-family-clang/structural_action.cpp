@@ -7,6 +7,10 @@
 #include <string>
 #include <utility>
 
+#if defined(__GLIBC__)
+#include <malloc.h>
+#endif
+
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/CompilerInvocation.h"
@@ -21,6 +25,12 @@
 
 namespace lexicon::clang_frontend {
 namespace {
+
+void release_unused_translation_unit_heap() {
+#if defined(__GLIBC__)
+  malloc_trim(0);
+#endif
+}
 
 std::string severity(clang::DiagnosticsEngine::Level level) {
   switch (level) {
@@ -344,6 +354,12 @@ public:
                              PerfClock::now() - commit_started);
     current_submitted_ = true;
     ++current_index_;
+    // CompilerInstance and TU-local AST/Sema state are gone here. Trim
+    // periodically so persistent lanes do not retain every prior TU high-water
+    // mark without serializing allocator work after every translation unit.
+    if (current_index_ % 8 == 0 || current_index_ == units_.size()) {
+      release_unused_translation_unit_heap();
+    }
     return completed;
   }
 
