@@ -1,0 +1,1227 @@
+{
+  "executable": "C:\\!bin\\workspace\\lexicon-arcana\\arcana\\target\\release\\arcana.exe",
+  "snapshot": "C:\\!bin\\workspace\\arcana-buffered-clean-state\\snapshots\\ee46a8a475c443f908e0eff6db9efca62e3871fe1f541e62251ebd9f5ed2c621",
+  "cache_condition": "uncontrolled warm filesystem cache; fresh process",
+  "peak_rss_bytes": 141590528,
+  "exact_lookup_p95_seconds": 0.00023249999503605068,
+  "exit_code": 0,
+  "stderr": "arcana query manifest_validation_ms=1.228\narcana query graph_open_ms=178.600\narcana query store_validation_ms=1139.752\narcana query startup_ms=1360.757 fact_materializations=0 compiler_invocations=0\narcana query manifest_validation_ms=0.309\narcana query graph_open_ms=123.161\narcana query store_validation_ms=1171.685\narcana query startup_ms=1341.226 fact_materializations=0 compiler_invocations=0\n",
+  "queries": [
+    {
+      "op": "capabilities",
+      "args": {
+        "op": "capabilities",
+        "id": 0
+      },
+      "seconds": 1.3683408999931999,
+      "ok": true
+    },
+    {
+      "op": "stats",
+      "args": {
+        "op": "stats",
+        "id": 1
+      },
+      "seconds": 0.3819915000058245,
+      "ok": true
+    },
+    {
+      "op": "list_nodes",
+      "args": {
+        "op": "list_nodes",
+        "limit": 10,
+        "id": 2
+      },
+      "seconds": 0.002966800006106496,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 3
+      },
+      "seconds": 0.0010099000064656138,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 4
+      },
+      "seconds": 0.00026619998971000314,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 5
+      },
+      "seconds": 0.00023249999503605068,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 6
+      },
+      "seconds": 0.0001934999891091138,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 7
+      },
+      "seconds": 0.00022739998530596495,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 8
+      },
+      "seconds": 0.00021139997988939285,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 9
+      },
+      "seconds": 0.00018480001017451286,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 10
+      },
+      "seconds": 0.00017370001296512783,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 11
+      },
+      "seconds": 0.0001846000086516142,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 12
+      },
+      "seconds": 0.0001568000006955117,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 13
+      },
+      "seconds": 0.00017499999376013875,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 14
+      },
+      "seconds": 0.00014699998428113759,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 15
+      },
+      "seconds": 0.00014799999189563096,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 16
+      },
+      "seconds": 0.0001652000064495951,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 17
+      },
+      "seconds": 0.00016570001025684178,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 18
+      },
+      "seconds": 0.00015049998182803392,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 19
+      },
+      "seconds": 0.00015109998639672995,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 20
+      },
+      "seconds": 0.00014259997988119721,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 21
+      },
+      "seconds": 0.00015259999781847,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 22
+      },
+      "seconds": 0.0001441999920643866,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 23
+      },
+      "seconds": 0.0001779999874997884,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 24
+      },
+      "seconds": 0.00015279999934136868,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 25
+      },
+      "seconds": 0.0001564000267535448,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 26
+      },
+      "seconds": 0.00015399997937493026,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 27
+      },
+      "seconds": 0.0001244999875780195,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 28
+      },
+      "seconds": 0.0001391999830957502,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 29
+      },
+      "seconds": 0.0001705000177025795,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 30
+      },
+      "seconds": 0.0001399999891873449,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 31
+      },
+      "seconds": 0.00016469997353851795,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 32
+      },
+      "seconds": 0.00015350000467151403,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 33
+      },
+      "seconds": 0.00017419998766854405,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 34
+      },
+      "seconds": 0.0001542000100016594,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 35
+      },
+      "seconds": 0.0001700999855529517,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 36
+      },
+      "seconds": 0.00015639999764971435,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 37
+      },
+      "seconds": 0.00016270001651719213,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 38
+      },
+      "seconds": 0.00015730000450275838,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 39
+      },
+      "seconds": 0.00014290001126937568,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 40
+      },
+      "seconds": 0.00015169999096542597,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 41
+      },
+      "seconds": 0.000145800004247576,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 42
+      },
+      "seconds": 0.0001373999984934926,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 43
+      },
+      "seconds": 0.000152900000102818,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 44
+      },
+      "seconds": 0.0001550000160932541,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 45
+      },
+      "seconds": 0.0001936999906320125,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 46
+      },
+      "seconds": 0.00013770000077784061,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 47
+      },
+      "seconds": 0.00012120002065785229,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 48
+      },
+      "seconds": 0.00014859999646432698,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 49
+      },
+      "seconds": 0.00014560000272467732,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 50
+      },
+      "seconds": 0.0001393999846186489,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 51
+      },
+      "seconds": 0.00016570001025684178,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 52
+      },
+      "seconds": 0.00015130001702345908,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 53
+      },
+      "seconds": 0.0001585999852977693,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 54
+      },
+      "seconds": 0.0001745999907143414,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 55
+      },
+      "seconds": 0.00013189998571760952,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 56
+      },
+      "seconds": 0.00012569999671541154,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 57
+      },
+      "seconds": 0.00014290001126937568,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 58
+      },
+      "seconds": 0.00014769998961128294,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 59
+      },
+      "seconds": 0.00013190001482143998,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 60
+      },
+      "seconds": 0.00015460001304745674,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 61
+      },
+      "seconds": 0.00014170000213198364,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 62
+      },
+      "seconds": 0.00015659999917261302,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 63
+      },
+      "seconds": 0.00013970001600682735,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 64
+      },
+      "seconds": 0.00014109999756328762,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 65
+      },
+      "seconds": 0.00015780000831000507,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 66
+      },
+      "seconds": 0.00014059999375604093,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 67
+      },
+      "seconds": 0.00017479999223724008,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 68
+      },
+      "seconds": 0.00016490000416524708,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 69
+      },
+      "seconds": 0.00017839999054558575,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 70
+      },
+      "seconds": 0.000166199984960258,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 71
+      },
+      "seconds": 0.00016739999409765005,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 72
+      },
+      "seconds": 0.00013920001219958067,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 73
+      },
+      "seconds": 0.000145500001963228,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 74
+      },
+      "seconds": 0.00019910000264644623,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 75
+      },
+      "seconds": 0.00014020001981407404,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 76
+      },
+      "seconds": 0.0001373999984934926,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 77
+      },
+      "seconds": 0.00015330000314861536,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 78
+      },
+      "seconds": 0.00013219998800195754,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 79
+      },
+      "seconds": 0.00017069999012164772,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 80
+      },
+      "seconds": 0.00014290001126937568,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 81
+      },
+      "seconds": 0.0001813999842852354,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 82
+      },
+      "seconds": 0.00013949998538009822,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 83
+      },
+      "seconds": 0.00015390000771731138,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 84
+      },
+      "seconds": 0.00015020000864751637,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 85
+      },
+      "seconds": 0.00016080000204965472,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 86
+      },
+      "seconds": 0.00015249999705702066,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 87
+      },
+      "seconds": 0.00018469998030923307,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 88
+      },
+      "seconds": 0.000155699992319569,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 89
+      },
+      "seconds": 0.00016799999866634607,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 90
+      },
+      "seconds": 0.00025439998717047274,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 91
+      },
+      "seconds": 0.0002214000269304961,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 92
+      },
+      "seconds": 0.00015869998605921865,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 93
+      },
+      "seconds": 0.0001629000180400908,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 94
+      },
+      "seconds": 0.00015720000374130905,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 95
+      },
+      "seconds": 0.00015460001304745674,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 96
+      },
+      "seconds": 0.00020169999334029853,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 97
+      },
+      "seconds": 0.0001914000022225082,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 98
+      },
+      "seconds": 0.00017179999849759042,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 99
+      },
+      "seconds": 0.00017670000670477748,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 100
+      },
+      "seconds": 0.000225499999942258,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 101
+      },
+      "seconds": 0.00023750000400468707,
+      "ok": true
+    },
+    {
+      "op": "resolve_symbol",
+      "args": {
+        "op": "resolve_symbol",
+        "name": "DEFAULT_SCRIPT_TIMEOUT_SECONDS",
+        "limit": 10,
+        "id": 102
+      },
+      "seconds": 0.0003081000177189708,
+      "ok": true
+    },
+    {
+      "op": "search_nodes",
+      "args": {
+        "op": "search_nodes",
+        "query": "run_agent",
+        "limit": 10,
+        "id": 103
+      },
+      "seconds": 0.5549281999992672,
+      "ok": true
+    },
+    {
+      "op": "search_nodes",
+      "args": {
+        "op": "search_nodes",
+        "query": "a",
+        "limit": 10,
+        "id": 104
+      },
+      "seconds": 0.5751609999861103,
+      "ok": true
+    },
+    {
+      "op": "unresolved",
+      "args": {
+        "op": "unresolved",
+        "limit": 10,
+        "id": 105
+      },
+      "seconds": 0.14085500000510365,
+      "ok": true
+    },
+    {
+      "op": "unresolved",
+      "args": {
+        "op": "unresolved",
+        "node_id": 0,
+        "limit": 10,
+        "id": 106
+      },
+      "seconds": 0.0005075999943073839,
+      "ok": true
+    },
+    {
+      "op": "neighbors",
+      "args": {
+        "op": "neighbors",
+        "node_id": 0,
+        "direction": "outgoing",
+        "limit": 10,
+        "id": 107
+      },
+      "seconds": 0.00023720000172033906,
+      "ok": true
+    },
+    {
+      "op": "export_graph",
+      "args": {
+        "op": "export_graph",
+        "limit": 10,
+        "id": 108
+      },
+      "seconds": 0.0025451000255998224,
+      "ok": true
+    },
+    {
+      "op": "architecture_summary",
+      "args": {
+        "op": "architecture_summary",
+        "path_prefix": "hermes_cli",
+        "min_community_size": 1,
+        "limit": 10,
+        "id": 109
+      },
+      "seconds": 2.0237904000096023,
+      "ok": true
+    },
+    {
+      "op": "diff",
+      "args": {
+        "op": "diff",
+        "other_snapshot": "C:\\!bin\\workspace\\arcana-buffered-clean-state\\snapshots\\ee46a8a475c443f908e0eff6db9efca62e3871fe1f541e62251ebd9f5ed2c621",
+        "limit": 10,
+        "id": 110
+      },
+      "seconds": 1.345841800008202,
+      "ok": true
+    }
+  ]
+}

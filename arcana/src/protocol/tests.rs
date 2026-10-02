@@ -919,3 +919,107 @@ impl Drop for TestDirectory {
         let _ = fs::remove_dir_all(&self.path);
     }
 }
+
+#[test]
+fn query_ownership_never_reconstructs_repository_facts() {
+    let owner = include_str!("../repository/repository_query_snapshot.rs");
+    let protocol = include_str!("session.rs");
+    for forbidden in [
+        "materialize_facts(",
+        "compile_repository_facts(",
+        "RepositorySnapshot::open(",
+        "RepositoryCatalogue",
+    ] {
+        assert!(
+            !owner.contains(forbidden),
+            "query owner contains {forbidden}"
+        );
+        assert!(
+            !protocol.contains(forbidden),
+            "protocol contains {forbidden}"
+        );
+    }
+    assert!(!protocol.contains("unresolved_by_source"));
+}
+
+#[test]
+#[ignore = "manual exact protocol parity against ARCANA_PARITY_BASELINE executable"]
+fn every_operation_matches_pre_cutover_json_responses() {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    let executable = std::env::var("ARCANA_PARITY_BASELINE").expect("set ARCANA_PARITY_BASELINE");
+    let directory = TestDirectory::new();
+    let current = directory.path.join("parity-current");
+    let other = directory.path.join("parity-other");
+    let mut duplicate_facts = current_facts();
+    duplicate_facts.nodes.push(duplicate_facts.nodes[0].clone());
+    duplicate_facts.edges.push(duplicate_facts.edges[0].clone());
+    duplicate_facts
+        .unresolved
+        .push(duplicate_facts.unresolved[0].clone());
+    write_snapshot(&current, duplicate_facts);
+    write_snapshot(&other, other_facts());
+    let snapshot = ProtocolSnapshot::open(&current).unwrap();
+    let mut requests = vec![
+        json!({"op":"capabilities"}),
+        json!({"op":"search_nodes","query":"c","limit":1}),
+        json!({"op":"search_nodes","query":"CALLER","limit":0}),
+        json!({"op":"search_nodes","query":"src\\lib","limit":10}),
+        json!({"op":"resolve_symbol","name":"caller","kind":"function","path":"src/lib.go"}),
+        json!({"op":"resolve_file","path":"src/lib.go"}),
+        json!({"op":"list_nodes","kind":"function","path_prefix":"src","offset":1,"limit":1}),
+        json!({"op":"export_graph","limit":1,"pinned_node_ids":[2]}),
+        json!({"op":"neighbors","node_id":1,"direction":"outgoing"}),
+        json!({"op":"paths","from_node_id":1,"to_node_id":2,"max_depth":3}),
+        json!({"op":"reachability","entry_node_ids":[1],"max_depth":3}),
+        json!({"op":"impact","node_id":2,"max_depth":3}),
+        json!({"op":"shortest_call_chain","from_node_id":1,"to_node_id":2}),
+        json!({"op":"dead_symbols","entry_node_ids":[1]}),
+        json!({"op":"operational_role","node_id":1,"entry_node_ids":[1]}),
+        json!({"op":"architecture_summary","min_community_size":1}),
+        json!({"op":"unresolved","node_id":1,"reason":"unsupported-form"}),
+        json!({"op":"unresolved","limit":0}),
+        json!({"op":"stats"}),
+        json!({"op":"diff","other_snapshot":other}),
+        json!({"op":"diff","other_snapshot":current}),
+        json!({"op":"neighbors","node_id":999,"direction":"incoming"}),
+        json!({"op":"resolve_symbol","name":"missing","kind":"invalid"}),
+        json!({"op":"list_nodes","path_prefix":"src-collision","limit":0}),
+    ];
+    for (id, request) in requests.iter_mut().enumerate() {
+        request["id"] = json!(id);
+    }
+    let mut child = Command::new(executable)
+        .args(["protocol", "--snapshot"])
+        .arg(&current)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    {
+        let mut input = child.stdin.take().unwrap();
+        for request in &requests {
+            writeln!(input, "{request}").unwrap();
+        }
+    }
+    let output = child.wait_with_output().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let responses = String::from_utf8(output.stdout)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str::<Value>(line).unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(responses.len(), requests.len());
+    for (request, expected) in requests.iter().zip(responses) {
+        assert_eq!(
+            snapshot.handle_line(&request.to_string()),
+            expected,
+            "{request}"
+        );
+    }
+}

@@ -96,7 +96,7 @@ pub(crate) fn require_node(
 ) -> Result<NodeId, RequestFailure> {
     let node = NodeId(value);
     snapshot
-        .entry(node)
+        .entry(node)?
         .map(|_| node)
         .ok_or_else(|| RequestFailure::new("unknown_node", format!("node {value} does not exist")))
 }
@@ -207,8 +207,8 @@ pub(crate) fn graph_neighbors(
     allowed: Option<RelationMask>,
 ) -> Result<Vec<(NodeId, RelationKind)>, RequestFailure> {
     let neighbors = match direction {
-        QueryDirection::Outgoing => snapshot.graph.forward_neighbors_iter(node),
-        QueryDirection::Incoming => snapshot.graph.reverse_neighbors_iter(node),
+        QueryDirection::Outgoing => snapshot.query.graph().forward_neighbors_iter(node),
+        QueryDirection::Incoming => snapshot.query.graph().reverse_neighbors_iter(node),
     }
     .map_err(|error| RequestFailure::new("query_failed", error.to_string()))?;
 
@@ -235,7 +235,7 @@ pub(crate) fn bfs_distances(
     allowed: Option<RelationMask>,
     max_depth: usize,
 ) -> Result<Vec<Option<usize>>, RequestFailure> {
-    let mut distances = vec![None; snapshot.graph.node_count() as usize];
+    let mut distances = vec![None; snapshot.query.graph().node_count() as usize];
     let mut queue = VecDeque::new();
     for start in starts {
         distances[start.0 as usize] = Some(0);
@@ -267,8 +267,8 @@ pub(crate) fn shortest_path(
     if start == target {
         return Ok(Some((vec![start], Vec::new())));
     }
-    let mut depth = vec![None; snapshot.graph.node_count() as usize];
-    let mut parent = vec![None; snapshot.graph.node_count() as usize];
+    let mut depth = vec![None; snapshot.query.graph().node_count() as usize];
+    let mut parent = vec![None; snapshot.query.graph().node_count() as usize];
     depth[start.0 as usize] = Some(0);
     let mut queue = VecDeque::from([start]);
     while let Some(node) = queue.pop_front() {
@@ -323,12 +323,15 @@ pub(crate) fn path_value(
     let node_values = nodes
         .iter()
         .map(|node| {
-            snapshot.entry(*node).map(node_value).ok_or_else(|| {
-                RequestFailure::new(
-                    "invalid_snapshot",
-                    format!("missing catalogue node {}", node.0),
-                )
-            })
+            snapshot
+                .entry(*node)?
+                .map(|entry| node_value(&entry))
+                .ok_or_else(|| {
+                    RequestFailure::new(
+                        "invalid_snapshot",
+                        format!("missing catalogue node {}", node.0),
+                    )
+                })
         })
         .collect::<Result<Vec<_>, _>>()?;
     Ok(json!({
@@ -345,13 +348,13 @@ pub(crate) fn related_values(
     values
         .iter()
         .map(|(node, relation)| {
-            let entry = snapshot.entry(*node).ok_or_else(|| {
+            let entry = snapshot.entry(*node)?.ok_or_else(|| {
                 RequestFailure::new(
                     "invalid_snapshot",
                     format!("missing catalogue node {}", node.0),
                 )
             })?;
-            Ok(json!({"relation": relation.as_str(), "node": node_value(entry)}))
+            Ok(json!({"relation": relation.as_str(), "node": node_value(&entry)}))
         })
         .collect()
 }

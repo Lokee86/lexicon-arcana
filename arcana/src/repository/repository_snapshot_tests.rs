@@ -145,7 +145,7 @@ fn update_base_detects_repository_store_checksum_corruption() {
 }
 
 #[test]
-fn protocol_parts_materialize_from_repository_store() {
+fn rich_snapshot_retains_explicit_audit_and_materialization() {
     let directory = test_directory();
     let facts = sample_facts();
     let (compiled, checksums) = write_artifacts(&directory, &facts);
@@ -159,10 +159,9 @@ fn protocol_parts_materialize_from_repository_store() {
     .unwrap();
 
     let snapshot = RepositorySnapshot::open(directory.join(REPOSITORY_MANIFEST_FILE)).unwrap();
-    let (graph, catalogue, unresolved) = snapshot.into_protocol_parts();
-    assert_eq!(graph.edge_count(), 1);
-    assert_eq!(catalogue.len(), 3);
-    assert_eq!(unresolved.unresolved, compiled.unresolved);
+    assert_eq!(snapshot.graph().edge_count(), 1);
+    assert_eq!(snapshot.catalogue().len(), 3);
+    assert_eq!(snapshot.unresolved().unresolved, compiled.unresolved);
     fs::remove_dir_all(directory).unwrap();
 }
 
@@ -199,5 +198,48 @@ fn opening_legacy_v1_manifest_reports_unsupported_version() {
         RepositorySnapshot::open(&path),
         Err(RepositorySnapshotError::UnsupportedManifestVersion(1))
     ));
+    fs::remove_dir_all(directory).unwrap();
+}
+
+#[test]
+fn query_open_uses_no_compiler_and_rejects_inconsistent_or_corrupt_generations() {
+    let directory = test_directory();
+    let facts = sample_facts();
+    write_artifacts(&directory, &facts);
+    publish_repository_snapshot(directory.join(REPOSITORY_MANIFEST_FILE), request()).unwrap();
+    compiler::reset_compile_invocation_count();
+    crate::repository_store::reset_materialization_count();
+    let path = directory.join(REPOSITORY_MANIFEST_FILE);
+    let query = RepositoryQuerySnapshot::open(&path).unwrap();
+    assert_eq!(compiler::compile_invocation_count(), 0);
+    assert_eq!(crate::repository_store::materialization_count(), 0);
+    assert_eq!(query.len(), 3);
+    for id in 0..3 {
+        assert_eq!(
+            query
+                .entry(crate::synthetic::NodeId(id))
+                .unwrap()
+                .unwrap()
+                .node_id
+                .0,
+            id
+        );
+    }
+    assert_eq!(compiler::compile_invocation_count(), 0);
+    drop(query);
+    let audit = RepositorySnapshot::open(&path).unwrap();
+    assert_eq!(compiler::compile_invocation_count(), 1);
+    assert_eq!(crate::repository_store::materialization_count(), 1);
+    drop(audit);
+    let original = fs::read_to_string(&path).unwrap();
+    let mut manifest = RepositorySnapshotManifest::decode(&original).unwrap();
+    manifest.unresolved_count += 1;
+    fs::write(&path, manifest.encode().unwrap()).unwrap();
+    assert!(RepositoryQuerySnapshot::open(&path).is_err());
+    fs::write(&path, original).unwrap();
+    let mut bytes = fs::read(directory.join("repository.arcana")).unwrap();
+    bytes[600] ^= 1;
+    fs::write(directory.join("repository.arcana"), bytes).unwrap();
+    assert!(RepositoryQuerySnapshot::open(&path).is_err());
     fs::remove_dir_all(directory).unwrap();
 }

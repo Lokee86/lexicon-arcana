@@ -132,7 +132,7 @@ Evidence: [`snapshot/compaction.rs`](../src/snapshot/compaction.rs) and [`snapsh
 
 ### Query protocol
 
-`protocol` opens and validates one complete repository snapshot at startup, transfers its graph/catalogue/unresolved components into a `ProtocolSnapshot`, and serves repeated JSON Lines requests against that fixed snapshot. Every response uses `arcana.query.v1`, echoes the parseable request ID, and is either a result or a structured error. A request error does not terminate the stdin/stdout loop.
+`protocol` opens one validated `RepositoryQuerySnapshot` at startup and serves repeated JSON Lines requests through its visible graph and file-backed query interface. Every response uses `arcana.query.v1`, echoes the parseable request ID, and is either a result or a structured error. A request error does not terminate the stdin/stdout loop.
 
 Operations are routed to narrow owners for node lookup, neighbors, unresolved records, bounded traversal/path/analysis, architecture summaries, statistics, snapshot diff, and graph export. They query `GraphSnapshot`, so they see visible overlay state rather than only the packed base.
 
@@ -226,6 +226,10 @@ Evidence: [`lexicon/records.rs`](../src/lexicon/records.rs), [`repository/increm
 6. **Readers observe one published generation.** Managed graph publication replaces `CURRENT` only after generation assembly; protocol pins one opened snapshot; vector work checks `CURRENT` for races.
 7. **Exact graph behavior is embedding-independent.** Vectors can supply entry points but do not create, replace, or reinterpret graph relationships.
 8. **Degradation is explicit.** Accepted Lexicon vocabulary loss produces persisted warnings; structural corruption and unsafe semantic guesses fail or are skipped according to the documented boundary.
+
+## Query ownership
+
+Interactive protocol sessions consume `repository::RepositoryQuerySnapshot`. This owner binds one validated immutable generation to its visible graph, file-backed metadata, persisted lookup indexes, bounded sequential scans, and source-range unresolved reads. Protocol handlers render individual owned response entries; they do not own a reconstructed `RepositoryCatalogue` or repository-wide unresolved index. Rich `RepositorySnapshot` restoration and semantic compilation remain explicit audit/build responsibilities. See [Repository snapshots](repository-snapshots.md) for integrity, memory, duplicate-record, and query contracts.
 
 ## Code map
 

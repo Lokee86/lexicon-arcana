@@ -226,6 +226,12 @@ python scripts/check_docs.py
 
 If documentation changes because Rust behavior changed, also run the owning focused tests and the complete Arcana verification sequence. Keep benchmark results labeled as evidence for their exact recorded conditions; do not rewrite them as timeless guarantees.
 
+## Query runtime verification
+
+Run `cargo test`, `cargo fmt --check`, and `cargo clippy --all-targets -- -D warnings`. Query gates include file-reader index/metadata parity, corruption rejection, a zero-compiler invocation assertion, source ownership checks, and rank-scratch spill/cleanup tests. Existing protocol tests protect traversal, overlays, unresolved filters, search ranking, pagination, and generation-local diffs.
+
+The ignored `every_operation_matches_pre_cutover_json_responses` test compares every operation with a separately retained pre-cutover executable. Set `ARCANA_PARITY_BASELINE` to that executable and run `cargo test every_operation_matches_pre_cutover_json_responses -- --ignored`. The fixture includes duplicate node, edge, and unresolved facts. See [Query runtime evidence](../evaluation/results/hermes-query-runtime-2026-10-02/report.md) for measured conditions and remaining measurement limits.
+
 ## Code map
 
 | Development concern | Primary implementation or artifact | Related verification |

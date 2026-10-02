@@ -62,6 +62,10 @@ python .standards/docs_policy/check.py --repo . --config docs-standard.arcana.js
 python scripts/check_docs.py
 ```
 
+## Query runtime invariants
+
+Interactive query opening performs no repository compiler invocation or fact reconstruction; all protocol operations use one file-backed generation owner. Persisted indexes, bounded search ranking, duplicate unresolved collapse, corruption rejection, overlays, and generation-local differences are protected by `repository_snapshot_tests.rs`, `repository_store/reader_file_tests.rs`, `repository_store/search_scratch.rs`, and `protocol/tests.rs`. The manual executable-parity gate compares exact JSON responses for all operations.
+
 ## Code map
 
 | Matrix concern | Primary implementation or artifact | Protecting tests/gates |

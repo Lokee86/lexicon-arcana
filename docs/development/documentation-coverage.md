@@ -48,6 +48,10 @@ Current coverage contains two independently usable analysis products plus shared
 | Combined build, protocol verification, packaging, and installation | [Release workflow](release-workflow.md) |
 | Higher-level agent/task/context orchestration | Warlock or another consumer; not owned by this repository |
 
+## Interactive query runtime
+
+`arcana/src/repository/repository_query_snapshot.rs`, `repository_store/reader_file_queries.rs`, and `repository_store/search_scratch.rs` own immutable query generations, persisted index reads, bounded scans, and temporary search scratch. Canonical contracts are [Repository snapshots](../../arcana/docs/repository-snapshots.md), [Arcana architecture](../../arcana/docs/ARCHITECTURE.md), and [Arcana development](../../arcana/docs/DEVELOPMENT.md). Workspace owns downstream child-process session reuse.
+
 ## Code map
 
 | Concern | Primary implementation | Related verification |

@@ -124,3 +124,60 @@ fn file_reader_validates_node_key_and_full_external_identity() {
 
     cleanup(&[&path]);
 }
+
+#[test]
+fn query_indexes_scans_and_metadata_match_the_canonical_catalogue() {
+    let path = temp_path("reader-file-query-parity");
+    let facts = sample_facts();
+    write_repository_store(&path, &facts).unwrap();
+    let compiled = crate::repository::compile_repository_facts(&facts).unwrap();
+    let catalogue = &compiled.catalogue;
+    let mut file = RepositoryStoreFile::open(&path).unwrap();
+    for entry in catalogue.entries() {
+        assert_eq!(file.entry(entry.node_id).unwrap().as_ref(), Some(entry));
+        assert_eq!(
+            file.node_ids_by_name(&entry.fact.name).unwrap(),
+            catalogue.node_ids_by_name(&entry.fact.name)
+        );
+        assert_eq!(
+            file.node_ids_by_path(&entry.fact.path).unwrap(),
+            catalogue.node_ids_by_path(&entry.fact.path).unwrap()
+        );
+        assert_eq!(
+            file.node_ids_by_kind(&entry.fact.kind).unwrap(),
+            catalogue.node_ids_by_kind(&entry.fact.kind)
+        );
+    }
+    for prefix in ["src", "src/a.rs", "src/a", "missing"] {
+        assert_eq!(
+            file.node_ids_by_path_prefix(prefix).unwrap(),
+            catalogue.node_ids_by_path_prefix(prefix).unwrap()
+        );
+    }
+    assert!(file.entry(NodeId(file.node_count())).unwrap().is_none());
+    for key in [NodeKey(1), NodeKey(2), NodeKey(3), NodeKey(99)] {
+        let range = file.unresolved_range(key).unwrap();
+        let actual = range
+            .map(|i| file.unresolved(i).unwrap())
+            .collect::<Vec<_>>();
+        let expected = facts
+            .unresolved
+            .iter()
+            .filter(|reference| reference.source == key)
+            .cloned()
+            .collect::<Vec<_>>();
+        assert_eq!(actual, expected);
+    }
+    let (count, matches) = file.search_matches("a", 1).unwrap();
+    let (all_count, all) = file.search_matches("a", usize::MAX).unwrap();
+    assert_eq!(count, all_count);
+    assert_eq!(matches, all.into_iter().take(1).collect::<Vec<_>>());
+    assert_eq!(file.search_matches("a", 0).unwrap().0, count);
+    assert!(
+        file.search_matches("no-such-text", 10)
+            .unwrap()
+            .1
+            .is_empty()
+    );
+    cleanup(&[&path]);
+}

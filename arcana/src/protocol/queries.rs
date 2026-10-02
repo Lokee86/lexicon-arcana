@@ -30,48 +30,16 @@ impl ProtocolSnapshot {
         }
 
         let normalized_query = query.replace('\\', "/");
-        let mut matches = self
-            .catalogue
-            .entries()
-            .iter()
-            .filter_map(|entry| {
-                let name = entry.fact.name.to_ascii_lowercase();
-                let qualified_name = entry.fact.qualified_name.to_ascii_lowercase();
-                let path = entry.fact.path.to_ascii_lowercase().replace('\\', "/");
-                let mut matched_fields = Vec::new();
-                let mut rank = usize::MAX;
-                for (field, value, exact, prefix, contains) in [
-                    ("name", name.as_str(), 0, 3, 6),
-                    ("qualified_name", qualified_name.as_str(), 1, 4, 7),
-                    ("path", path.as_str(), 2, 5, 8),
-                ] {
-                    if let Some(field_rank) =
-                        text_match_rank(value, &normalized_query, exact, prefix, contains)
-                    {
-                        matched_fields.push(field);
-                        rank = rank.min(field_rank);
-                    }
-                }
-                (!matched_fields.is_empty()).then_some((rank, matched_fields, entry))
-            })
-            .collect::<Vec<_>>();
-        matches.sort_by(|left, right| {
-            left.0
-                .cmp(&right.0)
-                .then_with(|| left.2.fact.qualified_name.cmp(&right.2.fact.qualified_name))
-                .then_with(|| left.2.fact.path.cmp(&right.2.fact.path))
-                .then_with(|| left.2.node_id.cmp(&right.2.node_id))
-        });
-
-        let count = matches.len();
+        let limit = bounded_limit(limit);
+        let (count, matches) = self.query.search_matches(&normalized_query, limit)?;
         let matches = matches
             .into_iter()
-            .take(bounded_limit(limit))
+            .take(limit)
             .map(|(rank, matched_fields, entry)| {
                 json!({
                     "rank": rank,
                     "matched_fields": matched_fields,
-                    "node": node_value(entry),
+                    "node": node_value(&entry),
                 })
             })
             .collect::<Vec<_>>();
@@ -92,19 +60,20 @@ impl ProtocolSnapshot {
     ) -> Result<Value, RequestFailure> {
         let kind = parse_kind(kind)?;
         let path = normalize_optional_path(path)?;
-        let mut matches = self.catalogue.node_ids_by_name(name).to_vec();
+        let mut matches = self.query.node_ids_by_name(name)?;
         if let Some(kind) = kind {
-            matches = intersect_sorted_ids(&matches, self.catalogue.node_ids_by_kind(&kind));
+            matches = intersect_sorted_ids(&matches, &self.query.node_ids_by_kind(&kind)?);
         }
         if let Some(path) = path {
             matches = intersect_sorted_ids(
                 &matches,
-                self.catalogue
+                &self
+                    .query
                     .node_ids_by_path(&path)
                     .map_err(|error| RequestFailure::new("invalid_path", error.to_string()))?,
             );
         }
-        Ok(node_list(self, matches, limit))
+        node_list(self, matches, limit)
     }
 
     pub(crate) fn resolve_file(
@@ -113,13 +82,13 @@ impl ProtocolSnapshot {
         limit: Option<usize>,
     ) -> Result<Value, RequestFailure> {
         let matches = self
-            .catalogue
+            .query
             .node_ids_by_path(path)
             .map_err(|error| RequestFailure::new("invalid_path", error.to_string()))?
             .to_vec();
         let matches =
-            intersect_sorted_ids(&matches, self.catalogue.node_ids_by_kind(&NodeKind::File));
-        Ok(node_list(self, matches, limit))
+            intersect_sorted_ids(&matches, &self.query.node_ids_by_kind(&NodeKind::File)?);
+        node_list(self, matches, limit)
     }
 
     pub(crate) fn list_nodes(
@@ -132,23 +101,23 @@ impl ProtocolSnapshot {
         let kind = parse_kind(kind)?;
         let path_prefix = normalize_optional_path(path_prefix)?;
         let matches = match (kind, path_prefix) {
-            (None, None) => (0..self.catalogue.len())
+            (None, None) => (0..self.query.len())
                 .map(|node_id| NodeId(node_id as u32))
                 .collect(),
-            (Some(kind), None) => self.catalogue.node_ids_by_kind(&kind).to_vec(),
+            (Some(kind), None) => self.query.node_ids_by_kind(&kind)?,
             (None, Some(prefix)) => self
-                .catalogue
+                .query
                 .node_ids_by_path_prefix(&prefix)
                 .map_err(|error| RequestFailure::new("invalid_path", error.to_string()))?,
             (Some(kind), Some(prefix)) => {
                 let path_ids = self
-                    .catalogue
+                    .query
                     .node_ids_by_path_prefix(&prefix)
                     .map_err(|error| RequestFailure::new("invalid_path", error.to_string()))?;
-                intersect_sorted_ids(&path_ids, self.catalogue.node_ids_by_kind(&kind))
+                intersect_sorted_ids(&path_ids, &self.query.node_ids_by_kind(&kind)?)
             }
         };
-        Ok(node_list_page(self, matches, offset, limit))
+        node_list_page(self, matches, offset, limit)
     }
 
     pub(crate) fn neighbors(
@@ -160,14 +129,14 @@ impl ProtocolSnapshot {
         limit: Option<usize>,
     ) -> Result<Value, RequestFailure> {
         let node_id = NodeId(node_id);
-        let source = self.entry(node_id).ok_or_else(|| {
+        let source = self.entry(node_id)?.ok_or_else(|| {
             RequestFailure::new("unknown_node", format!("node {node_id:?} does not exist"))
         })?;
         let wanted = parse_relation(relation)?;
         let wanted_many = parse_relations(relations)?;
         let neighbors = match direction {
-            QueryDirection::Outgoing => self.graph.forward_neighbors_iter(node_id),
-            QueryDirection::Incoming => self.graph.reverse_neighbors_iter(node_id),
+            QueryDirection::Outgoing => self.query.graph().forward_neighbors_iter(node_id),
+            QueryDirection::Incoming => self.query.graph().reverse_neighbors_iter(node_id),
         }
         .map_err(|error| RequestFailure::new("query_failed", error.to_string()))?;
 
@@ -200,16 +169,16 @@ impl ProtocolSnapshot {
                 truncated = true;
                 break;
             }
-            let entry = self.entry(neighbor.node).ok_or_else(|| {
+            let entry = self.entry(neighbor.node)?.ok_or_else(|| {
                 RequestFailure::new(
                     "invalid_snapshot",
                     format!("catalogue is missing graph node {}", neighbor.node.0),
                 )
             })?;
-            relationships.push(relationship_value(&relation, entry));
+            relationships.push(relationship_value(&relation, &entry));
         }
         Ok(json!({
-            "node": node_value(source),
+            "node": node_value(&source),
             "direction": match direction {
                 QueryDirection::Incoming => "incoming",
                 QueryDirection::Outgoing => "outgoing",
@@ -230,63 +199,39 @@ impl ProtocolSnapshot {
         relation: Option<&str>,
         limit: Option<usize>,
     ) -> Result<Value, RequestFailure> {
-        let source_key = node_id
-            .map(|node_id| {
-                self.entry(NodeId(node_id))
-                    .map(|entry| entry.fact.key)
+        let source_key = match node_id {
+            Some(id) => Some(
+                self.entry(NodeId(id))?
                     .ok_or_else(|| {
-                        RequestFailure::new(
-                            "unknown_node",
-                            format!("node {node_id} does not exist"),
-                        )
-                    })
-            })
-            .transpose()?;
+                        RequestFailure::new("unknown_node", format!("node {id} does not exist"))
+                    })?
+                    .fact
+                    .key,
+            ),
+            None => None,
+        };
         let path = normalize_optional_path(path)?;
         let reason = parse_reason(reason)?;
         let relation = parse_relation(relation)?;
-        let source_matches = source_key.map(|key| {
-            self.unresolved_by_source
-                .get(&key)
-                .into_iter()
-                .flat_map(|indices| indices.iter())
-                .map(|&index| &self.unresolved[index])
-                .collect::<Vec<_>>()
-        });
-        let matches = source_matches
-            .unwrap_or_else(|| self.unresolved.iter().collect::<Vec<_>>())
-            .into_iter()
-            .filter(|reference| source_key.is_none_or(|key| reference.source == key))
-            .filter(|reference| {
-                reason
-                    .as_ref()
-                    .is_none_or(|reason| &reference.reason == reason)
-            })
-            .filter(|reference| {
-                relation
-                    .as_ref()
-                    .is_none_or(|relation| &reference.relation == relation)
-            })
-            .filter(|reference| {
-                path.as_ref().is_none_or(|path| {
-                    self.node_id(reference.source)
-                        .and_then(|id| self.entry(id))
-                        .is_some_and(|entry| &entry.fact.path == path)
-                })
-            })
-            .collect::<Vec<_>>();
-        let total = matches.len();
         let limit = bounded_limit(limit);
-        let items = matches
+        let mut total = 0;
+        let mut selected = Vec::new();
+        self.query.visit_unresolved(
+            source_key,
+            reason.as_ref(),
+            relation.as_ref(),
+            path.as_deref(),
+            |index, source| {
+                total += 1;
+                if selected.len() < limit {
+                    selected.push((index, source));
+                }
+            },
+        )?;
+        let items = selected
             .into_iter()
-            .take(limit)
-            .map(|reference| {
-                let source = self
-                    .node_id(reference.source)
-                    .expect("snapshot validation checked unresolved sources");
-                unresolved_value(reference, source)
-            })
-            .collect::<Vec<_>>();
+            .map(|(index, source)| Ok(unresolved_value(&self.query.unresolved(index)?, source)))
+            .collect::<Result<Vec<_>, RequestFailure>>()?;
         Ok(json!({
             "count": total,
             "returned": items.len(),
@@ -296,7 +241,11 @@ impl ProtocolSnapshot {
     }
 }
 
-fn node_list(snapshot: &ProtocolSnapshot, matches: Vec<NodeId>, limit: Option<usize>) -> Value {
+fn node_list(
+    snapshot: &ProtocolSnapshot,
+    matches: Vec<NodeId>,
+    limit: Option<usize>,
+) -> Result<Value, RequestFailure> {
     node_list_page(snapshot, matches, None, limit)
 }
 
@@ -305,7 +254,7 @@ fn node_list_page(
     matches: Vec<NodeId>,
     offset: Option<usize>,
     limit: Option<usize>,
-) -> Value {
+) -> Result<Value, RequestFailure> {
     let total = matches.len();
     let offset = offset.unwrap_or(0).min(total);
     let limit = bounded_limit(limit);
@@ -313,42 +262,21 @@ fn node_list_page(
         .into_iter()
         .skip(offset)
         .take(limit)
-        .map(|node_id| {
-            node_value(
-                snapshot
-                    .entry(node_id)
-                    .expect("catalogue index contains only valid node IDs"),
-            )
+        .map(|id| {
+            let entry = snapshot.entry(id)?.expect("indexed node exists");
+            Ok(node_value(&entry))
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, RequestFailure>>()?;
     let next_offset = offset + nodes.len();
     let truncated = next_offset < total;
-    json!({
+    Ok(json!({
         "count": total,
         "offset": offset,
         "returned": nodes.len(),
         "truncated": truncated,
         "next_offset": truncated.then_some(next_offset),
         "nodes": nodes,
-    })
-}
-
-fn text_match_rank(
-    value: &str,
-    query: &str,
-    exact_rank: usize,
-    prefix_rank: usize,
-    contains_rank: usize,
-) -> Option<usize> {
-    if value == query {
-        Some(exact_rank)
-    } else if value.starts_with(query) {
-        Some(prefix_rank)
-    } else if value.contains(query) {
-        Some(contains_rank)
-    } else {
-        None
-    }
+    }))
 }
 
 fn intersect_sorted_ids(left: &[NodeId], right: &[NodeId]) -> Vec<NodeId> {

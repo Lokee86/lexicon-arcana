@@ -4,6 +4,8 @@ use super::{RepositoryStore, RepositoryStoreReadError};
 
 impl RepositoryStore {
     pub fn materialize_facts(&self) -> Result<RepositoryFacts, RepositoryStoreReadError> {
+        #[cfg(test)]
+        MATERIALIZATIONS.with(|count| count.set(count.get() + 1));
         let mut facts = RepositoryFacts::default();
 
         for node_id in 0..self.node_count() {
@@ -33,4 +35,17 @@ impl RepositoryStore {
 
         Ok(facts)
     }
+}
+
+#[cfg(test)]
+std::thread_local! {
+    static MATERIALIZATIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+#[cfg(test)]
+pub(crate) fn reset_materialization_count() {
+    MATERIALIZATIONS.with(|count| count.set(0));
+}
+#[cfg(test)]
+pub(crate) fn materialization_count() -> usize {
+    MATERIALIZATIONS.with(std::cell::Cell::get)
 }

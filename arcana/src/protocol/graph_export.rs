@@ -27,15 +27,10 @@ impl ProtocolSnapshot {
             .transpose()?;
         let matches = match path_prefix {
             Some(prefix) => self
-                .catalogue
+                .query
                 .node_ids_by_path_prefix(&prefix)
                 .map_err(|error| RequestFailure::new("invalid_path", error.to_string()))?,
-            None => self
-                .catalogue
-                .entries()
-                .iter()
-                .map(|entry| entry.node_id)
-                .collect(),
+            None => (0..self.query.graph().node_count()).map(NodeId).collect(),
         };
         let count = matches.len();
         let offset = offset.unwrap_or(0).min(count);
@@ -48,7 +43,7 @@ impl ProtocolSnapshot {
         let mut page_nodes = page.iter().copied().collect::<BTreeSet<_>>();
         let mut pinned_returned = 0;
         for node_id in pinned_node_ids.iter().copied().map(NodeId) {
-            if self.entry(node_id).is_none() {
+            if self.entry(node_id)?.is_none() {
                 return Err(RequestFailure::new(
                     "unknown_node",
                     format!("pinned node {} does not exist", node_id.0),
@@ -62,7 +57,8 @@ impl ProtocolSnapshot {
         let mut page_edges = Vec::new();
         for source in &page {
             let neighbors = self
-                .graph
+                .query
+                .graph()
                 .forward_neighbors_iter(*source)
                 .map_err(|error| RequestFailure::new("query_failed", error.to_string()))?;
             for neighbor in neighbors {
@@ -92,13 +88,11 @@ impl ProtocolSnapshot {
             .collect::<Vec<_>>();
         let nodes = page
             .iter()
-            .map(|node_id| {
-                node_value(
-                    self.entry(*node_id)
-                        .expect("catalogue page contains only valid node IDs"),
-                )
+            .map(|id| {
+                let entry = self.entry(*id)?.expect("validated page node");
+                Ok(node_value(&entry))
             })
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>, RequestFailure>>()?;
         let next_offset = offset + page_returned;
         let truncated = next_offset < count;
         Ok(json!({

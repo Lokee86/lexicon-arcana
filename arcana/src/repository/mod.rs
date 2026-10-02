@@ -34,6 +34,7 @@ mod repository_publish;
 mod repository_publish_graph;
 #[cfg(test)]
 mod repository_publish_graph_tests;
+mod repository_query_snapshot;
 mod repository_snapshot;
 mod repository_snapshot_error;
 mod repository_snapshot_format;
@@ -85,6 +86,7 @@ pub use repository_publish_graph::{
     publish_graph_repository_snapshot_with_identity,
     publish_incremental_graph_repository_snapshot_with_identity,
 };
+pub use repository_query_snapshot::RepositoryQuerySnapshot;
 pub use repository_snapshot::{REPOSITORY_MANIFEST_FILE, RepositorySnapshot};
 pub use repository_snapshot_error::RepositorySnapshotError;
 pub use repository_snapshot_format::{REPOSITORY_MANIFEST_VERSION, RepositorySnapshotManifest};

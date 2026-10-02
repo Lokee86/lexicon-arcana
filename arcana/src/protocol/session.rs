@@ -1,13 +1,8 @@
-use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-use crate::repository::{
-    CatalogueEntry, NodeKey, REPOSITORY_MANIFEST_FILE, RepositoryCatalogue, RepositorySnapshot,
-    UnresolvedReferenceFact,
-};
-use crate::snapshot::GraphSnapshot;
+use crate::repository::{CatalogueEntry, REPOSITORY_MANIFEST_FILE, RepositoryQuerySnapshot};
 use crate::synthetic::NodeId;
 
 use super::error::ProtocolError;
@@ -18,44 +13,16 @@ use super::response::{failure, success};
 #[derive(Debug)]
 pub struct ProtocolSnapshot {
     pub(crate) root: PathBuf,
-    pub(crate) graph: GraphSnapshot,
-    pub(crate) catalogue: RepositoryCatalogue,
-    pub(crate) unresolved: Vec<UnresolvedReferenceFact>,
-    pub(crate) unresolved_by_source: BTreeMap<NodeKey, Vec<usize>>,
+    pub(crate) query: RepositoryQuerySnapshot,
 }
 
 impl ProtocolSnapshot {
     /// Opens and validates a manifest-bound repository snapshot.
     pub fn open(root: impl AsRef<Path>) -> Result<Self, ProtocolError> {
         let root = root.as_ref().to_path_buf();
-        let repository = RepositorySnapshot::open(root.join(REPOSITORY_MANIFEST_FILE))
+        let query = RepositoryQuerySnapshot::open(root.join(REPOSITORY_MANIFEST_FILE))
             .map_err(|error| ProtocolError::InvalidSnapshot(error.to_string()))?;
-        let (graph, catalogue, unresolved_facts) = repository.into_protocol_parts();
-        let unresolved = unresolved_facts.unresolved;
-
-        for reference in &unresolved {
-            if catalogue.node_id_by_key(reference.source).is_none() {
-                return Err(ProtocolError::InvalidSnapshot(format!(
-                    "unresolved source {:016x} is absent from the catalogue",
-                    reference.source.0
-                )));
-            }
-        }
-        let mut unresolved_by_source = BTreeMap::new();
-        for (index, reference) in unresolved.iter().enumerate() {
-            unresolved_by_source
-                .entry(reference.source)
-                .or_insert_with(Vec::new)
-                .push(index);
-        }
-
-        Ok(Self {
-            root,
-            graph,
-            catalogue,
-            unresolved,
-            unresolved_by_source,
-        })
+        Ok(Self { root, query })
     }
 
     /// Handles one JSON request and always returns one JSON response.
@@ -232,15 +199,8 @@ impl ProtocolSnapshot {
         }
     }
 
-    pub(crate) fn entry(&self, node_id: NodeId) -> Option<&CatalogueEntry> {
-        self.catalogue
-            .entries()
-            .get(node_id.0 as usize)
-            .filter(|entry| entry.node_id == node_id)
-    }
-
-    pub(crate) fn node_id(&self, key: NodeKey) -> Option<NodeId> {
-        self.catalogue.node_id_by_key(key)
+    pub(crate) fn entry(&self, node_id: NodeId) -> Result<Option<CatalogueEntry>, RequestFailure> {
+        Ok(self.query.entry(node_id)?)
     }
 }
 
@@ -249,7 +209,11 @@ pub(crate) struct RequestFailure {
     pub code: &'static str,
     pub message: String,
 }
-
+impl From<crate::repository_store::RepositoryStoreReadError> for RequestFailure {
+    fn from(error: crate::repository_store::RepositoryStoreReadError) -> Self {
+        Self::new("invalid_snapshot", error.to_string())
+    }
+}
 impl RequestFailure {
     pub(crate) fn new(code: &'static str, message: impl Into<String>) -> Self {
         Self {

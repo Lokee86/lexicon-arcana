@@ -35,7 +35,7 @@ impl ProtocolSnapshot {
             nodes: vec![start],
             relations: Vec::new(),
             visited: {
-                let mut visited = vec![false; self.graph.node_count() as usize];
+                let mut visited = vec![false; self.query.graph().node_count() as usize];
                 visited[start.0 as usize] = true;
                 visited
             },

@@ -44,13 +44,13 @@ impl ProtocolSnapshot {
             .into_iter()
             .take(limit)
             .map(|(node, depth)| {
-                let entry = self.entry(node).ok_or_else(|| {
+                let entry = self.entry(node)?.ok_or_else(|| {
                     RequestFailure::new(
                         "invalid_snapshot",
                         format!("missing catalogue node {}", node.0),
                     )
                 })?;
-                Ok(json!({"depth": depth, "node": node_value(entry)}))
+                Ok(json!({"depth": depth, "node": node_value(&entry)}))
             })
             .collect::<Result<Vec<_>, RequestFailure>>()?;
         Ok(json!({
@@ -98,13 +98,13 @@ impl ProtocolSnapshot {
             .into_iter()
             .take(limit)
             .map(|(node, depth)| {
-                let entry = self.entry(node).ok_or_else(|| {
+                let entry = self.entry(node)?.ok_or_else(|| {
                     RequestFailure::new(
                         "invalid_snapshot",
                         format!("missing catalogue node {}", node.0),
                     )
                 })?;
-                Ok(json!({"depth": depth, "node": node_value(entry)}))
+                Ok(json!({"depth": depth, "node": node_value(&entry)}))
             })
             .collect::<Result<Vec<_>, RequestFailure>>()?;
         Ok(json!({
@@ -138,23 +138,24 @@ impl ProtocolSnapshot {
             max_depth,
         )?;
         let kinds = parse_kinds(kinds)?;
-        let dead = self
-            .catalogue
-            .entries()
-            .iter()
-            .filter(|entry| kinds.contains(&entry.fact.kind))
-            .filter(|entry| {
-                reachable
-                    .get(entry.node_id.0 as usize)
-                    .is_none_or(|depth| depth.is_none())
-            })
-            .collect::<Vec<_>>();
-        let total = dead.len();
-        let nodes = dead
-            .into_iter()
-            .take(limit)
-            .map(node_value)
-            .collect::<Vec<_>>();
+        let mut total = 0;
+        let mut nodes = Vec::new();
+        let mut candidates = Vec::new();
+        for kind in &kinds {
+            candidates.extend(self.query.node_ids_by_kind(kind)?);
+        }
+        candidates.sort_unstable();
+        for id in candidates {
+            if reachable
+                .get(id.0 as usize)
+                .is_none_or(|depth| depth.is_none())
+            {
+                total += 1;
+                if nodes.len() < limit {
+                    nodes.push(node_value(&self.entry(id)?.expect("indexed node")));
+                }
+            }
+        }
         Ok(json!({
             "entry_node_ids": entry_node_ids,
             "include_possible": include_possible,
@@ -175,7 +176,7 @@ impl ProtocolSnapshot {
         max_depth: Option<usize>,
     ) -> Result<Value, RequestFailure> {
         let node = require_node(self, node_id)?;
-        let entry = self.entry(node).expect("validated node");
+        let entry = self.entry(node)?.expect("validated node");
         let incoming = graph_neighbors(self, node, QueryDirection::Incoming, None)?;
         let outgoing = graph_neighbors(self, node, QueryDirection::Outgoing, None)?;
         let incoming_counts = relation_counts(&incoming);
@@ -217,7 +218,7 @@ impl ProtocolSnapshot {
             }
         }
         Ok(json!({
-            "node": node_value(entry),
+            "node": node_value(&entry),
             "summary": summary,
             "incoming_counts": incoming_counts,
             "outgoing_counts": outgoing_counts,

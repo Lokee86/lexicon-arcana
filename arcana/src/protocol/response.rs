@@ -1,8 +1,6 @@
 use serde_json::{Value, json};
 
-use crate::repository::{
-    CatalogueEntry, RelationKind, SourceSpan, UnresolvedReason, UnresolvedReferenceFact,
-};
+use crate::repository::{CatalogueEntry, RelationKind, SourceSpan, UnresolvedReferenceFact};
 use crate::synthetic::NodeId;
 
 use super::PROTOCOL_ID;
@@ -73,8 +71,4 @@ pub(crate) fn span_value(span: &SourceSpan) -> Value {
         "end_line": span.end_line,
         "end_column": span.end_column,
     })
-}
-
-pub(crate) fn reason_name(reason: &UnresolvedReason) -> &str {
-    reason.as_str()
 }

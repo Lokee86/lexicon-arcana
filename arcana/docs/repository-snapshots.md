@@ -43,7 +43,7 @@ A published repository snapshot contains:
 - `repository.arcana` — canonical repository metadata, occurrence facts, unresolved evidence, ownership, and persisted indexes;
 - `repository.manifest` — manifest v2 binding the graph manifest and repository store, adapter identity/version, repository identity, counts, store format version, and artifact checksums.
 
-Opening `repository.manifest` verifies the graph-manifest checksum and the manifest-bound `repository.arcana` checksum, then opens the binary store so its header, sections, payload checksum, and padding are independently validated. Managed build/update publication no longer materializes a second catalogue or unresolved collection and does not reopen the just-written store into a repository-sized byte buffer: the writer returns a lightweight node-key checksum/count summary that is validated against the graph-only compile. `RepositorySnapshot::open` retains its compatibility materialization for legacy query/vector consumers; this is outside the sync publication path and does not affect build/update peak metadata duplication.
+Opening `repository.manifest` verifies the graph-manifest checksum and the manifest-bound `repository.arcana` checksum, then opens the binary store so its header, sections, payload checksum, and padding are independently validated. Managed build/update publication no longer materializes a second catalogue or unresolved collection and does not reopen the just-written store into a repository-sized byte buffer: the writer returns a lightweight node-key checksum/count summary that is validated against the graph-only compile. `RepositorySnapshot::open` retains explicit rich-data materialization and semantic audit for vector and other rich-data consumers; interactive protocol queries use `RepositoryQuerySnapshot`.
 
 ## Hermes Phase 8 evidence
 
@@ -87,6 +87,14 @@ Packed node IDs are dense and immutable within a base generation. An overlay can
 `update-facts` therefore succeeds when the stable node-key set is unchanged. If declarations are added, removed, or renamed, Arcana returns an explicit rebuild-required error. A later generation should then be produced with `import-facts` or compaction/rebuild tooling.
 
 This rule preserves fast packed traversal and prevents an incremental update from silently invalidating node identities used by consumers.
+
+## Read-only query generations
+
+`RepositoryQuerySnapshot::open` is the canonical interactive-query boundary. It opens the visible graph and a file-backed `RepositoryStoreFile`, checks manifest/generation identity, graph and metadata counts, and artifact integrity, and never reconstructs facts or invokes the repository compiler. Store validation computes the manifest checksum, section SHA-256 checksums, and payload SHA-256 in one file pass. Publication remains responsible for semantic graph/store consistency; `RepositorySnapshot::open` remains the explicit full reconstruction/audit interface for rich-data consumers.
+
+Exact names, paths, path prefixes, kinds, and node keys use persisted indexes. Record/string reads use a bounded 4 MiB page cache. Full-text search scans strings and compact node records, ranks by canonical lexical string IDs, and decodes only retained response nodes. Its per-query rank scratch has an 8 MiB memory budget and spills larger tables to an anonymous temporary file cleaned up when the handle closes, including process termination. It does not change published snapshot files. Unresolved queries merge canonical source ordering with dense node keys and decode only returned references; adjacent duplicate records collapse to the existing protocol semantics. Statistics read compact codes and the visible graph. Diff opens both generations through the same query owner and retains bounded response values.
+
+The query protocol preserves `arcana.query.v1` ordering, filtering, pagination, errors, and generation-local dense IDs. It owns no reconstructed catalogue, global unresolved vector, or source-reference map. The obsolete rich-snapshot protocol extraction method has been removed.
 
 ## Code map
 

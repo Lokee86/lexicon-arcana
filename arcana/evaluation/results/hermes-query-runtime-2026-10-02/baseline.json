@@ -1,0 +1,299 @@
+{
+  "exe": "C:\\!bin\\workspace\\arcana-query-baseline.exe",
+  "snapshot": "C:\\!bin\\workspace\\arcana-buffered-clean-state\\snapshots\\ee46a8a475c443f908e0eff6db9efca62e3871fe1f541e62251ebd9f5ed2c621",
+  "elapsed_seconds": 10.510199600015767,
+  "peak_rss_bytes": 1902448640,
+  "exit_code": 0,
+  "stderr": "",
+  "queries": [
+    {
+      "op": "capabilities",
+      "seconds": 9.740587300009793,
+      "response": {
+        "id": 0,
+        "ok": true,
+        "protocol": "arcana.query.v1",
+        "result": {
+          "implementation_version": "0.1.0",
+          "operations": [
+            "capabilities",
+            "search_nodes",
+            "resolve_symbol",
+            "resolve_file",
+            "list_nodes",
+            "export_graph",
+            "neighbors",
+            "paths",
+            "reachability",
+            "impact",
+            "shortest_call_chain",
+            "dead_symbols",
+            "operational_role",
+            "architecture_summary",
+            "unresolved",
+            "stats",
+            "diff"
+          ],
+          "protocol": "arcana.query.v1",
+          "version": 1
+        }
+      }
+    },
+    {
+      "op": "stats",
+      "seconds": 0.3824550000135787,
+      "response": {
+        "id": 1,
+        "ok": true,
+        "protocol": "arcana.query.v1",
+        "result": {
+          "call_resolution": {
+            "conversion_relationships": 0,
+            "coverage": null,
+            "coverage_available": false,
+            "coverage_unavailable_reason": "resolved call sites are deduplicated into graph relationships",
+            "possible_call_relationships": 20445,
+            "resolved_unique_relationships": 239814,
+            "runtime_confirmed_relationships": 0,
+            "unresolved_references": 632384
+          },
+          "dataset_checksum": "36930afa32d12072",
+          "edge_count": 2367423,
+          "edges_by_relation": {
+            "calls": 239814,
+            "consumes": 7,
+            "contains": 61330,
+            "defines": 1026993,
+            "depends-on": 37421,
+            "extends": 1504,
+            "implements": 273,
+            "imports": 77107,
+            "overrides": 2086,
+            "possible-calls": 20445,
+            "reads": 579843,
+            "reads-config": 1156,
+            "writes": 319444
+          },
+          "node_count": 1125126,
+          "nodes_by_kind": {
+            "config-key": 610,
+            "constant": 58085,
+            "constructor": 138,
+            "directory": 1253,
+            "export": 11392,
+            "field": 33614,
+            "file": 10901,
+            "function": 155852,
+            "import": 119525,
+            "interface": 3432,
+            "message-channel": 4,
+            "method": 50946,
+            "module": 11003,
+            "parameter": 267243,
+            "protocol": 85234,
+            "repository": 2,
+            "type": 17103,
+            "variable": 298789
+          },
+          "unresolved_by_reason": {
+            "ambiguous-target": 133,
+            "builtin-target": 184612,
+            "dynamic-target": 165618,
+            "external-target": 322952,
+            "missing-target": 23922,
+            "unsupported-form": 2112
+          },
+          "unresolved_count": 699349
+        }
+      }
+    },
+    {
+      "op": "resolve_symbol",
+      "seconds": 0.0008865999989211559,
+      "response": {
+        "id": 2,
+        "ok": true,
+        "protocol": "arcana.query.v1",
+        "result": {
+          "count": 65,
+          "next_offset": 10,
+          "nodes": [
+            {
+              "content_id": null,
+              "identity": "sha256:007c9827bccb2c4004440ca0e45c02d55dc0547aa04ba41c32d24b05e604b06d",
+              "key": "050d93a5fd4bb2f5",
+              "kind": "import",
+              "name": "run_agent",
+              "node_id": 22254,
+              "path": "tests/agent/test_overflow_overhead_aware_tokens.py",
+              "qualified_name": "tests.agent.test_overflow_overhead_aware_tokens::import:23:7:run_agent",
+              "span": {
+                "end_column": 17,
+                "end_line": 23,
+                "path": "tests/agent/test_overflow_overhead_aware_tokens.py",
+                "start_column": 1,
+                "start_line": 23
+              }
+            },
+            {
+              "content_id": null,
+              "identity": "sha256:335f086e89635a06f12a94cb7098cb7a180ad35d76f3e12f9a023470a1b63571",
+              "key": "0acb1c9acd94c0bf",
+              "kind": "import",
+              "name": "run_agent",
+              "node_id": 47419,
+              "path": "evals/codex_masked_replay_review.py",
+              "qualified_name": "evals.codex_masked_replay_review::import:17:10:run_agent",
+              "span": {
+                "end_column": 17,
+                "end_line": 17,
+                "path": "evals/codex_masked_replay_review.py",
+                "start_column": 1,
+                "start_line": 17
+              }
+            },
+            {
+              "content_id": null,
+              "identity": "sha256:ed200409fb015f144a2e01bec524ff070e0a1c57d4a6a283a47a9f8ce5ef2fe7",
+              "key": "0e204dc8fca82055",
+              "kind": "import",
+              "name": "run_agent",
+              "node_id": 62168,
+              "path": "tests/agent/test_background_review_cache_parity.py",
+              "qualified_name": "tests.agent.test_background_review_cache_parity::import:215:5:run_agent",
+              "span": {
+                "end_column": 21,
+                "end_line": 215,
+                "path": "tests/agent/test_background_review_cache_parity.py",
+                "start_column": 5,
+                "start_line": 215
+              }
+            },
+            {
+              "content_id": null,
+              "identity": "sha256:496d0947ae0e6573ca8d88e77a4643d246da991a68e8b5d4f8a58e6c736fba22",
+              "key": "10cb25a1a659e240",
+              "kind": "import",
+              "name": "run_agent",
+              "node_id": 73895,
+              "path": "tests/agent/test_background_review_cache_parity.py",
+              "qualified_name": "tests.agent.test_background_review_cache_parity::import:134:3:run_agent",
+              "span": {
+                "end_column": 21,
+                "end_line": 134,
+                "path": "tests/agent/test_background_review_cache_parity.py",
+                "start_column": 5,
+                "start_line": 134
+              }
+            },
+            {
+              "content_id": null,
+              "identity": "sha256:b7d6548e7b351b93ca80210cc251ae516d2a8903ca4fc74187284342123313a1",
+              "key": "12c381db7145b56f",
+              "kind": "import",
+              "name": "run_agent",
+              "node_id": 82544,
+              "path": "tests/agent/test_run_agent.py",
+              "qualified_name": "tests.agent.test_run_agent::import:22:15:run_agent",
+              "span": {
+                "end_column": 17,
+                "end_line": 22,
+                "path": "tests/agent/test_run_agent.py",
+                "start_column": 1,
+                "start_line": 22
+              }
+            },
+            {
+              "content_id": null,
+              "identity": "sha256:32e25fc4f3903bb14df5c737d2bff4c4c48e1b7a28abf1dd0350f3ff34282228",
+              "key": "17162f13d4bb60b9",
+              "kind": "import",
+              "name": "run_agent",
+              "node_id": 101693,
+              "path": "tests/agent/test_background_review_cache_parity.py",
+              "qualified_name": "tests.agent.test_background_review_cache_parity::import:561:30:run_agent",
+              "span": {
+                "end_column": 21,
+                "end_line": 561,
+                "path": "tests/agent/test_background_review_cache_parity.py",
+                "start_column": 5,
+                "start_line": 561
+              }
+            },
+            {
+              "content_id": null,
+              "identity": "sha256:b0cec2e1394871d99e8049148eacd8c1b4035ee9a2aaaa1afb3b587740e0c7fb",
+              "key": "191a4a88e2a6f05e",
+              "kind": "import",
+              "name": "run_agent",
+              "node_id": 110563,
+              "path": "tests/agent/test_background_review_cache_parity.py",
+              "qualified_name": "tests.agent.test_background_review_cache_parity::import:458:17:run_agent",
+              "span": {
+                "end_column": 21,
+                "end_line": 458,
+                "path": "tests/agent/test_background_review_cache_parity.py",
+                "start_column": 5,
+                "start_line": 458
+              }
+            },
+            {
+              "content_id": null,
+              "identity": "sha256:bad403a3e18d30e1aefcb41ab7af30f53a85dc05f15a5744e092c179855bc46e",
+              "key": "1a2b12ea8ccde8be",
+              "kind": "import",
+              "name": "run_agent",
+              "node_id": 115163,
+              "path": "tests/cron/test_codex_execution_paths.py",
+              "qualified_name": "tests.cron.test_codex_execution_paths::import:13:7:run_agent",
+              "span": {
+                "end_column": 17,
+                "end_line": 13,
+                "path": "tests/cron/test_codex_execution_paths.py",
+                "start_column": 1,
+                "start_line": 13
+              }
+            },
+            {
+              "content_id": null,
+              "identity": "sha256:28a4b525e8ebac40b817243dfb0147e31a20484c2710371bfc628c2ebf1cb9fc",
+              "key": "1aa042ae965f7c0f",
+              "kind": "import",
+              "name": "run_agent",
+              "node_id": 117104,
+              "path": "tests/agent/test_review_idle_queue.py",
+              "qualified_name": "tests.agent.test_review_idle_queue::import:176:9:run_agent",
+              "span": {
+                "end_column": 21,
+                "end_line": 176,
+                "path": "tests/agent/test_review_idle_queue.py",
+                "start_column": 5,
+                "start_line": 176
+              }
+            },
+            {
+              "content_id": null,
+              "identity": "sha256:696336766ce27113fbd097ad58794946a06b8cd151980161376fc7b0aa3a8e0e",
+              "key": "227ae4d0632c50f1",
+              "kind": "import",
+              "name": "run_agent",
+              "node_id": 151942,
+              "path": "tests/agent/test_review_idle_queue.py",
+              "qualified_name": "tests.agent.test_review_idle_queue::import:295:13:run_agent",
+              "span": {
+                "end_column": 21,
+                "end_line": 295,
+                "path": "tests/agent/test_review_idle_queue.py",
+                "start_column": 5,
+                "start_line": 295
+              }
+            }
+          ],
+          "offset": 0,
+          "returned": 10,
+          "truncated": true
+        }
+      }
+    }
+  ]
+}

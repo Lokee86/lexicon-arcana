@@ -37,7 +37,7 @@ impl ProtocolSnapshot {
         let relation_mask = parse_relations(relations)?.unwrap_or_else(architecture_relations);
         let selected = selected_nodes(self, path_prefix.as_deref())?;
         let selected_set = selected.iter().copied().collect::<BTreeSet<_>>();
-        let graph_size = self.graph.node_count() as usize;
+        let graph_size = self.query.graph().node_count() as usize;
         let mut adjacency = vec![BTreeSet::new(); graph_size];
         let mut internal_edges = Vec::new();
         let mut boundary_events = Vec::new();
@@ -126,7 +126,7 @@ impl ProtocolSnapshot {
             .into_iter()
             .take(limit)
             .map(|community| community_value(self, community))
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>, RequestFailure>>()?;
         Ok(json!({
             "path_prefix": path_prefix,
             "relations": relation_mask.relation_names(),
@@ -150,14 +150,11 @@ fn selected_nodes(
 ) -> Result<Vec<NodeId>, RequestFailure> {
     match path_prefix {
         Some(prefix) => snapshot
-            .catalogue
+            .query
             .node_ids_by_path_prefix(prefix)
             .map_err(|error| RequestFailure::new("invalid_path", error.to_string())),
-        None => Ok(snapshot
-            .catalogue
-            .entries()
-            .iter()
-            .map(|entry| entry.node_id)
+        None => Ok((0..snapshot.query.graph().node_count())
+            .map(NodeId)
             .collect()),
     }
 }
@@ -201,7 +198,10 @@ fn connected_components(
     (components, component_of)
 }
 
-fn community_value(snapshot: &ProtocolSnapshot, community: CommunityData) -> Value {
+fn community_value(
+    snapshot: &ProtocolSnapshot,
+    community: CommunityData,
+) -> Result<Value, RequestFailure> {
     let mut representatives = community.nodes.clone();
     representatives.sort_unstable_by(|left, right| {
         community
@@ -218,7 +218,7 @@ fn community_value(snapshot: &ProtocolSnapshot, community: CommunityData) -> Val
     let mut path_counts: BTreeMap<String, usize> = BTreeMap::new();
     for node in &community.nodes {
         let entry = snapshot
-            .entry(*node)
+            .entry(*node)?
             .expect("community nodes originate from the catalogue");
         *kind_counts.entry(entry.fact.kind.as_str()).or_default() += 1;
         *path_counts
@@ -228,7 +228,15 @@ fn community_value(snapshot: &ProtocolSnapshot, community: CommunityData) -> Val
     let mut paths = path_counts.into_iter().collect::<Vec<_>>();
     paths.sort_unstable_by(|left, right| right.1.cmp(&left.1).then(left.0.cmp(&right.0)));
 
-    json!({
+    let representative_nodes = representatives
+        .into_iter()
+        .map(|node| {
+            Ok(node_value(
+                &snapshot.entry(node)?.expect("representative node"),
+            ))
+        })
+        .collect::<Result<Vec<_>, RequestFailure>>()?;
+    Ok(json!({
         "community_id": community.nodes[0].0,
         "node_count": community.nodes.len(),
         "edge_count": community.edge_count,
@@ -240,10 +248,8 @@ fn community_value(snapshot: &ProtocolSnapshot, community: CommunityData) -> Val
             "path": path,
             "node_count": node_count,
         })).collect::<Vec<_>>(),
-        "representative_nodes": representatives.into_iter().map(|node| {
-            node_value(snapshot.entry(node).expect("representative nodes exist"))
-        }).collect::<Vec<_>>(),
-    })
+        "representative_nodes": representative_nodes,
+    }))
 }
 
 fn parent_path(path: &str) -> &str {

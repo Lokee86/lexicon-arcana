@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, VecDeque};
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -8,11 +8,13 @@ use crate::repository::{NodeKey, RepositoryFacts, normalize_repository_path};
 use super::format::RepositoryHeader;
 use super::{ContributionKindView, RepositoryStoreReadError};
 
+#[derive(Debug)]
 pub struct RepositoryStoreFile {
     pub(super) file: File,
     pub(super) header: RepositoryHeader,
     path: PathBuf,
     artifact_checksum: u64,
+    pages: VecDeque<(u64, Vec<u8>)>,
 }
 
 impl RepositoryStoreFile {
@@ -25,6 +27,7 @@ impl RepositoryStoreFile {
             header,
             path: path.to_path_buf(),
             artifact_checksum,
+            pages: VecDeque::new(),
         })
     }
 
@@ -123,8 +126,42 @@ impl RepositoryStoreFile {
         offset: u64,
         bytes: &mut [u8],
     ) -> Result<(), RepositoryStoreReadError> {
-        self.file.seek(SeekFrom::Start(offset))?;
-        self.file.read_exact(bytes)?;
+        // A bounded 4 MiB page cache serves interleaved record/string streams.
+        const PAGE: u64 = 64 * 1024;
+        let mut position = offset;
+        let mut written = 0;
+        while written < bytes.len() {
+            let base = position / PAGE * PAGE;
+            let index = match self.pages.iter().position(|(key, _)| *key == base) {
+                Some(index) => index,
+                None => {
+                    let len = self
+                        .header
+                        .file_len
+                        .checked_sub(base)
+                        .ok_or(RepositoryStoreReadError::InvalidOwnership)?
+                        .min(PAGE) as usize;
+                    let mut page = vec![0; len];
+                    self.file.seek(SeekFrom::Start(base))?;
+                    self.file.read_exact(&mut page)?;
+                    if self.pages.len() == 64 {
+                        self.pages.pop_front();
+                    }
+                    self.pages.push_back((base, page));
+                    self.pages.len() - 1
+                }
+            };
+            let page = self.pages.remove(index).expect("located page");
+            let start = (position - base) as usize;
+            let count = (page.1.len() - start).min(bytes.len() - written);
+            if count == 0 {
+                return Err(RepositoryStoreReadError::InvalidOwnership);
+            }
+            bytes[written..written + count].copy_from_slice(&page.1[start..start + count]);
+            self.pages.push_back(page);
+            position += count as u64;
+            written += count;
+        }
         Ok(())
     }
 }

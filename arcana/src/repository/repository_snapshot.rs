@@ -88,10 +88,6 @@ impl RepositorySnapshot {
         &self.unresolved
     }
 
-    pub fn into_protocol_parts(self) -> (GraphSnapshot, RepositoryCatalogue, RepositoryFacts) {
-        (self.graph, self.catalogue, self.unresolved)
-    }
-
     pub fn root(&self) -> &Path {
         &self.root
     }
