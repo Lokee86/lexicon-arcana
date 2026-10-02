@@ -66,6 +66,10 @@ python scripts/check_docs.py
 
 Interactive query opening performs no repository compiler invocation or fact reconstruction; all protocol operations use one file-backed generation owner. Persisted indexes, bounded search ranking, duplicate unresolved collapse, corruption rejection, overlays, and generation-local differences are protected by `repository_snapshot_tests.rs`, `repository_store/reader_file_tests.rs`, `repository_store/search_scratch.rs`, and `protocol/tests.rs`. The manual executable-parity gate compares exact JSON responses for all operations.
 
+## Metadata reader invariant
+
+Transferring a query generation to `RepositoryMetadataReader` preserves the verified snapshot identity and file handle without reopening/revalidating, releases graph resources, and serves stable-key lookup with bounded caching and no compiler or fact reconstruction. Protected by `repository_snapshot_tests::extracted_metadata_reader_keeps_identity_without_reopening_or_materializing`.
+
 ## Code map
 
 | Matrix concern | Primary implementation or artifact | Protecting tests/gates |

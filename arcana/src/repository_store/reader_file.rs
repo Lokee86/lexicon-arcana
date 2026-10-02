@@ -31,6 +31,10 @@ impl RepositoryStoreFile {
         })
     }
 
+    pub fn cached_bytes(&self) -> usize {
+        self.pages.iter().map(|(_, page)| page.len()).sum()
+    }
+
     pub const fn header(&self) -> &RepositoryHeader {
         &self.header
     }

@@ -243,3 +243,45 @@ fn query_open_uses_no_compiler_and_rejects_inconsistent_or_corrupt_generations()
     assert!(RepositoryQuerySnapshot::open(&path).is_err());
     fs::remove_dir_all(directory).unwrap();
 }
+
+#[test]
+fn extracted_metadata_reader_keeps_identity_without_reopening_or_materializing() {
+    let directory = test_directory();
+    write_artifacts(&directory, &sample_facts());
+    let path = directory.join(REPOSITORY_MANIFEST_FILE);
+    publish_repository_snapshot(&path, request()).unwrap();
+    compiler::reset_compile_invocation_count();
+    crate::repository_store::reset_materialization_count();
+    let query = RepositoryQuerySnapshot::open(&path).unwrap();
+    let identity = query.manifest().snapshot_id;
+    let mut reader = query.into_metadata_reader();
+    assert_eq!(reader.snapshot_id(), identity);
+    // Graph and manifest are no longer needed; Windows file handles are released.
+    fs::remove_file(directory.join("graph.arcana")).unwrap();
+    fs::remove_file(directory.join("graph.manifest")).unwrap();
+    fs::remove_file(&path).unwrap();
+    for _ in 0..100 {
+        for key in [1, 2, 3] {
+            assert_eq!(
+                reader
+                    .lookup_by_key(NodeKey::from_u64(key))
+                    .unwrap()
+                    .unwrap()
+                    .fact
+                    .key,
+                NodeKey::from_u64(key)
+            );
+        }
+        assert!(reader.cached_bytes() <= 4 * 1024 * 1024);
+    }
+    assert!(
+        reader
+            .lookup_by_key(NodeKey::from_u64(99))
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(compiler::compile_invocation_count(), 0);
+    assert_eq!(crate::repository_store::materialization_count(), 0);
+    drop(reader);
+    fs::remove_dir_all(directory).unwrap();
+}

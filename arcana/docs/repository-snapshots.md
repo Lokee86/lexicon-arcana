@@ -96,6 +96,14 @@ Exact names, paths, path prefixes, kinds, and node keys use persisted indexes. R
 
 The query protocol preserves `arcana.query.v1` ordering, filtering, pagination, errors, and generation-local dense IDs. It owns no reconstructed catalogue, global unresolved vector, or source-reference map. The obsolete rich-snapshot protocol extraction method has been removed.
 
+## Metadata reader transfer
+
+A consumer that has finished graph projection calls `RepositoryQuerySnapshot::into_metadata_reader(self)`. This moves the already validated file-backed store and verified snapshot ID into `RepositoryMetadataReader`; the graph and preparation manifest are released. Transfer does not open files, rehash artifacts, compile graph facts, or reconstruct a catalogue.
+
+`snapshot_id()` identifies the verified immutable generation. `lookup_by_key(NodeKey)` searches the existing stable-key index and returns only the selected owned `CatalogueEntry`, or no entry for a missing key. Mutable access requires consumer-owned synchronization. The handle retains only the store, necessary identity and the existing bounded 4 MiB page cache; `cached_bytes()` exposes resident cache payload for measurement. Drop closes the store file. In-place snapshot mutation is unsupported; validate a replacement generation through a new query opening.
+
+Extraction identity, no compiler/materialization calls, graph-file release, repeated lookup, missing keys and bounded cache payload are protected by `extracted_metadata_reader_keeps_identity_without_reopening_or_materializing`.
+
 ## Code map
 
 | Snapshot concern | Primary implementation | Related tests |

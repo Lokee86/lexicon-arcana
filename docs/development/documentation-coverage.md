@@ -52,6 +52,10 @@ Current coverage contains two independently usable analysis products plus shared
 
 `arcana/src/repository/repository_query_snapshot.rs`, `repository_store/reader_file_queries.rs`, and `repository_store/search_scratch.rs` own immutable query generations, persisted index reads, bounded scans, and temporary search scratch. Canonical contracts are [Repository snapshots](../../arcana/docs/repository-snapshots.md), [Arcana architecture](../../arcana/docs/ARCHITECTURE.md), and [Arcana development](../../arcana/docs/DEVELOPMENT.md). Workspace owns downstream child-process session reuse.
 
+## Metadata inspection lifetime
+
+Arcana owns transferable validated metadata access in `arcana/src/repository/repository_metadata_reader.rs` and `repository_query_snapshot.rs`. The contract is [Repository snapshots](../../arcana/docs/repository-snapshots.md). Consumers own render-generation associations, synchronization, invalidation and request coordination; the API retains no projection graph.
+
 ## Code map
 
 | Concern | Primary implementation | Related verification |

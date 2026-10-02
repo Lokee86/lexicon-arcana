@@ -30,6 +30,7 @@ mod ownership;
 mod ownership_tests;
 mod path;
 mod relation_codes;
+mod repository_metadata_reader;
 mod repository_publish;
 mod repository_publish_graph;
 #[cfg(test)]
@@ -76,6 +77,7 @@ pub use ownership::{
 pub(crate) use ownership::{collect_node_owners, edge_owner, node_owner, unresolved_owner};
 pub use path::{RepositoryPathError, normalize_repository_path};
 pub use relation_codes::{edge_kind_to_relation, relation_to_edge_kind};
+pub use repository_metadata_reader::RepositoryMetadataReader;
 pub use repository_publish::{
     PublishRepositorySnapshot, RepositoryArtifactChecksums, derive_repository_snapshot_id,
     publish_precompiled_repository_snapshot, publish_precompiled_repository_snapshot_with_identity,

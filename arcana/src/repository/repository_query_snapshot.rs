@@ -108,6 +108,14 @@ impl RepositoryQuerySnapshot {
             store: RefCell::new(store),
         })
     }
+    /// Move the validated store without reopening it; the graph is dropped here.
+    pub fn into_metadata_reader(self) -> super::RepositoryMetadataReader {
+        super::RepositoryMetadataReader {
+            snapshot_id: self.manifest.snapshot_id,
+            store: self.store.into_inner(),
+        }
+    }
+
     pub fn graph(&self) -> &GraphSnapshot {
         &self.graph
     }
