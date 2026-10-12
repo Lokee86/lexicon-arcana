@@ -311,3 +311,15 @@ Planned migration order:
 11. family-wide performance deepening.
 
 C/C++ is the pilot because it combines substantial duplicated compiler machinery with the strongest opportunity to gain both semantic authority and performance from an established compiler frontend.
+
+## Overview
+
+Plans authoritative language-frontend integration while retaining Lexicon normalization and deterministic fact publication.
+
+## Notes
+
+The detailed findings, constraints, and verification evidence are retained in the sections below.
+
+## Related docs
+
+- [Planning](INDEX.md)
