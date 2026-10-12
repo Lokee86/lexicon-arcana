@@ -81,3 +81,19 @@ This replaces the earlier over-strong Phase 18 end-condition wording. The proven
 ## Phase 19 boundary
 
 Phase 19 owns final migration cleanup and documentation consolidation: removing the retired legacy Go runtime implementation where it is no longer needed, retaining useful oracle/parity evidence, removing migration-only scaffolding, and documenting the final stable Rust/helper ownership boundary.
+
+## Overview
+
+Records the Go adapter packaging and runtime work in Phase 18.
+
+## Purpose
+
+Tracks deployment and runtime requirements following the native adapter cutover.
+
+## Notes
+
+The detailed findings, constraints, and verification evidence are retained in the sections below.
+
+## Related docs
+
+- [Development Documentation](INDEX.md)

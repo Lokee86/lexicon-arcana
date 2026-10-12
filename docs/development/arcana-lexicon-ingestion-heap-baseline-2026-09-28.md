@@ -121,3 +121,19 @@ approximately **500-550 MiB** without changing persistent formats.
 Do not rerun or replace this baseline merely because implementation work advances.
 New measurements are gate results and should be recorded separately with their
 commit, fixture identity, state-directory conditions, and artifact hashes.
+
+## Overview
+
+Captures heap measurements for Lexicon-to-Arcana ingestion.
+
+## Purpose
+
+Provides a baseline for evaluating memory changes to ingestion and snapshot handling.
+
+## Notes
+
+The detailed findings, constraints, and verification evidence are retained in the sections below.
+
+## Related docs
+
+- [Development Documentation](INDEX.md)

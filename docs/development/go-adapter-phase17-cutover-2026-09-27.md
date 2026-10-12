@@ -42,3 +42,19 @@ The Rust adapter still requires the private `lexicon-go-semantic` helper. Phase 
 The legacy Go facts-v1 adapter is no longer a runtime fallback or production build path. It is oracle/history only.
 
 The next migration phase is **Phase 18 — packaging/runtime**.
+
+## Overview
+
+Records the Phase 17 Go adapter cutover.
+
+## Purpose
+
+Documents the native adapter transition and its acceptance evidence.
+
+## Notes
+
+The detailed findings, constraints, and verification evidence are retained in the sections below.
+
+## Related docs
+
+- [Development Documentation](INDEX.md)
