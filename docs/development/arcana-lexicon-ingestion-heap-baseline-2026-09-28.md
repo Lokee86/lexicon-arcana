@@ -2,6 +2,14 @@
 
 Parent index: [Development](INDEX.md)
 
+## Purpose
+
+Provides a baseline for evaluating memory changes to ingestion and snapshot handling.
+
+## Overview
+
+Captures heap measurements for Lexicon-to-Arcana ingestion.
+
 This document freezes the measured baseline used by the Arcana Lexicon ingestion
 memory refactor. It is historical evidence for comparison at later integration
 gates; it is not a fresh benchmark run.
@@ -122,18 +130,10 @@ Do not rerun or replace this baseline merely because implementation work advance
 New measurements are gate results and should be recorded separately with their
 commit, fixture identity, state-directory conditions, and artifact hashes.
 
-## Overview
-
-Captures heap measurements for Lexicon-to-Arcana ingestion.
-
-## Purpose
-
-Provides a baseline for evaluating memory changes to ingestion and snapshot handling.
-
-## Notes
-
-The detailed findings, constraints, and verification evidence are retained in the sections below.
-
 ## Related docs
 
 - [Development Documentation](INDEX.md)
+
+## Notes
+
+Use the commit and snapshot under [Measurement identity](#measurement-identity) to identify the baseline in later comparisons.

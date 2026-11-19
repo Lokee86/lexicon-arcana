@@ -2,6 +2,14 @@
 
 Parent index: [Development Documentation](INDEX.md)
 
+## Purpose
+
+Documents the native adapter transition and its acceptance evidence.
+
+## Overview
+
+Records the Phase 17 Go adapter cutover.
+
 ## Status
 
 **Phase 17 — cutover: COMPLETE.**
@@ -43,18 +51,10 @@ The legacy Go facts-v1 adapter is no longer a runtime fallback or production bui
 
 The next migration phase is **Phase 18 — packaging/runtime**.
 
-## Overview
-
-Records the Phase 17 Go adapter cutover.
-
-## Purpose
-
-Documents the native adapter transition and its acceptance evidence.
-
-## Notes
-
-The detailed findings, constraints, and verification evidence are retained in the sections below.
-
 ## Related docs
 
 - [Development Documentation](INDEX.md)
+
+## Notes
+
+See [Verification](#verification) for the checks run at cutover.

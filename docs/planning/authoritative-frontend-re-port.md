@@ -10,6 +10,10 @@ The primary objective is **semantic authority**: Lexicon should not maintain ano
 
 The secondary objective is **performance**: leverage the mature frontend's optimized parser, binder, type system, project model, caches, incremental machinery, and concurrency instead of reproducing those costs in Lexicon.
 
+## Overview
+
+Plans authoritative language-frontend integration while retaining Lexicon normalization and deterministic fact publication.
+
 ## Target architecture
 
 ```text
@@ -312,14 +316,10 @@ Planned migration order:
 
 C/C++ is the pilot because it combines substantial duplicated compiler machinery with the strongest opportunity to gain both semantic authority and performance from an established compiler frontend.
 
-## Overview
-
-Plans authoritative language-frontend integration while retaining Lexicon normalization and deterministic fact publication.
-
-## Notes
-
-The detailed findings, constraints, and verification evidence are retained in the sections below.
-
 ## Related docs
 
 - [Planning](INDEX.md)
+
+## Notes
+
+See [Current sequencing](#current-sequencing) for the order of work and [Completion gates](#completion-gates) for acceptance criteria.

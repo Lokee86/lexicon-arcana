@@ -6,6 +6,10 @@ Parent index: [Architecture decisions](INDEX.md)
 
 Define the durable boundary between language-authoritative compiler frontends and Lexicon adapters before the remaining language re-port begins.
 
+## Overview
+
+Records the decision that language-native frontends emit semantic observations for Lexicon to normalize.
+
 ## Status
 
 Accepted.
@@ -267,7 +271,3 @@ The boundary is considered correctly implemented when:
 ## Notes
 
 Standardize how authoritative frontend evidence enters Lexicon. Do not standardize the compilers themselves.
-
-## Overview
-
-Records the decision that language-native frontends emit semantic observations for Lexicon to normalize.
