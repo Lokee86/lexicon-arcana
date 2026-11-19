@@ -2,6 +2,14 @@
 
 Parent index: [Development Documentation](INDEX.md)
 
+## Purpose
+
+Documents the native adapter transition and its acceptance evidence.
+
+## Overview
+
+Records the Phase 17 Go adapter cutover.
+
 ## Status
 
 **Phase 17 — cutover: COMPLETE.**
@@ -42,3 +50,11 @@ The Rust adapter still requires the private `lexicon-go-semantic` helper. Phase 
 The legacy Go facts-v1 adapter is no longer a runtime fallback or production build path. It is oracle/history only.
 
 The next migration phase is **Phase 18 — packaging/runtime**.
+
+## Related docs
+
+- [Development Documentation](INDEX.md)
+
+## Notes
+
+See [Verification](#verification) for the checks run at cutover.

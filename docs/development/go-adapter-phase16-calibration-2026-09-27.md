@@ -2,6 +2,14 @@
 
 Parent index: [Development Documentation](INDEX.md)
 
+## Purpose
+
+Establishes regression and determinism evidence for the native Go adapter.
+
+## Overview
+
+Records Phase 16 Go adapter calibration against real repositories and the retained legacy oracle.
+
 ## Status
 
 **Phase 16 — real-repository calibration: COMPLETE.**
@@ -74,3 +82,11 @@ Arcana's compiled edge count is its deduplicated graph representation and is not
 Phase 16 closes with **no unexplained semantic regression** on the required fixture, pinned real-repository, self-host, determinism, and Arcana gates.
 
 The next migration phase is **Phase 17 — cutover**: make the native Rust `GoAdapter` authoritative and remove the standalone legacy Go facts-v1 adapter from the production runtime path while retaining it only as migration oracle/history until final cleanup.
+
+## Related docs
+
+- [Development Documentation](INDEX.md)
+
+## Notes
+
+The [Verification gates](#verification-gates) describe what these calibration results cover.

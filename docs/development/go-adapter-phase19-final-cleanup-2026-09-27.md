@@ -2,6 +2,14 @@
 
 Parent index: [Development Documentation](INDEX.md)
 
+## Purpose
+
+Tracks remaining migration cleanup and verification.
+
+## Overview
+
+Records the final Go adapter cleanup in Phase 19.
+
 ## Status
 
 **Phase 19 — final cleanup: COMPLETE.**
@@ -63,3 +71,11 @@ All Phase 19 gates passed:
 The Go migration has one production implementation boundary, one private language-native helper, one frozen compatibility oracle, and no live legacy adapter path.
 
 Further work on Go is ordinary adapter maintenance or optimization, not migration.
+
+## Related docs
+
+- [Development Documentation](INDEX.md)
+
+## Notes
+
+See [Retained compatibility evidence](#retained-compatibility-evidence) for the artifacts kept after cleanup.
